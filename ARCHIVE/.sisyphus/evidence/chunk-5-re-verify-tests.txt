@@ -1,0 +1,119 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-8.4.2, pluggy-1.6.0 -- /opt/flowmanner/backend/.venv/bin/python
+cachedir: .pytest_cache
+metadata: {'Python': '3.11.14', 'Platform': 'Linux-7.0.12-arch1-1-x86_64-with-glibc2.43', 'Packages': {'pytest': '8.4.2', 'pluggy': '1.6.0'}, 'Plugins': {'mock': '3.15.1', 'timeout': '2.4.0', 'cov': '7.1.0', 'clarity': '1.0.1', 'html': '4.2.0', 'flask': '1.3.0', 'json-report': '1.5.0', 'asyncio': '0.25.3', 'xdist': '3.8.0', 'metadata': '3.1.1', 'Faker': '24.14.1', 'anyio': '4.13.0'}}
+rootdir: /opt/flowmanner/backend
+configfile: pyproject.toml
+plugins: mock-3.15.1, timeout-2.4.0, cov-7.1.0, clarity-1.0.1, html-4.2.0, flask-1.3.0, json-report-1.5.0, asyncio-0.25.3, xdist-3.8.0, metadata-3.1.1, Faker-24.14.1, anyio-4.13.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collecting ... collected 28 items
+
+tests/test_handoff_packet.py::TestHandoffPacketSchema::test_packet_required_fields PASSED [  3%]
+tests/test_handoff_packet.py::TestHandoffPacketSchema::test_packet_budget_must_be_positive_initial PASSED [  7%]
+tests/test_handoff_packet.py::TestHandoffPacketSchema::test_packet_remaining_cannot_be_negative PASSED [ 10%]
+tests/test_handoff_packet.py::TestHandoffPacketSchema::test_packet_extra_forbidden PASSED [ 14%]
+tests/test_handoff_packet.py::TestHandoffPacketSchema::test_packet_serialize_to_json_round_trip PASSED [ 17%]
+tests/test_handoff_packet.py::TestHandoffPacketSchema::test_packet_decimal_preserved PASSED [ 21%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_delegate_with_packet_persists_typed_fields PASSED [ 25%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_delegate_with_packet_claims_lease PASSED [ 28%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_delegate_with_packet_emits_initiated_event PASSED [ 32%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_delegate_with_zero_budget_raises PASSED [ 35%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_delegate_with_cross_workspace_hitl_raises PASSED [ 39%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_delegate_with_unscoped_hitl_item_raises PASSED [ 42%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_accept_with_packet_returns_typed_packet PASSED [ 46%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_accept_with_packet_not_pending_raises PASSED [ 50%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_complete_with_packet_releases_and_emits PASSED [ 53%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_complete_with_overspend_raises_and_emits_budget_exhausted PASSED [ 57%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_backward_compat_delegate_still_works PASSED [ 60%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_complete_with_packet_updates_remaining PASSED [ 64%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_delegate_with_depth_policy_state PASSED [ 67%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_delegate_with_retrieved_context_ids PASSED [ 71%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_accept_with_packet_not_found_raises PASSED [ 75%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_accept_with_packet_emits_lease_lost_when_renew_fails PASSED [ 78%]
+tests/test_handoff_packet.py::TestHandoffProtocolTyped::test_packet_from_record_old_record_fallback PASSED [ 82%]
+tests/test_handoff_lease_integration.py::TestHandoffLeaseIntegration::test_lease_claim_and_release ERROR [ 85%]
+tests/test_handoff_lease_integration.py::TestHandoffLeaseIntegration::test_lease_transfer ERROR [ 89%]
+tests/test_handoff_lease_integration.py::TestHandoffLeaseIntegration::test_lease_renew ERROR [ 92%]
+tests/test_handoff_lease_integration.py::TestHandoffLeaseTransferUnit::test_transfer_without_new_worker_id_uses_instance_default PASSED [ 96%]
+tests/test_handoff_lease_integration.py::TestHandoffLeaseTransferUnit::test_transfer_with_new_worker_id_uses_new_worker PASSED [100%]
+
+==================================== ERRORS ====================================
+__ ERROR at setup of TestHandoffLeaseIntegration.test_lease_claim_and_release __
+file /opt/flowmanner/backend/tests/test_handoff_lease_integration.py, line 24
+      @pytest.mark.asyncio
+      async def test_lease_claim_and_release(self, db_session):
+          """Claim a lease, verify it exists, release it, verify it's gone."""
+          li = HandoffLeaseIntegration(db_session, worker_id="test-worker")
+          run_id = await li.claim_for_handoff("h-int-001", "agent-x")
+          assert run_id == "handoff-h-int-001"
+
+          from app.services.substrate.leases import get_active_lease
+
+          lease = await get_active_lease(db_session, run_id)
+          assert lease is not None
+          assert lease.worker_id == "test-worker"
+
+          await li.release("h-int-001")
+          lease_after = await get_active_lease(db_session, run_id)
+          assert lease_after is None
+E       fixture 'db_session' not found
+>       available fixtures: _configure_application, _monkeypatch_response_class, _push_request_context, _session_event_loop, _session_faker, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, cov, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, json_metadata, live_server, metadata, mock_db, mock_db_session, mock_user, mocker, module_mocker, monkeypatch, no_cover, package_mocker, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, sample_user, session_mocker, test_app, test_client, testrun_uid, tests/test_handoff_lease_integration.py::<event_loop>, tests/test_handoff_lease_integration.py::TestHandoffLeaseIntegration::<event_loop>, tests::<event_loop>, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, v3_client, v3_test_app, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/opt/flowmanner/backend/tests/test_handoff_lease_integration.py:24
+______ ERROR at setup of TestHandoffLeaseIntegration.test_lease_transfer _______
+file /opt/flowmanner/backend/tests/test_handoff_lease_integration.py, line 41
+      @pytest.mark.asyncio
+      async def test_lease_transfer(self, db_session):
+          """Transfer lease from one worker to another."""
+          li1 = HandoffLeaseIntegration(db_session, worker_id="worker-1")
+          await li1.claim_for_handoff("h-int-002", "agent-1")
+
+          await li1.transfer("h-int-002", "agent-1", "agent-2")
+
+          from app.services.substrate.leases import get_active_lease
+
+          lease = await get_active_lease(db_session, "handoff-h-int-002")
+          # After transfer, a new worker holds it (same worker_id since
+          # HandoffLeaseIntegration uses a single worker_id per instance).
+          assert lease is not None
+E       fixture 'db_session' not found
+>       available fixtures: _configure_application, _monkeypatch_response_class, _push_request_context, _session_event_loop, _session_faker, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, cov, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, json_metadata, live_server, metadata, mock_db, mock_db_session, mock_user, mocker, module_mocker, monkeypatch, no_cover, package_mocker, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, sample_user, session_mocker, test_app, test_client, testrun_uid, tests/test_handoff_lease_integration.py::<event_loop>, tests/test_handoff_lease_integration.py::TestHandoffLeaseIntegration::<event_loop>, tests::<event_loop>, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, v3_client, v3_test_app, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/opt/flowmanner/backend/tests/test_handoff_lease_integration.py:41
+________ ERROR at setup of TestHandoffLeaseIntegration.test_lease_renew ________
+file /opt/flowmanner/backend/tests/test_handoff_lease_integration.py, line 56
+      @pytest.mark.asyncio
+      async def test_lease_renew(self, db_session):
+          """Renewing an active lease extends its expiry."""
+          li = HandoffLeaseIntegration(db_session, worker_id="test-worker")
+          await li.claim_for_handoff("h-int-003", "agent-y")
+
+          ok = await li.renew("h-int-003")
+          assert ok is True
+
+          # Renewing a non-existent handoff returns False
+          ok_bad = await li.renew("h-nonexistent")
+          assert ok_bad is False
+
+          await li.release("h-int-003")
+E       fixture 'db_session' not found
+>       available fixtures: _configure_application, _monkeypatch_response_class, _push_request_context, _session_event_loop, _session_faker, accept_any, accept_json, accept_jsonp, accept_mimetype, anyio_backend, anyio_backend_name, anyio_backend_options, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, class_mocker, client, client_class, config, cov, doctest_namespace, event_loop, event_loop_policy, extra, extras, faker, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, include_metadata_in_junit_xml, json_metadata, live_server, metadata, mock_db, mock_db_session, mock_user, mocker, module_mocker, monkeypatch, no_cover, package_mocker, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, sample_user, session_mocker, test_app, test_client, testrun_uid, tests/test_handoff_lease_integration.py::<event_loop>, tests/test_handoff_lease_integration.py::TestHandoffLeaseIntegration::<event_loop>, tests::<event_loop>, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, v3_client, v3_test_app, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/opt/flowmanner/backend/tests/test_handoff_lease_integration.py:56
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32
+  /opt/flowmanner/backend/.venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32: DeprecationWarning: SelectableGroups dict interface is deprecated. Use select.
+    return EntryPoints(ep for group_eps in eps.values() for ep in group_eps)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/test_handoff_lease_integration.py::TestHandoffLeaseIntegration::test_lease_claim_and_release
+ERROR tests/test_handoff_lease_integration.py::TestHandoffLeaseIntegration::test_lease_transfer
+ERROR tests/test_handoff_lease_integration.py::TestHandoffLeaseIntegration::test_lease_renew
+=================== 25 passed, 1 warning, 3 errors in 0.24s ====================

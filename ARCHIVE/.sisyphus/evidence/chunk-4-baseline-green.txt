@@ -1,0 +1,62 @@
+.................................................FFFFF.................. [ 44%]
+........................................................................ [ 89%]
+............FFFFF                                                        [100%]
+=================================== FAILURES ===================================
+/opt/flowmanner/backend/.venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py:929: sqlalchemy.exc.PendingRollbackError: This Session's transaction has been rolled back due to a previous exception during flush. To begin a new transaction with this Session, first issue Session.rollback(). Original exception was: [Errno -2] Name or service not known (Background on this error at: https://sqlalche.me/e/20/7s2a)
+/home/glenn/.local/share/uv/python/cpython-3.11-linux-x86_64-gnu/lib/python3.11/socket.py:974: socket.gaierror: [Errno -2] Name or service not known
+/home/glenn/.local/share/uv/python/cpython-3.11-linux-x86_64-gnu/lib/python3.11/socket.py:974: socket.gaierror: [Errno -2] Name or service not known
+/home/glenn/.local/share/uv/python/cpython-3.11-linux-x86_64-gnu/lib/python3.11/socket.py:974: socket.gaierror: [Errno -2] Name or service not known
+/home/glenn/.local/share/uv/python/cpython-3.11-linux-x86_64-gnu/lib/python3.11/socket.py:974: socket.gaierror: [Errno -2] Name or service not known
+/opt/flowmanner/backend/tests/test_mission_executor.py:23: AssertionError: assert False
+/opt/flowmanner/backend/tests/test_mission_executor.py:48: AttributeError: 'MissionExecutor' object has no attribute '_execute_llm'
+/opt/flowmanner/backend/tests/test_mission_executor.py:73: AttributeError: 'MissionExecutor' object has no attribute '_execute_llm'
+/opt/flowmanner/backend/tests/test_mission_executor.py:98: AttributeError: 'MissionExecutor' object has no attribute '_execute_llm'
+/opt/flowmanner/backend/tests/test_mission_executor.py:114: AttributeError: 'MissionExecutor' object has no attribute '_execute_llm'
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32
+  /opt/flowmanner/backend/.venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32: DeprecationWarning: SelectableGroups dict interface is deprecated. Use select.
+    return EntryPoints(ep for group_eps in eps.values() for ep in group_eps)
+
+tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_insert_succeeds
+  /opt/flowmanner/backend/.venv/lib/python3.11/site-packages/pytest_asyncio/plugin.py:867: DeprecationWarning: The event_loop fixture provided by pytest-asyncio has been redefined in
+  /opt/flowmanner/backend/tests/test_substrate_event_log_integration_pg.py:42
+  Replacing the event_loop fixture with a custom implementation is deprecated
+  and will lead to errors in the future.
+  If you want to request an asyncio event loop with a scope other than function
+  scope, use the "loop_scope" argument to the asyncio mark when marking the tests.
+  If you want to return different types of event loops, use the event_loop_policy
+  fixture.
+
+    warnings.warn(
+
+tests/test_substrate_lease_integration.py::TestClaimAtExecuteStart::test_claim_at_execute_start
+tests/test_substrate_lease_integration.py::TestReleaseOnExit::test_release_on_success
+tests/test_substrate_lease_integration.py::TestReleaseOnExit::test_release_on_exception
+tests/test_substrate_lease_integration.py::TestLeaseDisabledFlag::test_lease_disabled_flag
+tests/test_substrate_lease_integration.py::TestSubstrateEventsEmitted::test_substrate_events_emitted
+  /opt/flowmanner/backend/app/services/substrate/executor.py:687: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    async with db.begin_nested():
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_substrate_lease_integration.py::TestClaimAtExecuteStart::test_claim_at_execute_start
+  /opt/flowmanner/backend/app/services/improvement/failure_repository.py:33: MovedIn20Warning: The ``declarative_base()`` function is now available as sqlalchemy.orm.declarative_base(). (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    Base = declarative_base()
+
+tests/test_substrate_resume_validation.py::TestValidateInFlightNode::test_detects_in_flight_node
+  /home/glenn/.local/share/uv/python/cpython-3.11-linux-x86_64-gnu/lib/python3.11/unittest/mock.py:2133: SAWarning: The garbage collector is trying to clean up non-checked-in connection <AdaptedConnection <asyncpg.connection.Connection object at 0x7fc3181cb5b0>>, which will be terminated.  Please ensure that SQLAlchemy pooled connections are returned to the pool explicitly, either by calling ``close()`` or by using appropriate context managers to manage their lifecycle.
+    setattr(_type, entry, MagicProxy(entry, self))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_insert_succeeds
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_update_rejected_by_trigger
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_delete_rejected_by_trigger
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_trigger_exists_in_database
+FAILED tests/test_substrate_event_log_integration_pg.py::TestAppendOnlyTriggerIntegration::test_trigger_catalog_matches_migration
+FAILED tests/test_mission_executor.py::TestMissionExecutorInterface::test_mission_executor_has_execute_task
+FAILED tests/test_mission_executor.py::TestExecuteLlmErrorPropagation::test_execute_llm_propagates_model_router_failure
+FAILED tests/test_mission_executor.py::TestExecuteLlmErrorPropagation::test_execute_llm_returns_success_true_on_valid_response
+FAILED tests/test_mission_executor.py::TestExecuteLlmErrorPropagation::test_execute_llm_treats_empty_response_as_failure
+FAILED tests/test_mission_executor.py::TestExecuteLlmErrorPropagation::test_execute_llm_returns_failure_when_model_router_unavailable
+10 failed, 151 passed, 9 warnings in 121.33s (0:02:01)

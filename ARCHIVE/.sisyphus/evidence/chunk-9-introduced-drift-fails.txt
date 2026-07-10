@@ -1,0 +1,118 @@
+# Chunk 9 Introduced Drift Failure Evidence
+
+Generated at: 2026-06-13T17:51:25.999167+00:00
+
+## git diff -- backend/app/models/community_models.py before edit
+
+Command: git diff -- backend/app/models/community_models.py
+Exit code: 0
+
+```text
+
+```
+
+## git diff -- backend/app/models/community_models.py after temporary edit
+
+Command: git diff -- backend/app/models/community_models.py
+Exit code: 0
+
+```text
+diff --git a/backend/app/models/community_models.py b/backend/app/models/community_models.py
+index b60b863..062cd13 100644
+--- a/backend/app/models/community_models.py
++++ b/backend/app/models/community_models.py
+@@ -29,6 +29,7 @@ class CommunityTemplate(Base, TimestampMixin):
+     __tablename__ = "community_templates"
+
+     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
++    __test_introduced: Mapped[str] = mapped_column(String(50))
+     title: Mapped[str] = mapped_column(String(255), nullable=False)
+     description: Mapped[str] = mapped_column(Text, nullable=False)
+     author_id: Mapped[str] = mapped_column(String(36), nullable=False)
+```
+
+## sync temporary model edit into backend container
+
+Command: python base64 sync to /app/app/models/community_models.py
+Exit code: 0
+
+```text
+
+```
+
+## bash scripts/validate-migration.sh with introduced column (expected exit 1)
+
+Command: bash scripts/validate-migration.sh
+Exit code: 1
+
+```text
+
+[0;36m[1m>>> Step 1/2: snapshot diff (model/migration drift)[0m
+[0;34m[INFO][0m    Committed host snapshot: /opt/flowmanner/backend/scripts/model_snapshot.json
+[0;34m[INFO][0m    Container snapshot path: /app/scripts/model_snapshot.json
+[0;31m[FAIL][0m    Snapshot drift detected:
+[0;31m[FAIL][0m    + tables.community_templates.columns._CommunityTemplate__test_introduced = VARCHAR(50) (added)
+[0;31m[FAIL][0m    If this drift is intentional, run 'make snapshot-refresh' to update the baseline.
+```
+
+## sync reverted model into backend container
+
+Command: python base64 sync to /app/app/models/community_models.py
+Exit code: 0
+
+```text
+
+```
+
+## make snapshot-refresh after revert
+
+Command: make snapshot-refresh
+Exit code: 0
+
+```text
+[0;32mRefreshing model metadata snapshot...[0m
+docker compose -f /opt/flowmanner/docker-compose.yml exec -T backend python /app/scripts/snapshot_model_metadata.py > /opt/flowmanner/backend/scripts/model_snapshot.json
+[0;32mSnapshot refreshed: /opt/flowmanner/backend/scripts/model_snapshot.json[0m
+```
+
+## git diff -- backend/scripts/model_snapshot.json after snapshot-refresh
+
+Command: git diff -- backend/scripts/model_snapshot.json
+Exit code: 0
+
+```text
+
+```
+
+## make validate-migration after cleanup
+
+Command: make validate-migration
+Exit code: 0
+
+```text
+[0;32mRunning migration validation gate...[0m
+bash /opt/flowmanner/scripts/validate-migration.sh
+
+[0;36m[1m>>> Step 1/2: snapshot diff (model/migration drift)[0m
+[0;34m[INFO][0m    Committed host snapshot: /opt/flowmanner/backend/scripts/model_snapshot.json
+[0;34m[INFO][0m    Container snapshot path: /app/scripts/model_snapshot.json
+[0;32m[OK][0m      No new drift since snapshot
+
+[0;36m[1m>>> Step 2/2: alembic upgrade head --sql (offline render)[0m
+[0;32m[OK][0m      Offline render OK — 3713 lines / 146765 bytes
+[0;34m[INFO][0m      SQL preview: /tmp/flowmanner-migration-check-1432281.sql
+[0;34m[INFO][0m      (delete with: rm /tmp/flowmanner-migration-check-1432281.sql)
+
+[0;36m[1m>>> Validation gate PASSED[0m
+[0;32m[OK][0m      Migration is safe to apply with:
+[0;32m[OK][0m        bash /opt/flowmanner/deploy-backend.sh --migrate
+```
+
+## git diff -- backend/app/models/community_models.py after cleanup
+
+Command: git diff -- backend/app/models/community_models.py
+Exit code: 0
+
+```text
+
+```

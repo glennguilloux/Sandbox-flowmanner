@@ -1,0 +1,131 @@
+# Chunk 9 T8 Makefile snapshot-refresh target evidence
+
+Timestamp: 2026-06-13T13:35:03Z
+
+## Makefile snippets
+
+```make
+211: 	bash $(PROJECT_ROOT)/scripts/validate-migration.sh
+212:
+213: .PHONY: snapshot-refresh
+214: snapshot-refresh: ## Refresh backend/scripts/model_snapshot.json from the running backend container
+215: 	@echo -e "$(GREEN)Refreshing model metadata snapshot...$(RESET)"
+216: 	$(COMPOSE_PROD) exec -T backend python /app/scripts/snapshot_model_metadata.py > $(PROJECT_ROOT)/backend/scripts/model_snapshot.json
+217: 	@echo -e "$(GREEN)Snapshot refreshed: $(PROJECT_ROOT)/backend/scripts/model_snapshot.json$(RESET)"
+218:
+
+219: .PHONY: db-seed-demo
+```
+
+```make
+206: 	@echo -e "$(GREEN)Backup saved to $(PROJECT_ROOT)/backups/$(RESET)"
+207:
+
+208: .PHONY: validate-migration
+209: validate-migration: ## Pre-deploy migration validation gate: snapshot diff + offline SQL render
+210: 	@echo -e "$(GREEN)Running migration validation gate...$(RESET)"
+211: 	bash $(PROJECT_ROOT)/scripts/validate-migration.sh
+212:
+
+213: .PHONY: snapshot-refresh
+```
+
+```make
+362: # ============================================================
+363:
+364: .PHONY: help
+365: help: ## Show this help message
+366: 	@echo ""
+367: 	@echo "Flowmanner Development Commands"
+368: 	@echo "==============================="
+369: 	@echo ""
+370: 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
+371: 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-20s$(RESET) %s\n", $$1, $$2}'
+372: 	@echo ""
+```
+
+## Verification: make help
+
+- Command: `make help`
+- Working directory: `/opt/flowmanner`
+- Exit code: `0`
+
+```text
+Flowmanner Development Commands
+===============================
+
+  backend-shell        Open bash shell in backend container
+  build-backend        Build backend Docker image
+  build-backend-dev    Build backend dev image
+  build                Build all images
+  check-sdk            CI hook — regenerate SDKs and fail if they differ from committed
+  clean                Remove build artifacts and caches
+  db-backup            Backup PostgreSQL database
+  db-current           Show current migration version
+  db-downgrade         Downgrade one migration
+  db-history           Show migration history
+  db-migrate           Create a new Alembic migration (usage: make db-migrate MSG="description")
+  db-seed-demo         Seed demo data (requires ENABLE_DEMO_MODE=true in .env)
+  db-shell             Open psql shell
+  db-upgrade           Upgrade database to latest migration
+  deploy-all           Run deploy-all.sh script
+  deploy-backend       Build and deploy backend
+  deploy               Deploy all (backend + frontend)
+  deploy-frontend      Deploy frontend to VPS
+  dev-backend          [HOMELAB] Start only backend in dev mode (dependencies must be running)
+  dev-build            Build the standalone dev backend image
+  dev-down             Stop self-contained dev environment
+  dev-frontend         Start frontend dev server
+  dev                  [HOMELAB] Start full dev environment with hot reload (requires production compose)
+  dev-logs             [HOMELAB] Tail homelab dev environment logs
+  dev-logs-standalone  Tail standalone dev environment logs
+  dev-reset            Stop self-contained dev environment AND delete all data volumes
+  dev-stop             [HOMELAB] Stop homelab dev environment
+  dev-up               Start self-contained dev environment (works on any machine with Docker)
+  format               Run formatters
+  generate-python-sdk  Regenerate Python SDK from live OpenAPI spec
+  generate-sdk         Regenerate both TypeScript and Python SDKs
+  generate-ts-sdk      Regenerate TypeScript SDK from live OpenAPI spec
+  health               Health check all services
+  help                 Show this help message
+  lint                 Run linters
+  logs-backend         Tail backend logs
+  logs-frontend        Tail frontend logs (VPS)
+  logs                 Tail all container logs
+  ps                   Show container status
+  redis-shell          Open redis-cli shell
+  restart-backend      Restart backend container
+  restart              Restart all containers
+  snapshot-refresh     Refresh backend/scripts/model_snapshot.json from the running backend container
+  test-backend-cov     Run backend tests with coverage
+  test-backend         Run backend pytest
+  test-frontend        Run frontend vitest
+  test                 Run all tests (backend + frontend)
+  validate-migration   Pre-deploy migration validation gate: snapshot diff + offline SQL render
+```
+
+```text
+# stderr
+(empty)
+```
+
+## Verification: make -n snapshot-refresh
+
+- Command: `make -n snapshot-refresh`
+- Working directory: `/opt/flowmanner`
+- Exit code: `0`
+
+```text
+echo -e "\033[0;32mRefreshing model metadata snapshot...\033[0m"
+docker compose -f /opt/flowmanner/docker-compose.yml exec -T backend python /app/scripts/snapshot_model_metadata.py > /opt/flowmanner/backend/scripts/model_snapshot.json
+echo -e "\033[0;32mSnapshot refreshed: /opt/flowmanner/backend/scripts/model_snapshot.json\033[0m"
+```
+
+```text
+# stderr
+(empty)
+```
+
+## LSP diagnostics note
+
+`lsp_diagnostics` reported no Makefile LSP server configured for this extension. Makefile target syntax and recipe were verified with `make help` and `make -n snapshot-refresh`.

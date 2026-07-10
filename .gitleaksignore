@@ -1,0 +1,2 @@
+# False positive: SQL feature-flag name, not a credential (archived historical doc)
+ARCHIVE/.sisyphus/handoffs/exit-audit-2026-06-27-phase2-deploy-verification.md:generic-api-key:42

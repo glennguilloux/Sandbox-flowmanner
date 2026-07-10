@@ -1,0 +1,399 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.8 [39m[90m/home/glenn/FlowmannerV2-frontend[39m
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — structure[2m > [22m[2mshows the node label as header
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — structure[2m > [22m[2mshows the node type badge
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — structure[2m > [22m[2mshows a close button that calls onClose
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — structure[2m > [22m[2mshows Define, Test, and Advanced tabs
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — Define tab (task nodes)[2m > [22m[2mshows Input Schema, Transformation, and Output Schema sections
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — Define tab (task nodes)[2m > [22m[2mshows the NL accelerator bar
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — Define tab (task nodes)[2m > [22m[2mshows System Prompt textarea
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — Define tab (task nodes)[2m > [22m[2mshows Model dropdown and Temp input
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — Define tab (task nodes)[2m > [22m[2mcalls onChange when System Prompt is edited
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — Define tab (task nodes)[2m > [22m[2mshows output schema fields with + Add output field button
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mmodel and temperature[2m > [22m[2mcalls onChange when model dropdown is changed
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mmodel and temperature[2m > [22m[2mrenders all model options
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mmodel and temperature[2m > [22m[2mcalls onChange when temperature is changed
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mmodel and temperature[2m > [22m[2mrenders temperature input with min/max/step
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mNL accelerator[2m > [22m[2mrenders NL accelerator input with placeholder
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mNL accelerator[2m > [22m[2mcalls onChange with promptTemplate when NL text is entered and Enter pressed
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+ [32m✓[39m src/components/ui/__tests__/pagination.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[32m 232[2mms[22m[39m
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — Test tab[2m > [22m[2mshows Sample Input textarea and Run button
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — Test tab[2m > [22m[2mshows output after running test
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — Test tab[2m > [22m[2mcompletes run and shows output after clicking Run
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mmalformed JSON error handling[2m > [22m[2mshows error message when sample input is not valid JSON
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mmalformed JSON error handling[2m > [22m[2mdoes not show error for valid JSON input
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — Advanced tab[2m > [22m[2mshows Timeout and Retries inputs
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/rag/__tests__/document-uploader.test.tsx[2m > [22m[2mDocumentUploader[2m > [22m[2msingle file upload[2m > [22m[2mPOSTs to /api/memory with FormData and Bearer token
+[22m[39mAn update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — Advanced tab[2m > [22m[2mshows default timeout value of 30
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+ [32m✓[39m src/components/analytics/__tests__/AnalyticsDashboard.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 218[2mms[22m[39m
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — Advanced tab[2m > [22m[2mcalls onChange when Timeout is changed
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+ [32m✓[39m src/hooks/__tests__/use-programs.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[33m 469[2mms[22m[39m
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — Advanced tab[2m > [22m[2mcalls onChange when Retries is changed
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+[90mstderr[2m | src/components/mission-builder/PropertiesPanel.test.tsx[2m > [22m[2mPropertiesPanel — edge cases[2m > [22m[2mshows Advanced tab with Timeout/Retries for all configurable types
+[22m[39mYou provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set `onChange`.
+
+ [32m✓[39m src/components/mission-builder/PropertiesPanel.test.tsx [2m([22m[2m50 tests[22m[2m)[22m[33m 506[2mms[22m[39m
+[90mstderr[2m | src/components/rag/__tests__/document-uploader.test.tsx[2m > [22m[2mDocumentUploader[2m > [22m[2msingle file upload[2m > [22m[2mshows a success toast after upload
+[22m[39mAn update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/components/rag/__tests__/document-uploader.test.tsx[2m > [22m[2mDocumentUploader[2m > [22m[2msingle file upload[2m > [22m[2mcalls onUploaded after successful upload
+[22m[39mAn update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/components/rag/__tests__/document-uploader.test.tsx[2m > [22m[2mDocumentUploader[2m > [22m[2mmulti-file upload[2m > [22m[2muploads 3 files sequentially with progress updates
+[22m[39mAn update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/components/settings/__tests__/password-and-code-form.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 361[2mms[22m[39m
+[90mstderr[2m | src/components/rag/__tests__/document-uploader.test.tsx[2m > [22m[2mDocumentUploader[2m > [22m[2mpartial success[2m > [22m[2mshows 1 success + 1 error when second file fails
+[22m[39mAn update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/components/auth/__tests__/credentials-form.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 426[2mms[22m[39m
+[90mstderr[2m | src/components/evaluation/__tests__/evaluation-dashboard.test.tsx[2m > [22m[2mEvaluationDashboard — DatasetsTab[2m > [22m[2mdoes NOT call createDataset on 'Create' submit with empty name (zod rejects)
+[22m[39mAn update to DatasetsTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/components/settings/__tests__/verify-form.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[33m 446[2mms[22m[39m
+[90mstderr[2m | src/components/rag/__tests__/document-uploader.test.tsx[2m > [22m[2mDocumentUploader[2m > [22m[2mpartial success[2m > [22m[2mdoes NOT call onUploaded when ALL files fail
+[22m[39mAn update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/components/rag/__tests__/document-uploader.test.tsx[2m > [22m[2mDocumentUploader[2m > [22m[2mpartial success[2m > [22m[2mshows fallback error message when response has no detail
+[22m[39mAn update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/components/rag/__tests__/document-uploader.test.tsx[2m > [22m[2mDocumentUploader[2m > [22m[2mpartial success[2m > [22m[2mshows fallback when response body is not JSON
+[22m[39mAn update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/components/rag/__tests__/search-bar.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 579[2mms[22m[39m
+[90mstderr[2m | src/components/memory-inspector/__tests__/EditClaimDialog.test.tsx[2m > [22m[2mEditClaimDialog[2m > [22m[2msurfaces the inline error and does NOT call onClose when trigger throws
+[22m[39mFailed to update claim Error: network
+    at [90m/home/glenn/FlowmannerV2-frontend/[39msrc/components/memory-inspector/__tests__/EditClaimDialog.test.tsx:279:43
+    at [90mfile:///home/glenn/FlowmannerV2-frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+    at [90mfile:///home/glenn/FlowmannerV2-frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+    at [90mfile:///home/glenn/FlowmannerV2-frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel [90m(file:///home/glenn/FlowmannerV2-frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10[90m)[39m
+    at [90mfile:///home/glenn/FlowmannerV2-frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/glenn/FlowmannerV2-frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2272:10[90m)[39m
+    at [90mfile:///home/glenn/FlowmannerV2-frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2955:64
+
+[90mstderr[2m | src/components/rag/__tests__/document-uploader.test.tsx[2m > [22m[2mDocumentUploader[2m > [22m[2muploading state (disabled dropzone)[2m > [22m[2mpasses disabled=true to useDropzoneField when uploading
+[22m[39mAn update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to DocumentUploader inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/components/rag/__tests__/document-uploader.test.tsx [2m([22m[2m15 tests[22m[2m)[22m[33m 725[2mms[22m[39m
+ [32m✓[39m src/components/memory-inspector/__tests__/EditClaimDialog.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 507[2mms[22m[39m
+ [32m✓[39m src/components/chat/__tests__/ChatRightSidebar.test.tsx [2m([22m[2m11 tests[22m[2m)[22m[33m 601[2mms[22m[39m
+ [32m✓[39m src/components/marketplace/__tests__/review-component.test.tsx [2m([22m[2m13 tests[22m[2m)[22m[33m 732[2mms[22m[39m
+[90mstderr[2m | src/components/evaluation/__tests__/evaluation-dashboard.test.tsx[2m > [22m[2mEvaluationDashboard — BenchmarksTab[2m > [22m[2mdoes NOT call runBenchmark on 'Run' submit with empty models (zod rejects)
+[22m[39mAn update to BenchmarksTab inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/components/workspace/__tests__/command-center-overview.test.tsx [2m([22m[2m16 tests[22m[2m)[22m[33m 1264[2mms[22m[39m
+     [33m[2m✓[22m[39m shows a loading spinner while fetching data [33m 453[2mms[22m[39m
+ [32m✓[39m src/components/evaluation/__tests__/evaluation-dashboard.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 945[2mms[22m[39m
+     [33m[2m✓[22m[39m does NOT call createDataset on 'Create' submit with empty name (zod rejects) [33m 471[2mms[22m[39m
+     [33m[2m✓[22m[39m does NOT call runBenchmark on 'Run' submit with empty models (zod rejects) [33m 325[2mms[22m[39m
+ [32m✓[39m src/components/mission-builder/nodes/__tests__/RouterNode.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 180[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/use-critiques.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 276[2mms[22m[39m
+[90mstderr[2m | src/components/templates/__tests__/TemplateGallery.test.tsx[2m > [22m[2mTemplateGallery[2m > [22m[2mshows error state on fetch failure
+[22m[39mFailed to fetch templates: Error: Failed to load templates
+    at fetchTemplates [90m(/home/glenn/FlowmannerV2-frontend/[39msrc/components/templates/TemplateGallery.tsx:67:26[90m)[39m
+
+ [32m✓[39m src/components/mission-builder/FlowEditor.test.tsx [2m([22m[2m73 tests[22m[2m)[22m[33m 1354[2mms[22m[39m
+ [32m✓[39m src/components/chat/__tests__/SidebarBody.test.tsx [2m([22m[2m12 tests[22m[2m)[22m[32m 268[2mms[22m[39m
+ [32m✓[39m src/components/templates/__tests__/TemplateGallery.test.tsx [2m([22m[2m8 tests[22m[2m)[22m[32m 270[2mms[22m[39m
+ [32m✓[39m src/components/mission-builder/__tests__/LearningBriefPanel.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 170[2mms[22m[39m
+ [32m✓[39m src/components/critiques/__tests__/AlternativesDrawer.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 219[2mms[22m[39m
+[90mstderr[2m | src/components/triggers/__tests__/TriggerManagement.test.tsx[2m > [22m[2mTriggerManagement[2m > [22m[2mrenders error state on fetch failure
+[22m[39mFailed to fetch triggers: Error: boom
+    at [90m/home/glenn/FlowmannerV2-frontend/[39msrc/components/triggers/__tests__/TriggerManagement.test.tsx:59:41
+    at [90mfile:///home/glenn/FlowmannerV2-frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+    at [90mfile:///home/glenn/FlowmannerV2-frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+    at [90mfile:///home/glenn/FlowmannerV2-frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel [90m(file:///home/glenn/FlowmannerV2-frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10[90m)[39m
+    at [90mfile:///home/glenn/FlowmannerV2-frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2305:20
+    at new Promise (<anonymous>)
+    at runWithTimeout [90m(file:///home/glenn/FlowmannerV2-frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2272:10[90m)[39m
+    at [90mfile:///home/glenn/FlowmannerV2-frontend/[39mnode_modules/[4m.pnpm[24m/@vitest+runner@4.1.8/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2955:64
+
+ [32m✓[39m src/components/triggers/__tests__/TriggerManagement.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 169[2mms[22m[39m
+ [32m✓[39m src/components/critiques/__tests__/CritiquesPage.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 183[2mms[22m[39m
+ [32m✓[39m src/components/dev/InitReactScan.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 131[2mms[22m[39m
+ [32m✓[39m src/components/mission-builder/__tests__/ProgramRunHistory.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 122[2mms[22m[39m
+ [32m✓[39m src/components/memory-inspector/__tests__/MemoryInspector.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[32m 299[2mms[22m[39m
+ [32m✓[39m src/components/mission-builder/__tests__/NewNodeTypes.test.tsx [2m([22m[2m18 tests[22m[2m)[22m[32m 182[2mms[22m[39m
+ [32m✓[39m src/components/mission-builder/__tests__/MissionProgramCreate.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 586[2mms[22m[39m
+       [33m[2m✓[22m[39m shows name error on submit with empty name, does NOT call createProgram [33m 336[2mms[22m[39m
+ [32m✓[39m src/components/__tests__/auto-animate-keys.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 128[2mms[22m[39m
+ [32m✓[39m src/components/chat/__tests__/TokenBar.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[32m 128[2mms[22m[39m
+ [32m✓[39m src/components/mission-builder/__tests__/MissionProgramView.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 97[2mms[22m[39m
+ [32m✓[39m src/components/mission-builder/__tests__/EdgeDataPreview.test.tsx [2m([22m[2m9 tests[22m[2m)[22m[32m 91[2mms[22m[39m
+ [32m✓[39m src/components/chat/__tests__/MessageList.memory-citations.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[32m 142[2mms[22m[39m
+ [32m✓[39m src/components/ui/flow-error-boundary.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 117[2mms[22m[39m
+ [32m✓[39m src/components/ui/error-fallback.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 87[2mms[22m[39m
+ [32m✓[39m src/lib/forms/__tests__/use-dropzone-field.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m src/components/chat/__tests__/MemoryCitationChip.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[32m 81[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/search-highlight.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/useStreaming.memory-citations.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 40[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/useStreaming.tool-calls.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 62[2mms[22m[39m
+ [32m✓[39m src/lib/forms/__tests__/use-zod-form.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m src/lib/schemas/__tests__/memory.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m src/components/chat/__tests__/SSEChat.test.tsx [2m([22m[2m4 tests[22m[2m)[22m[32m 62[2mms[22m[39m
+ [32m✓[39m src/lib/schemas/__tests__/2fa.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/lib/api/__tests__/programs.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m src/lib/schemas/__tests__/auth.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/mission-types.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/lib/schemas/__tests__/marketplace.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/lib/schemas/__tests__/evaluation.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+ [32m✓[39m src/lib/schemas/__tests__/programs.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/chat-types.memory-citation.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/components/critiques/__tests__/parse-alternative.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+ [32m✓[39m src/lib/schemas/__tests__/rag.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m src/lib/api/__tests__/critique.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/graph-utils.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/i18n/locales/__tests__/en-citation-keys.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m src/hooks/__tests__/split-milestones.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m57 passed[39m[22m[90m (57)[39m
+[2m      Tests [22m [1m[32m640 passed[39m[22m[90m (640)[39m
+[2m   Start at [22m 16:11:42
+[2m   Duration [22m 6.41s[2m (transform 5.86s, setup 4.36s, import 17.77s, tests 13.70s, environment 44.45s)[22m

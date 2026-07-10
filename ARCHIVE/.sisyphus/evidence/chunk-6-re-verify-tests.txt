@@ -1,0 +1,83 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-8.4.2, pluggy-1.6.0 -- /opt/flowmanner/backend/.venv/bin/python
+cachedir: .pytest_cache
+metadata: {'Python': '3.11.14', 'Platform': 'Linux-7.0.12-arch1-1-x86_64-with-glibc2.43', 'Packages': {'pytest': '8.4.2', 'pluggy': '1.6.0'}, 'Plugins': {'mock': '3.15.1', 'timeout': '2.4.0', 'cov': '7.1.0', 'clarity': '1.0.1', 'html': '4.2.0', 'flask': '1.3.0', 'json-report': '1.5.0', 'asyncio': '0.25.3', 'xdist': '3.8.0', 'metadata': '3.1.1', 'Faker': '24.14.1', 'anyio': '4.13.0'}}
+rootdir: /opt/flowmanner/backend
+configfile: pyproject.toml
+plugins: mock-3.15.1, timeout-2.4.0, cov-7.1.0, clarity-1.0.1, html-4.2.0, flask-1.3.0, json-report-1.5.0, asyncio-0.25.3, xdist-3.8.0, metadata-3.1.1, Faker-24.14.1, anyio-4.13.0
+timeout: 60.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None
+collecting ... collected 62 items
+
+tests/test_self_correction_loop.py::TestRecoveryPolicyDefaults::test_timeout_maps_to_retry PASSED [  1%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyDefaults::test_network_maps_to_retry PASSED [  3%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyDefaults::test_rate_limit_maps_to_fallback_provider PASSED [  4%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyDefaults::test_resource_maps_to_retry PASSED [  6%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyDefaults::test_validation_maps_to_reflect PASSED [  8%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyDefaults::test_logic_maps_to_reflect PASSED [  9%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyDefaults::test_not_found_maps_to_reflect PASSED [ 11%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyDefaults::test_permission_maps_to_ask_hitl PASSED [ 12%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyDefaults::test_unknown_maps_to_retry PASSED [ 14%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyNonRecoverable::test_non_recoverable_timeout_yields_abort PASSED [ 16%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyNonRecoverable::test_non_recoverable_network_yields_abort PASSED [ 17%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyNonRecoverable::test_non_recoverable_unknown_yields_abort PASSED [ 19%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyRetryDowngrade::test_timeout_with_retry_not_recommended_yields_reflect PASSED [ 20%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyRetryDowngrade::test_network_with_retry_not_recommended_yields_reflect PASSED [ 22%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyOverrides::test_override_changes_action PASSED [ 24%]
+tests/test_self_correction_loop.py::TestRecoveryPolicyOverrides::test_get_policy_returns_dict PASSED [ 25%]
+tests/test_self_correction_loop.py::TestSelfCorrectionBudgetInit::test_default_initialization PASSED [ 27%]
+tests/test_self_correction_loop.py::TestSelfCorrectionBudgetInit::test_custom_initialization PASSED [ 29%]
+tests/test_self_correction_loop.py::TestSelfCorrectionBudgetExhaustion::test_not_exhausted_initially PASSED [ 30%]
+tests/test_self_correction_loop.py::TestSelfCorrectionBudgetExhaustion::test_attempt_budget_exhausted PASSED [ 32%]
+tests/test_self_correction_loop.py::TestSelfCorrectionBudgetExhaustion::test_cost_budget_exhausted PASSED [ 33%]
+tests/test_self_correction_loop.py::TestSelfCorrectionBudgetExhaustion::test_cost_budget_exhausted_when_over PASSED [ 35%]
+tests/test_self_correction_loop.py::TestSelfCorrectionBudgetExhaustion::test_wall_clock_budget_exhausted PASSED [ 37%]
+tests/test_self_correction_loop.py::TestSelfCorrectionBudgetExhaustion::test_wall_clock_not_exhausted_when_fresh PASSED [ 38%]
+tests/test_self_correction_loop.py::TestSelfCorrectionBudgetTracking::test_record_attempt_increments PASSED [ 40%]
+tests/test_self_correction_loop.py::TestSelfCorrectionBudgetTracking::test_record_attempt_accumulates PASSED [ 41%]
+tests/test_self_correction_loop.py::TestSelfCorrectionBudgetTracking::test_can_reflect_true_initially PASSED [ 43%]
+tests/test_self_correction_loop.py::TestSelfCorrectionBudgetTracking::test_can_reflect_false_at_limit PASSED [ 45%]
+tests/test_self_correction_loop.py::TestSelfCorrectionBudgetTracking::test_record_reflection_increments PASSED [ 46%]
+tests/test_self_correction_loop.py::TestSelfCorrectionBudgetTracking::test_to_dict_includes_all_fields PASSED [ 48%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopDecisions::test_correct_returns_retry_for_timeout PASSED [ 50%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopDecisions::test_correct_returns_reflect_for_validation PASSED [ 51%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopDecisions::test_permission_policy_maps_to_ask_hitl PASSED [ 53%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopDecisions::test_permission_error_aborts_via_non_recoverable PASSED [ 54%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopDecisions::test_correct_returns_fallback_provider_for_rate_limit PASSED [ 56%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopDecisions::test_correct_returns_retry_for_network PASSED [ 58%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopDecisions::test_correct_returns_retry_for_unknown PASSED [ 59%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopBudgetExhaustion::test_aborts_when_attempt_budget_exhausted PASSED [ 61%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopBudgetExhaustion::test_aborts_when_cost_budget_exhausted PASSED [ 62%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopBudgetExhaustion::test_aborts_when_wall_clock_exhausted PASSED [ 64%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopBudgetExhaustion::test_budget_is_checked_before_analysis PASSED [ 66%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopErrorClassBudget::test_error_class_budget_exhaustion_yields_abort PASSED [ 67%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopErrorClassBudget::test_permission_budget_zero_yields_abort_immediately PASSED [ 69%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopReflectionLimit::test_reflect_budget_exhausted_downgrades_to_abort_for_validation PASSED [ 70%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopReflectionLimit::test_reflect_budget_exhausted_downgrades_to_retry_when_recommended PASSED [ 72%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopEventEmission::test_emits_attempted_event_on_correction PASSED [ 74%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopEventEmission::test_emits_aborted_event_once_on_budget_exhaustion PASSED [ 75%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopEventEmission::test_emitter_failure_does_not_raise PASSED [ 77%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopEventEmission::test_no_event_when_emitter_is_none PASSED [ 79%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopMarkSuccess::test_mark_success_emits_completed_event PASSED [ 80%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopMarkSuccess::test_mark_success_without_emitter PASSED [ 82%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopMarkSuccess::test_mark_success_emitter_failure_does_not_raise PASSED [ 83%]
+tests/test_self_correction_loop.py::TestSelfCorrectionResultDict::test_result_to_dict PASSED [ 85%]
+tests/test_self_correction_loop.py::TestSelfCorrectionResultDict::test_result_to_dict_on_abort PASSED [ 87%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopSingleton::test_get_returns_same_instance PASSED [ 88%]
+tests/test_self_correction_loop.py::TestSelfCorrectionLoopSingleton::test_reset_clears_singleton PASSED [ 90%]
+tests/test_self_correction_loop.py::TestSelfCorrectionEndToEnd::test_timeout_retry_then_success PASSED [ 91%]
+tests/test_self_correction_loop.py::TestSelfCorrectionEndToEnd::test_validation_reflect_then_success PASSED [ 93%]
+tests/test_self_correction_loop.py::TestSelfCorrectionEndToEnd::test_repeated_failures_exhaust_budget PASSED [ 95%]
+tests/test_self_correction_loop.py::TestSelfCorrectionEndToEnd::test_cost_accumulation_across_error_classes PASSED [ 96%]
+tests/test_self_correction_loop.py::TestSelfCorrectionEndToEnd::test_multiple_tasks_share_budget PASSED [ 98%]
+tests/test_self_correction_loop.py::TestSelfCorrectionEndToEnd::test_event_payload_contains_budget_info PASSED [100%]
+
+=============================== warnings summary ===============================
+.venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32
+  /opt/flowmanner/backend/.venv/lib/python3.11/site-packages/opentelemetry/util/_importlib_metadata.py:32: DeprecationWarning: SelectableGroups dict interface is deprecated. Use select.
+    return EntryPoints(ep for group_eps in eps.values() for ep in group_eps)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 62 passed, 1 warning in 0.10s =========================

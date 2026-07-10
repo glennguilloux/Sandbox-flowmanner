@@ -1,0 +1,156 @@
+$ next build
+[@sentry/nextjs] DEPRECATION WARNING: disableLogger is deprecated and will be removed in a future version. Use webpack.treeshake.removeDebugLogging instead. (Not supported with Turbopack.)
+[@sentry/nextjs] DEPRECATION WARNING: automaticVercelMonitors is deprecated and will be removed in a future version. Use webpack.automaticVercelMonitors instead. (Not supported with Turbopack.)
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /home/glenn/package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles:
+   * /home/glenn/FlowmannerV2-frontend/pnpm-workspace.yaml
+
+▲ Next.js 16.2.6 (Turbopack)
+- Environments: .env.local
+- Experiments (use with caution):
+  · clientTraceMetadata
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+[@sentry/nextjs] DEPRECATION WARNING: disableLogger is deprecated and will be removed in a future version. Use webpack.treeshake.removeDebugLogging instead. (Not supported with Turbopack.)
+[@sentry/nextjs] DEPRECATION WARNING: automaticVercelMonitors is deprecated and will be removed in a future version. Use webpack.automaticVercelMonitors instead. (Not supported with Turbopack.)
+✓ Compiled successfully in 14.9s
+  Running next.config.js provided runAfterProductionCompile ...
+✓ Completed runAfterProductionCompile in 279ms
+  Running TypeScript ...
+  Finished TypeScript in 13.8s ...
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/16) ...
+  Generating static pages using 15 workers (4/16)
+⚠ Unsupported metadata themeColor is configured in metadata export in /_not-found. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport
+  Generating static pages using 15 workers (8/16)
+  Generating static pages using 15 workers (12/16)
+✓ Generating static pages using 15 workers (16/16) in 264ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /_not-found
+├ ƒ /[locale]
+├ ƒ /[locale]/about
+├ ƒ /[locale]/admin
+├ ƒ /[locale]/admin/audit
+├ ƒ /[locale]/admin/features
+├ ƒ /[locale]/admin/maintenance
+├ ƒ /[locale]/admin/system
+├ ƒ /[locale]/admin/users
+├ ƒ /[locale]/agents
+├ ƒ /[locale]/agents/[...slug]
+├ ƒ /[locale]/analytics
+├ ƒ /[locale]/api-reference
+├ ƒ /[locale]/blog
+├ ƒ /[locale]/blog/[slug]
+├ ƒ /[locale]/blog/rss.xml
+├ ƒ /[locale]/blueprints
+├ ƒ /[locale]/browser
+├ ƒ /[locale]/careers
+├ ƒ /[locale]/case-studies
+├ ƒ /[locale]/case-studies/[slug]
+├ ƒ /[locale]/changelog
+├ ƒ /[locale]/chat
+├ ƒ /[locale]/contact
+├ ƒ /[locale]/costs
+├ ƒ /[locale]/critiques
+├ ƒ /[locale]/dashboard
+├ ƒ /[locale]/dashboard/evaluation
+├ ƒ /[locale]/dashboard/programs
+├ ƒ /[locale]/dashboard/programs/[id]
+├ ƒ /[locale]/dashboard/programs/new
+├ ƒ /[locale]/dashboard/settings
+├ ƒ /[locale]/dashboard/settings/integrations
+├ ƒ /[locale]/dashboard/swarm
+├ ƒ /[locale]/developer
+├ ƒ /[locale]/developers
+├ ƒ /[locale]/developers/changelog
+├ ƒ /[locale]/developers/docs
+├ ƒ /[locale]/developers/playground
+├ ƒ /[locale]/developers/sdk
+├ ƒ /[locale]/docs
+├ ƒ /[locale]/documentation
+├ ƒ /[locale]/dpa
+├ ƒ /[locale]/extensions
+├ ƒ /[locale]/feedback
+├ ƒ /[locale]/files
+├ ƒ /[locale]/graphs
+├ ƒ /[locale]/graphs/[id]/executions
+├ ƒ /[locale]/guides
+├ ƒ /[locale]/inbox
+├ ƒ /[locale]/integrations
+├ ƒ /[locale]/invite/[token]
+├ ƒ /[locale]/knowledge
+├ ƒ /[locale]/maintenance
+├ ƒ /[locale]/marketplace
+├ ƒ /[locale]/marketplace/create-listing
+├ ƒ /[locale]/marketplace/listing-detail
+├ ƒ /[locale]/marketplace/my-installed
+├ ƒ /[locale]/marketplace/my-listings
+├ ƒ /[locale]/memory-inspector
+├ ƒ /[locale]/mission-dashboard
+├ ƒ /[locale]/missions
+├ ƒ /[locale]/missions/[id]/observatory
+├ ƒ /[locale]/missions/[id]/replay
+├ ƒ /[locale]/missions/builder
+├ ƒ /[locale]/missions/node-groups
+├ ƒ /[locale]/models
+├ ƒ /[locale]/notifications
+├ ƒ /[locale]/nps
+├ ƒ /[locale]/onboarding
+├ ƒ /[locale]/playground
+├ ƒ /[locale]/pricing
+├ ƒ /[locale]/privacy
+├ ƒ /[locale]/profile
+├ ƒ /[locale]/rag
+├ ƒ /[locale]/register
+├ ƒ /[locale]/roadmap
+├ ƒ /[locale]/runs
+├ ƒ /[locale]/runs/[id]
+├ ƒ /[locale]/security
+├ ƒ /[locale]/server-auth
+├ ƒ /[locale]/settings
+├ ƒ /[locale]/settings/api-keys
+├ ƒ /[locale]/settings/billing
+├ ƒ /[locale]/settings/danger
+├ ƒ /[locale]/settings/notifications
+├ ƒ /[locale]/signin
+├ ƒ /[locale]/signup
+├ ƒ /[locale]/sitemap.xml
+├ ƒ /[locale]/team
+├ ƒ /[locale]/templates
+├ ƒ /[locale]/terms
+├ ƒ /[locale]/tools
+├ ƒ /[locale]/tools/browser
+├ ƒ /[locale]/tools/catalog
+├ ƒ /[locale]/tools/terminal
+├ ƒ /[locale]/tools/topology
+├ ƒ /[locale]/topology
+├ ƒ /[locale]/triggers
+├ ƒ /[locale]/workflows
+├ ƒ /api/auth/[...nextauth]
+├ ƒ /api/auth/avatar
+├ ƒ /api/auth/login
+├ ƒ /api/auth/me
+├ ƒ /api/auth/password
+├ ƒ /api/auth/preview-cookie
+├ ƒ /api/auth/settings
+├ ƒ /api/config/milestones
+├ ƒ /api/og
+├ ƒ /api/onboarding/complete
+├ ƒ /api/onboarding/sample-data
+├ ƒ /api/onboarding/skip
+├ ƒ /api/onboarding/status
+├ ƒ /api/onboarding/step
+└ ƒ /api/onboarding/steps
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

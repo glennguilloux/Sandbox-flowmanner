@@ -1,8 +1,0 @@
-Command: npx playwright test --workers=1 --timeout=30000 --reporter=line
-Working directory: /home/glenn/FlowmannerV2-frontend
-Exit code: 1
-Timestamp UTC: 2026-06-11T19:08:30Z
-Run type: unbounded outer timeout (no shell timeout wrapper)
-Result summary: Running 60 tests using 1 worker; 23 passed; 32 failed; 5.1m total
-Raw evidence: /opt/flowmanner/.sisyphus/evidence/task-10-frontend-playwright-final.txt
-Interpretation: Playwright no longer hangs or times out under the previous 180-second bound. The gate now fails because the current working tree has actual frontend test failures.

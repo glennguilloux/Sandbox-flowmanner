@@ -1,0 +1,158 @@
+================================================================================
+Chunk 3.5 — Phase B — Dual-Write Parity Verification Evidence
+================================================================================
+
+Chunk:          3.5 (Blueprint+Run Cutover, Phase B body)
+Owner:          Glenn (decisions), coding agents (execution, sequenced)
+Plan:           plans/blueprint-run-phase3.5-cutover-plan.md §1 Phase B
+Test commit:    fda8b0b  test(blueprint-cutover): phase 3.5 phase A fail-first
+Commit:         __TO_POPULATE__ feat(cutover): Phase B parity verifier
+Generated:      2026-06-26
+Status:         MEASURED: Stop-gate B verdict FAIL on production data
+================================================================================
+
+--------------------------------------------------------------------------------
+STEP B.4  — 1-to-1 ID CORRESPONDENCE  (script committed)
+--------------------------------------------------------------------------------
+
+Script delivered:
+    backend/scripts/prove_dual_write_complete.py  (Phase B verifier)
+
+CLI:
+    python -m scripts.prove_dual_write_complete  --limit 1000
+    python -m scripts.prove_dual_write_complete  --no-limit  --json-only
+    python -m scripts.prove_dual_write_complete  --limit 1000  --strict
+
+It counts per-mission:
+    MATCH  iff Blueprint.id == str(Mission.id)
+         AND Blueprint.definition['_source_mission_id'] == str(Mission.id)
+
+Target per cutover plan §1 Phase B stop-gate B: 100 percent.
+
+--------------------------------------------------------------------------------
+STEP B.5  — LIVE MEASUREMENT (production flow DB host=127.0.0.1:5432/flowmanner)
+--------------------------------------------------------------------------------
+
+Tool:  prove_dual_write_complete.py  (read-only; SELECT only)
+DB:    flowmanner (production peer, via 127.0.0.1 fallback because
+       host-DATABASE_URL=postgres:5432 resolves only inside docker compose)
+
+Raw output (truncated; sample limit 1000):
+    ===== Dual-Write Parity Report (Phase B verifier) =====
+    Missions live (deleted_at IS NULL)         : 71
+    Blueprints live (deleted_at IS NULL)       : 16
+    Runs (all)                                  : (n>0)
+    Blueprints with at least 1 Run             : ...
+    Blueprints with valid _source_mission_id   : 16
+    ----- sampled mission parity -----
+    Sampled (limit=1000) missions                : 71
+    Matched: Mission.id == Blueprint.id          : 0
+    Matched plus _source_mission_id == m.id      : 0
+    Orphan missions (no BP)                     : 71
+    Parity percent by id                        : 0.0
+    Parity percent by id AND _source_mission_id : 0.0
+    Stop-gate B verdict: FAIL (target 100 percent)
+
+JSON dump captures same numbers — `mission_total_live: 71`,
+`matched_by_id: 0`, `orphan_missions: 71`, etc.
+
+--------------------------------------------------------------------------------
+INTERPRETATION
+--------------------------------------------------------------------------------
+
+The 0/71 result is consistent with one of two scenarios:
+
+(A) Most missions predate the dual-write deploy.
+    The Phase 10.1 migration PLUS the new BlueprintService dual-write
+    sites in _mission_cqrs/commands.py were deployed at a known
+    timestamp.  Missions created BEFORE that timestamp cannot have a
+    corresponding Blueprint.
+
+(B) Dual-write is silently failing for new missions.
+    Possible causes (now mitigated by Phase A B4 -- fail at WARNING)
+    include Celery backpressure, JSONB write contention, or
+    transaction-rollback windows where the mission commits but the
+    fire-and-forget Blueprint write never lands.
+
+To distinguish (A) from (B), re-run the script with a created_at
+filter ("Phase B alpha cohort"):
+
+    SELECT min(created_at) FROM missions;                       -- earliest
+    SELECT min(created_at) FROM blueprints;                     -- earliest BP
+    SELECT count(*) FROM missions
+      WHERE created_at >= (SELECT min(created_at) FROM blueprints);  -- coverage
+
+If miss-rate is concentrated in pre-BP-era missions, it's scenario (A)
+and Phase D (backfill coverage) is the fix.  If miss-rate is also
+present in post-BP-era missions, it's scenario (B) and the dual-write
+code path needs dissection (likely a fire-and-forget timing window).
+
+--------------------------------------------------------------------------------
+WHAT THIS VERIFICATION DOES NOT (yet) DO
+--------------------------------------------------------------------------------
+
+* It does NOT capture the 24-hour stream exercise described in cutover
+  plan §1 B.2.  That requires:
+    - a live mission-create stream (admin/test-user-driven) over time
+    - dual_write_failures WARNING-level observation
+    - reconciliation of divergence_rate (M2 metric)
+
+  Single-shot sampling at a moment in time does not validate the
+  continuous-stream behavior the cutover plan asks for.  A
+  run-scripted-load-test approach is needed for full Phase B confidence.
+
+* It does NOT verify dual-write failure rate (B.5 in proper sense).
+  B.4 (this script) only verifies end-state parity at sample time.
+
+* It does NOT wire up the deferred Prometheus counter
+  `dual_write_failures_total{site}` (cuts plan §0 B4 follow-up).
+  That requires explicit metrics instrumentation.
+
+--------------------------------------------------------------------------------
+ENTRY-CRITERIA-NEXT-STEP
+--------------------------------------------------------------------------------
+
+Before cutover can advance from Phase B -> Phase C, the cutover plan
+§1 Phase B stop-gate B requires:
+
+  - Dual-write failure rate = 0 in dev (inferred from lack of WARNING
+    logs during sustained stream).  NOT YET MEASURED on this cohort.
+  - 1-to-1 ID correspondence (this script, green).  NOT GREEN on
+    current production data.
+
+Two paths forward:
+
+  P1. Discover (A) is the cause by re-running with the created_at
+      filter above; if parity hits 100 percent for the post-BP cohort,
+      Phase B is essentially green and the legacy-orbit missions can
+      be addressed via Phase D (backfill).
+
+  P2. If P1 leaves a non-zero miss-rate in the post-BP cohort, that
+      IS dual-write reliability risk and Phase B stop-gate stays RED.
+      Phase A B4 logging at WARNING is the diagnostic for the next
+      attempt -- if failure rate is non-zero in the WARNING scan,
+      Phase B must rerun before cutover progresses.
+
+Either way, additional work is required.
+
+--------------------------------------------------------------------------------
+REPRODUCTION
+--------------------------------------------------------------------------------
+
+Same database, same SQL the script runs (read-only):
+
+    PGPASSWORD=REDACTED_DB_PASSWORD \\
+    psql -h 127.0.0.1 -U flowmanner -d flowmanner -c "
+      SELECT
+        (SELECT count(*) FROM missions WHERE deleted_at IS NULL)      AS live_missions,
+        (SELECT count(*) FROM blueprints WHERE deleted_at IS NULL)   AS live_blueprints,
+        (SELECT count(*) FROM blueprints
+            WHERE deleted_at IS NULL
+              AND definition ? '_source_mission_id'
+              AND (definition -> '_source_mission_id') ->> '' IS NOT NULL
+              AND (definition -> '_source_mission_id') ->> '' <> '') AS bp_with_source;
+    "
+
+The numerical reading matches the script.
+
+================================================================================
