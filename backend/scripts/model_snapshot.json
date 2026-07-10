@@ -1,7 +1,7 @@
 {
   "alembic_version": "",
   "generated_at": "1970-01-01T00:00:00Z",
-  "model_count": 153,
+  "model_count": 155,
   "tables": [
     {
       "columns": {
@@ -1809,6 +1809,45 @@
         "ix_marketplace_reviews_user_id"
       ],
       "name": "marketplace_reviews",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "amount": "FLOAT",
+        "created_at": "DATETIME",
+        "currency": "VARCHAR(8)",
+        "error": "TEXT",
+        "id": "VARCHAR(36)",
+        "listing_id": "VARCHAR(36)",
+        "payment_ref": "VARCHAR(128)",
+        "refunded_from": "VARCHAR(36)",
+        "status": "VARCHAR(20)",
+        "updated_at": "DATETIME",
+        "user_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_marketplace_transactions_listing_id",
+        "ix_marketplace_transactions_refunded_from",
+        "ix_marketplace_transactions_user_id"
+      ],
+      "name": "marketplace_transactions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "balance": "FLOAT",
+        "created_at": "DATETIME",
+        "currency": "VARCHAR(8)",
+        "id": "VARCHAR(36)",
+        "updated_at": "DATETIME",
+        "user_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_marketplace_wallets_user_id"
+      ],
+      "name": "marketplace_wallets",
       "unique_constraints": []
     },
     {
