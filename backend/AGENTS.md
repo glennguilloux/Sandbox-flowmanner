@@ -9,17 +9,19 @@ You are working on a **FastAPI Python backend** that powers the Flowmanner platf
 ## Backend Identity
 
 - **Framework:** FastAPI 0.115 + Uvicorn 0.34
-- **Python:** 3.11 (slim-bookworm Docker image)
+- **Python:** 3.11 (slim-bookworm Docker image; canonical test env, see Testing)
 - **ORM:** SQLAlchemy 2.0 (async) + Alembic 1.13
-- **Task Queue:** Celery 5.3 + RabbitMQ
-- **Cache:** Redis 4.5
+- **Task Queue:** Celery 5.3 + RabbitMQ (pika also pinned)
+- **Cache:** Redis 7 (host) / `redis>=5.0.0,<6.0.0` pin in requirements.txt
 - **Vector DB:** Qdrant 1.12
-- **LLM:** LangChain 0.1 + OpenAI 1.68
-- **Tracing:** OpenTelemetry → Jaeger
+- **LLM:** LangChain `>=0.2.0,<1.0` + OpenAI `>=1.68.2,<3.0` (AGENTS.md "0.1" is stale)
+- **Tracing:** OpenTelemetry → OTLP/HTTP exporter (Jaeger-compatible)
 - **Validation:** Pydantic 2.10
-- **Auth:** PyJWT 2.8 + passlib + pyotp (2FA)
-- **Logging:** structlog
+- **Auth:** PyJWT 2.8 + passlib + pyotp (2FA); **v3 auth = httpOnly-cookie sessions + scoped AES-256 API keys + OIDC** (see API Structure)
+- **Logging:** structlog (G003/G004 f-string ban, see Logging convention)
 - **Metrics:** prometheus-client
+- **BYOK:** user API keys stored **AES-256 encrypted at rest** (`app.utils.encryption`); never plaintext
+- **Real-time:** Redis pub/sub SSE fan-out for mission / user-notification / HITL-inbox streams (`app/services/sse_service.py`)
 
 ## ⚠️ CRITICAL: No Volume Mounts
 
@@ -78,20 +80,29 @@ backend/
 
 ## API Structure
 
-The backend exposes 60+ endpoint modules under `/api/v1/`:
+**Three API versions are currently mounted** (`app/api/{v1,v2,v3}` + GraphQL on v2).
+Verified module counts (not the "60+ v1 only" claim in older docs):
+`v1` = 77 modules (the long-standing primary surface),
+`v2` = 36 modules (`{data, meta, error}` envelope),
+`v3` = 14 modules (newest — reimplements auth as httpOnly-cookie sessions,
+scoped AES-256 API keys, OIDC, `trace_id` error envelopes; partially adopted).
 
-| Category | Modules |
-|----------|---------|
-| Auth | auth, api_keys, oidc, two_fa |
-| Core | chat, agent, mission, graph, files |
-| Workspace | workspace, tenant, users, roles |
-| Advanced | swarm, templates, triggers, webhooks |
-| Intelligence | llm, llm_advanced, search, rag, memory |
-| Operations | dashboard, analytics, usage, stats, observability |
-| Platform | marketplace, community, changelog, roadmap |
-| Integration | integrations, linear, browser, byok |
-| Quality | evaluation, feedback, reliability |
-| Admin | admin, audit_log, rate_limits, feature_flags |
+> ⚠️ **API-version consolidation is INCOMPLETE.** Frontend still calls `v1`/`v2`
+> paths; `v3` is live but not yet the default. Do NOT assume `v1` is deprecated.
+> Treat version drift as a tracked architectural debt item, not a green-light for
+> broad refactoring (per mission brief: verify the real implementation first).
+
+| Version | Prefix | Modules | Status |
+|---------|--------|---------|--------|
+| v1 | `/api/v1` | 77 | Primary, stable |
+| v2 | `/api/v2` | 36 | Envelope API + GraphQL (`/api/v2/graphql`, sunset advertised) |
+| v3 | `/api/v3` | 14 | New auth/identity surface; partially adopted |
+
+Representative v1 categories: auth, api_keys, oidc, two_fa · chat, agent, mission,
+graph, files · workspace, tenant, users, roles · swarm, templates, triggers, webhooks ·
+llm, llm_advanced, search, rag, memory · dashboard, analytics, usage, stats, observability ·
+marketplace, community, changelog, roadmap · integrations, linear, browser, byok ·
+evaluation, feedback, reliability · admin, audit_log, rate_limits, feature_flags.
 
 ## Database
 
@@ -177,15 +188,33 @@ Add more MCP servers by editing `client_config.json`.
 ## Testing
 
 ```bash
-# Run specific test file
-docker compose exec backend pytest app/tests/test_auth_api.py -v
+# Canonical test environment (matches CI: Python 3.11, pinned requirements.txt)
+# CI installs with: pip install -r requirements.txt  (do NOT improvise a different env)
+# Local `.venv` is already Python 3.11.14 built from requirements.txt.
 
-# Run all tests
-docker compose exec backend pytest app/tests/ -v
+docker compose exec backend pytest app/tests/ -v            # inside container (has PG/Redis)
+pytest tests/ -q --tb=short                                 # host run (see notes below)
 
 # With coverage
 docker compose exec backend pytest app/tests/ -v --cov=app --cov-report=term
 ```
+
+**Host-run semantics (read this before running on the homelab):**
+- The suite is designed to run **inside Docker** (conftest auto-provisions mocked
+  redis/stripe and an isolated engine). On the host, real-DB tests
+  (`requires_postgres` marker or `*_pg.py` files) are **auto-skipped** because the
+  `workflow-postgres` hostname does not resolve outside the compose network —
+  see `tests/conftest.py` (`pop_config_overrides` + the `_pg` skip hook).
+- `app/testing/_env_guard.py` pops `DATABASE_URL`/`REDIS_URL`/`CELERY_*` shell
+  overrides before import, so a stray host env var can't silently redirect tests
+  to a real database.
+- **Guardrail:** never point `DATABASE_URL` at the live `flowmanner` Postgres
+  (host `localhost:5432` maps to the production container). If you need real-DB
+  coverage, run inside the container, not on the host.
+
+**Baseline (run after any refactor):** see `flowmanner-test-baseline` skill —
+runs the default suite + the `_quarantine/` (disabled/failing) set separately so
+regressions are visible.
 
 ## Deploy Process
 
