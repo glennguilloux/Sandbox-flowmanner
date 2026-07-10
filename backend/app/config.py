@@ -278,6 +278,14 @@ class Settings(BaseSettings):
     # Per-tenant or per-user override is intentionally NOT in scope for T33.
     CHAT_MEMORY_CITATIONS_ENABLED: bool = False
 
+    # Q2-C — Token budget for the personal-memory block injected into the
+    # LLM prompt. Independent of CHAT_CONTEXT_TOKEN_BUDGET (which bounds the
+    # *conversation* history pruning) so tuning message pruning never starves
+    # memory. The resolved claim set (E23-B ranked + Tier-0 constraints
+    # protected) is dropped lowest-rank-first when it would exceed this.
+    # 0 disables memory injection entirely (selects nothing).
+    CHAT_MEMORY_INJECTION_TOKEN_BUDGET: int = 600
+
     # SPIKE (ADR-002): ordered prepareStep injection closure for chat.
     # When True, chat context injection (memory + web_search) is routed through
     # ``_prepare_step_inject`` instead of the legacy inline path, and an

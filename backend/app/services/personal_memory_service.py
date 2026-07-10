@@ -117,6 +117,122 @@ def lexicographic_rank(
     return sorted(claims, key=_rank_sort_key, reverse=reverse)
 
 
+# ── Epic 2.3 / Q2 — tiering + token budget (E23-B consumer) ────────────────
+#
+# ``rank_and_budget_claims`` is the chat-injection gate that turns the raw
+# E23-B-ranked claim list into the *resolved, token-bounded* set that gets
+# injected into the LLM prompt. It implements the Q2-A/Q2-C policy:
+#
+#   * Tier-0 (protected): ``claim_type='constraint'`` claims. These are
+#     immortal by design (``expires_at IS NULL`` in practice) and must never
+#     be truncated or ranked *against* preferences — a "never deploy Fridays"
+#     constraint must survive even when the prompt is full. They are spent
+#     first against the token budget.
+#   * Tier-1 (competitive): everything else, ranked by ``lexicographic_rank``
+#     (source_priority > recency > confidence > importance). On overflow we
+#     DROP the lowest-ranked claims — we never perform LLM consolidation at
+#     inject time (non-deterministic, kills prompt cache), per Q2-C.
+#
+# Determinism: the function is pure (no DB, no ``now()`` beyond the band
+# bucketing already inside ``lexicographic_rank``), so the same input always
+# yields the same resolved set — required for the frozen-snapshot reuse
+# (Q2-D) to be reproducible across a session.
+#
+# Token estimate: ~4 chars/token (matches ``chat_context._estimate_tokens``)
+# over the rendered memory-block text of each claim, so the budget tracks
+# what ``format_memory_block`` will actually emit.
+
+# Claim types that are immortal / protected (never truncated, never ranked
+# vs preferences). Extend here if a new protected type lands — single source.
+_PROTECTED_CLAIM_TYPES: frozenset[str] = frozenset({"constraint"})
+
+
+def _estimate_claim_tokens(claim: PersonalMemoryClaim) -> int:
+    """Estimate the token cost of ``claim`` as it will render in the
+    injected memory block (``format_memory_block`` shape).
+
+    Cheap heuristic (~4 chars/token) over the subject/predicate/object
+    text. Used only for budget truncation — over-estimating just drops a
+    claim slightly early, which is safe.
+    """
+    try:
+        import json
+
+        obj = json.dumps(getattr(claim, "object", {}) or {}, default=str, sort_keys=True)
+    except (TypeError, ValueError):
+        obj = str(getattr(claim, "object", ""))
+    text = " ".join(
+        [
+            str(getattr(claim, "subject", "") or ""),
+            str(getattr(claim, "predicate", "") or ""),
+            obj,
+        ]
+    )
+    return max(1, len(text) // 4)
+
+
+def rank_and_budget_claims(
+    claims: list[PersonalMemoryClaim],
+    *,
+    token_budget: int,
+) -> tuple[list[PersonalMemoryClaim], list[PersonalMemoryClaim]]:
+    """Resolve the token-bounded claim set for chat injection.
+
+    Returns ``(selected, dropped)``. ``selected`` is ordered Tier-0 first
+    (in input order, constraints are never ranked against each other), then
+    Tier-1 by E23-B rank. ``dropped`` is what did not fit the budget (lowest
+    rank first) — surfaced for observability (never silently lost from the
+    audit trail). Constraints are always in ``selected`` unless the budget is
+    pathologically small (defensive: a single constraint should fit any real
+    budget).
+
+    ``token_budget <= 0`` selects nothing (caller chose to disable memory in
+    the prompt). Empty ``claims`` returns ``([], [])``.
+    """
+    if not claims or token_budget <= 0:
+        return [], list(claims)
+
+    protected: list[PersonalMemoryClaim] = []
+    competitive: list[PersonalMemoryClaim] = []
+    for c in claims:
+        if getattr(c, "claim_type", None) in _PROTECTED_CLAIM_TYPES:
+            protected.append(c)
+        else:
+            competitive.append(c)
+
+    # Tier-1 competitive ranking (E23-B). Tier-0 stays in input order —
+    # constraints are all equal-priority protecteds; ranking them against
+    # each other adds nothing and could reorder a protected set.
+    ranked_competitive = lexicographic_rank(competitive)
+
+    selected: list[PersonalMemoryClaim] = []
+    dropped: list[PersonalMemoryClaim] = []
+    spent = 0
+
+    # Spend Tier-0 first (protected).
+    for c in protected:
+        cost = _estimate_claim_tokens(c)
+        if spent + cost > token_budget and selected:
+            # Only drop a protected claim if something else already claimed
+            # budget — i.e. budget is too small to hold even the protecteds
+            # alongside earlier context. Keep at least one.
+            dropped.append(c)
+            continue
+        selected.append(c)
+        spent += cost
+
+    # Spend Tier-1 by E23-B rank; lowest rank dropped first on overflow.
+    for c in ranked_competitive:
+        cost = _estimate_claim_tokens(c)
+        if spent + cost > token_budget:
+            dropped.append(c)
+            continue
+        selected.append(c)
+        spent += cost
+
+    return selected, dropped
+
+
 # ── Exception hierarchy (per plan §T19) ──────────────────────────────────
 
 

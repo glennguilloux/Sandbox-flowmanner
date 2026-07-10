@@ -452,12 +452,33 @@ async def _stream_message_to_llm_body(
                     user_id=user_id,
                     workspace_id=thread_for_recall.workspace_id,
                 )
+                # Q2-A/Q2-C: resolve the token-bounded, E23-B-ranked set.
+                # Tier-0 constraints are protected; Tier-1 competitive claims
+                # are dropped lowest-rank-first on overflow. Deterministic
+                # (pure function) so the frozen snapshot stays reproducible.
                 if memory_recall_claims:
-                    logger.info(
-                        "stream_message_to_llm: froze %d memory claims for thread %s",
-                        len(memory_recall_claims),
-                        thread_id,
+                    from app.services.personal_memory_service import (
+                        rank_and_budget_claims,
                     )
+
+                    resolved, _dropped = rank_and_budget_claims(
+                        memory_recall_claims,
+                        token_budget=settings.CHAT_MEMORY_INJECTION_TOKEN_BUDGET,
+                    )
+                    if _dropped:
+                        logger.info(
+                            "stream_message_to_llm: memory budget dropped %d claim(s) " "(kept %d) for thread %s",
+                            len(_dropped),
+                            len(resolved),
+                            thread_id,
+                        )
+                    memory_recall_claims = resolved
+                    if memory_recall_claims:
+                        logger.info(
+                            "stream_message_to_llm: froze %d memory claims for thread %s",
+                            len(memory_recall_claims),
+                            thread_id,
+                        )
             except Exception as recall_err:
                 logger.warning(
                     "stream_message_to_llm: memory recall failed for thread %s, continuing without context: %s",
