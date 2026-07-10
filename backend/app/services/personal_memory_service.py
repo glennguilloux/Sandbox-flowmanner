@@ -53,12 +53,68 @@ from app.models.personal_memory_models import (
     ALL_SCOPES,
     ALL_SENSITIVITIES,
     ALL_SOURCE_TYPES,
+    RECENCY_BANDS_DAYS,
+    SOURCE_PRIORITY,
+    SOURCE_PRIORITY_DEFAULT,
     PersonalMemoryClaim,
+    recency_half_life_band,
+    source_priority_for,
 )
 from app.services.background_task_manager import background_task_manager
 from app.services.memory.poison_scan import scan_for_poison
 
 logger = logging.getLogger(__name__)
+
+
+# ── Epic 2.3 E23-B — lexicographic ranking comparator ─────────────────────
+#
+# Deterministic, integer-only ranking of personal-memory claims for
+# ``recall()``. The policy (per Q1-Q6 decomposition E23-B, superseding the
+# draft-considered confidence-first ordering) is:
+#
+#     source_priority  >  recency_half_life_band  >  confidence  >  importance
+#
+# implemented as an integer tuple compared lexicographically. We deliberately
+# use integer comparisons (not floating weighted sums) so the ordering is
+# **reproducible across machines**: a float weighted sum can differ by ULP
+# between CPU architectures / Python builds and silently flip a tie. The
+# recency axis is bucketed into half-life bands (see
+# ``recency_half_life_band``) so a few-seconds difference in ``created_at``
+# never flips the order. ``source_priority`` is read off the stored (E23-A)
+# column, not derived, so SQL ``ORDER BY source_priority`` and this Python
+# secondary sort agree exactly.
+#
+# Higher tuple sorts FIRST (winner). The stored ``source_priority`` column is
+# already higher-is-better; ``recency_half_life_band`` returns higher=newer;
+# ``confidence`` / ``importance`` are kept as-is (higher = better). For stable,
+# reproducible ties we append ``created_at`` (newer first) and finally the
+# claim ``id`` so two absolutely-identical tuples still compare deterministically
+# instead of by arbitrary Python object id.
+def _rank_sort_key(claim: PersonalMemoryClaim) -> tuple:
+    """Return the lexicographic sort key for a claim (higher tuple = first)."""
+    sp = int(getattr(claim, "source_priority", 0) or 0)
+    band = recency_half_life_band(getattr(claim, "created_at", None))
+    conf = float(getattr(claim, "confidence", 0.0) or 0.0)
+    imp = float(getattr(claim, "importance", 0.0) or 0.0)
+    created = getattr(claim, "created_at", None)
+    # id as a final stable tiebreak (UUIDs sort lexicographically).
+    cid = str(getattr(claim, "id", "") or "")
+    return (sp, band, conf, imp, created, cid)
+
+
+def lexicographic_rank(
+    claims: list[PersonalMemoryClaim],
+    *,
+    reverse: bool = True,
+) -> list[PersonalMemoryClaim]:
+    """Deterministically rank ``claims`` by the E23-B policy.
+
+    ``reverse=True`` (default) puts the winner first. Pure function — no DB,
+    no ``now()`` dependency beyond the deterministic band bucketing, so the
+    result is reproducible. Stable sort (Python's ``sorted`` is stable) means
+    the input order is preserved when all tiebreak axes are equal.
+    """
+    return sorted(claims, key=_rank_sort_key, reverse=reverse)
 
 
 # ── Exception hierarchy (per plan §T19) ──────────────────────────────────
@@ -318,6 +374,9 @@ class PersonalMemoryService:
             confidence=confidence,
             importance=importance,
             sensitivity=sensitivity,
+            # Epic 2.3 E23-A: keep denormalized source priority in sync with
+            # source_type on every write (the migration seeds existing rows).
+            source_priority=source_priority_for(source_type),
             expires_at=expires_at,
         )
         self.db.add(claim)
@@ -625,8 +684,10 @@ class PersonalMemoryService:
         search on the ``(subject, predicate)`` text. Full semantic
         search via embeddings is T20+.
 
-        Sorted by ``confidence DESC, importance DESC, last_used_at
-        DESC NULLS LAST``. Updates ``last_used_at = now()`` for the
+        Sorted by Epic 2.3 E23-B policy: ``source_priority DESC`` (primary,
+        stored column) then a deterministic Python secondary sort
+        ``source_priority > recency_half_life_band > confidence > importance``
+        via ``lexicographic_rank``. Updates ``last_used_at = now()`` for the
         returned rows (one of the few writes this method does).
         """
         if scopes is not None:
@@ -667,19 +728,28 @@ class PersonalMemoryService:
         count_stmt = select(func.count()).select_from(PersonalMemoryClaim).where(where_clause)
         total = (await self.db.execute(count_stmt)).scalar_one()
 
-        # Items: ordered by confidence DESC, importance DESC,
-        # last_used_at DESC NULLS LAST, then limited.
+        # Items: Epic 2.3 E23-B ordering. The primary axis (``source_priority``)
+        # is resolved at the SQL layer so the DB does the heavy lifting and the
+        # ``top_k`` window already favours higher-priority claims. We then apply
+        # ``lexicographic_rank`` as a deterministic Python secondary sort
+        # (``source_priority > recency_half_life_band > confidence >
+        # importance``, integer-only) to guarantee cross-machine reproducible
+        # ordering regardless of float/weighted-sum drift. The last_used_at bump
+        # is unchanged from T19 (it is a usage signal, not a ranking axis).
         items_stmt = (
             select(PersonalMemoryClaim)
             .where(where_clause)
             .order_by(
+                PersonalMemoryClaim.source_priority.desc(),
                 PersonalMemoryClaim.confidence.desc(),
                 PersonalMemoryClaim.importance.desc(),
-                PersonalMemoryClaim.last_used_at.desc().nulls_last(),
             )
             .limit(top_k)
         )
         items = list((await self.db.execute(items_stmt)).scalars().all())
+        # Deterministic final ordering (stable secondary sort). This is the
+        # 2.2 handoff requirement: the frozen snapshot captures a resolved view.
+        items = lexicographic_rank(items)
 
         # Bump last_used_at on the returned rows. The caller will
         # commit (or roll back) at the transaction boundary.

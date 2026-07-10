@@ -73,6 +73,81 @@ ALL_SENSITIVITIES: tuple[str, ...] = (
     "restricted",
 )
 
+# ── Source priority (Epic 2.3 E23-A) ──────────────────────────────────────
+#
+# Precedence map used by the lexicographic ranking comparator (E23-B) and by
+# the conflict-resolution policy. Encodes the provenance authority of each
+# ``source_type``: a human-authored, deliberate fact outranks a
+# human-stated preference which outranks a reviewer/background inference.
+# Higher int = higher authority. ``user_explicit`` (a user typing a fact
+# directly) is the strongest signal; ``program_learning`` (the reviewer /
+# background path) is the weakest because it is gated by human approval and
+# must never silently override a human-stated claim.
+#
+# Stored denormalized on the claim as ``source_priority`` (int) so recall can
+# ORDER BY it at the SQL layer (Q1/Q2/Q5 depend on SQL-level ordering). The
+# migration seeds it from ``source_type``; writes keep it in sync via
+# ``SOURCE_PRIORITY``. This is the single source of truth for the mapping.
+SOURCE_PRIORITY: dict[str, int] = {
+    "user_explicit": 4,
+    "conversation": 3,
+    "mission": 2,
+    "program_learning": 1,
+}
+# Sentinel for any unknown / future source_type not in the map above.
+# Defaults the claim to the lowest authority rather than crashing ranking.
+SOURCE_PRIORITY_DEFAULT: int = 0
+
+# ── Recency half-life bands (Epic 2.3 E23-B) ──────────────────────────────
+#
+# Recency of write is the second axis of the lexicographic comparator. To keep
+# ranking *deterministic and cross-machine reproducible*, tiny absolute time
+# deltas must NOT flip the ordering between two claims — a 3-second difference
+# in ``created_at`` should not move a claim above another. We bucket
+# ``created_at`` into half-life bands (in days): newer = higher band = ranks
+# first. Bands are contiguous and deterministic. ``RECENCY_BANDS_DAYS`` is the
+# single source of truth for band boundaries (see Q1-Q6 decomposition §9.4).
+RECENCY_BANDS_DAYS: tuple[float, ...] = (1.0, 7.0, 30.0, 90.0)
+# band 0 = >90d (oldest), band 4 = <1d (newest). Higher band number ranks first.
+
+
+def recency_half_life_band(created_at: object) -> int:
+    """Return the recency half-life band [0..len(RECENCY_BANDS_DAYS)] for a
+    claim's ``created_at``.
+
+    Higher band = more recent = ranks first. Pure + deterministic (no
+    ``now()`` dependency) so the reported band is stable regardless of when
+    the comparator runs, which is what makes cross-machine replay
+    reproducible. ``None`` (no timestamp) maps to the oldest band (0).
+    """
+    if created_at is None:
+        return 0
+    try:
+        from datetime import UTC, datetime
+
+        if isinstance(created_at, datetime):
+            now = datetime.now(UTC)
+            # Naive timestamp: assume UTC to keep behaviour deterministic.
+            c = created_at.replace(tzinfo=UTC) if created_at.tzinfo is None else created_at
+            age_days = (now - c).total_seconds() / 86400.0
+            if age_days < 0:
+                # Future-dated claim: treat as newest (< 1d band).
+                return len(RECENCY_BANDS_DAYS)
+            for i, threshold in enumerate(RECENCY_BANDS_DAYS):
+                if age_days < threshold:
+                    return len(RECENCY_BANDS_DAYS) - i
+            return 0
+    except Exception:  # pragma: no cover - defensive: unknown type never ranks high
+        return 0
+    return 0
+
+
+def source_priority_for(source_type: str | None) -> int:
+    """Resolve the integer source priority for a ``source_type`` string."""
+    if source_type is None:
+        return SOURCE_PRIORITY_DEFAULT
+    return SOURCE_PRIORITY.get(source_type, SOURCE_PRIORITY_DEFAULT)
+
 
 # ── Model ─────────────────────────────────────────────────────────────────
 
@@ -161,6 +236,20 @@ class PersonalMemoryClaim(Base, TimestampMixin):
     source_id: Mapped[str | None] = mapped_column(
         UUID(as_uuid=True),
         nullable=True,
+    )
+
+    # Epic 2.3 E23-A — denormalized source priority (int) derived from
+    # ``source_type`` via ``SOURCE_PRIORITY``. Stored (not derived at read
+    # time) so recall() can ORDER BY it at the SQL layer, which Q1/Q2/Q5
+    # ranking depend on. Seeded by the E23-A migration; kept in sync on
+    # every write. NOT NULL with a server default so existing rows are
+    # populated by the migration and the column is consistent thereafter.
+    source_priority: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=source_priority_for,
+        server_default="0",
+        index=True,
     )
 
     # TTL + soft delete (all nullable by design).

@@ -5,7 +5,7 @@
 > Sequence context: Epic 2.1 shipped + pushed (`d1720168`, live). Epic 2.2 shipped + live (`a4475c7a`) — frozen snapshot of the canonical store. This doc is the **policy** epic 2.2 explicitly deferred to (see `EPIC-2.2-FROZEN-SNAPSHOT-DESIGN.md:161`, §3.6). 2.2 freezes *whatever the store returns*; 2.3 defines *what the store should return* when multiple live claims overlap.
 > Source of truth for this doc: the code as read on 2026-07-09 (file:line citations below, all re-verified against `main` @ `a4475c7a`).
 
----
+> ⚠️ **SUPERSEDED ON THE `source_priority` COLUMN DECISION (2026-07-10).** This design doc originally chose *Option A — no migration, derive `source_priority` at read time* (see §2). The committed build plan `.sisyphus/plans/Q1-Q6-IMPLEMENTATION-DECOMPOSITION.md` (commit `35f1cee9`) upgraded 2.3 to **E23-A = a stored `source_priority: int` column + Alembic migration**, because Q1/Q2/Q5 ordering must run at the SQL layer (`ORDER BY source_priority`), not in Python. **The E23-A implementation shipped that stored column** (model `PersonalMemoryClaim.source_priority`, migration `20260710_e42_source_priority`, backfilled from `source_type`). Everything else in this doc (detect, surface, never silent-merge, `recall()` reorder) still holds; only the "no migration" premise is overridden by the decomposition plan, which is authoritative for build work.
 
 ## 0. TL;DR — the decision
 
@@ -51,7 +51,7 @@ This is **not** a research spike. It is a scoping + placement decision: *what co
 | `importance` | `float` | Secondary sort in `recall()`; available as a soft signal |
 | `scope`, `sensitivity` | str | Filtering/scrub axes; not precedence |
 
-There is **no `source_priority` numeric column and no `resolution_status` column** — both would be *additive* if we chose the migration path (§2, Option B). Today source priority must be *derived* from `source_type` via a fixed ranking table (§3.1).
+There is **no `resolution_status` column** — that would be *additive* if we chose the persisted-resolution path; it remains deferred. The `source_priority` numeric column **was added** via E23-A (`20260710_e42_source_priority` migration, backfilled from `source_type`) — today source priority is a *stored* integer, not derived at read time. See the supersession note at the top of this doc.
 
 ---
 
@@ -60,10 +60,10 @@ There is **no `source_priority` numeric column and no `resolution_status` column
 | Option | What | Verdict |
 |---|---|---|
 | **A. Detection + surfacing + ordering, migration-free** | Add an `overlaps_with` / `resolution` *view* computed at query time (no new column): (1) a pure function `resolve_claims(claims)` that groups live claims by `(subject)` + overlapping `predicate` and ranks within a group by `source_priority > created_at > confidence`; (2) `recall()` applies this ranking so the top claim of each group wins deterministically and the suppressed ones are annotated; (3) the Inspector gets an `?overlaps_only=true` query param (or a new `/conflicts` route) returning only groups with >1 live claim, each with the chosen winner + the losers. **No schema change, no Alembic migration** — matches 2.2's "mostly wiring" stop-gate. | **RECOMMENDED.** Same blast-radius discipline as 2.2. Resolution is *computed*, not *stored*, so it's always consistent with the current claim set and never drifts. Surfacing is additive to the Inspector. |
-| **B. Detection + persistence (new columns + migration)** | Add `resolution_status` (`live`/`superseded`/`conflict_winner`/`conflict_loser`) and optionally `source_priority` (int) columns, an Alembic migration, and write-time bookkeeping that flips statuses when a conflicting claim lands. | Deferred. Storing resolution status creates a consistency burden (every write must re-resolve the group) and breaks the "no migration" discipline that 2.1/2.2 held. Keep it as a future extension (§3.5) if Glenn later wants materialized conflict state for analytics/inspectability. |
+| **B. Detection + persistence (new columns + migration)** | Add `resolution_status` (`live`/`superseded`/`conflict_winner`/`conflict_loser`) and optionally `source_priority` (int) columns, an Alembic migration, and write-time bookkeeping that flips statuses when a conflicting claim lands. | **Partially adopted for `source_priority` only (see supersession note).** E23-A shipped the `source_priority` int column + migration (`20260710_e42_source_priority`, backfilled from `source_type`) because SQL-level ordering is required by Q1/Q2/Q5. The `resolution_status` persistence + write-time re-resolution is **still deferred** — it remains a future extension (§3.5). |
 | **C. Silent auto-merge** | On overlap, merge the two `object`s or delete the lower-precedence claim automatically. | **Rejected.** The 2.2 doc explicitly says 2.3 "never silently merged." Auto-merge destroys provenance and can erase a correct claim. Humans resolve; the system surfaces + orders. |
 
-**Decision: Option A** — surfacing + deterministic ordering, computed at read time, no migration. B documented as a future extension.
+**Decision: Option A** — surfacing + deterministic ordering, computed at read time. **Partial exception (2026-07-10):** the `*source_priority*` **column** was adopted from Option B via E23-A (stored int + migration `20260710_e42_source_priority`, backfilled from `source_type`) because Q1/Q2/Q5 require SQL-level `ORDER BY source_priority`. The `*resolution_status*` persistence + write-time re-resolution remains deferred (future extension). See the supersession note at the top of this doc.
 
 ---
 
