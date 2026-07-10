@@ -812,6 +812,16 @@ class PersonalMemoryService:
         if not (0.0 <= min_confidence <= 1.0):
             raise PersonalMemoryValidationError(f"min_confidence must be in [0.0, 1.0]; got {min_confidence!r}")
 
+        # Tenant guard — FAIL-CLOSED. A missing/empty tenant must never
+        # silently compile to ``user_id IS NULL`` / ``workspace_id = ''``
+        # (tenant-escape). This is a boundary/security error, distinct from
+        # the fail-open-on-DB-error posture used at runtime.
+        if user_id is None or workspace_id is None or workspace_id == "":
+            raise PersonalMemoryValidationError(
+                "recall requires a resolved user_id and workspace_id; "
+                f"got user_id={user_id!r} workspace_id={workspace_id!r}"
+            )
+
         # Compose predicates.
         now = datetime.now(UTC)
         predicates: list[Any] = [
@@ -951,6 +961,17 @@ class PersonalMemoryService:
         """
         if not (0.0 <= min_confidence <= 1.0):
             min_confidence = 0.0
+
+        # Tenant guard — FAIL-CLOSED (boundary error, NOT a runtime DB error).
+        # See ``recall()`` for rationale. The constraint lane shares the same
+        # ``(user_id, workspace_id)`` scope, so a missing tenant must raise
+        # rather than compile to ``IS NULL`` / ``= ''`` and leak across tenants.
+        if user_id is None or workspace_id is None or workspace_id == "":
+            raise PersonalMemoryValidationError(
+                "constraint-lane recall requires a resolved user_id and workspace_id; "
+                f"got user_id={user_id!r} workspace_id={workspace_id!r}"
+            )
+
         now = datetime.now(UTC)
         q = (query or "").lower().strip()
         # Empty query → the standing-context seed (used by the frozen
@@ -982,7 +1003,7 @@ class PersonalMemoryService:
             rows = list((await self.db.execute(stmt)).scalars().all())
         except Exception as exc:  # fail-open: never brick recall on constraint lane
             logger.warning(
-                "personal_memory: constraint lane recall failed (fail-open); " "user_id=%s workspace_id=%s error=%s",
+                "personal_memory: constraint lane recall failed (fail-open); user_id=%s workspace_id=%s error=%s",
                 user_id,
                 workspace_id,
                 exc,
