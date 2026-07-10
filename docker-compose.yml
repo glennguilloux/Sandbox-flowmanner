@@ -234,8 +234,16 @@ services:
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
       UPLOAD_DIR: /app/uploads
+      # Read-only bridge to the host Hermes Agent state.db so Flowmanner's
+      # /api/hermes-studio router can surface Hermes sessions without the
+      # agent runtime sharing its process. Mounted read-only below.
+      HERMES_STUDIO_STATE_DB: /mnt/hermes-state/state.db
     volumes:
       - uploads_data:/app/uploads
+      # Read-only view of the host Hermes session DB (file is 0644, world-
+      # readable; container runs as 'flowmanner'). The router opens it
+      # read-only (sqlite mode=ro) so it never writes or locks the writer.
+      - /home/glenn/.hermes/state.db:/mnt/hermes-state/state.db:ro
     ports:
       - "8000:8000"
     depends_on:

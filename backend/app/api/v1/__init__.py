@@ -153,6 +153,7 @@ try:
 except Exception as e:
     logger.warning("Skipping notification router: %s", e)
 
+from app.api.v1.hermes_studio import router as hermes_studio_router  # Hermes Studio tricks bridge
 from app.api.v1.strategies import router as strategies_router  # P1-2 — strategy metadata
 from app.api.v1.substrate import router as substrate_router  # H5.2 — replay events
 
@@ -240,6 +241,7 @@ for _name, _router in [
     ("depth-events", depth_events_router),
     ("replay-export", replay_export_router),
     ("strategies", strategies_router),
+    ("hermes-studio", hermes_studio_router),
 ]:
     if _router:
         _prefix = None
