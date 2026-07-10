@@ -59,6 +59,7 @@ from app.services.memory.background_review_prompt import (
     IMPORTANCE_FLOOR,
     REVIEW_PROMPT,
     REVIEWER_ACTION_TO_DB_ACTION,
+    REVIEWER_ACTION_TO_WRITE_TYPE,
     REVIEWER_CONTENT_MAX_CHARS,
     REVIEWER_CONTENT_MIN_CHARS,
     REVIEWER_TOOL_WHITELIST,
@@ -104,6 +105,25 @@ class ProposedWrite:
             PendingWriteAction.REPLACE,
             PendingWriteAction.REMOVE,
         }
+
+
+@dataclass(frozen=True)
+class SkillProposedWrite:
+    """A single skill write the reviewer LLM proposed (Q3-B).
+
+    Validated at parse time against the skill tool whitelist. Skill writes
+    are never destructive (PATCH is a version bump; CREATE is an add), so
+    they follow the same staging rules as memory writes but land in the
+    dedicated ``skills`` table via ``SkillsService`` — not in
+    ``personal_memory_claims`` / ``memory_entries``.
+    """
+
+    action: str  # one of PendingWriteAction.{ADD, REPLACE}
+    name: str
+    body: str
+    frontmatter: dict[str, Any] = field(default_factory=dict)
+    source_type: str = "agent"
+    reasoning: str = ""
 
 
 @dataclass
@@ -570,7 +590,13 @@ class BackgroundReviewService:
 
             # APPROVE -> apply the write.
             result_id: str | None = None
-            if row.action == PendingWriteAction.ADD:
+
+            # Q3-B — skill pending writes land in the dedicated `skills`
+            # table (never claims/entries). Rehydrate the SkillProposedWrite
+            # from the row's `meta` and apply via SkillsService.
+            if (row.meta or {}).get("write_type") == "skill":
+                result_id = await self._apply_approved_skill(db, row)
+            elif row.action == PendingWriteAction.ADD:
                 result_id = await self.add_reviewed_entry(
                     db,
                     workspace_id=row.workspace_id,
@@ -638,6 +664,47 @@ class BackgroundReviewService:
                 exc,
             )
             return None
+
+    async def _apply_approved_skill(
+        self,
+        db: Any,
+        row: Any,
+    ) -> str | None:
+        """Apply an approved skill staging row to the ``skills`` table (Q3-B).
+
+        Rehydrates a ``SkillProposedWrite`` from the ``PendingWrite.meta``
+        that ``apply_skill_writes`` staged, then lands it via
+        ``SkillsService.apply_skill_write`` — which runs the Q3-E guard and
+        GOV-1.2 trust-tier mapping. Returns the new ``Skill.id`` or a
+        sentinel, or ``None`` on failure.
+        """
+        meta = row.meta or {}
+        name = meta.get("skill_name") or ""
+        frontmatter = meta.get("skill_frontmatter") or {}
+        source_type = meta.get("skill_source_type") or "agent"
+        agent_id = meta.get("skill_agent_id")
+        action = meta.get("skill_action") or row.action
+        body = row.content or ""
+
+        if not name or not body:
+            logger.warning(
+                "BackgroundReviewService._apply_approved_skill: row %s missing name/body",
+                row.id,
+            )
+            return None
+        return await self._apply_one_skill(
+            db,
+            workspace_id=row.workspace_id,
+            user_id=row.user_id,
+            agent_id=agent_id,
+            proposed=SkillProposedWrite(
+                action=action,
+                name=name,
+                body=body,
+                frontmatter=frontmatter,
+                source_type=source_type,
+            ),
+        )
 
     async def _audit_review_decision(
         self,
@@ -773,7 +840,7 @@ class BackgroundReviewService:
                     new.meta = new_meta
             except Exception as exc:  # pragma: no cover - defensive
                 logger.warning(
-                    "BackgroundReviewService.supersede_entry: could not tag successor " "meta for old=%s new=%s: %s",
+                    "BackgroundReviewService.supersede_entry: could not tag successor meta for old=%s new=%s: %s",
                     old_entry_id,
                     new_id,
                     exc,
@@ -842,6 +909,85 @@ class BackgroundReviewService:
             if validated is not None:
                 out.append(validated)
         return out
+
+    def parse_reviewer_skills(self, raw: str) -> list[SkillProposedWrite]:
+        """Parse the reviewer's LLM response into ``SkillProposedWrite`` (Q3-B).
+
+        Mirrors ``parse_reviewer_response`` but reads the
+        ``proposed_skills`` envelope key (added by the Q3 reviewer prompt).
+        Drops anything that doesn't pass the skill validation rules.
+        Returns an empty list when there are no skill writes or parse fails.
+        """
+        if not raw or not raw.strip():
+            return []
+
+        payload = _extract_json(raw)
+        if payload is None or not isinstance(payload, dict):
+            return []
+
+        items = payload.get("proposed_skills") or []
+        if not isinstance(items, list):
+            return []
+
+        out: list[SkillProposedWrite] = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            validated = self._validate_proposed_skill(item)
+            if validated is not None:
+                out.append(validated)
+        return out
+
+    def _validate_proposed_skill(self, item: dict[str, Any]) -> SkillProposedWrite | None:
+        """Validate a single raw skill dict against the skill whitelist + bounds.
+
+        Returns ``None`` for rejected skill writes (logged at debug). The
+        PATCH-vs-CREATE decision is intentionally NOT made here — that is
+        the hard downstream guard (``SkillsService.evaluate_skill_write``).
+        """
+        from app.services.skills_service import normalize_skill_name
+
+        raw_action = item.get("action")
+        if raw_action not in REVIEWER_TOOL_WHITELIST:
+            logger.debug(
+                "BackgroundReviewService rejected non-whitelisted skill action=%s",
+                raw_action,
+            )
+            return None
+        db_action = REVIEWER_ACTION_TO_DB_ACTION.get(raw_action)
+        if db_action is None:
+            return None
+
+        name = normalize_skill_name(item.get("name"))
+        if name is None:
+            logger.debug(
+                "BackgroundReviewService rejected skill with invalid name=%r",
+                item.get("name"),
+            )
+            return None
+
+        body = item.get("body")
+        if not isinstance(body, str) or not (REVIEWER_CONTENT_MIN_CHARS <= len(body) <= REVIEWER_CONTENT_MAX_CHARS):
+            logger.debug(
+                "BackgroundReviewService rejected skill body length=%d",
+                len(body) if isinstance(body, str) else -1,
+            )
+            return None
+
+        frontmatter = item.get("frontmatter")
+        if not isinstance(frontmatter, dict):
+            frontmatter = {}
+        source_type = item.get("source_type") or "agent"
+        reasoning = item.get("reasoning") or ""
+
+        return SkillProposedWrite(
+            action=db_action,
+            name=name,
+            body=body,
+            frontmatter=frontmatter,
+            source_type=source_type,
+            reasoning=reasoning,
+        )
 
     def _validate_proposed_write(self, item: dict[str, Any], fallback_reasoning: str) -> ProposedWrite | None:
         """Apply the tool whitelist + bounds checks to a single raw dict.
@@ -923,6 +1069,7 @@ class BackgroundReviewService:
         source_mission_id: str | None,
         proposed: list[ProposedWrite],
         write_approval: bool,
+        proposed_skills: list[SkillProposedWrite] | None = None,
     ) -> ApplyResult:
         """Apply the validated proposed writes to durable storage.
 
@@ -931,6 +1078,10 @@ class BackgroundReviewService:
         ``supersede_entry`` — skipping the queue). If true: stage in
         ``pending_writes``. Destructive writes always stage regardless
         of ``write_approval`` (per user decision 2026-06-17).
+
+        Skill writes (Q3-B) are handled by ``apply_skill_writes`` and land
+        in the dedicated ``skills`` table, not in claims/entries. They are
+        never destructive, so they follow the same staging/direct split.
 
         Every direct write routes through ``create_from_proposal`` so the
         same governance gate (workspace NOT NULL, source_type provenance,
@@ -1059,7 +1210,124 @@ class BackgroundReviewService:
                     result.skipped.append({"action": w.action, "reason": "stage_failed"})
             else:
                 result.skipped.append({"action": w.action, "reason": "unknown_action"})
+
+        # Q3-B — skill writes. Land in the dedicated `skills` table.
+        if proposed_skills:
+            skill_result = await self.apply_skill_writes(
+                db,
+                workspace_id=workspace_id,
+                user_id=user_id,
+                agent_id=agent_id,
+                source_mission_id=source_mission_id,
+                proposed=proposed_skills,
+                write_approval=write_approval,
+            )
+            result.direct_writes.extend(skill_result.direct_writes)
+            result.staged_writes.extend(skill_result.staged_writes)
+            result.skipped.extend(skill_result.skipped)
         return result
+
+    async def apply_skill_writes(
+        self,
+        db: Any,
+        *,
+        workspace_id: str | None,
+        user_id: int,
+        agent_id: str | None,
+        source_mission_id: str | None,
+        proposed: list[SkillProposedWrite],
+        write_approval: bool,
+    ) -> ApplyResult:
+        """Apply validated skill writes to the dedicated ``skills`` table (Q3-B).
+
+        Skills are never destructive (PATCH = version bump, CREATE = add),
+        so there is no ``is_destructive`` short-circuit. They do, however,
+        follow the same staging split as memory writes: when
+        ``write_approval`` is true, they stage in ``pending_writes`` (tagged
+        ``write_type=skill``) and wait for HITL approval; otherwise they
+        apply directly via ``SkillsService.apply_skill_write``.
+
+        Governance parity (Q3-C): every skill write routes through
+        ``SkillsService`` which runs the GOV-1.2 trust-tier mapping and the
+        GOV-1.3a ``scan_for_poison`` on the body — no fast-path that
+        bypasses the gate.
+        """
+        result = ApplyResult()
+        if workspace_id is None:
+            logger.warning(
+                "BackgroundReviewService.apply_skill_writes: workspace_id is None — "
+                "refusing all skill writes (isolation guardrail)"
+            )
+            for s in proposed:
+                result.skipped.append({"action": s.action, "name": s.name, "reason": "no_workspace"})
+            return result
+
+        for s in proposed:
+            if write_approval:
+                # Stage as a skill pending write. The body rides in
+                # `content`; name + frontmatter + provenance in `meta` so
+                # the HITL drain can rehydrate the SkillProposedWrite at
+                # approval time (Q3-B ingestion path).
+                pw_id = await self.stage_pending_write(
+                    db,
+                    workspace_id=workspace_id,
+                    user_id=user_id,
+                    mission_id=source_mission_id,
+                    action=s.action,
+                    content=s.body,
+                    write_type=PendingWriteType.SKILL,
+                    metadata={
+                        "write_type": "skill",
+                        "skill_name": s.name,
+                        "skill_frontmatter": s.frontmatter,
+                        "skill_source_type": s.source_type,
+                        "skill_agent_id": agent_id,
+                    },
+                )
+                if pw_id:
+                    result.staged_writes.append(pw_id)
+                else:
+                    result.skipped.append({"action": s.action, "name": s.name, "reason": "stage_failed"})
+                continue
+
+            # Direct write — HITL not required for this workspace.
+            added = await self._apply_one_skill(
+                db,
+                workspace_id=workspace_id,
+                user_id=user_id,
+                agent_id=agent_id,
+                proposed=s,
+            )
+            if added:
+                result.direct_writes.append(added)
+            else:
+                result.skipped.append({"action": s.action, "name": s.name, "reason": "write_failed"})
+
+        return result
+
+    async def _apply_one_skill(
+        self,
+        db: Any,
+        *,
+        workspace_id: str,
+        user_id: int,
+        agent_id: str | None,
+        proposed: SkillProposedWrite,
+    ) -> str | None:
+        """Apply a single approved skill write via ``SkillsService`` (Q3-B/C)."""
+        from app.services.skills_service import SkillsService
+
+        service = SkillsService(db)
+        return await service.apply_skill_write(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            raw_name=proposed.name,
+            body=proposed.body,
+            frontmatter=proposed.frontmatter,
+            provenance=proposed.source_type,
+            agent_id=agent_id,
+            action=proposed.action,
+        )
 
     # ── Reviewer LLM call (LangGraph path, not chat_service) ──────────
 

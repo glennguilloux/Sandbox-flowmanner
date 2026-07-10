@@ -238,6 +238,9 @@ from app.models.roadmap_models import RoadmapComment, RoadmapItem, RoadmapVote
 # Sandbox models (sandboxd integration)
 from app.models.sandbox_models import MissionSandbox
 
+# Q3 — dedicated skills table (C3 correction: NOT MemoryEntry KV)
+from app.models.skill_models import ALL_SKILL_PROVENANCE, ALL_SKILL_TRUST_TIERS, Skill
+
 # Subscription models (depend on User)
 from app.models.subscription_models import (
     SubscriptionTier,

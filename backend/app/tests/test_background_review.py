@@ -162,8 +162,24 @@ def test_validate_proposed_write_accepts_whitelisted_action():
 
 
 def test_whitelist_contains_only_memory_actions():
-    """The whitelist is exactly the three memory tools (defence in depth)."""
-    assert frozenset({"memory_add", "memory_replace", "memory_remove"}) == REVIEWER_TOOL_WHITELIST
+    """The whitelist is the three memory tools plus the two Q3 skill tools.
+
+    Defence-in-depth: every reviewer action must be enumerated here. Q3-B
+    adds ``skill_create`` / ``skill_patch`` so the reviewer can emit reusable
+    procedures into the dedicated ``skills`` table.
+    """
+    assert (
+        frozenset(
+            {
+                "memory_add",
+                "memory_replace",
+                "memory_remove",
+                "skill_create",
+                "skill_patch",
+            }
+        )
+        == REVIEWER_TOOL_WHITELIST
+    )
 
 
 # ── 4. apply_proposed_writes — direct vs staged ──────────────────────────

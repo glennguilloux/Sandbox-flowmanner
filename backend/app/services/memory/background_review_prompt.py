@@ -38,17 +38,40 @@ REVIEWER_TOOL_WHITELIST: frozenset[str] = frozenset(
         "memory_add",
         "memory_replace",
         "memory_remove",
+        # Q3-B — skill writes. ``skill_create`` is a NEW class-level reusable
+        # procedure; ``skill_patch`` updates an existing skill's body. Both
+        # land in the dedicated ``skills`` table (never ``memory_entries`` /
+        # ``personal_memory_claims``). The reviewer never decides PATCH-vs-
+        # CREATE — that is the hard guard in ``SkillsService`` (Q3-E); the
+        # reviewer only signals intent.
+        "skill_create",
+        "skill_patch",
     }
 )
 
 # Mapping from the reviewer's action name to the ``PendingWriteAction``
 # constant in ``app.models.memory_models``. The migration / DB rows use
 # the short form (``add`` / ``replace`` / ``remove``); the LLM-side
-# action names are the public API surface.
+# action names are the public API surface. Skill actions reuse ``add``
+# (create-intent) / ``replace`` (patch-intent); the actual PATCH-vs-CREATE
+# decision is made downstream by ``SkillsService.evaluate_skill_write``.
 REVIEWER_ACTION_TO_DB_ACTION: dict[str, str] = {
     "memory_add": "add",
     "memory_replace": "replace",
     "memory_remove": "remove",
+    "skill_create": "add",
+    "skill_patch": "replace",
+}
+
+# Reviewer action -> intent write_type. Memory actions target the
+# ``personal_memory_claims`` path; skill actions target the dedicated
+# ``skills`` table (Q3-B).
+REVIEWER_ACTION_TO_WRITE_TYPE: dict[str, str] = {
+    "memory_add": "memory",
+    "memory_replace": "memory",
+    "memory_remove": "memory",
+    "skill_create": "skill",
+    "skill_patch": "skill",
 }
 
 
@@ -59,7 +82,40 @@ decide whether anything is worth remembering. You ONLY propose memory
 writes — you do not run anything, you do not call other tools, you do
 not modify the user's data directly.
 
-## What you may do
+## Skill writes (Q3)
+
+In addition to memory writes, you MAY emit skill writes when the mission
+produced a **reusable, class-level procedure** worth keeping — not a one-off
+fact. A skill is a stable procedure (e.g. "how to deploy the backend image").
+Emit it as a separate block in the SAME JSON object:
+
+```json
+{
+  "reasoning": "<one-sentence rationale>",
+  "proposed_writes": [ ...memory writes... ],
+  "proposed_skills": [
+    {
+      "action": "skill_create" | "skill_patch",
+      "name": "<class-level, stable name; no dates/task-ids, e.g. deploy-backend>",
+      "body": "<the procedure, step by step>",
+      "frontmatter": { "description": "<one line>", "triggers": "<when to use>" },
+      "source_type": "fetched" | "tool_output" | "agent" | "third_party"
+    }
+  ]
+}
+```
+
+Rules:
+- **PATCH first.** If a skill with the same name likely already exists,
+  prefer `skill_patch` to refine it. Only `skill_create` a genuinely new
+  skill. (The system enforces this: a CREATE whose name/body is too close
+  to an existing skill is auto-rejected and you'll be asked to PATCH.)
+- Names must be **class-level and durable** — no `2026-07-10`, no `task-123`,
+  no `pr_42` suffixes. If you don't have a stable name, don't emit a skill.
+- You MUST emit `source_type` on every skill (same governance as memory).
+- Emit ZERO `proposed_skills` when nothing reusable was learned — do not pad.
+
+
 
 You may emit a JSON object with the shape:
 
