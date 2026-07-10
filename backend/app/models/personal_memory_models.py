@@ -252,6 +252,19 @@ class PersonalMemoryClaim(Base, TimestampMixin):
         index=True,
     )
 
+    # Epic 2.3 E23-D — provenance of the *authoring agent* for a claim.
+    # NULL = human-authored (highest trust), mirroring skill_models.agent_id.
+    # Enables Q5 multi-agent memory sharing: an agent can read claims it
+    # authored and human-authored (NULL) claims, but not another agent's
+    # private inferences unless explicitly shared. Read-only column add —
+    # no behavior change; existing rows are NULL (backfilled as NULL = the
+    # strongest trust signal). Indexed for per-agent recall scans.
+    agent_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+    )
+
     # TTL + soft delete (all nullable by design).
     last_used_at: Mapped[DateTime | None] = mapped_column(
         DateTime(timezone=True),
