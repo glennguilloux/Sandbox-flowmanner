@@ -53,15 +53,20 @@ from app.models.personal_memory_models import (
     ALL_SCOPES,
     ALL_SENSITIVITIES,
     ALL_SOURCE_TYPES,
-    RECENCY_BANDS_DAYS,
-    SOURCE_PRIORITY,
-    SOURCE_PRIORITY_DEFAULT,
     PersonalMemoryClaim,
     recency_half_life_band,
     source_priority_for,
 )
 from app.services.background_task_manager import background_task_manager
 from app.services.memory.poison_scan import scan_for_poison
+from app.services.personal_memory_qdrant import (
+    FUZZY_CLAIM_TYPES,
+    QdrantTenantFilterError,
+    canonical_triple_sentence,
+    delete_claim_point,
+    fuzzy_lane_recall,
+    upsert_claim_point,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -231,6 +236,54 @@ def rank_and_budget_claims(
         spent += cost
 
     return selected, dropped
+
+
+# ── Q1-D/E — background Qdrant sync (fire-and-forget from create) ───────────
+#
+# ``_sync_claim_to_qdrant`` is a module-level coroutine spawned via
+# ``background_task_manager`` after a fuzzy claim is created. It embeds the
+# canonical triple sentence and upserts the point (best-effort). Kept at
+# module scope (not a method) so it has no ``self``/session coupling and can
+# run on the background task's own loop. A Qdrant outage or embedding failure
+# returns False and is logged — it must never raise into the spawner.
+
+
+async def _sync_claim_to_qdrant(
+    *,
+    claim_id: str,
+    user_id: int,
+    workspace_id: str,
+    claim_type: str,
+    subject: str,
+    predicate: str,
+    object_value: Any,
+    canonical_text: str,
+) -> None:
+    """Embed + upsert a fuzzy claim's canonical sentence into Qdrant.
+
+    Called fire-and-forget from ``create``. The fail-closed tenant filter in
+    ``upsert_claim_point`` raises on a missing key — that is intentional for
+    a programming error (not a runtime infra miss) and is caught here so the
+    background task logs rather than crashes the manager.
+    """
+    try:
+        if claim_type not in FUZZY_CLAIM_TYPES:
+            # Constraints never enter the vector lane (Q1-B trap).
+            return
+        upsert_claim_point(
+            claim_id=claim_id,
+            user_id=user_id,
+            workspace_id=workspace_id,
+            claim_type=claim_type,
+            canonical_text=canonical_text,
+            object_payload=object_value,
+            subject=subject,
+            predicate=predicate,
+        )
+    except QdrantTenantFilterError as exc:
+        logger.error("personal_memory: qdrant upsert refused (fail-closed) for %s: %s", claim_id, exc)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("personal_memory: qdrant upsert failed for %s (%s)", claim_id, exc)
 
 
 # ── Exception hierarchy (per plan §T19) ──────────────────────────────────
@@ -510,6 +563,27 @@ class PersonalMemoryService:
             user_id=user_id,
             workspace_id=workspace_id,
         )
+        # Q1-D/E — mirror the new claim into the global Qdrant collection for
+        # the fuzzy (dense + BM25) recall lane. Embed the CANONICAL triple
+        # sentence, not the raw object JSONB (Q1-D). The upsert is best-effort
+        # and runs in the background so the request stays on the SQL path; a
+        # Qdrant outage must never fail a memory write. Constraints are
+        # excluded from the vector lane by construction (create_validated
+        # only upserts if claim_type is in FUZZY_CLAIM_TYPES — the Q1-B trap).
+        if claim_type in FUZZY_CLAIM_TYPES:
+            background_task_manager.spawn(
+                _sync_claim_to_qdrant(
+                    claim_id=str(claim.id),
+                    user_id=user_id,
+                    workspace_id=workspace_id,
+                    claim_type=claim_type,
+                    subject=subject,
+                    predicate=predicate,
+                    object_value=object,
+                    canonical_text=canonical_triple_sentence(subject, predicate, object),
+                ),
+                label="personal_memory:qdrant_upsert",
+            )
         # Epic 2.2 write-invalidation: a new claim write for
         # (user_id, workspace_id) bumps the frozen-snapshot generation
         # counter. The snapshot service re-captures lazily on next access
@@ -613,7 +687,7 @@ class PersonalMemoryService:
             scan = scan_for_poison(content, getattr(proposed, "old_text", None))
             if scan.flagged:
                 logger.warning(
-                    "personal_memory.create_from_proposal: GOV-1.3a flagged " "write user=%s hits=%s severity=%s",
+                    "personal_memory.create_from_proposal: GOV-1.3a flagged write user=%s hits=%s severity=%s",
                     user_id,
                     scan.hits,
                     scan.severity,
@@ -891,6 +965,49 @@ class PersonalMemoryService:
                 count=len(items),
             )
 
+        # Q1-C/D/E — union the fuzzy lane (dense + BM25 via RRF) for the
+        # fact/preference/observation claims. Each claim lives in exactly one
+        # lane (partition on claim_type), so unioning by claim_id is
+        # dedup-safe — no claim is double-counted. The fuzzy lane is additive
+        # to the competitive substring recall above: it surfaces
+        # semantically/lexically related fuzzy claims the substring gate
+        # missed, without touching constraints (those belong only to the Q1-B
+        # lane). The vector/dense search inside the lane EXCLUDES constraints
+        # by construction (the Q1-B trap guard in the wrapper).
+        try:
+            fuzzy_claims = await self._recall_fuzzy_lane(
+                user_id=user_id,
+                workspace_id=workspace_id,
+                query=query,
+                min_confidence=min_confidence,
+                top_k=top_k,
+            )
+        except QdrantTenantFilterError as exc:
+            # Fail-closed filter firing here means a misconfigured call
+            # (missing tenant key) reached recall — surface loudly, do not
+            # broad-match. This should never happen from a real caller.
+            logger.error("personal_memory: recall fuzzy lane refused (fail-closed): %s", exc)
+            fuzzy_claims = []
+        except Exception as exc:  # fail-open: never brick recall on vector lane
+            logger.warning(
+                "personal_memory: fuzzy lane recall failed (fail-open); user_id=%s workspace_id=%s error=%s",
+                user_id,
+                workspace_id,
+                exc,
+            )
+            fuzzy_claims = []
+
+        if fuzzy_claims:
+            seen_ids = {c.id for c in items}
+            for c in fuzzy_claims:
+                if c.id not in seen_ids:
+                    items.append(c)
+                    seen_ids.add(c.id)
+            # Re-apply deterministic ranking so fuzzy finds interleave with
+            # the competitive substring hits before the constraint lane and
+            # the caller's budget gate.
+            items = lexicographic_rank(items)
+
         # Q1-B — union the dedicated constraint lane. Constraints are retrieved
         # by exact/lexical match (never vectorized, never fuzzy-dependent) and
         # merged in so a standing prohibition ("never deploy Fridays") always
@@ -982,7 +1099,7 @@ class PersonalMemoryService:
             rows = list((await self.db.execute(stmt)).scalars().all())
         except Exception as exc:  # fail-open: never brick recall on constraint lane
             logger.warning(
-                "personal_memory: constraint lane recall failed (fail-open); " "user_id=%s workspace_id=%s error=%s",
+                "personal_memory: constraint lane recall failed (fail-open); user_id=%s workspace_id=%s error=%s",
                 user_id,
                 workspace_id,
                 exc,
@@ -990,7 +1107,97 @@ class PersonalMemoryService:
             return []
         return rows
 
+    async def _recall_fuzzy_lane(
+        self,
+        *,
+        user_id: int,
+        workspace_id: str,
+        query: str,
+        min_confidence: float = 0.0,
+        top_k: int = 20,
+    ) -> list[PersonalMemoryClaim]:
+        """Q1-C/D/E — fuzzy recall lane (dense + BM25 via RRF).
+
+        Returns ``PersonalMemoryClaim`` rows for the tenant's FUZZY claim types
+        (``fact`` / ``preference`` / ``observation``) that are semantically or
+        lexically related to ``query``. Constraints are explicitly excluded —
+        they belong only to the Q1-B lexical lane (the inversion trap).
+
+        Pipeline:
+          1. Load active FUZZY claims (SQL, tenant-isolated) → ``corpus``.
+          2. Run ``fuzzy_lane_recall`` (sync, via ``asyncio.to_thread``) to
+             fuse a dense Qdrant cosine search with BM25 over the corpus.
+          3. Re-fetch the fused ids from SQL (single canonical source) so we
+             return real ORM rows, not point payloads.
+
+        Returns ``[]`` when there are no fuzzy claims (the cosine + BM25
+        helpers already degrade gracefully on an empty corpus). The
+        ``QdrantTenantFilterError`` from the wrapper is NOT caught here — it
+        is fail-closed and must propagate to ``recall`` (which logs loudly and
+        continues open). A Qdrant outage degrades to BM25-only inside the
+        helper, so recall still returns lexical matches.
+        """
+        now = datetime.now(UTC)
+        # Step 1: corpus of active fuzzy claims (SQL is the source of truth).
+        corpus_stmt = select(PersonalMemoryClaim).where(
+            and_(
+                PersonalMemoryClaim.user_id == user_id,
+                PersonalMemoryClaim.workspace_id == workspace_id,
+                PersonalMemoryClaim.claim_type.in_(FUZZY_CLAIM_TYPES),
+                PersonalMemoryClaim.deleted_at.is_(None),
+                or_(
+                    PersonalMemoryClaim.expires_at.is_(None),
+                    PersonalMemoryClaim.expires_at > now,
+                ),
+                PersonalMemoryClaim.confidence >= min_confidence,
+            )
+        )
+        fuzzy_rows = list((await self.db.execute(corpus_stmt)).scalars().all())
+        if not fuzzy_rows:
+            return []
+
+        corpus = [(str(c.id), canonical_triple_sentence(c.subject, c.predicate, c.object)) for c in fuzzy_rows]
+        # Step 2: fused ids (dense + BM25). Sync call off the event loop.
+        fused_ids = await asyncio.to_thread(
+            fuzzy_lane_recall,
+            user_id=user_id,
+            workspace_id=workspace_id,
+            query=query,
+            corpus=corpus,
+            limit=top_k,
+        )
+        if not fused_ids:
+            return []
+
+        # Step 3: canonical re-fetch of the fused ids (single source of truth).
+        fused = {uuid.UUID(i) for i in fused_ids}
+        stmt = select(PersonalMemoryClaim).where(
+            and_(
+                PersonalMemoryClaim.user_id == user_id,
+                PersonalMemoryClaim.workspace_id == workspace_id,
+                PersonalMemoryClaim.id.in_(fused),
+                PersonalMemoryClaim.deleted_at.is_(None),
+            )
+        )
+        refetched = list((await self.db.execute(stmt)).scalars().all())
+        # Preserve the fused ranking order (RRF score → higher first).
+        order = {cid: idx for idx, cid in enumerate(fused_ids)}
+        refetched.sort(key=lambda c: order.get(str(c.id), len(order)))
+        return refetched
+
     # ── CRUD: forget ────────────────────────────────────────────────
+
+    async def _sync_claim_deletion(self, claim_id: str) -> None:
+        """Q1-E — best-effort remove a claim's Qdrant point (on forget).
+
+        Soft-delete already hides the row from SQL recall; we also drop the
+        vector point so the fuzzy lane cannot surface a forgotten claim.
+        Never raises — a Qdrant outage is non-fatal to the forget operation.
+        """
+        try:
+            delete_claim_point(claim_id)
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.debug("personal_memory: qdrant delete failed for %s (%s)", claim_id, exc)
 
     async def forget(
         self,
@@ -1027,6 +1234,10 @@ class PersonalMemoryService:
                 workspace_id=workspace_id,
                 hard=True,
             )
+            background_task_manager.spawn(
+                self._sync_claim_deletion(str(claim_id)),
+                label="personal_memory:qdrant_delete",
+            )
             return claim
 
         # Soft-delete: idempotent.
@@ -1054,6 +1265,10 @@ class PersonalMemoryService:
             user_id=user_id,
             workspace_id=workspace_id,
             hard=False,
+        )
+        background_task_manager.spawn(
+            self._sync_claim_deletion(str(claim_id)),
+            label="personal_memory:qdrant_delete",
         )
         return claim
 
