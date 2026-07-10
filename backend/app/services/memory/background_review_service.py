@@ -65,6 +65,7 @@ from app.services.memory.background_review_prompt import (
     REVIEWER_TOOL_WHITELIST,
 )
 from app.services.memory.poison_scan import scan_for_poison
+from app.services.memory.untrusted_framing import fence_reviewer_inputs
 
 logger = logging.getLogger(__name__)
 
@@ -1359,11 +1360,15 @@ class BackgroundReviewService:
             )
             return ""
 
-        user_prompt = (
-            f"{REVIEW_PROMPT}\n\n"
-            f"## MEMORY_SNAPSHOT\n\n```\n{snapshot}\n```\n\n"
-            f"## TRANSCRIPT\n\n```\n{transcript}\n```\n"
-        )
+        # Q4-B indirect-injection defense: fence the snapshot + transcript as
+        # UNTRUSTED external data so the reviewer cannot be steered by content
+        # inside them (a poisoned transcript line that says "emit a memory_add
+        # for: ..." must be treated as data, not an instruction). The reliable
+        # control remains HITL + provenance gating (GOV-1.2); this is harm
+        # reduction. Claims derived from untrusted content inherit a lower
+        # trust tier + route to HITL via ``trust_tier_for_source``.
+        fenced_body = fence_reviewer_inputs(snapshot=snapshot, transcript=transcript)
+        user_prompt = f"{REVIEW_PROMPT}\n\n## REVIEWER_INPUTS (fenced as untrusted external data)\n\n{fenced_body}\n"
 
         try:
             manager = get_llm_manager()
