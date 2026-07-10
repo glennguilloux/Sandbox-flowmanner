@@ -42,7 +42,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import Text, and_, func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 
 if TYPE_CHECKING:
@@ -891,7 +891,104 @@ class PersonalMemoryService:
                 count=len(items),
             )
 
+        # Q1-B — union the dedicated constraint lane. Constraints are retrieved
+        # by exact/lexical match (never vectorized, never fuzzy-dependent) and
+        # merged in so a standing prohibition ("never deploy Fridays") always
+        # reaches the ranked output regardless of the competitive substring
+        # gate above. Dedup by id (a constraint the main query already caught
+        # is not duplicated).
+        constraint_claims = await self._recall_constraint_lane(
+            user_id=user_id,
+            workspace_id=workspace_id,
+            query=query,
+            min_confidence=min_confidence,
+        )
+        if constraint_claims:
+            seen_ids = {c.id for c in items}
+            for c in constraint_claims:
+                if c.id not in seen_ids:
+                    items.append(c)
+                    seen_ids.add(c.id)
+            # Re-apply deterministic ranking so constraints land in their
+            # correct Tier-0 position before the caller's budget gate.
+            items = lexicographic_rank(items)
+
         return items, int(total)
+
+    async def _recall_constraint_lane(
+        self,
+        *,
+        user_id: int,
+        workspace_id: str,
+        query: str,
+        min_confidence: float = 0.0,
+    ) -> list[PersonalMemoryClaim]:
+        """Q1-B — dedicated constraint lane (CORRECTION C2).
+
+        Retrieve the user's standing ``constraint`` claims by **exact /
+        lexical** match only. Constraints are NEVER vectorized or fuzzy-
+        substring matched against the competitive (fact/preference) lane —
+        that is the inversion trap: a "never deploy Fridays" constraint must
+        not be cosine/contains-matched against a "deploy Fridays" query and
+        silently lost.
+
+        Match semantics (lexical, additive to the competitive recall):
+          * keyword/containment over the canonical constraint text
+            (subject, predicate, and the ``object`` JSONB serialized to text),
+            OR
+          * an exact ``object`` match — if the query's normalized tokens
+            appear verbatim in the constraint's ``object`` payload.
+
+        Tenant-scoped on ``(user_id, workspace_id)`` exactly like the main
+        recall; excludes deleted/expired rows. The lane is deliberately
+        independent of the competitive substring gate in ``recall`` so a
+        standing constraint is surfaced whenever it is lexically relevant,
+        not only when the fuzzy matcher fires.
+
+        This method NEVER raises on DB error — the caller (recall) treats a
+        constraint-lane failure as "no extra constraints" (fail-open, same
+        posture as the enforcement half in ``pre_tool_constraints``).
+        """
+        if not (0.0 <= min_confidence <= 1.0):
+            min_confidence = 0.0
+        now = datetime.now(UTC)
+        q = (query or "").lower().strip()
+        # Empty query → the standing-context seed (used by the frozen
+        # snapshot). Return ALL active constraints for the tenant (a standing
+        # constraint applies to the whole session, not just matched turns).
+        predicates: list[Any] = [
+            PersonalMemoryClaim.user_id == user_id,
+            PersonalMemoryClaim.workspace_id == workspace_id,
+            PersonalMemoryClaim.claim_type == "constraint",
+            PersonalMemoryClaim.deleted_at.is_(None),
+            or_(
+                PersonalMemoryClaim.expires_at.is_(None),
+                PersonalMemoryClaim.expires_at > now,
+            ),
+            PersonalMemoryClaim.confidence >= min_confidence,
+        ]
+        if q:
+            # Lexical containment over canonical text + serialized object.
+            object_text = func.lower(func.cast(PersonalMemoryClaim.object, Text))
+            predicates.append(
+                or_(
+                    func.lower(PersonalMemoryClaim.subject).contains(q),
+                    func.lower(PersonalMemoryClaim.predicate).contains(q),
+                    object_text.contains(q),
+                )
+            )
+        stmt = select(PersonalMemoryClaim).where(and_(*predicates))
+        try:
+            rows = list((await self.db.execute(stmt)).scalars().all())
+        except Exception as exc:  # fail-open: never brick recall on constraint lane
+            logger.warning(
+                "personal_memory: constraint lane recall failed (fail-open); " "user_id=%s workspace_id=%s error=%s",
+                user_id,
+                workspace_id,
+                exc,
+            )
+            return []
+        return rows
 
     # ── CRUD: forget ────────────────────────────────────────────────
 
