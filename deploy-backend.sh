@@ -200,7 +200,7 @@ boot_smoke_test() {
   fi
 
   local env_file
-  env_file=$(mktemp /tmp/flowmanger-boot-smoke-env.XXXXXX.txt)
+  env_file=$(mktemp /tmp/flowmanner-boot-smoke-env.XXXXXX.txt)
   docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$BACKEND_CONTAINER" > "$env_file"
 
   local net

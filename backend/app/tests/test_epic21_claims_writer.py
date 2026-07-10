@@ -16,7 +16,7 @@ write target is ``personal_memory_claims`` (the only store the live
 
 Run from YOUR worktree's ``backend/`` dir (so ``import app`` resolves to
 the worktree copy under test):
-    /opt/flowmanger/backend/.venv/bin/python -m pytest app/tests/test_epic21_claims_writer.py -v
+    /opt/flowmanner/backend/.venv/bin/python -m pytest app/tests/test_epic21_claims_writer.py -v
 """
 
 from __future__ import annotations
