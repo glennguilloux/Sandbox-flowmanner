@@ -83,14 +83,10 @@ async def list_listings(
     if featured is not None:
         filters["featured"] = featured
 
-    listings = await asyncio.to_thread(
-        service.search, query=q, filters=filters, sort_by=sort, limit=per_page, offset=offset
-    )
+    listings = await service.search(query=q, filters=filters, sort_by=sort, limit=per_page, offset=offset)
 
     # Get total count for pagination (separate query, same filters)
-    count_listings = await asyncio.to_thread(
-        service.search, query=q, filters=filters, sort_by=sort, limit=10000, offset=0
-    )
+    count_listings = await service.search(query=q, filters=filters, sort_by=sort, limit=10000, offset=0)
     total = len(count_listings)
 
     return ok(
@@ -147,16 +143,14 @@ async def create_listing(
 
     try:
         if body.listing_type == "capability":
-            listing = await asyncio.to_thread(
-                service.list_capability,
+            listing = await service.list_capability(
                 capability_id=body.item_id,
                 metadata=metadata,
                 price=body.price,
                 author_id=str(user.id),
             )
         else:
-            listing = await asyncio.to_thread(
-                service.list_tool,
+            listing = await service.list_tool(
                 tool_id=body.item_id,
                 metadata=metadata,
                 price=body.price,
@@ -178,7 +172,7 @@ async def update_listing(
     service = get_marketplace_service()
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
 
-    listing = await asyncio.to_thread(service.update_listing, listing_id, updates)
+    listing = await service.update_listing(listing_id, updates)
     if not listing:
         raise HTTPException(status_code=404, detail=f"Listing not found: {listing_id}")
     return ok(listing.to_dict())
@@ -191,7 +185,7 @@ async def delete_listing(
 ):
     """Delete a marketplace listing."""
     service = get_marketplace_service()
-    success = await asyncio.to_thread(service.delete_listing, listing_id)
+    success = await service.delete_listing(listing_id)
     if not success:
         raise HTTPException(status_code=404, detail=f"Listing not found: {listing_id}")
     return ok({"deleted": True, "listing_id": listing_id})
@@ -214,7 +208,7 @@ async def install_listing(
 ):
     """Install a marketplace listing for the current user."""
     service = get_marketplace_service()
-    result = await asyncio.to_thread(service.install, listing_id, str(user.id))
+    result = await service.install(listing_id, str(user.id))
     if not result.get("success"):
         raise HTTPException(status_code=400, detail=result.get("error", "Install failed"))
     return ok(result)
@@ -225,10 +219,107 @@ async def uninstall_listing(
     listing_id: str,
     user=Depends(get_current_user),
 ):
-    """Uninstall a marketplace listing (placeholder — full uninstall logic TBD)."""
-    # The MarketplaceService doesn't have an uninstall method yet.
-    # Return 501 so the frontend knows this isn't real.
-    raise HTTPException(status_code=501, detail="Uninstall not yet implemented")
+    """Uninstall a marketplace listing for the current user."""
+    service = get_marketplace_service()
+    result = await asyncio.to_thread(service.uninstall, listing_id, str(user.id))
+    if not result.get("success"):
+        # "Not installed" -> 404; other failures -> 400
+        status = 404 if result.get("error") == "Not installed" else 400
+        raise HTTPException(status_code=status, detail=result.get("error", "Uninstall failed"))
+    return ok(result)
+
+
+# ── Transaction lifecycle (MARKETPLACE-2) ────────────────────────────────
+
+
+class WalletTopUpRequest(BaseModel):
+    amount: float
+
+
+@router.get("/wallet")
+async def get_wallet(user=Depends(get_current_user)):
+    """Get the current user's internal wallet balance."""
+    service = get_marketplace_service()
+    result = await asyncio.to_thread(service.get_wallet, str(user.id))
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Failed"))
+    return ok(result)
+
+
+@router.post("/wallet/topup")
+async def topup_wallet(
+    body: WalletTopUpRequest,
+    user=Depends(get_current_user),
+):
+    """Operator/self top-up of internal wallet credits (no external PSP)."""
+    if body.amount <= 0:
+        raise HTTPException(status_code=400, detail="amount must be positive")
+    service = get_marketplace_service()
+    result = await asyncio.to_thread(service.credit_wallet, str(user.id), float(body.amount))
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Top-up failed"))
+    return ok(result)
+
+
+@router.post("/listings/{listing_id}/purchase")
+async def purchase_listing(
+    listing_id: str,
+    user=Depends(get_current_user),
+):
+    """Purchase (and install) a listing, settled against the buyer's wallet."""
+    service = get_marketplace_service()
+    result = await asyncio.to_thread(service.purchase, listing_id, str(user.id))
+    if not result.get("success"):
+        # insufficient_balance -> 402; not found / unavailable -> 404; else 400
+        error = result.get("error")
+        if error == "insufficient_balance":
+            raise HTTPException(status_code=402, detail=result)
+        if error and error.startswith("Listing"):
+            raise HTTPException(status_code=404, detail=error)
+        raise HTTPException(status_code=400, detail=result.get("error", "Purchase failed"))
+    return ok(result)
+
+
+@router.get("/transactions")
+async def list_transactions(
+    status: str | None = Query(None, description="Filter by transaction status"),
+    user=Depends(get_current_user),
+):
+    """List the current user's marketplace transactions."""
+    service = get_marketplace_service()
+    rows = await asyncio.to_thread(service.list_transactions, str(user.id), None, status)
+    return ok({"transactions": rows})
+
+
+@router.get("/transactions/{txn_id}")
+async def get_transaction(
+    txn_id: str,
+    user=Depends(get_current_user),
+):
+    """Get a single transaction by id (must belong to the current user)."""
+    service = get_marketplace_service()
+    result = await asyncio.to_thread(service.get_transaction, txn_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if result.get("user_id") != str(user.id):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return ok(result)
+
+
+@router.post("/transactions/{txn_id}/refund")
+async def refund_transaction(
+    txn_id: str,
+    user=Depends(get_current_user),
+):
+    """Refund a completed purchase, crediting the buyer's wallet."""
+    service = get_marketplace_service()
+    result = await asyncio.to_thread(service.refund, txn_id, str(user.id))
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=result.get("status_code", 400),
+            detail=result.get("error", "Refund failed"),
+        )
+    return ok(result)
 
 
 @router.get("/listings/{listing_id}/reviews")
@@ -251,8 +342,7 @@ async def create_review(
     """Add a review for a listing."""
     service = get_marketplace_service()
     try:
-        review = await asyncio.to_thread(
-            service.rate,
+        review = await service.rate(
             listing_id=listing_id,
             user_id=str(user.id),
             rating=body.rating,

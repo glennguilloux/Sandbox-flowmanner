@@ -259,13 +259,13 @@ class MarketplaceService:
             return self._db
         if not hasattr(self, "_sync_engine") or self._sync_engine is None:
             from sqlalchemy import create_engine
-            from sqlalchemy.orm import sessionmaker
+            from sqlalchemy.orm import sessionmaker as _sessionmaker
 
             from app.config import settings
 
             sync_url = settings.DATABASE_URL.replace("+asyncpg", "").replace("postgresql+asyncpg", "postgresql")
             self._sync_engine = create_engine(sync_url, pool_pre_ping=True, pool_size=5, max_overflow=5)
-        sync_session_factory = sessionmaker(bind=self._sync_engine)
+        sync_session_factory = _sessionmaker(bind=self._sync_engine)
         return sync_session_factory()
 
     def _init_default_categories(self):
@@ -310,10 +310,10 @@ class MarketplaceService:
                 ("utilities", "Utilities", "General utility tools", "wrench"),
             ]
 
-            for cat_id, name, desc, icon in default_categories:
+            for cat_id, name, desc, _icon in default_categories:
                 existing = db.query(MarketplaceCategoryModel).filter(MarketplaceCategoryModel.id == cat_id).first()
                 if not existing:
-                    category = MarketplaceCategoryModel(id=cat_id, name=name, description=desc, icon=icon)
+                    category = MarketplaceCategoryModel(id=cat_id, name=name, description=desc)
                     db.add(category)
 
             db.commit()
@@ -698,6 +698,270 @@ class MarketplaceService:
             return {"success": False, "error": str(e)}
         finally:
             if not self._db:
+                db.close()
+
+    # ── Transaction lifecycle (MARKETPLACE-2) ──────────────────────────
+    # Internal credit/wallet only — NO external payment service provider.
+    # State machine: pending -> completed | failed; completed -> refunded.
+
+    def _get_or_create_wallet(self, user_id: str, db):
+        from app.models.marketplace_txn_models import MarketplaceWalletModel
+
+        wallet = db.query(MarketplaceWalletModel).filter(MarketplaceWalletModel.user_id == user_id).first()
+        if wallet is None:
+            wallet = MarketplaceWalletModel(user_id=user_id, balance=0.0, currency="USD")
+            db.add(wallet)
+            db.flush()
+        return wallet
+
+    def credit_wallet(self, user_id: str, amount: float, db=None) -> dict[str, Any]:
+        """Add credits to a user's internal wallet (settlement / top-up).
+
+        Used by refund() and by operator top-ups. Returns the new balance.
+        """
+        if amount < 0:
+            return {"success": False, "error": "amount must be non-negative"}
+        own = db is None
+        db = db or self._get_db()
+        try:
+            wallet = self._get_or_create_wallet(user_id, db)
+            wallet.balance = round(float(wallet.balance) + float(amount), 2)
+            db.commit()
+            db.refresh(wallet)
+            return {"success": True, "balance": wallet.balance, "currency": wallet.currency}
+        except Exception as e:
+            db.rollback()
+            logger.error("Wallet credit failed for %s: %s", user_id, e)
+            return {"success": False, "error": str(e)}
+        finally:
+            if own:
+                db.close()
+
+    def get_wallet(self, user_id: str, db=None) -> dict[str, Any]:
+        own = db is None
+        db = db or self._get_db()
+        try:
+            wallet = self._get_or_create_wallet(user_id, db)
+            return {
+                "success": True,
+                "user_id": user_id,
+                "balance": wallet.balance,
+                "currency": wallet.currency,
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        finally:
+            if own:
+                db.close()
+
+    def purchase(self, listing_id: str, user_id: str, db=None) -> dict[str, Any]:
+        """Purchase/install a listing, settling against the buyer's wallet.
+
+        Free listings (price <= 0) complete immediately with no wallet debit.
+        Paid listings require sufficient wallet balance; otherwise the
+        transaction is recorded as `failed` (insufficient balance) and no
+        funds move.
+        """
+        from app.models.marketplace_txn_models import (
+            MarketplaceTransactionModel,
+            TransactionStatus,
+        )
+        from app.models.models import MarketplaceListingModel
+
+        own = db is None
+        db = db or self._get_db()
+        try:
+            listing = db.query(MarketplaceListingModel).filter(MarketplaceListingModel.id == listing_id).first()
+            if not listing:
+                return {"success": False, "error": f"Listing not found: {listing_id}"}
+            if listing.status != ListingStatus.PUBLISHED.value:
+                return {"success": False, "error": f"Listing not available: {listing.status}"}
+
+            amount = float(listing.price or 0.0)
+            # Internal wallet is USD-only for now — the listing model has no
+            # currency column, so we settle in USD. A real PSP integration
+            # would carry the listing's currency here.
+            currency = "USD"
+            txn = MarketplaceTransactionModel(
+                user_id=str(user_id),
+                listing_id=listing_id,
+                amount=amount,
+                currency=currency,
+                status=TransactionStatus.PENDING,
+            )
+            db.add(txn)
+            db.flush()
+
+            if amount <= 0:
+                # Free listing — nothing to charge.
+                txn.status = TransactionStatus.COMPLETED
+                db.commit()
+                db.refresh(txn)
+                return {
+                    "success": True,
+                    "transaction_id": txn.id,
+                    "status": txn.status,
+                    "amount": amount,
+                    "currency": currency,
+                    "listing_id": listing_id,
+                }
+
+            wallet = self._get_or_create_wallet(user_id, db)
+            if float(wallet.balance) < amount:
+                txn.status = TransactionStatus.FAILED
+                txn.error = "insufficient_balance"
+                db.commit()
+                db.refresh(txn)
+                return {
+                    "success": False,
+                    "transaction_id": txn.id,
+                    "status": txn.status,
+                    "error": "insufficient_balance",
+                    "required": amount,
+                    "balance": wallet.balance,
+                }
+
+            # Debit wallet atomically with the transaction record.
+            wallet.balance = round(float(wallet.balance) - amount, 2)
+            txn.status = TransactionStatus.COMPLETED
+            txn.payment_ref = f"wallet:{wallet.id}"
+            db.commit()
+            db.refresh(txn)
+            return {
+                "success": True,
+                "transaction_id": txn.id,
+                "status": txn.status,
+                "amount": amount,
+                "currency": currency,
+                "balance": wallet.balance,
+                "listing_id": listing_id,
+            }
+        except Exception as e:
+            db.rollback()
+            logger.error("Purchase failed for %s/%s: %s", user_id, listing_id, e)
+            return {"success": False, "error": str(e)}
+        finally:
+            if own:
+                db.close()
+
+    def get_transaction(self, txn_id: str, db=None) -> dict[str, Any] | None:
+        from app.models.marketplace_txn_models import MarketplaceTransactionModel
+
+        own = db is None
+        db = db or self._get_db()
+        try:
+            txn = db.query(MarketplaceTransactionModel).filter(MarketplaceTransactionModel.id == txn_id).first()
+            if not txn:
+                return None
+            return {
+                "transaction_id": txn.id,
+                "user_id": txn.user_id,
+                "listing_id": txn.listing_id,
+                "amount": txn.amount,
+                "currency": txn.currency,
+                "status": txn.status,
+                "payment_ref": txn.payment_ref,
+                "refunded_from": txn.refunded_from,
+                "error": txn.error,
+                "created_at": txn.created_at.isoformat() if txn.created_at else None,
+                "updated_at": txn.updated_at.isoformat() if txn.updated_at else None,
+            }
+        except Exception as e:
+            logger.error("get_transaction failed for %s: %s", txn_id, e)
+            return None
+        finally:
+            if own:
+                db.close()
+
+    def list_transactions(self, user_id: str, db=None, status: str = None) -> list[dict[str, Any]]:
+        from app.models.marketplace_txn_models import MarketplaceTransactionModel
+
+        own = db is None
+        db = db or self._get_db()
+        try:
+            q = db.query(MarketplaceTransactionModel).filter(MarketplaceTransactionModel.user_id == str(user_id))
+            if status:
+                q = q.filter(MarketplaceTransactionModel.status == status)
+            rows = q.order_by(MarketplaceTransactionModel.created_at.desc()).all()
+            return [
+                {
+                    "transaction_id": r.id,
+                    "listing_id": r.listing_id,
+                    "amount": r.amount,
+                    "currency": r.currency,
+                    "status": r.status,
+                    "created_at": r.created_at.isoformat() if r.created_at else None,
+                }
+                for r in rows
+            ]
+        except Exception as e:
+            logger.error("list_transactions failed for %s: %s", user_id, e)
+            return []
+        finally:
+            if own:
+                db.close()
+
+    def refund(self, txn_id: str, user_id: str, db=None) -> dict[str, Any]:
+        """Refund a completed purchase, crediting the buyer's wallet.
+
+        Only `completed` transactions may be refunded. A refund is itself a
+        new `refunded` transaction row that credits the wallet, linked via
+        `refunded_from` so the audit trail is intact.
+        """
+        from app.models.marketplace_txn_models import (
+            MarketplaceTransactionModel,
+            MarketplaceWalletModel,
+            TransactionStatus,
+        )
+
+        own = db is None
+        db = db or self._get_db()
+        try:
+            txn = db.query(MarketplaceTransactionModel).filter(MarketplaceTransactionModel.id == txn_id).first()
+            if not txn:
+                return {"success": False, "error": "Transaction not found", "status_code": 404}
+            if txn.user_id != str(user_id):
+                return {"success": False, "error": "Forbidden", "status_code": 403}
+            if txn.status != TransactionStatus.COMPLETED:
+                return {
+                    "success": False,
+                    "error": f"Cannot refund transaction in state: {txn.status}",
+                    "status_code": 400,
+                }
+
+            wallet = db.query(MarketplaceWalletModel).filter(MarketplaceWalletModel.user_id == str(user_id)).first()
+            if not wallet:
+                return {"success": False, "error": "Wallet not found", "status_code": 400}
+
+            wallet.balance = round(float(wallet.balance) + float(txn.amount), 2)
+            txn.status = TransactionStatus.REFUNDED
+
+            refund_txn = MarketplaceTransactionModel(
+                user_id=str(user_id),
+                listing_id=txn.listing_id,
+                amount=float(txn.amount),
+                currency=txn.currency or "USD",
+                status=TransactionStatus.COMPLETED,
+                payment_ref=f"refund:wallet:{wallet.id}",
+                refunded_from=txn.id,
+            )
+            db.add(refund_txn)
+            db.commit()
+            db.refresh(refund_txn)
+            return {
+                "success": True,
+                "refund_transaction_id": refund_txn.id,
+                "original_transaction_id": txn.id,
+                "status": TransactionStatus.REFUNDED,
+                "amount": float(txn.amount),
+                "balance": wallet.balance,
+            }
+        except Exception as e:
+            db.rollback()
+            logger.error("Refund failed for %s/%s: %s", user_id, txn_id, e)
+            return {"success": False, "error": str(e), "status_code": 400}
+        finally:
+            if own:
                 db.close()
 
     async def rate(
