@@ -38,12 +38,20 @@ IGNORED_ID_PREFIXES = ("compress_",)
 
 
 def _open_readonly(db_path: str | Path) -> sqlite3.Connection:
-    """Open a SQLite DB in read-only mode (URI mode, shared-cache disabled)."""
+    """Open a SQLite DB in read-only mode.
+
+    Uses ``mode=ro`` plus ``immutable=1``: the latter tells SQLite the file
+    will never be written, so it skips creating a ``-wal``/``-journal`` file.
+    That is required when the DB is mounted read-only (e.g. a Docker ``:ro``
+    bind mount) where the directory is not writable — without ``immutable=1``
+    even a ``mode=ro`` connection fails with "attempt to write a readonly
+    database" because SQLite still wants a write lock for the journal.
+    """
     p = Path(db_path).expanduser()
     if not p.exists():
         raise FileNotFoundError(f"state.db not found: {p}")
     uri = p.as_uri()  # file:///abs/path
-    con = sqlite3.connect(f"{uri}?mode=ro", uri=True)
+    con = sqlite3.connect(f"{uri}?mode=ro&immutable=1", uri=True)
     con.row_factory = sqlite3.Row
     return con
 
