@@ -42,6 +42,8 @@ Thumbs.db
 
 # ── Docker & deployment ─────────────────────────────────────────
 backups/
+hermes-full-backup/
+hermes-reinstall-backup/
 
 # ── Temporary / scratch ─────────────────────────────────────────
 TEMP/
@@ -60,6 +62,7 @@ uv.lock
 # ── Claude / AI context ─────────────────────────────────────────
 .claude/
 .hermes/
+.codex/
 
 # ── Uploads (user content) ──────────────────────────────────────
 uploads/
@@ -95,6 +98,8 @@ docs/research/
 
 # ── Planning / analysis docs (working artifacts, not deploy source) ──
 plans/
+ROADMAP-CROSSWALK.md
+ROADMAP-INDEX.md
 
 # Per-agent session status file (template committed as STATUS.example.md)
 STATUS.md
