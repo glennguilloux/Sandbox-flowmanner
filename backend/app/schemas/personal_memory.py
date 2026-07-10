@@ -116,6 +116,10 @@ class PersonalMemoryClaimCreate(BaseModel):
     sensitivity: Sensitivity = Sensitivity.NORMAL
     source_id: uuid.UUID | None = None
     expires_at: datetime | None = None
+    # Epic 2.3 E23-D / Q5-A — provenance of the authoring agent. Omit (NULL)
+    # for human-authored claims (highest trust). Agent-written claims carry
+    # the authoring agent id so they can be attributed and down-ranked (Q5-B).
+    agent_id: str | None = None
 
 
 class PersonalMemoryClaimUpdate(BaseModel):
@@ -171,6 +175,10 @@ class PersonalMemoryClaimResponse(BaseModel):
     deleted_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    # Epic 2.3 E23-D / Q5-A — authoring agent id. NULL = human-authored
+    # (highest trust). Surfaced to the Memory Inspector so an agent's
+    # inferences are distinguishable from user-stated facts.
+    agent_id: str | None = None
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -463,3 +463,34 @@ class DebateProtocol:
         """List recent debate rounds."""
         result = await self.db.execute(select(DebateRound).order_by(DebateRound.created_at.desc()).limit(limit))
         return list(result.scalars().all())
+
+    # ── Q5-C — surface memory contradictions between the two debaters ──
+    #
+    # After a debate, the two agents' assertions live as ``PersonalMemoryClaim``
+    # rows (attributed via E23-D ``agent_id``). Reuse E23-C ``group_conflicts``
+    # through ``surface_agent_contradictions`` to find opposing assertions on
+    # the same (subject, predicate) and hand the orchestrator a human-readable
+    # narrative — "A asserts X, B asserts ¬X" plus the deterministic winner
+    # reason. The protocol never auto-collapses the disagreement: the
+    # contradiction is surfaced, and the orchestrator decides.
+
+    async def surface_contradictions(
+        self,
+        *,
+        claims: list[Any],
+    ) -> list[Any]:
+        """Q5-C — return surfaced contradictions among ``claims`` (DB-free).
+
+        Thin adapter over ``surface_agent_contradictions`` so callers already
+        holding a ``DebateProtocol`` instance (with a ``db`` session) can ask
+        for the contradictions without importing the conflict service
+        directly. ``claims`` are claim-like objects carrying ``subject``,
+        ``predicate``, ``object``, ``agent_id``, ``source_priority``,
+        ``claim_type``, ``created_at``, ``confidence``, ``deleted_at``,
+        ``expires_at`` (the same shape ``group_conflicts`` reads).
+
+        Returns an empty list when the two agents do not contradict each other.
+        """
+        from app.services.memory_conflict_service import surface_agent_contradictions
+
+        return surface_agent_contradictions(claims)

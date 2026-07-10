@@ -458,6 +458,10 @@ async def _stream_message_to_llm_body(
                     thread_id=thread_id,
                     user_id=user_id,
                     workspace_id=thread_for_recall.workspace_id,
+                    # Human chat path → full shared pool (agent_id=None).
+                    # Each reviewing agent passes its own id for its restricted
+                    # view (Q5-D); the human always gets the complete pool.
+                    agent_id=None,
                 )
                 # Q2-A/Q2-C: resolve the token-bounded, E23-B-ranked set.
                 # Tier-0 constraints are protected; Tier-1 competitive claims
@@ -471,10 +475,12 @@ async def _stream_message_to_llm_body(
                     resolved, _dropped = rank_and_budget_claims(
                         memory_recall_claims,
                         token_budget=settings.CHAT_MEMORY_INJECTION_TOKEN_BUDGET,
+                        # Human chat path → no author down-rank (full pool).
+                        consumer_agent_id=None,
                     )
                     if _dropped:
                         logger.info(
-                            "stream_message_to_llm: memory budget dropped %d claim(s) " "(kept %d) for thread %s",
+                            "stream_message_to_llm: memory budget dropped %d claim(s) (kept %d) for thread %s",
                             len(_dropped),
                             len(resolved),
                             thread_id,
@@ -1852,6 +1858,9 @@ async def _maybe_extract_memory_claims(
                             scope=claim.scope,
                             source_type=claim_source_type,
                             confidence=claim.confidence,
+                            # Direct trusted writes are human-authored → NULL
+                            # agent_id (highest trust, Q5-A).
+                            agent_id=None,
                         )
                         persisted += 1
                 except Exception as create_err:

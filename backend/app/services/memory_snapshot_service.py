@@ -73,15 +73,21 @@ SEED_QUERY: str = ""
 class FrozenMemorySnapshot:
     """A frozen capture of a user's standing personal-memory claim set.
 
-    Captured exactly once per session (per ``thread_id``) and re-injected
-    verbatim into every message in that session.
+    Captured exactly once per (thread_id, agent_id) and re-injected verbatim
+    into every message in that session. ``agent_id`` partitions the snapshot
+    so a reviewing agent only consumes claims it is allowed to see (Q5-D /
+    Q5-B): the human (``agent_id=None``) gets the full pool; an agent gets its
+    own inferences + human-authored claims. A workspace write bumps the
+    generation counter for *all* agents in that ``(user_id, workspace_id)``
+    (see ``bump_generation``), so every per-agent snapshot re-captures lazily.
     """
 
     thread_id: int
     user_id: int
     workspace_id: str
-    captured_at: datetime
-    query_used: str
+    agent_id: str | None = None
+    captured_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    query_used: str = ""
     claims: list[PersonalMemoryClaim] = field(default_factory=list)
     # The generation counter of (user_id, workspace_id) at capture time.
     # If the live counter has moved, the snapshot is stale and re-captured.
@@ -93,7 +99,13 @@ class FrozenMemorySnapshot:
 # Module-level singletons. Lifetime = backend process lifetime. On restart
 # the caches are simply empty; the next message in a thread re-captures
 # (acceptable: the snapshot is a cache, not the source of truth).
-_snapshots: dict[int, FrozenMemorySnapshot] = {}
+#
+# Keyed by ``(thread_id, agent_id)`` so each agent (and the human,
+# ``agent_id=None``) gets its own frozen view of the shared workspace pool
+# (Q5-D). A single ``(user_id, workspace_id)`` generation counter drives
+# invalidation for *all* per-agent keys, so a write from any agent refreshes
+# every agent's snapshot lazily on next access.
+_snapshots: dict[tuple[int, str | None], FrozenMemorySnapshot] = {}
 _generations: dict[tuple[int, str], int] = {}
 
 
@@ -125,17 +137,17 @@ def get_generation(user_id: int, workspace_id: str) -> int:
 # ── Seam: get / store (explicit) ───────────────────────────────────────────
 
 
-def get_snapshot(thread_id: int) -> FrozenMemorySnapshot | None:
-    """Return the current frozen snapshot for ``thread_id`` (or None).
+def get_snapshot(thread_id: int, agent_id: str | None = None) -> FrozenMemorySnapshot | None:
+    """Return the current frozen snapshot for ``(thread_id, agent_id)`` (or None).
 
     This does NOT validate staleness — it returns whatever is cached. Use
     ``get_or_capture_snapshot`` for the lazy-capture + invalidation path.
     """
-    return _snapshots.get(thread_id)
+    return _snapshots.get((thread_id, agent_id))
 
 
-def store_snapshot(thread_id: int, snapshot: FrozenMemorySnapshot) -> None:
-    """Write a snapshot into the cache for ``thread_id``.
+def store_snapshot(thread_id: int, snapshot: FrozenMemorySnapshot, agent_id: str | None = None) -> None:
+    """Write a snapshot into the cache for ``(thread_id, agent_id)``.
 
     Replaces any existing entry. Used by ``get_or_capture_snapshot`` after a
     (re-)capture, and available for tests.
@@ -143,12 +155,15 @@ def store_snapshot(thread_id: int, snapshot: FrozenMemorySnapshot) -> None:
     if snapshot.thread_id != thread_id:
         # Defensive: keep the dict key authoritative.
         snapshot.thread_id = thread_id
-    _snapshots[thread_id] = snapshot
+    if snapshot.agent_id != agent_id:
+        # Defensive: keep the dict key authoritative.
+        snapshot.agent_id = agent_id
+    _snapshots[(thread_id, agent_id)] = snapshot
 
 
-def drop_snapshot(thread_id: int) -> None:
-    """Remove a single thread's snapshot from the cache (if present)."""
-    _snapshots.pop(thread_id, None)
+def drop_snapshot(thread_id: int, agent_id: str | None = None) -> None:
+    """Remove a single (thread_id, agent_id) snapshot from the cache (if present)."""
+    _snapshots.pop((thread_id, agent_id), None)
 
 
 def invalidate_user_workspace(user_id: int, workspace_id: str) -> None:
@@ -156,11 +171,14 @@ def invalidate_user_workspace(user_id: int, workspace_id: str) -> None:
 
     Provided as an explicit alternative to the generation-counter path; the
     recommended production invalidation is ``bump_generation`` (lazy drop on
-    next access). Kept for callers/tests that want immediate eviction.
+    next access). Kept for callers/tests that want immediate eviction. Because
+    snapshots are keyed per-(thread_id, agent_id) under the same
+    (user_id, workspace_id) generation, this clears the human's and every
+    agent's snapshot for that workspace.
     """
-    for tid, snap in list(_snapshots.items()):
+    for key, snap in list(_snapshots.items()):
         if snap.user_id == user_id and snap.workspace_id == workspace_id:
-            _snapshots.pop(tid, None)
+            _snapshots.pop(key, None)
 
 
 # ── Seam: lazy capture + dual invalidation ─────────────────────────────────
@@ -172,33 +190,43 @@ async def get_or_capture_snapshot(
     thread_id: int,
     user_id: int,
     workspace_id: str,
+    agent_id: str | None = None,
     ttl_seconds: int | None = None,
 ) -> list[PersonalMemoryClaim]:
-    """Return the frozen claim list for ``thread_id``, capturing it once.
+    """Return the frozen claim list for ``(thread_id, agent_id)``, capturing it once.
 
     * Cache miss → exactly ONE ``recall_for_chat(query="")`` using the
-      standing-context defaults, stored, returned.
+      standing-context defaults, **then filtered by the Q5-B cross-agent
+      consumption gate** (an agent only sees its own inferences + human-authored
+      claims; the human sees everything), stored, returned.
     * Cache hit AND generation unchanged AND within TTL → reuse frozen claims.
     * Cache hit but generation moved (a write happened) OR TTL exceeded →
       DROP the entry and re-capture once (lazy invalidation).
+
+    ``agent_id`` partitions the snapshot (Q5-D): the human passes ``None`` for
+    the full shared pool; each reviewing agent passes its own id for its
+    restricted view. ``workspace_id`` stays mandatory and unchanged. A write in
+    this ``(user_id, workspace_id)`` bumps the generation counter for *all*
+    agents, so every per-agent snapshot re-captures lazily on next access.
 
     ``ttl_seconds`` overrides the module ``SNAPSHOT_TTL_SECONDS`` default and
     exists primarily for tests; production callers should omit it so the
     snapshot TTL binds to the session-length config.
     """
+    from app.services.memory_attribution import filter_consumable
     from app.services.memory_citation_service import recall_for_chat
 
     ttl = SNAPSHOT_TTL_SECONDS if ttl_seconds is None else int(ttl_seconds)
     now = datetime.now(UTC)
     generation = get_generation(user_id, workspace_id)
 
-    existing = _snapshots.get(thread_id)
+    existing = _snapshots.get((thread_id, agent_id))
     if existing is not None:
         within_ttl = (now - existing.captured_at).total_seconds() <= ttl
         if existing.generation == generation and within_ttl:
             return existing.claims
         # Stale (write invalidation or TTL) → drop and re-capture.
-        _snapshots.pop(thread_id, None)
+        _snapshots.pop((thread_id, agent_id), None)
 
     # Lazy capture: one recall_for_chat with the empty/seed query.
     claims = await recall_for_chat(
@@ -207,16 +235,21 @@ async def get_or_capture_snapshot(
         workspace_id=workspace_id,
         query=SEED_QUERY,
     )
+    # Q5-B: restrict to claims this consumer (human=None, or the authoring
+    # agent) is allowed to see. Human-authored claims remain visible to every
+    # agent; another agent's inference is hidden unless it is the author.
+    claims = filter_consumable(claims, consumer_agent_id=agent_id)
     snapshot = FrozenMemorySnapshot(
         thread_id=thread_id,
         user_id=user_id,
         workspace_id=workspace_id,
+        agent_id=agent_id,
         captured_at=now,
         query_used=SEED_QUERY,
         claims=claims,
         generation=generation,
     )
-    _snapshots[thread_id] = snapshot
+    _snapshots[(thread_id, agent_id)] = snapshot
     return claims
 
 

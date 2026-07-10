@@ -112,6 +112,98 @@ def _predicates_conflict(a: PersonalMemoryClaim, b: PersonalMemoryClaim) -> bool
     return bool(pa) and pa == pb
 
 
+# ── Q5-C — agent-assertion contradiction surfacing (reuses group_conflicts) ──
+#
+# Multi-agent memory sharing needs to surface, not silently collapse,
+# *opposing* assertions made by different agents (or an agent vs a human) on
+# the same (subject, predicate). E23-C's ``group_conflicts`` already groups
+# by (subject, predicate) with differing ``object`` and picks a winner by
+# claim-type precedence then provenance, keeping losers live with an
+# explainable ``superseded_because``. Q5-C wraps that with a contradiction
+# *narrative* string: "A asserts X, B asserts ¬X" + the deterministic winner
+# reason, returned to the orchestrator so it can decide (never auto-merged).
+
+
+@dataclass
+class SurfacedContradiction:
+    """One surfaced contradiction between two (or more) agents' assertions."""
+
+    subject: str
+    predicate: str
+    # The human/orchestrator-facing narrative, e.g.
+    #   "agent:reviewer-7 asserts {object_a}; agent:planner-3 asserts {object_b}"
+    narrative: str
+    winner_agent_id: str | None
+    loser_agent_ids: list[str]
+    # The deterministic E23-C precedence reason (why winner won).
+    resolution_reason: str
+    # Raw members so a caller can inspect the full set if needed.
+    members: list[ConflictMember] = field(default_factory=list)
+
+
+def _author_label(claim: PersonalMemoryClaim) -> str:
+    agent_id = getattr(claim, "agent_id", None)
+    if agent_id is None:
+        return "human"
+    return f"agent:{agent_id}"
+
+
+def surface_agent_contradictions(
+    claims: list[PersonalMemoryClaim],
+) -> list[SurfacedContradiction]:
+    """Q5-C — surface (subject, predicate) contradictions across agents.
+
+    Reuses E23-C ``group_conflicts`` (which already keys on
+    (subject, predicate) with opposing ``object`` and resolves by claim-type
+    precedence then provenance). For each conflict group we emit a
+    ``SurfacedContradiction`` with a human-readable narrative naming the
+    asserting agents and the deterministic winner reason. Losers are never
+    deleted or merged — the orchestrator decides.
+
+    Returns an empty list when no live, multi-author contradictions exist.
+    """
+    groups = group_conflicts(claims)
+    out: list[SurfacedContradiction] = []
+    for g in groups:
+        if not g.members:
+            continue
+        # Build "X asserts <obj>; Y asserts <obj>" narrative, one clause per
+        # member, in ranked order (winner first) so the narrative reads with
+        # the winner first.
+        clauses: list[str] = []
+        for m in g.members:
+            c = m.claim
+            obj = getattr(c, "object", None)
+            try:
+                import json
+
+                obj_text = json.dumps(obj, default=str, sort_keys=True)
+            except (TypeError, ValueError):
+                obj_text = str(obj)
+            clauses.append(f"{_author_label(c)} asserts {obj_text}")
+        narrative = "; ".join(clauses)
+        winner = g.winner
+        winner_agent_id = getattr(winner, "agent_id", None)
+        loser_agent_ids = [
+            str(getattr(m.claim, "agent_id", None))
+            for m in g.members[1:]
+            if getattr(m.claim, "agent_id", None) is not None
+        ]
+        resolution_reason = g.members[1].superseded_because or "lower composite precedence"
+        out.append(
+            SurfacedContradiction(
+                subject=g.subject,
+                predicate=g.predicate,
+                narrative=narrative,
+                winner_agent_id=winner_agent_id,
+                loser_agent_ids=loser_agent_ids,
+                resolution_reason=resolution_reason,
+                members=g.members,
+            )
+        )
+    return out
+
+
 def group_conflicts(
     claims: list[PersonalMemoryClaim],
 ) -> list[ConflictGroup]:

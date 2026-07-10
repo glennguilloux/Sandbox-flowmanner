@@ -90,9 +90,23 @@ logger = logging.getLogger(__name__)
 # reproducible ties we append ``created_at`` (newer first) and finally the
 # claim ``id`` so two absolutely-identical tuples still compare deterministically
 # instead of by arbitrary Python object id.
-def _rank_sort_key(claim: PersonalMemoryClaim) -> tuple:
-    """Return the lexicographic sort key for a claim (higher tuple = first)."""
-    sp = int(getattr(claim, "source_priority", 0) or 0)
+def _rank_sort_key(claim: PersonalMemoryClaim, consumer_agent_id: str | None = None) -> tuple:
+    """Return the lexicographic sort key for a claim (higher tuple = first).
+
+    When ``consumer_agent_id`` is set (a reviewing agent consuming the shared
+    pool, Q5-B), the source_priority axis uses ``effective_source_priority``,
+    which applies the agent-author down-rank so an agent's own
+    ``program_learning`` inference ranks below an otherwise-identical
+    human-authored claim and can never silently out-rank a human fact. For the
+    human (``consumer_agent_id is None``) the stored ``source_priority`` is
+    used unchanged.
+    """
+    if consumer_agent_id is None:
+        sp = int(getattr(claim, "source_priority", 0) or 0)
+    else:
+        from app.services.memory_attribution import effective_source_priority
+
+        sp = effective_source_priority(claim)
     band = recency_half_life_band(getattr(claim, "created_at", None))
     conf = float(getattr(claim, "confidence", 0.0) or 0.0)
     imp = float(getattr(claim, "importance", 0.0) or 0.0)
@@ -106,6 +120,7 @@ def lexicographic_rank(
     claims: list[PersonalMemoryClaim],
     *,
     reverse: bool = True,
+    consumer_agent_id: str | None = None,
 ) -> list[PersonalMemoryClaim]:
     """Deterministically rank ``claims`` by the E23-B policy.
 
@@ -113,8 +128,16 @@ def lexicographic_rank(
     no ``now()`` dependency beyond the deterministic band bucketing, so the
     result is reproducible. Stable sort (Python's ``sorted`` is stable) means
     the input order is preserved when all tiebreak axes are equal.
+
+    ``consumer_agent_id`` (Q5-B): when set, applies the agent-author down-rank
+    via the ``source_priority`` axis so one agent's inference cannot out-rank a
+    human fact in another agent's recall.
     """
-    return sorted(claims, key=_rank_sort_key, reverse=reverse)
+    return sorted(
+        claims,
+        key=lambda c: _rank_sort_key(c, consumer_agent_id=consumer_agent_id),
+        reverse=reverse,
+    )
 
 
 # ── Epic 2.3 / Q2 — tiering + token budget (E23-B consumer) ────────────────
@@ -175,6 +198,7 @@ def rank_and_budget_claims(
     claims: list[PersonalMemoryClaim],
     *,
     token_budget: int,
+    consumer_agent_id: str | None = None,
 ) -> tuple[list[PersonalMemoryClaim], list[PersonalMemoryClaim]]:
     """Resolve the token-bounded claim set for chat injection.
 
@@ -188,6 +212,10 @@ def rank_and_budget_claims(
 
     ``token_budget <= 0`` selects nothing (caller chose to disable memory in
     the prompt). Empty ``claims`` returns ``([], [])``.
+
+    ``consumer_agent_id`` (Q5-B): forwarded to ``lexicographic_rank`` so an
+    agent consumer applies the author down-rank and a human fact can never be
+    silently out-ranked by another agent's inference.
     """
     if not claims or token_budget <= 0:
         return [], list(claims)
@@ -203,7 +231,7 @@ def rank_and_budget_claims(
     # Tier-1 competitive ranking (E23-B). Tier-0 stays in input order —
     # constraints are all equal-priority protecteds; ranking them against
     # each other adds nothing and could reorder a protected set.
-    ranked_competitive = lexicographic_rank(competitive)
+    ranked_competitive = lexicographic_rank(competitive, consumer_agent_id=consumer_agent_id)
 
     selected: list[PersonalMemoryClaim] = []
     dropped: list[PersonalMemoryClaim] = []
@@ -460,6 +488,11 @@ class PersonalMemoryService:
         importance: float = 0.5,
         sensitivity: str = "normal",
         expires_at: datetime | None = None,
+        # Epic 2.3 E23-D / Q5-A — provenance of the *authoring agent*. NULL =
+        # human-authored (highest trust). Reviewer/background writes pass the
+        # agent id through (see create_from_proposal); direct human writes
+        # omit it (stays NULL).
+        agent_id: str | None = None,
     ) -> PersonalMemoryClaim:
         """Insert a new claim. Validates the four enum fields and the
         two bounded numerics; raises ``PersonalMemoryValidationError``
@@ -493,6 +526,10 @@ class PersonalMemoryService:
             # Epic 2.3 E23-A: keep denormalized source priority in sync with
             # source_type on every write (the migration seeds existing rows).
             source_priority=source_priority_for(source_type),
+            # Epic 2.3 E23-D / Q5-A: NULL = human-authored (highest trust).
+            # Reviewer/background writes pass the agent id; direct human writes
+            # keep it NULL.
+            agent_id=agent_id,
             expires_at=expires_at,
         )
         self.db.add(claim)
@@ -613,7 +650,7 @@ class PersonalMemoryService:
             scan = scan_for_poison(content, getattr(proposed, "old_text", None))
             if scan.flagged:
                 logger.warning(
-                    "personal_memory.create_from_proposal: GOV-1.3a flagged " "write user=%s hits=%s severity=%s",
+                    "personal_memory.create_from_proposal: GOV-1.3a flagged write user=%s hits=%s severity=%s",
                     user_id,
                     scan.hits,
                     scan.severity,
@@ -678,6 +715,10 @@ class PersonalMemoryService:
                 confidence=0.5,
                 importance=importance,
                 sensitivity="normal",
+                # Epic 2.3 E23-D / Q5-A: attribute the claim to the authoring
+                # agent so one agent's inference is readable/down-ranked by
+                # others (Q5-B). NULL (human) when the reviewer has no agent id.
+                agent_id=agent_id,
             )
             logger.info(
                 "personal_memory.create_from_proposal: claim=%s user=%s ws=%s type=%s",
@@ -791,6 +832,7 @@ class PersonalMemoryService:
         scopes: list[str] | None = None,
         top_k: int = 10,
         min_confidence: float = 0.0,
+        consumer_agent_id: str | None = None,
     ) -> tuple[list[PersonalMemoryClaim], int]:
         """Recall for a query string.
 
@@ -885,7 +927,9 @@ class PersonalMemoryService:
         items = list((await self.db.execute(items_stmt)).scalars().all())
         # Deterministic final ordering (stable secondary sort). This is the
         # 2.2 handoff requirement: the frozen snapshot captures a resolved view.
-        items = lexicographic_rank(items)
+        # When ``consumer_agent_id`` is set (Q5-B), the down-rank is applied so
+        # a human fact outranks an agent's own inference of equal provenance.
+        items = lexicographic_rank(items, consumer_agent_id=consumer_agent_id)
 
         # Bump last_used_at on the returned rows. The caller will
         # commit (or roll back) at the transaction boundary.
