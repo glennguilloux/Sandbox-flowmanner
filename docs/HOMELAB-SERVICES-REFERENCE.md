@@ -295,7 +295,7 @@ Two **GitHub MCP Server** containers are running (internal port 8082), used by t
 ➜  ~ grep SANDBOXD_API_TOKENS /mnt/apps/Softwares2/sandboxd/.env
 
 #   SANDBOXD_API_TOKENS=name1:secret1,name2:secret2
-SANDBOXD_API_TOKENS=flowmanner=37fb6669393046712d2b68be235c082ee4d3a82160f5d18450a15205d5ad3046
+SANDBOXD_API_TOKENS=flowmanner=REDACTED_SANDBOXD_TOKEN
 ➜  ~ 
 
 
