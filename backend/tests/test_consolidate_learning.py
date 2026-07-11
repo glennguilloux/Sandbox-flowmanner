@@ -11,7 +11,7 @@ LLM hits — and ``EpisodicMemoryService.get_episodes_for_mission`` is
 also mocked. Run via::
 
     cd /opt/flowmanner/backend
-    DATABASE_URL="postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner" \\
+    DATABASE_URL="postgresql+asyncpg://flowmanner:REDACTED_DB_PASSWORD@127.0.0.1:5432/flowmanner" \\
       /opt/flowmanner/backend/.venv/bin/python -m pytest tests/test_consolidate_learning.py -v -m integration
 
 Cases:
@@ -41,7 +41,7 @@ from sqlalchemy.pool import NullPool
 # Ensure DATABASE_URL is set BEFORE importing app modules.
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner",
+    "postgresql+asyncpg://flowmanner:REDACTED_DB_PASSWORD@127.0.0.1:5432/flowmanner",
 )
 
 # Late imports so env var is honored.
