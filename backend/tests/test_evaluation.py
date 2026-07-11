@@ -1,10 +1,17 @@
-"""Tests for the evaluation system — models, services, API (sync only)."""
+"""Tests for the evaluation system — models, services, API (sync + auth)."""
 
 import json
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.routing import APIRouter
+from fastapi.testclient import TestClient
 
+from app.api.deps import get_current_user
+from app.api.v1.evaluation import router as evaluation_router
+from app.database import get_db
 from app.models.evaluation_models import EvalRun, GoldenDataset, GoldenTestCase
 
 # ── Model tests ─────────────────────────────────────────────────────────
@@ -338,3 +345,217 @@ def test_judge_empty_response():
     assert result["overall_score"] == 0.0
     assert result["scores"] == {}
     assert result["summary"] == ""
+
+
+# ── Auth enforcement tests (P0 — lock down evaluation.py) ────────────────
+#
+# These build a focused FastAPI app with ONLY the evaluation router mounted
+# so app startup is cheap and deterministic. Dependencies are overridden:
+#   - get_db        → AsyncMock session (real object, mocked query methods)
+#   - get_current_user → returns an injected user or raises 401 when
+#     no token is supplied (mirrors the real dependency's 401 path).
+# Service classes (DatasetBuilder / EvaluationRunner) are patched by their
+# bound name inside app.api.v1.evaluation so the endpoints serialize real
+# return values instead of blowing up on a MagicMock DB session.
+
+AUTH_BASE = "/api/evaluation"
+
+# Endpoint → (method, path, json-body / None). Every one of the 11
+# previously-unauthenticated mutating endpoints must now 401 without auth.
+MUTATING_ENDPOINTS = {
+    "create_dataset": ("POST", "/datasets", {"name": "ds", "category": "code"}),
+    "delete_dataset": ("DELETE", "/datasets/ds-1", None),
+    "add_test_case": ("POST", "/datasets/ds-1/test-cases", {
+        "input_prompt": "p", "expected_behavior": "b", "task_type": "general"}),
+    "add_test_cases_bulk": ("POST", "/datasets/ds-1/test-cases/bulk", {
+        "cases": [{"input_prompt": "p", "expected_behavior": "b", "task_type": "general"}]}),
+    "update_test_case": ("PATCH", "/test-cases/tc-1", {"difficulty": "hard"}),
+    "delete_test_case": ("DELETE", "/test-cases/tc-1", None),
+    "run_evaluation": ("POST", "/runs", {"dataset_id": "ds-1"}),
+    "compare_models": ("POST", "/compare", {"dataset_id": "ds-1", "model_a": "a", "model_b": "b"}),
+    "import_from_langfuse": ("POST", "/import/langfuse", {
+        "dataset_name": "ds", "traces": [{"input": "x", "output": "y"}]}),
+    "create_dataset_from_template": ("POST", "/templates/code-review/create-dataset", None),
+    "run_benchmark": ("POST", "/benchmarks", {"dataset_id": "ds-1", "models": ["a"]}),
+}
+
+# The two high-blast-radius endpoints — admin only (plain user → 403).
+ADMIN_ONLY = {"import_from_langfuse", "run_benchmark"}
+
+
+@pytest.fixture
+def auth_app():
+    """Focused app with the evaluation router mounted + deps overridden."""
+    app = FastAPI()
+    api = APIRouter(prefix="/api")
+    api.include_router(evaluation_router)
+    app.include_router(api)
+
+    db = AsyncMock()
+    db.execute = AsyncMock(return_value=MagicMock(
+        scalars=MagicMock(return_value=MagicMock(all=MagicMock(return_value=[]))),
+        # Truthy sentinel so endpoints that look up a dataset (DELETE /datasets,
+        # POST .../test-cases, etc.) don't raise 404 before reaching the mocked
+        # service layer.
+        scalar_one_or_none=MagicMock(return_value=MagicMock(id="ds-1")),
+        scalar=MagicMock(return_value=None),
+        first=MagicMock(return_value=None),
+    ))
+
+    # Authenticated user injected into the request context. When the box is
+    # empty (no user injected) the override raises 401 — mirroring the real
+    # get_current_user 401 path when no valid token is supplied.
+    user_box: dict[str, object] = {}
+
+    async def override_get_db():
+        yield db
+
+    async def override_get_current_user() -> MagicMock:
+        u = user_box.get("user")
+        if u is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return u
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
+    app.state._user_box = user_box
+    return app
+
+
+def _make_user(role: str = "user", is_admin: bool = False) -> MagicMock:
+    return MagicMock(
+        id=42,
+        role=role,
+        is_admin=is_admin,
+        is_active=True,
+        email="u@example.com",
+    )
+
+
+def _client(auth_app, user=None):
+    """Return a TestClient with get_current_user resolving to `user` (or 401)."""
+    auth_app.state._user_box["user"] = user
+    return TestClient(auth_app)
+
+
+def _request(client, method, path, json_body):
+    fn = getattr(client, method.lower())
+    kwargs = {}
+    if json_body is not None:
+        kwargs["json"] = json_body
+    return fn(AUTH_BASE + path, **kwargs)
+
+
+# ── 401 without auth ──────────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("endpoint", list(MUTATING_ENDPOINTS))
+def test_endpoint_requires_auth_401(endpoint, auth_app):
+    """Every mutating evaluation endpoint must return 401 with no token."""
+    method, path, body = MUTATING_ENDPOINTS[endpoint]
+    client = _client(auth_app, user=None)  # get_current_user raises 401
+    resp = _request(client, method, path, body)
+    assert resp.status_code == 401, (
+        f"{endpoint} returned {resp.status_code} (expected 401 without auth): {resp.text}"
+    )
+
+
+# ── 200/201 with a valid (non-admin) token ───────────────────────────────
+
+
+@pytest.mark.parametrize("endpoint", [e for e in MUTATING_ENDPOINTS if e not in ADMIN_ONLY])
+def test_endpoint_allows_authenticated_user(endpoint, auth_app):
+    """The 9 non-admin endpoints return success for any authenticated user."""
+    method, path, body = MUTATING_ENDPOINTS[endpoint]
+    user = _make_user(role="user", is_admin=False)
+
+    with patch("app.api.v1.evaluation.DatasetBuilder") as MockBuilder, patch(
+        "app.api.v1.evaluation.EvaluationRunner"
+    ) as MockRunner:
+        # DatasetBuilder-backed endpoints.
+        ds = MagicMock(id="ds-1", name="ds", category="code", version=1,
+                       description="", created_at=None)
+        tc = MagicMock(id="tc-1", task_type="general", difficulty="medium")
+        builder = MockBuilder.return_value
+        builder.create_dataset = AsyncMock(return_value=ds)
+        builder.get_dataset = AsyncMock(return_value=ds)
+        builder.add_test_case = AsyncMock(return_value=tc)
+        builder.add_test_cases_bulk = AsyncMock(return_value=[tc])
+        builder.update_test_case = AsyncMock(return_value=tc)
+        builder.delete_test_case = AsyncMock(return_value=True)
+        builder.import_from_langfuse_traces = AsyncMock(return_value=ds)
+
+        # EvaluationRunner-backed endpoints.
+        run = MagicMock(
+            id="run-1", status="pending", model_name="m", aggregate_score=None,
+            scores_by_category={}, started_at=None, completed_at=None,
+            model_config_hash=None, per_case_scores=None, langfuse_trace_id=None,
+            error_message=None,
+        )
+        runner = MockRunner.return_value
+        runner.run_evaluation = AsyncMock(return_value=run)
+        runner.compare_models = AsyncMock(return_value={"winner": "a"})
+
+        client = _client(auth_app, user=user)
+        resp = _request(client, method, path, body)
+        assert resp.status_code in (200, 201), (
+            f"{endpoint} returned {resp.status_code} for an authed user: {resp.text}"
+        )
+
+
+# ── admin-scoped endpoints ────────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("endpoint", list(ADMIN_ONLY))
+def test_admin_endpoint_rejects_non_admin_403(endpoint, auth_app):
+    """import_from_langfuse / run_benchmark must 403 for a non-admin user."""
+    method, path, body = MUTATING_ENDPOINTS[endpoint]
+    user = _make_user(role="user", is_admin=False)
+
+    with patch("app.api.v1.evaluation.DatasetBuilder") as MockBuilder, patch(
+        "app.api.v1.evaluation.EvaluationRunner"
+    ) as MockRunner:
+        ds = MagicMock(id="ds-1", name="ds", category="code", version=1,
+                       description="", created_at=None)
+        MockBuilder.return_value.import_from_langfuse_traces = AsyncMock(return_value=ds)
+        run = MagicMock(id="run-1", status="pending", model_name="m", aggregate_score=None,
+                        scores_by_category={}, started_at=None, completed_at=None)
+        MockRunner.return_value.run_evaluation = AsyncMock(return_value=run)
+
+        client = _client(auth_app, user=user)
+        resp = _request(client, method, path, body)
+        assert resp.status_code == 403, (
+            f"{endpoint} returned {resp.status_code} for non-admin (expected 403): {resp.text}"
+        )
+
+
+@pytest.mark.parametrize("endpoint", list(ADMIN_ONLY))
+def test_admin_endpoint_allows_admin(endpoint, auth_app):
+    """import_from_langfuse / run_benchmark succeed for an admin user."""
+    method, path, body = MUTATING_ENDPOINTS[endpoint]
+    user = _make_user(role="admin", is_admin=True)
+
+    with patch("app.api.v1.evaluation.DatasetBuilder") as MockBuilder, patch(
+        "app.api.v1.evaluation.EvaluationRunner"
+    ) as MockRunner:
+        ds = MagicMock(id="ds-1", name="ds", category="code", version=1,
+                       description="", created_at=None)
+        MockBuilder.return_value.import_from_langfuse_traces = AsyncMock(return_value=ds)
+        run = MagicMock(id="run-1", status="pending", model_name="m", aggregate_score=None,
+                        scores_by_category={}, started_at=None, completed_at=None,
+                        model_config_hash=None, per_case_scores=None, langfuse_trace_id=None,
+                        error_message=None)
+        runner = MockRunner.return_value
+        runner.run_evaluation = AsyncMock(return_value=run)
+        runner.compare_models = AsyncMock(return_value={"winner": "a"})
+
+        client = _client(auth_app, user=user)
+        resp = _request(client, method, path, body)
+        assert resp.status_code in (200, 201), (
+            f"{endpoint} returned {resp.status_code} for admin: {resp.text}"
+        )
