@@ -216,7 +216,7 @@ Foreign-key constraints:
 
 ```bash
 cd /opt/flowmanner/backend
-DATABASE_URL="postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner" \
+DATABASE_URL="postgresql+asyncpg://flowmanner:REDACTED_DB_PASSWORD@127.0.0.1:5432/flowmanner" \
   .venv/bin/python -c "..."
 ```
 
@@ -244,7 +244,7 @@ The `ProgramTransitionConflict` was raised as expected on the second `archive()`
 
 ```bash
 cd /opt/flowmanner/backend
-DATABASE_URL="postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner" \
+DATABASE_URL="postgresql+asyncpg://flowmanner:REDACTED_DB_PASSWORD@127.0.0.1:5432/flowmanner" \
   .venv/bin/python -m pytest \
     tests/test_mission_program_models.py \
     tests/test_program_schemas.py \

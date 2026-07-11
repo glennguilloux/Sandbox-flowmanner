@@ -7,9 +7,10 @@ Pure-Python model tests (no live DB). Integration tests live in
 Run via::
 
     cd /opt/flowmanner/backend
-    DATABASE_URL="postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner" \\
+    DATABASE_URL="postgresql+asyncpg://flowmanner:REDACTED_DB_PASSWORD@127.0.0.1:5432/flowmanner" \\
       .venv/bin/python -m pytest tests/test_memory_digest_models.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -19,7 +20,7 @@ import pytest
 # Ensure DATABASE_URL is set BEFORE importing app modules that need it.
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner",
+    "postgresql+asyncpg://flowmanner:REDACTED_DB_PASSWORD@127.0.0.1:5432/flowmanner",
 )
 
 
@@ -59,9 +60,7 @@ class TestHardcodedTuples:
         from app.models.memory_digest_models import MemoryDigestDelivery
 
         for attr in dir(MemoryDigestDelivery):
-            assert not attr.startswith("_TRANSITIONS"), (
-                f"sunder-name leak: {attr}"
-            )
+            assert not attr.startswith("_TRANSITIONS"), f"sunder-name leak: {attr}"
 
 
 class TestColumns:
@@ -86,14 +85,10 @@ class TestColumns:
         from app.models import Base
         from app.models.memory_digest_models import MemoryDigestDelivery
 
-        col = Base.metadata.tables["memory_digest_deliveries"].columns[
-            "workspace_id"
-        ]
+        col = Base.metadata.tables["memory_digest_deliveries"].columns["workspace_id"]
         assert not col.nullable
         fks = list(col.foreign_keys)
-        matching = [
-            fk for fk in fks if fk.target_fullname == "workspaces.id"
-        ]
+        matching = [fk for fk in fks if fk.target_fullname == "workspaces.id"]
         assert matching
         assert "CASCADE" in (matching[0].ondelete or "")
 
@@ -108,9 +103,7 @@ class TestColumns:
         from app.models import Base
         from app.models.memory_digest_models import MemoryDigestDelivery
 
-        col = Base.metadata.tables["memory_digest_deliveries"].columns[
-            "delivery_channel"
-        ]
+        col = Base.metadata.tables["memory_digest_deliveries"].columns["delivery_channel"]
         assert not col.nullable
 
     def test_status_not_null(self) -> None:
@@ -124,18 +117,14 @@ class TestColumns:
         from app.models import Base
         from app.models.memory_digest_models import MemoryDigestDelivery
 
-        col = Base.metadata.tables["memory_digest_deliveries"].columns[
-            "claims_count"
-        ]
+        col = Base.metadata.tables["memory_digest_deliveries"].columns["claims_count"]
         assert not col.nullable
 
     def test_claims_summary_nullable(self) -> None:
         from app.models import Base
         from app.models.memory_digest_models import MemoryDigestDelivery
 
-        col = Base.metadata.tables["memory_digest_deliveries"].columns[
-            "claims_summary"
-        ]
+        col = Base.metadata.tables["memory_digest_deliveries"].columns["claims_summary"]
         assert col.nullable
 
     def test_recipient_nullable(self) -> None:
@@ -149,18 +138,14 @@ class TestColumns:
         from app.models import Base
         from app.models.memory_digest_models import MemoryDigestDelivery
 
-        col = Base.metadata.tables["memory_digest_deliveries"].columns[
-            "delivered_at"
-        ]
+        col = Base.metadata.tables["memory_digest_deliveries"].columns["delivered_at"]
         assert col.nullable
 
     def test_error_message_nullable(self) -> None:
         from app.models import Base
         from app.models.memory_digest_models import MemoryDigestDelivery
 
-        col = Base.metadata.tables["memory_digest_deliveries"].columns[
-            "error_message"
-        ]
+        col = Base.metadata.tables["memory_digest_deliveries"].columns["error_message"]
         assert col.nullable
 
 
