@@ -10,6 +10,7 @@ from sqlalchemy import UUID as SA_UUID
 from sqlalchemy import MetaData, select, text
 
 from app.api.deps import get_current_user
+from app.api.middleware.audit import log_event
 from app.api.v3.base import ok
 from app.database import get_db
 from app.models.agent import Agent
@@ -27,6 +28,7 @@ from app.schemas.workspace_v3 import (
     WorkspaceResponse,
     WorkspaceUpdateRequest,
 )
+from app.services.background_task_manager import background_task_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -116,6 +118,22 @@ async def create_workspace(
     await db.flush()
     await db.refresh(ws)
 
+    # Tenant-scoped audit trail (fire-and-forget, consistent with deps.py:408).
+    # Records the workspace that was created, scoped by its workspace_id.
+    background_task_manager.spawn(
+        log_event(
+            user_id=user.id,
+            action="workspace.create",
+            details={
+                "workspace_id": ws.id,
+                "name": ws.name,
+                "slug": ws.slug,
+                "owner_id": user.id,
+            },
+        ),
+        label="audit.workspace.create",
+    )
+
     return ok(
         WorkspaceResponse(
             id=ws.id,
@@ -193,6 +211,30 @@ async def update_workspace(
 
     await db.flush()
     await db.refresh(ws)
+
+    # Tenant-scoped audit trail (fire-and-forget). Records the workspace that was
+    # mutated, scoped by its workspace_id. Only the fields present in the payload
+    # are noted in the audit details.
+    changed = {}
+    if payload.name is not None:
+        changed["name"] = payload.name
+    if payload.logo_url is not None:
+        changed["logo_url"] = payload.logo_url
+    if payload.settings is not None:
+        changed["settings"] = payload.settings
+
+    background_task_manager.spawn(
+        log_event(
+            user_id=user.id,
+            action="workspace.update",
+            details={
+                "workspace_id": ws.id,
+                "name": ws.name,
+                **changed,
+            },
+        ),
+        label="audit.workspace.update",
+    )
 
     return ok(
         WorkspaceResponse(
@@ -492,12 +534,31 @@ async def delete_workspace(
     if not ws:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
 
+    # Tenant-scoped audit trail (fire-and-forget). Capture the workspace_id and
+    # name BEFORE the row is deleted so the event records the workspace that was
+    # removed. Captured here (ahead of the purge) so the audit line survives
+    # the deletion.
+    deleted_workspace_id = ws.id
+    deleted_name = ws.name
+
     # Purge workspace-owned children first (SET NULL / NO ACTION / orphaned
     # FKs) so the final workspace delete is unblocked and no tenant data
     # survives. Runs in the SAME db session / transaction as the delete.
     await _purge_workspace_children(db, workspace_id)
     await db.delete(ws)
     await db.flush()
+
+    background_task_manager.spawn(
+        log_event(
+            user_id=user.id,
+            action="workspace.delete",
+            details={
+                "workspace_id": deleted_workspace_id,
+                "name": deleted_name,
+            },
+        ),
+        label="audit.workspace.delete",
+    )
 
 
 @router.get("/{workspace_id}/members", status_code=status.HTTP_200_OK)
