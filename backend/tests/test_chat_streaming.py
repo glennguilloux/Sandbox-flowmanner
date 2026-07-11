@@ -11,8 +11,37 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
 from app.api.deps import get_current_user, get_db
 from app.main_fastapi import app
+from app.services import sse_buffer
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def _mock_stream_redis(monkeypatch):
+    """Make the SSE Redis client return a string stream-ID for xadd.
+
+    The global conftest redis mock returns a non-awaitable AsyncMock instance
+    from ``redis.asyncio.from_url`` (sse_buffer._get_stream_redis awaits it),
+    and leaves ``xadd`` unspecified (returns a bare AsyncMock). That bare value
+    is embedded as ``seq`` and ``json.dumps`` rejects it
+    ("Object of type AsyncMock is not JSON serializable"). This mirrors
+    production (redis XADD returns a real string ID) and the proven mock in
+    app/tests/test_sse_buffer.py. No serializer change is needed; this is a
+    test-fixture gap, not a runtime defect.
+    """
+    client = AsyncMock()
+    client.xadd = AsyncMock(return_value="1720451234567-0")
+    client.exists = AsyncMock(return_value=1)
+    client.expire = AsyncMock(return_value=True)
+    client.aclose = AsyncMock()
+    client.xrange = AsyncMock(return_value=[])
+    monkeypatch.setattr(
+        sse_buffer,
+        "_get_stream_redis",
+        AsyncMock(return_value=client),
+        raising=False,
+    )
+    return
 
 
 def _make_thread(user_id: int = 1):

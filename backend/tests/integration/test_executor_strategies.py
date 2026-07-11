@@ -244,6 +244,11 @@ def _make_mock_event_log():
     el = MagicMock()
     el.run_exists = AsyncMock(return_value=False)
     el.get_latest_sequence = AsyncMock(return_value=0)
+    # _handle_llm awaits find_by_idempotency_key (node_executor.py:508) for the
+    # LLM-output replay cache. Returning None = cache miss, so the node proceeds
+    # to the (mocked) budget-enforcer LLM call. Omitting this leaves a plain
+    # MagicMock, which cannot be awaited -> TypeError for every strategy path.
+    el.find_by_idempotency_key = AsyncMock(return_value=None)
     el.MAX_EVENTS_PER_RUN = 100_000
 
     _events: list = []

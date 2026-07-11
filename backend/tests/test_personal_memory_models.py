@@ -217,7 +217,7 @@ class TestPersonalMemoryClaimCheckConstraints:
 
 
 class TestPersonalMemoryClaimValueSets:
-    """Validate the four hardcoded ALL_* tuples match the documented value sets.
+    """Validate the hardcoded ALL_* tuples match the documented value sets.
 
     These tuples are used to build the CHECK constraints and are also
     exported for use by services/serializers.
@@ -226,7 +226,17 @@ class TestPersonalMemoryClaimValueSets:
     def test_all_claim_types_contains_documented_values(self) -> None:
         from app.models.personal_memory_models import ALL_CLAIM_TYPES
 
-        assert set(ALL_CLAIM_TYPES) == {"fact", "preference", "observation", "sensitive"}
+        # "constraint" is a current, first-class claim type: it is the
+        # Tier-0 protected class (_PROTECTED_CLAIM_TYPES), has a schema enum
+        # value (schemas.personal_memory.CONSTRAINT), and is queried directly
+        # by pre_tool_constraints.py. The model's tuple is the source of truth.
+        assert set(ALL_CLAIM_TYPES) == {
+            "fact",
+            "preference",
+            "observation",
+            "sensitive",
+            "constraint",
+        }
 
     def test_all_scopes_contains_documented_values(self) -> None:
         from app.models.personal_memory_models import ALL_SCOPES

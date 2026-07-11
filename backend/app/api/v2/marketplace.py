@@ -223,9 +223,9 @@ async def uninstall_listing(
     service = get_marketplace_service()
     result = await asyncio.to_thread(service.uninstall, listing_id, str(user.id))
     if not result.get("success"):
-        # "Not installed" -> 404; other failures -> 400
-        status = 404 if result.get("error") == "Not installed" else 400
-        raise HTTPException(status_code=status, detail=result.get("error", "Uninstall failed"))
+        detail = result.get("error", "Uninstall failed")
+        status = 404 if detail == "Not installed" else 400
+        raise HTTPException(status_code=status, detail=detail)
     return ok(result)
 
 
