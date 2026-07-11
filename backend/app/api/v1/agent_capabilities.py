@@ -12,7 +12,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user
 from app.database import get_db
+from app.models.user import User
 from app.services.agent_registry_service import AgentRegistryService
 
 logger = logging.getLogger(__name__)
@@ -52,6 +54,7 @@ class DiscoverRequest(BaseModel):
 async def register_capability(
     body: RegisterCapabilityRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Register or update an agent's capability profile with embedding."""
     registry = AgentRegistryService()
@@ -80,6 +83,7 @@ async def register_capability(
 async def list_capabilities(
     task_type: str | None = None,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """List all registered agent capabilities."""
     registry = AgentRegistryService()
@@ -105,6 +109,7 @@ async def list_capabilities(
 async def get_capability(
     agent_id: str,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Get a specific agent's capability profile."""
     registry = AgentRegistryService()
@@ -128,6 +133,7 @@ async def get_capability(
 async def delete_capability(
     agent_id: str,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Delete an agent's capability profile."""
     registry = AgentRegistryService()
@@ -141,6 +147,7 @@ async def delete_capability(
 async def discover_agents(
     body: DiscoverRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Find agents matching a task description via semantic search."""
     registry = AgentRegistryService()
@@ -161,6 +168,7 @@ async def discover_agents(
 async def match_agent(
     body: MatchRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Find the single best agent for a task."""
     registry = AgentRegistryService()
