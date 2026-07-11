@@ -181,6 +181,11 @@ class StrategyResult(BaseModel):
 
     success: bool
     status: str  # "completed", "failed", "aborted", "paused"
+    # The substrate run id this result belongs to.  Optional / nullable because
+    # some call sites construct a StrategyResult without a run context (e.g.
+    # lease-already-running early returns); the executor's post-execution hooks
+    # read ``result.run_id or workflow.id`` so a missing value degrades safely.
+    run_id: str | None = None
     data: Any = None
     error: str | None = None
     completed_nodes: list[str] = Field(default_factory=list)
