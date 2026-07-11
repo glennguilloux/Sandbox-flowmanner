@@ -130,31 +130,40 @@ class TestPlanMission:
             ]
         )
 
-        with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
-            mock_session.return_value.__aenter__.return_value = mock_db
-            mock_session.return_value.__aexit__.return_value = None
+        # These tests exercise the single-shot (BUDGET_AWARE_PLAN_SELECTION=off)
+        # path directly via the mocked _generate_plan. Pin the flag so the
+        # default flip to "auto" does not route them through plan selection.
+        with patch("app.services.mission_planner.settings") as mock_settings:
+            mock_settings.BUDGET_AWARE_PLAN_SELECTION = "off"
+            mock_settings.MISSION_PLAN_TEMPERATURE = 0.7
+            mock_settings.MISSION_PLAN_MAX_TOKENS = 2000
+            mock_settings.MISSION_DEFAULT_MAX_RETRIES = 3
+            mock_settings.MISSION_LLM_REQUEST_TIMEOUT = 60.0
+            with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
+                mock_session.return_value.__aenter__.return_value = mock_db
+                mock_session.return_value.__aexit__.return_value = None
 
-            with patch.object(
-                planner,
-                "_generate_plan",
-                AsyncMock(
-                    return_value=[
-                        {
-                            "title": "Task 1",
-                            "description": "Do thing",
-                            "task_type": "llm",
-                            "dependencies": [],
-                        },
-                        {
-                            "title": "Task 2",
-                            "description": "Do another",
-                            "task_type": "tool",
-                            "dependencies": [0],
-                        },
-                    ]
-                ),
-            ):
-                result = await planner.plan_mission("mission-1")
+                with patch.object(
+                    planner,
+                    "_generate_plan",
+                    AsyncMock(
+                        return_value=[
+                            {
+                                "title": "Task 1",
+                                "description": "Do thing",
+                                "task_type": "llm",
+                                "dependencies": [],
+                            },
+                            {
+                                "title": "Task 2",
+                                "description": "Do another",
+                                "task_type": "tool",
+                                "dependencies": [0],
+                            },
+                        ]
+                    ),
+                ):
+                    result = await planner.plan_mission("mission-1")
 
         assert result["success"] is True
         assert result["status"] == "planned"
@@ -233,10 +242,19 @@ class TestPlanMission:
             ]
         )
 
-        with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
-            mock_session.return_value.__aenter__.return_value = mock_db
-            with patch.object(planner, "_generate_plan", AsyncMock(return_value=[])):
-                result = await planner.plan_mission("mission-1")
+        # Single-shot path (off): _generate_plan returning [] must fall back
+        # to the default single task. Pin the flag so the "auto" default does
+        # not route this through plan selection.
+        with patch("app.services.mission_planner.settings") as mock_settings:
+            mock_settings.BUDGET_AWARE_PLAN_SELECTION = "off"
+            mock_settings.MISSION_PLAN_TEMPERATURE = 0.7
+            mock_settings.MISSION_PLAN_MAX_TOKENS = 2000
+            mock_settings.MISSION_DEFAULT_MAX_RETRIES = 3
+            mock_settings.MISSION_LLM_REQUEST_TIMEOUT = 60.0
+            with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
+                mock_session.return_value.__aenter__.return_value = mock_db
+                with patch.object(planner, "_generate_plan", AsyncMock(return_value=[])):
+                    result = await planner.plan_mission("mission-1")
 
         assert result["success"] is True
         assert result["task_count"] == 1
@@ -293,14 +311,23 @@ class TestPlanMission:
             ]
         )
 
-        with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
-            mock_session.return_value.__aenter__.return_value = mock_db
-            with patch.object(
-                planner,
-                "_generate_plan",
-                AsyncMock(side_effect=PermanentMissionError("forbidden")),
-            ):
-                result = await planner.plan_mission("mission-1")
+        # Single-shot error path: a PermanentMissionError from _generate_plan
+        # must surface as a permanent failure. Pin off so the test exercises the
+        # single-shot path, not the selection-fallback path.
+        with patch("app.services.mission_planner.settings") as mock_settings:
+            mock_settings.BUDGET_AWARE_PLAN_SELECTION = "off"
+            mock_settings.MISSION_PLAN_TEMPERATURE = 0.7
+            mock_settings.MISSION_PLAN_MAX_TOKENS = 2000
+            mock_settings.MISSION_DEFAULT_MAX_RETRIES = 3
+            mock_settings.MISSION_LLM_REQUEST_TIMEOUT = 60.0
+            with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
+                mock_session.return_value.__aenter__.return_value = mock_db
+                with patch.object(
+                    planner,
+                    "_generate_plan",
+                    AsyncMock(side_effect=PermanentMissionError("forbidden")),
+                ):
+                    result = await planner.plan_mission("mission-1")
 
         assert result["success"] is False
         assert result.get("permanent") is True
@@ -336,14 +363,23 @@ class TestPlanMission:
             ]
         )
 
-        with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
-            mock_session.return_value.__aenter__.return_value = mock_db
-            with patch.object(
-                planner,
-                "_generate_plan",
-                AsyncMock(side_effect=RuntimeError("unexpected")),
-            ):
-                result = await planner.plan_mission("mission-1")
+        # Single-shot error path: an unexpected error must surface as failure.
+        # Pin off so the test exercises the single-shot path, not the
+        # selection-fallback path.
+        with patch("app.services.mission_planner.settings") as mock_settings:
+            mock_settings.BUDGET_AWARE_PLAN_SELECTION = "off"
+            mock_settings.MISSION_PLAN_TEMPERATURE = 0.7
+            mock_settings.MISSION_PLAN_MAX_TOKENS = 2000
+            mock_settings.MISSION_DEFAULT_MAX_RETRIES = 3
+            mock_settings.MISSION_LLM_REQUEST_TIMEOUT = 60.0
+            with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
+                mock_session.return_value.__aenter__.return_value = mock_db
+                with patch.object(
+                    planner,
+                    "_generate_plan",
+                    AsyncMock(side_effect=RuntimeError("unexpected")),
+                ):
+                    result = await planner.plan_mission("mission-1")
 
         assert result["success"] is False
 
