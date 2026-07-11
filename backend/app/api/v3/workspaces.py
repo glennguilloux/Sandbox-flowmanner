@@ -1,3 +1,25 @@
+"""v3 workspace routes — membership-scoped, NOT scope-middleware-scoped.
+
+Authorization model (see backend/app/api/v3/AGENTS.md):
+  * every endpoint is gated first by the WORKSPACES_V3_ENDPOINTS
+    feature flag (`_require_workspaces_v3`), then by explicit
+    WorkspaceMember membership (`_check_workspace_access`).
+  * destructive / management endpoints additionally require an
+    owner / admin..owner role subset (see `required_roles`).
+
+Why NOT ScopeValidationMiddleware (app/middleware/scope_validator.py):
+  that middleware is a per-route OAuth2-style scope gate that only fires
+  for routes registered via `register_scope_requirement(...)`. As of this
+  writing NO route in the repo registers a scope requirement, so the
+  middleware enforces nothing for /api/v3/*. These workspace routes are
+  intentionally membership-scoped (workspace ownership / role), which is a
+  different and stricter contract than a bearer-token scope subset. Adding
+  scope registration here would be redundant defense-in-depth (admin/owner
+  already short-circuit the middleware at scope_validator.py:40) and is
+  deliberately out of scope. If scope gating is ever desired for v3, that
+  is a separate design decision tracked outside this file.
+"""
+
 from __future__ import annotations
 
 import asyncio
