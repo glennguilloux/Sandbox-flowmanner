@@ -9,7 +9,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user, require_role
 from app.database import get_db
+from app.models.user import User
 from app.services.evaluation.dataset_builder import DatasetBuilder
 from app.services.evaluation.eval_runner import EvaluationRunner
 
@@ -79,6 +81,7 @@ class ImportLangfuseRequest(BaseModel):
 async def create_dataset(
     body: CreateDatasetRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     builder = DatasetBuilder(db)
     ds = await builder.create_dataset(name=body.name, category=body.category, description=body.description)
@@ -137,6 +140,7 @@ async def get_dataset(
 async def delete_dataset(
     dataset_id: str,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     from sqlalchemy import select
 
@@ -159,6 +163,7 @@ async def add_test_case(
     dataset_id: str,
     body: CreateTestCaseRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     builder = DatasetBuilder(db)
     ds = await builder.get_dataset(dataset_id)
@@ -181,6 +186,7 @@ async def add_test_cases_bulk(
     dataset_id: str,
     body: BulkCreateTestCasesRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     builder = DatasetBuilder(db)
     ds = await builder.get_dataset(dataset_id)
@@ -218,6 +224,7 @@ async def update_test_case(
     test_case_id: str,
     body: UpdateTestCaseRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     builder = DatasetBuilder(db)
     updates = body.model_dump(exclude_none=True)
@@ -231,6 +238,7 @@ async def update_test_case(
 async def delete_test_case(
     test_case_id: str,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     builder = DatasetBuilder(db)
     deleted = await builder.delete_test_case(test_case_id)
@@ -246,6 +254,7 @@ async def delete_test_case(
 async def run_evaluation(
     body: RunEvaluationRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     runner = EvaluationRunner(db)
     try:
@@ -272,6 +281,7 @@ async def run_evaluation(
 async def compare_models(
     body: CompareModelsRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     runner = EvaluationRunner(db)
     try:
@@ -343,6 +353,7 @@ async def get_run(
 async def import_from_langfuse(
     body: ImportLangfuseRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_role("admin")),
 ):
     builder = DatasetBuilder(db)
     ds = await builder.import_from_langfuse_traces(
@@ -393,7 +404,7 @@ async def detect_regressions(
         grouped[key].append(run)
 
     regressions = []
-    for key, group_runs in grouped.items():
+    for group_runs in grouped.values():
         # Sort oldest first
         group_runs.sort(key=lambda r: r.created_at or datetime.min.replace(tzinfo=UTC))
         for i in range(1, len(group_runs)):
@@ -645,6 +656,7 @@ async def create_dataset_from_template(
     template_id: str,
     name: str | None = None,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Create a new dataset pre-populated with a template's sample test cases."""
     template = None
@@ -700,6 +712,7 @@ class BenchmarkRequest(BaseModel):
 async def run_benchmark(
     body: BenchmarkRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_role("admin")),
 ):
     """Run a benchmark: evaluate multiple models against the same dataset and return a leaderboard."""
     runner = EvaluationRunner(db)
