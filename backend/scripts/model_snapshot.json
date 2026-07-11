@@ -1470,6 +1470,7 @@
       "columns": {
         "context": "JSONB",
         "created_at": "DATETIME",
+        "depth_decision": "JSONB",
         "description": "TEXT",
         "expires_at": "DATETIME",
         "id": "VARCHAR(36)",
@@ -2750,6 +2751,7 @@
         "id": "UUID",
         "importance": "FLOAT",
         "last_used_at": "DATETIME",
+        "metadata": "JSONB",
         "object": "JSONB",
         "predicate": "VARCHAR(100)",
         "scope": "VARCHAR(20)",
