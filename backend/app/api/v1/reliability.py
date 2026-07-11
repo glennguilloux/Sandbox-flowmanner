@@ -5,9 +5,11 @@ Exposes chaos engineering metrics and LLM reliability assertions.
 Used to verify Langfuse failure isolation guarantees.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from app.api.deps import get_current_user, require_role
+from app.models.user import User
 from app.services.chaos_langfuse import get_chaos, toggle_chaos
 from app.services.reliability_assertions import get_reliability_monitor
 
@@ -19,7 +21,9 @@ class ChaosToggleRequest(BaseModel):
 
 
 @router.get("/reliability")
-async def get_reliability_report():
+async def get_reliability_report(
+    user: User = Depends(get_current_user),
+):
     """
     Get the reliability report showing LLM health during chaos testing.
 
@@ -52,7 +56,10 @@ async def get_reliability_report():
 
 
 @router.post("/reliability/chaos")
-async def toggle_chaos_mode(request: ChaosToggleRequest):
+async def toggle_chaos_mode(
+    request: ChaosToggleRequest,
+    user: User = Depends(require_role("admin")),
+):
     """
     Toggle chaos mode at runtime without container restart.
 
