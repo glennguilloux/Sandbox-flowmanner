@@ -3,7 +3,7 @@
 **Date:** 2026-07-07
 **Author:** W2 analysis worker (subagent)
 **Scope:** `/opt/flowmanner/backend` chat + SSE streaming subsystem
-**Read-first note:** The brief `PLATFORM-FOUNDATION-BRIEF-2026-07-07.md` was **not present** at `/opt/flowmapper/.sisyphus/analysis/`. The actual repo lives at `/opt/flowmanner` (the task's `/opt/flowmapper` path is a typo of the workspace dir `/opt/flowmanner`). I grounded this analysis directly in the real source: `chat_service.py`, `sse_protocol.py`, `sse_buffer.py`, `llm_providers.py`, `chat_context.py`, `background_task_manager.py`, `database.py`, `nginx/default.conf`, and the `docs/ROADMAP-Q3-Q4-2026.md` + `docs/REIMAGINE-CHAT-PROMPT-2026-07-05.md` roadmap context. Phase 1 in the roadmap is "Strategy Profiling & AI Quality Gate ✅ COMPLETE"; the SSE/Chat wiring work is the W2 / Phase 1.3 track.
+**Read-first note:** The brief `PLATFORM-FOUNDATION-BRIEF-2026-07-07.md` was **not present** at `/opt/flowmanner/.sisyphus/analysis/`. The actual repo lives at `/opt/flowmanner` (the task's `/opt/flowmanner` path is a typo of the workspace dir `/opt/flowmanner`). I grounded this analysis directly in the real source: `chat_service.py`, `sse_protocol.py`, `sse_buffer.py`, `llm_providers.py`, `chat_context.py`, `background_task_manager.py`, `database.py`, `nginx/default.conf`, and the `docs/ROADMAP-Q3-Q4-2026.md` + `docs/REIMAGINE-CHAT-PROMPT-2026-07-05.md` roadmap context. Phase 1 in the roadmap is "Strategy Profiling & AI Quality Gate ✅ COMPLETE"; the SSE/Chat wiring work is the W2 / Phase 1.3 track.
 
 ---
 
@@ -133,7 +133,7 @@ Phase 1 (per `ROADMAP-Q3-Q4-2026.md:51`, "Strategy Profiling & AI Quality Gate �
 
 ## 4. Two-Pane Chat UI Default Simplification Proposal
 
-**Constraint:** The frontend (`/home/glenn/FlowmapperV2-frontend/`) is **not present on this machine** — only the backend and the roadmap docs are. I could not read `floating-nav.tsx` (task said it was already gated this session, but the file path does not exist here). The proposal below is therefore grounded in the backend event contract (§1) and the documented frontend architecture in `docs/RESEARCH-ROADMAP-HYBRID-PLATFORM-2026-07-05.md` §4 and `docs/REIMAGINE-CHAT-PROMPT-2026-07-05.md`.
+**Constraint:** The frontend (`/home/glenn/FlowmannerV2-frontend/`) is **not present on this machine** — only the backend and the roadmap docs are. I could not read `floating-nav.tsx` (task said it was already gated this session, but the file path does not exist here). The proposal below is therefore grounded in the backend event contract (§1) and the documented frontend architecture in `docs/RESEARCH-ROADMAP-HYBRID-PLATFORM-2026-07-05.md` §4 and `docs/REIMAGINE-CHAT-PROMPT-2026-07-05.md`.
 
 ### 4.1 Current surface (from docs)
 

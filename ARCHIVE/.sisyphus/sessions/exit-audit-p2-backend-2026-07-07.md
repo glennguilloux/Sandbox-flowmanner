@@ -68,7 +68,7 @@ buffered + replayable, + new regression test), P2-3 (_prune_messages_to_budget
 placeholder compaction + test_chat_context.py), P2-4 (ToolRegistry plugin arch)
 were all shipped in prior sessions. This session added only a regression test
 and reverted a divergent constant. Remaining work is FRONTEND-only and BLOCKED:
-the homelab frontend source (/home/glenn/FlowmapperV2-frontend) is an empty
+the homelab frontend source (/home/glenn/FlowmannerV2-frontend) is an empty
 0-byte placeholder here — the real frontend lives on another machine. P2-5
 (markdown memoization) and the P2-2-frontend renderer (must consume
 `tool_call_result`, NOT `tool_result`) must be done there. The 28 pre-existing
@@ -77,7 +77,7 @@ separately — they are not caused by this session's commit. Deploy was NOT run
 (Glenn deploys manually).
 
 ## FILES THIS AGENT DID NOT TOUCH BUT EXIST
-- /home/glenn/FlowmapperV2-frontend: empty placeholder (0 bytes) on this homelab.
+- /home/glenn/FlowmannerV2-frontend: empty placeholder (0 bytes) on this homelab.
   Real frontend source is elsewhere. Do NOT populate or delete without Glenn.
 - Untracked files: none in /opt/flowmanner (working tree clean).
 - Deleted files: none.

@@ -1,6 +1,6 @@
 # W3 Analysis — Mission + Swarm + Self-Improvement Subsystems
 
-**Scope:** `/opt/flowmanner/backend` (note: task brief said `/opt/flowmapper` — that path does not exist; the repo is `/opt/flowmanner`, per the workspace path and AGENTS.md).
+**Scope:** `/opt/flowmanner/backend` (note: task brief said `/opt/flowmanner` — that path does not exist; the repo is `/opt/flowmanner`, per the workspace path and AGENTS.md).
 **Date:** 2026-07-07
 **Audience:** Roadmap author (Phase 2+ shopfront surfacing).
 **Constraint:** Analysis only — no code edits, no deploy, no commit.
