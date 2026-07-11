@@ -1082,3 +1082,101 @@ class TestRouteRegistration:
 
             resp = test_client.get("/api/swarm/protocol/handoff/test-id/chain")
             assert resp.status_code == 200  # empty chain is valid
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Security: auth enforcement on the 7 mutating endpoints
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# PR3 P0 security fix (2026-07-11): the 7 mutating swarm-protocol endpoints
+# previously had NO auth dependency — any unauthenticated network client could
+# start debates, delegate/accept/complete/reject handoffs, and escalate/resolve
+# tasks. They now require ``Depends(get_current_user)``.
+#
+# The ``test_client`` fixture overrides ``get_current_user`` (see conftest), so
+# the existing tests above exercise the authenticated (200/404/422) paths. The
+# tests below use a separate client that does NOT override ``get_current_user``,
+# so the real dependency runs and rejects the missing-token request with 401.
+
+
+@pytest.fixture
+def no_auth_client(test_app, mock_db):
+    """TestClient with ONLY get_db overridden — get_current_user runs for real.
+
+    With no Authorization header, ``OAuth2PasswordBearer`` raises 401 before the
+    route handler executes. Used to assert the mutating endpoints reject
+    unauthenticated callers.
+    """
+    from fastapi.testclient import TestClient
+
+    from app.api.deps import get_current_user
+    from app.database import get_db
+
+    async def override_get_db():
+        yield mock_db
+
+    test_app.dependency_overrides[get_db] = override_get_db
+    # Deliberately DO NOT override get_current_user.
+    test_app.dependency_overrides.pop(get_current_user, None)
+
+    with TestClient(test_app) as client:
+        yield client
+
+    test_app.dependency_overrides.clear()
+
+
+class TestAuthEnforcement:
+    """Every mutating endpoint must reject unauthenticated requests with 401."""
+
+    # (method, path, json_body) for each of the 7 mutating endpoints.
+    MUTATING_ENDPOINTS = [
+        ("POST", "/api/swarm/protocol/debate", {}),
+        ("POST", "/api/swarm/protocol/handoff/delegate", {}),
+        ("POST", "/api/swarm/protocol/handoff/handoff-001/accept", None),
+        ("POST", "/api/swarm/protocol/handoff/handoff-001/complete", {}),
+        ("POST", "/api/swarm/protocol/handoff/handoff-001/reject", {}),
+        ("POST", "/api/swarm/protocol/escalate", {}),
+        ("POST", "/api/swarm/protocol/escalate/esc-001/resolve", {}),
+    ]
+
+    @pytest.mark.parametrize(("method", "path", "body"), MUTATING_ENDPOINTS)
+    def test_mutating_endpoint_requires_auth(self, no_auth_client, method, path, body):
+        """Unauthenticated request → 401 (auth is enforced before validation)."""
+        resp = (
+            no_auth_client.post(path, json=body)
+            if body is not None
+            else no_auth_client.post(path)
+        )
+        assert resp.status_code == 401, (
+            f"{method} {path} must return 401 without auth, got {resp.status_code}"
+        )
+
+    @pytest.mark.parametrize(("method", "path", "body"), MUTATING_ENDPOINTS)
+    def test_mutating_endpoint_allows_authenticated(
+        self, test_client, method, path, body
+    ):
+        """Authenticated request is NOT rejected with 401 (auth override active).
+
+        The ``test_client`` fixture overrides ``get_current_user``, so these
+        requests get past the auth gate. With no service patching they hit a
+        validation error (422) or a service-level not-found (404), never 401.
+        """
+        with (
+            patch("app.api.v1.swarm_protocol.DebateProtocol") as mock_dp,
+            patch("app.api.v1.swarm_protocol.HandoffProtocol") as mock_hp,
+            patch("app.api.v1.swarm_protocol.EscalationChain") as mock_ec,
+        ):
+            mock_hp.return_value.accept = AsyncMock(return_value=None)
+            mock_hp.return_value.complete = AsyncMock(return_value=None)
+            mock_hp.return_value.reject = AsyncMock(return_value=None)
+            mock_dp.return_value.debate = AsyncMock(return_value=None)
+            mock_ec.return_value.resolve = AsyncMock(return_value=None)
+
+            resp = (
+                test_client.post(path, json=body)
+                if body is not None
+                else test_client.post(path)
+            )
+        assert resp.status_code != 401, (
+            f"{method} {path} must NOT return 401 when authenticated, got {resp.status_code}"
+        )
