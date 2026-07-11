@@ -268,24 +268,24 @@ Two **GitHub MCP Server** containers are running (internal port 8082), used by t
 ```
                     Homelab (10.99.0.3 / 172.16.1.1)
                     ================================
-                    
+
   localhost:8000 ←→ [Backend FastAPI] ←→ [PostgreSQL :5432]
                                         ←→ [Redis :6379]
                                         ←→ [RabbitMQ :5672]
                                         ←→ [Qdrant :6333]
-                                        
+
   localhost:55510 ←→ [SearXNG] (private meta-search)
-  
+
   localhost:9090  ←→ [Sandboxd Control Plane]
                        ↕ manages
                     [Sandbox Containers] ←→ [Traefik :80]
                                               ↕ routes *.preview
                                            Preview URLs
-  
+
   localhost:11434 ←→ [llama.cpp / Qwen3.6-27B] (systemd)
-  
+
   localhost:16686 ←→ [Jaeger] (tracing UI)
-  
+
   VPS (74.208.115.142)
     │
     ├── flowmanner.com → Frontend (Next.js)
@@ -296,14 +296,4 @@ Two **GitHub MCP Server** containers are running (internal port 8082), used by t
 
 #   SANDBOXD_API_TOKENS=name1:secret1,name2:secret2
 SANDBOXD_API_TOKENS=flowmanner=REDACTED_SANDBOXD_TOKEN
-➜  ~ 
-
-
-
-
-
-
-
-
-
-
+➜  ~
