@@ -674,18 +674,17 @@ async def create_dataset_from_template(
         description=f"Created from template: {template['name']}",
     )
 
-    cases = []
-    for sc in template.get("sample_cases", []):
-        cases.append(
-            {
-                "input_prompt": sc["input_prompt"],
-                "expected_behavior": sc["expected_behavior"],
-                "task_type": f"{template['category']}_generation",
-                "difficulty": "medium",
-                "tags": [template["category"]],
-                "rubric": template["default_rubric"],
-            }
-        )
+    cases = [
+        {
+            "input_prompt": sc["input_prompt"],
+            "expected_behavior": sc["expected_behavior"],
+            "task_type": f"{template['category']}_generation",
+            "difficulty": "medium",
+            "tags": [template["category"]],
+            "rubric": template["default_rubric"],
+        }
+        for sc in template.get("sample_cases", [])
+    ]
     if cases:
         await builder.add_test_cases_bulk(ds.id, cases)
 
