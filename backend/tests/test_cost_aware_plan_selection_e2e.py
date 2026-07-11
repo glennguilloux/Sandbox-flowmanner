@@ -332,3 +332,209 @@ class TestCostAwarePlanSelectionE2E:
         winner, _ = await select_plan(candidates, policy="min_cost", min_quality_threshold=0.6)
         assert winner.plan_id == "cheap"
         assert winner.tasks[0]["title"] == "Cheap task"
+
+
+class TestPlanSelectionMinCostPolicy:
+    """The ``on`` mode maps to policy='min_cost' (mission_planner.py:356).
+
+    These tests exercise that exact branch so the ``on`` path is proven, not
+    just the default ``auto``/``balanced`` path.
+    """
+
+    @pytest.mark.asyncio
+    async def test_on_min_cost_picks_cheapest_eligible(self):
+        """min_cost wins on the LOWEST token count among quality-eligible plans."""
+        from app.services.plan_selection.plan_candidate import PlanCandidate
+        from app.services.plan_selection.plan_selector import select_plan
+
+        candidates = [
+            PlanCandidate(
+                plan_id="expensive",
+                generation_strategy="llm_persona",
+                tasks=[{"title": "Expensive", "task_type": "code"}],
+                estimated_cost_usd=0.10,
+                estimated_tokens=5000,
+                quality_score=0.9,
+            ),
+            PlanCandidate(
+                plan_id="mid",
+                generation_strategy="llm_persona",
+                tasks=[{"title": "Mid", "task_type": "llm"}],
+                estimated_cost_usd=0.05,
+                estimated_tokens=2000,
+                quality_score=0.8,
+            ),
+            PlanCandidate(
+                plan_id="cheap",
+                generation_strategy="heuristic",
+                tasks=[{"title": "Cheap", "task_type": "llm"}],
+                estimated_cost_usd=0.0,
+                estimated_tokens=500,
+                quality_score=0.7,
+            ),
+        ]
+
+        winner, _ = await select_plan(candidates, policy="min_cost", min_quality_threshold=0.6)
+        # Cheapest *eligible* plan wins — not the highest quality.
+        assert winner.plan_id == "cheap"
+        assert winner.estimated_tokens == 500
+
+    @pytest.mark.asyncio
+    async def test_on_min_cost_excludes_below_threshold(self):
+        """A cheaper plan that fails quality is NOT chosen by min_cost."""
+        from app.services.plan_selection.plan_candidate import PlanCandidate
+        from app.services.plan_selection.plan_selector import select_plan
+
+        candidates = [
+            PlanCandidate(
+                plan_id="cheap_but_low_quality",
+                generation_strategy="heuristic",
+                tasks=[{"title": "Cheap", "task_type": "llm"}],
+                estimated_tokens=100,
+                quality_score=0.3,  # below 0.6 threshold
+            ),
+            PlanCandidate(
+                plan_id="mid_ok",
+                generation_strategy="llm_persona",
+                tasks=[{"title": "Mid", "task_type": "llm"}],
+                estimated_tokens=2000,
+                quality_score=0.8,
+            ),
+        ]
+
+        winner, _ = await select_plan(candidates, policy="min_cost", min_quality_threshold=0.6)
+        # The cheap plan is excluded (quality < threshold); next cheapest eligible wins.
+        assert winner.plan_id == "mid_ok"
+
+    @pytest.mark.asyncio
+    async def test_on_min_cost_single_candidate(self):
+        """min_cost with a single candidate returns it (no empty-candidate crash)."""
+        from app.services.plan_selection.plan_candidate import PlanCandidate
+        from app.services.plan_selection.plan_selector import select_plan
+
+        candidates = [
+            PlanCandidate(
+                plan_id="only",
+                generation_strategy="heuristic",
+                tasks=[{"title": "Only", "task_type": "llm"}],
+                estimated_tokens=1500,
+                quality_score=0.65,
+            )
+        ]
+        winner, sorted_all = await select_plan(candidates, policy="min_cost", min_quality_threshold=0.6)
+        assert winner.plan_id == "only"
+        assert len(sorted_all) == 1
+
+
+class TestPlanSelectionOnModeIntegration:
+    """Drive MissionPlanner with BUDGET_AWARE_PLAN_SELECTION='on' end-to-end.
+
+    Proves the wiring: 'on' -> min_cost policy -> planner persists candidates
+    and picks the cheapest eligible one, recording mode='on'/policy='min_cost'.
+    """
+
+    @pytest.mark.asyncio
+    async def test_on_mode_picks_cheapest_and_records_policy(self):
+        from app.services.mission_planner import MissionPlanner
+        from app.services.plan_selection.plan_candidate import PlanCandidate
+
+        mock_mission = MagicMock()
+        mock_mission.id = "test-on-mode"
+        mock_mission.title = "Build a thing"
+        mock_mission.description = "Implement a thing that does stuff"
+        mock_mission.mission_type = "development"
+        mock_mission.user_id = 1
+        mock_mission.constraints = {}
+        mock_mission.status = "pending"
+        mock_mission.plan = None
+
+        mock_db = AsyncMock()
+        mock_db.commit = AsyncMock()
+        mock_db.add = MagicMock()
+        mock_db.flush = AsyncMock()
+
+        mock_mission_result = MagicMock()
+        mock_mission_result.scalars().first.return_value = mock_mission
+        mock_existing_result = MagicMock()
+        mock_existing_result.scalars().first.return_value = None
+        mock_db.execute = AsyncMock(side_effect=[mock_mission_result, mock_existing_result])
+
+        # Deterministic candidates: cheapest (by tokens) wins under min_cost,
+        # even though it is not the highest quality.
+        deterministic_candidates = [
+            PlanCandidate(
+                plan_id="expensive",
+                generation_strategy="llm_persona",
+                tasks=[{"title": "Expensive task", "task_type": "code"}],
+                estimated_cost_usd=0.10,
+                estimated_tokens=5000,
+                quality_score=0.9,
+            ),
+            PlanCandidate(
+                plan_id="mid",
+                generation_strategy="llm_persona",
+                tasks=[{"title": "Mid task", "task_type": "llm"}],
+                estimated_cost_usd=0.05,
+                estimated_tokens=2000,
+                quality_score=0.8,
+            ),
+            PlanCandidate(
+                plan_id="cheap",
+                generation_strategy="heuristic",
+                tasks=[{"title": "Cheap task", "task_type": "llm"}],
+                estimated_cost_usd=0.0,
+                estimated_tokens=500,
+                quality_score=0.7,
+            ),
+        ]
+
+        planner = MissionPlanner(
+            log_callback=AsyncMock(),
+            transition_callback=AsyncMock(),
+        )
+
+        with patch("app.services.mission_planner.settings") as mock_settings:
+            mock_settings.BUDGET_AWARE_PLAN_SELECTION = "on"
+            mock_settings.PLAN_SELECTION_K = 3
+            mock_settings.PLAN_SELECTION_MIN_QUALITY = 0.6
+            mock_settings.MISSION_PLAN_TEMPERATURE = 0.7
+            mock_settings.MISSION_PLAN_MAX_TOKENS = 2000
+            mock_settings.MISSION_DEFAULT_MAX_RETRIES = 3
+            mock_settings.MISSION_LLM_REQUEST_TIMEOUT = 60.0
+
+            with patch("app.services.mission_planner.AsyncSessionLocal") as mock_session:
+                mock_session.return_value.__aenter__.return_value = mock_db
+                mock_session.return_value.__aexit__.return_value = None
+                with patch(
+                    "app.services.plan_selection.plan_generator.generate_plan_candidates",
+                    AsyncMock(return_value=deterministic_candidates),
+                ):
+                    result = await planner.plan_mission("test-on-mode")
+
+        assert result["success"] is True
+        assert result["status"] == "planned"
+
+        # 3 candidates persisted (ranks are quality-ordered: expensive, mid, cheap)
+        candidate_adds = [
+            c
+            for c in mock_db.add.call_args_list
+            if hasattr(c[0][0], "__tablename__") and getattr(c[0][0], "__tablename__", "") == "mission_plan_candidates"
+        ]
+        assert len(candidate_adds) == 3, f"Expected 3 candidates, got {len(candidate_adds)}"
+        ranks = sorted([c[0][0].rank for c in candidate_adds])
+        assert ranks == [1, 2, 3]
+
+        # The persisted `rank` column is quality-ordered (see mission_planner.py
+        # _plan_with_selection:378). The ACTUAL selected winner is the min_cost
+        # pick, recorded in mission.plan["plan_selection"]["winner_id"] — that is
+        # the source of truth the frontend observatory reads.
+        plan_meta = mock_mission.plan or {}
+        assert plan_meta["plan_selection"]["mode"] == "on"
+        assert plan_meta["plan_selection"]["policy"] == "min_cost"
+        # min_cost winner = cheapest ELIGIBLE plan, NOT the highest quality.
+        assert plan_meta["plan_selection"]["winner_id"] == "cheap"
+
+        # The winner's tasks are what the mission is planned with.
+        winner_rows = [c[0][0] for c in candidate_adds if c[0][0].plan_id == "cheap"]
+        assert len(winner_rows) == 1
+        assert winner_rows[0].quality_score == 0.7

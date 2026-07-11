@@ -345,7 +345,39 @@ class Settings(BaseSettings):
     STRATEGY_ALLOW_DEPRECATED: bool = False
 
     # Cost-aware plan selection (K-Plan Scored Pick)
-    BUDGET_AWARE_PLAN_SELECTION: Literal["off", "on", "auto"] = "off"
+    #
+    # Default changed from "off" -> "auto" (GOLD ledger #5): the full path
+    # (engine + planner wiring + frontend observatory) was already built and
+    # verified, but the "off" default kept the observatory silently empty.
+    #
+    # Mode semantics (see app/services/mission_planner.py::_plan_with_selection):
+    #   "off"  -> original single-shot path (no candidate generation).
+    #   "on"   -> generate K candidates, pick the CHEAPEST eligible plan
+    #             (policy="min_cost"). Best when you want the lowest-resource plan.
+    #   "auto" -> generate K candidates, pick the balanced winner
+    #             (policy="balanced"; quality composite already folds in a cost
+    #             penalty). Graceful default: no hard external dependency.
+    #
+    # Why "auto" and not "on":
+    #   - "auto" requires nothing beyond what the wiring already provides:
+    #     candidates are produced by a rule-based heuristic (no LLM) plus two
+    #     LLM personas that fall back to the heuristic tasks on failure, so the
+    #     candidate list is NEVER empty. Scoring is fully heuristic (no external
+    #     scoring model, no network). select_plan() falls back to the best-overall
+    #     candidate when nothing clears PLAN_SELECTION_MIN_QUALITY. And any failure
+    #     inside _plan_with_selection is swallowed and falls back to the original
+    #     single-shot path, so a mission can never fail because plan selection broke.
+    #   - "on" (min_cost) is safe too but strictly prefers the cheapest plan, which
+    #     can sacrifice quality; it is the more opinionated choice, so it stays
+    #     opt-in rather than the default.
+    #   - The only concrete cost of enabling is two extra LLM persona calls per
+    #     planning run (on top of the heuristic). Tune with PLAN_SELECTION_K.
+    #
+    # Degenerate-case guards (all already present, documented for reviewers):
+    #   - Empty candidates -> RuntimeError -> single-shot fallback.
+    #   - No candidate >= PLAN_SELECTION_MIN_QUALITY -> select_plan uses best-overall.
+    #   - Any planner-side exception -> single-shot fallback (mission still plans).
+    BUDGET_AWARE_PLAN_SELECTION: Literal["off", "on", "auto"] = "auto"
     PLAN_SELECTION_K: int = 3
     PLAN_SELECTION_MIN_QUALITY: float = 0.6
 
