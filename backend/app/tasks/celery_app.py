@@ -124,6 +124,32 @@ def _stop_lease_reclaimer(**kwargs):
 # batch.process_batch, training.*, webhook.*, mission.execute_async, ...).
 #
 # Discovered: 2026-06-12, immediately after Q1-B chunk 1 (substrate.resume_hitl).
+
+
+# ── Disabled task modules ─────────────────────────────────────────
+# Six modules were moved to ``app.tasks._disabled/`` on 2026-06-12
+# because their dependencies (models, services, or sync session
+# factories) were never built.  Their full source + per-module
+# revival checklists are preserved there.  The active
+# ``app/tasks/<name>.py`` paths are now docstring-only stubs that keep
+# the worker import graph clean.
+#
+# These MUST NOT be re-added to ``task_modules`` below until their
+# revival checklist is satisfied — doing so reintroduces the
+# worker-startup import failures we cleaned up.
+DISABLED_TASK_MODULES: tuple[tuple[str, str], ...] = (
+    ("base_task", "CeleryTask model never built"),
+    ("deepagents_tasks", "app.services.deepagents_integration never built"),
+    ("langgraph_tasks", "agent.get_llm() never added to llm_config"),
+    ("task_definitions", "WorkflowRuns model + MonitoringService never built"),
+    (
+        "webhook_dispatcher",
+        "webhook_subscription/delivery/event models never built " "(different shape from existing webhook_models.py)",
+    ),
+    ("webhook_tasks", "SyncSessionLocal never added to app/database.py"),
+)
+
+
 def _register_custom_tasks() -> None:
     """Import all task modules and register class-based tasks.
 
@@ -134,21 +160,14 @@ def _register_custom_tasks() -> None:
     custom task is dropped with "Received unregistered task of type X").
 
     Disabled modules (moved to ``app.tasks._disabled/`` on 2026-06-12,
-    revival instructions in each stub):
-    - base_task:         CeleryTask model never built
-    - deepagents_tasks:  app.services.deepagents_integration never built
-    - langgraph_tasks:   agent.get_llm() never added to llm_config
-    - task_definitions:  WorkflowRuns model + MonitoringService never built
-    - webhook_dispatcher: webhook_subscription/delivery/event models
-                         never built (different shape from existing
-                         webhook_models.py)
-    - webhook_tasks:     SyncSessionLocal never added to app/database.py
+    revival instructions in each stub) are tracked in the module-level
+    ``DISABLED_TASK_MODULES`` constant — they must NOT be
+    re-added to ``task_modules`` until their dependencies are built.
     """
     # Each entry: (module_name, comment)  - imported for decorator side effects.
     task_modules = [
         ("background_review_tasks", "memory.review_mission  (background self-improvement)"),
         ("batch_processing", "batch.process_batch"),
-        ("deepagents_tasks", "deepagents.{execute, stream, batch_execute}"),
         ("hitl_resume", "substrate.resume_hitl  (Q1-B chunk 1)"),
         ("hitl_expiry", "hitl.expire_items  (Q1-B chunk 2)"),
         ("integration_health_tasks", "integration.health_check_all  (Phase 2 health checks)"),
@@ -168,6 +187,20 @@ def _register_custom_tasks() -> None:
             registered_modules.append(mod_name)
         except Exception as exc:
             failed_modules.append((mod_name, f"{type(exc).__name__}: {exc}"))
+
+    # Fail-fast: every entry in ``task_modules`` MUST be importable at
+    # worker startup.  A drifted or half-revived module that no longer
+    # imports must not silently produce a partial/dead task registry —
+    # it must crash the worker at boot so the breakage is caught
+    # immediately, not discovered at the first dropped task dispatch.
+    if failed_modules:
+        detail = "\n".join(f"  - app.tasks.{mod}: {err}" for mod, err in failed_modules)
+        raise RuntimeError(
+            "Celery task registration FAILED — "
+            f"{len(failed_modules)} task module(s) could not be imported at "
+            "worker startup (fail-fast). Fix the broken import before "
+            "re-adding the module to task_modules:\n" + detail
+        )
 
     # Class-based tasks that don't use the @celery_app.task decorator must
     # be explicitly registered with the app instance.  If the module
