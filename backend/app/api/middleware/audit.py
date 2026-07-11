@@ -61,7 +61,15 @@ async def log_auth_event(
                     "action": action,
                     "action_details": json.dumps({**(details or {}), "success": success}),
                     "ip_address": ip_address,
-                    "user_id": str(user_id) if user_id else None,
+                    # audit_logs.user_id is an Integer column. The int user ids
+                    # used across the app (v1/v3 routes, CQRS handlers, BYOK,
+                    # substrate, chat, missions) must be cast to int or the
+                    # INSERT fails and the (fire-and-forget) audit row is lost.
+                    # Non-integer ids (e.g. an external/string subject) fall
+                    # through to None so the write still succeeds.
+                    "user_id": int(user_id)
+                    if isinstance(user_id, int) or (isinstance(user_id, str) and user_id.isdigit())
+                    else None,
                     "user_email": user_email,
                     "endpoint": endpoint,
                     "method": method,
