@@ -11,7 +11,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user
 from app.database import get_db
+from app.models.user import User
 from app.services.swarm.debate_protocol import DebateProtocol
 from app.services.swarm.escalation_chain import EscalationChain
 from app.services.swarm.handoff_protocol import HandoffProtocol
@@ -103,6 +105,7 @@ def _escalation_to_dict(e) -> dict[str, Any]:
 async def start_debate(
     body: DebateRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Start a multi-agent debate with LLM judge scoring."""
     protocol = DebateProtocol(db)
@@ -173,6 +176,7 @@ async def get_debate(
 async def delegate_handoff(
     body: HandoffDelegateRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Delegate a subtask from one agent to another."""
     protocol = HandoffProtocol(db)
@@ -198,6 +202,7 @@ async def delegate_handoff(
 async def accept_handoff(
     handoff_id: str,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Accept a pending handoff."""
     protocol = HandoffProtocol(db)
@@ -212,6 +217,7 @@ async def complete_handoff(
     handoff_id: str,
     body: HandoffCompleteRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Complete a handoff with results."""
     protocol = HandoffProtocol(db)
@@ -230,6 +236,7 @@ async def reject_handoff(
     handoff_id: str,
     body: HandoffRejectRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Reject a pending handoff."""
     protocol = HandoffProtocol(db)
@@ -279,6 +286,7 @@ async def get_handoff_chain(
 async def escalate_task(
     body: EscalateRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Start or continue an escalation chain for a failed task."""
     chain = EscalationChain(db)
@@ -303,6 +311,7 @@ async def resolve_escalation(
     escalation_id: str,
     body: ResolveEscalationRequest,
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
     """Mark an escalation as resolved."""
     chain = EscalationChain(db)
