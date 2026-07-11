@@ -35,6 +35,66 @@ TO MAKE CODE CHANGES:
 NEVER: docker cp into the container (changes are lost on rebuild)
 ```
 
+## ⚠️ AGENT CONCURRENCY RULES (repository operating rule)
+
+Every agent MUST work on its OWN exclusive branch **and** its OWN worktree.
+Never share a checkout or a branch with another agent. This is a hard
+operating rule for this repository, not a preference — a sibling agent
+committing to a shared branch in a shared checkout silently contaminates
+unrelated work (observed: `fe18efaa` marketplace work landed on a test-only
+`feature/*` branch owned by another agent).
+
+- **Exclusive branch:** create `agent/<date>-<slug>/<task>` or
+  `wt/<epic>-<slug>-<date>` (the repo already uses `wt/*` worktrees). Do NOT
+  reuse an existing feature/review branch as a scratchpad.
+- **Exclusive worktree:** do your work in a dedicated `git worktree` (e.g.
+  `git worktree add -b <branch> .worktrees/<name> main`). Never run `git
+  commit` from a worktree another agent may also be committing in.
+- **Verify HEAD before committing:** record the starting `git rev-parse HEAD`
+  when you begin, and re-check it is UNCHANGED immediately before `git commit`.
+  If the recorded HEAD differs from the current HEAD, another agent moved the
+  branch under you — stop, rebase your staged work onto the new tip, then
+  re-verify. A bare `git fetch` + `git status` is NOT sufficient; the explicit
+  record-and-compare is required.
+- **One agent per branch:** if you need test changes that overlap another
+  agent's branch, fork a sibling branch or coordinate — do not stack commits on
+  a branch you do not exclusively own.
+
+Co-authored guardrail established 2026-07-10 after the FLO-BE-TEST-39
+contamination incident.
+
+## 🔄 OPENING & EXIT RITUALS (repository operating rule)
+
+Every agent session — and every subagent it spawns — MUST run these
+bookends. The exit ritual exists specifically to prevent the contamination
+class above: a session that closes dirty or silent leaves the next agent
+(or a sibling) to stumble into a poisoned branch.
+
+### Opening ritual (orient BEFORE acting)
+1. Re-read `AGENTS.md` / project context and pull fresh memory.
+2. Check repo state: current branch, all worktrees, uncommitted changes,
+   what's in flight (`git worktree list`, `git status`, open PRs).
+3. Recover pending intent: `session_search`, task list, open threads.
+4. State the plan and the constraint boundaries before the first edit.
+
+### Exit ritual (close cleanly so the next session is not poisoned)
+1. **Repo hygiene:** no dirty worktree, no stray test artifacts, branches
+   correctly placed. Untracked project files you did not create stay.
+2. **Evidence preservation:** tag or document contamination / partial work
+   instead of silently deleting (example: `git tag evidence/<slug>
+   <commit>` — done for `fe18efaa` after FLO-BE-TEST-39).
+3. **Deliverable summary:** what changed, what passed, what's blocked,
+   what's unverified.
+4. **Open threads:** hand off deferred items explicitly (do NOT leave them
+   implied).
+5. **Memory:** persist durable facts, not task progress.
+6. **Single decision point:** leave the human one clear approve/retire/review
+   choice.
+
+These pair with the concurrency rule: exclusive branch + worktree + verify
+HEAD keeps a session's *work* isolated; opening/exit rituals keep its
+*handoff* clean.
+
 ## Source Structure
 
 ```

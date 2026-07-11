@@ -108,9 +108,7 @@ class TestExtractionProducesClaims:
     def test_extracts_from_combined_user_and_assistant_text(self):
         """Combined user+assistant text should be extractable."""
         extractor = RegexPersonalMemoryExtractor()
-        combined = (
-            "User: I prefer dark mode for all my apps\n\n" "Assistant: I'll keep that in mind and use dark themes."
-        )
+        combined = "User: I prefer dark mode for all my apps\n\nAssistant: I'll keep that in mind and use dark themes."
         claims = extractor.extract(combined)
 
         assert len(claims) >= 1
@@ -161,7 +159,7 @@ class TestFullFlywheel:
 
         # ── Phase 1: Extraction ──────────────────────────────────────
         extractor = RegexPersonalMemoryExtractor()
-        combined_text = "User: I prefer Python over JavaScript\n\n" "Assistant: Got it, I'll use Python when possible."
+        combined_text = "User: I prefer Python over JavaScript\n\nAssistant: Got it, I'll use Python when possible."
         raw_claims = extractor.extract(combined_text)
         assert len(raw_claims) >= 1, "Extractor should find at least one claim"
 
@@ -300,6 +298,15 @@ class TestFullFlywheel:
                 CHAT_MEMORY_CITATIONS_ENABLED=True,
                 SANDBOXD_ENABLED=False,
                 CHAT_MAX_TOOL_ROUNDS=15,
+                # stream_message_to_llm reads these via direct attribute
+                # access (not getattr); omitting them raises AttributeError,
+                # which the recall try/except swallows → empty claims → no
+                # memory_recall_used / memory_citation events. Mirror the real
+                # config defaults so the test double is faithful.
+                CHAT_MEMORY_INJECTION_TOKEN_BUDGET=600,
+                CHAT_CONTEXT_PRUNING_ENABLED=False,
+                CHAT_CONTEXT_TOKEN_BUDGET=8000,
+                CHAT_PREPARE_STEP_HOOK_ENABLED=False,
             ),
         )
 
@@ -317,9 +324,10 @@ class TestFullFlywheel:
 
         # Mock the per-session memory snapshot recall to return the existing claim.
         # Production replaced recall_for_chat() with get_or_capture_snapshot()
-        # (Epic 2.2 frozen-snapshot cache). Chat_service imports it locally, so
-        # patch the source module.
-        async def mock_get_snapshot(db, *, thread_id, user_id, workspace_id, ttl_seconds=None):
+        # (Epic 2.2 frozen-snapshot cache) and now passes agent_id (human chat
+        # path → None, full pool). The mock MUST accept agent_id or the call
+        # raises TypeError and the recall is swallowed (no events).
+        async def mock_get_snapshot(db, *, thread_id, user_id, workspace_id, agent_id=None, ttl_seconds=None):
             return [existing_claim]
 
         monkeypatch.setattr(
