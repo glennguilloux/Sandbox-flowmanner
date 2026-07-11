@@ -226,6 +226,23 @@ async def drain_run_to_inbox(
                 # than raise; the verdict is still logged below.
                 continue
             node_id = claim.claim_id.split("node:")[-1] if "node:" in claim.claim_id else None
+            # GOLD t_002875da: carry a depth-policy decision on the inbox item so
+            # the HITL inbox UI can render the reasoning that motivated the
+            # escalation.  A ReviewerGuard escalation is by definition a
+            # high-risk, low-grounding situation → force deep + HITL.
+            from decimal import Decimal
+
+            from app.services.hitl_service import HITLService
+
+            depth_decision = HITLService.build_depth_decision(
+                risk="high",
+                uncertainty=max(0.0, min(1.0, 1.0 - float(decision.calibrated_trust))),
+                budget_remaining_usd=Decimal("10.0"),
+                prior_failures=0,
+                tool_requires_approval=True,
+                retry_count=0,
+                policy_override=False,
+            )
             await service.create_interrupt(
                 mission_id=ctx.mission_id,
                 user_id=_coerce_user_id(ctx.user_id),
@@ -245,6 +262,7 @@ async def drain_run_to_inbox(
                     "grounded": decision.grounded,
                     "calibrated_trust": round(decision.calibrated_trust, 3),
                 },
+                depth_decision=depth_decision,
                 task_id=node_id,
                 node_id=node_id,
                 run_id=ctx.run_id,
