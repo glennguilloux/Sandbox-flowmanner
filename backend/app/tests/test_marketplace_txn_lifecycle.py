@@ -46,7 +46,7 @@ from app.services.nexus.marketplace_db import ListingStatus, MarketplaceService
 # real Postgres is used with a unique per-session database name.
 _TEST_DB_BASE = os.getenv(
     "FLOWMANNER_MARKETPLACE_TEST_DB",
-    "postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner_mp2_test",
+    "postgresql+asyncpg://flowmanner:REDACTED_DB_PASSWORD@127.0.0.1:5432/flowmanner_mp2_test",
 )
 
 
