@@ -106,3 +106,15 @@ ignore = [
 # serialize as plain strings through the substrate executor and across the
 # JSON event log). Same intentional pattern as schemas/personal_memory.py.
 "app/services/substrate/workflow_models.py" = ["UP042"]
+# hitl_models.py: InboxItem.resolved_at / expires_at use Mapped[datetime | None]
+# which SQLAlchemy resolves eagerly at mapper-config time, so datetime must be
+# a runtime import (not deferrable to TYPE_CHECKING). TC003 is a false positive
+# here — same as blog_models.py / memory_models.py. InboxItemStatus is
+# an intentional str+Enum (serializes as a plain string for the HITL API), so
+# UP042 is silenced to match the personal_memory.py / workflow_models.py
+# precedent. (These findings pre-exist the t_002875da depth_decision column.)
+# Per-file key uses **/ so it matches both the backend-repo path
+# (app/models/hitl_models.py) and a backend-worktree path
+# (.worktrees/<id>/backend/app/models/hitl_models.py) — the plain
+# app/models/*.py glob does not match the worktree-nested path.
+"**/hitl_models.py" = ["TCH003", "UP042"]

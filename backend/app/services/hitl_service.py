@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
@@ -59,6 +60,7 @@ class HITLService:
         run_id: str | None = None,
         workspace_id: str | None = None,
         expires_at: datetime | None = None,
+        depth_decision: dict | None = None,
     ) -> InboxItem:
         """Create a new inbox item from a HumanInterrupt."""
         item = InboxItem(
@@ -74,6 +76,7 @@ class HITLService:
             description=description,
             proposed_action=proposed_action,
             context=context,
+            depth_decision=depth_decision,
             status=InboxItemStatus.PENDING.value,
             expires_at=expires_at,
         )
@@ -548,6 +551,7 @@ class HITLService:
             "description": item.description,
             "proposed_action": item.proposed_action,
             "context": item.context,
+            "depth_decision": item.depth_decision,
             "status": item.status,
             "resolved_at": item.resolved_at.isoformat() if item.resolved_at else None,
             "resolved_by": item.resolved_by,
@@ -556,4 +560,48 @@ class HITLService:
             "expires_at": item.expires_at.isoformat() if item.expires_at else None,
             "created_at": item.created_at.isoformat() if item.created_at else None,
             "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+        }
+
+    @staticmethod
+    def build_depth_decision(
+        *,
+        risk: str,
+        uncertainty: float,
+        budget_remaining_usd: Decimal | float,
+        prior_failures: int,
+        tool_requires_approval: bool,
+        retry_count: int,
+        policy_override: bool = False,
+    ) -> dict[str, Any]:
+        """Compute the adaptive-reasoning-depth decision for an interrupt.
+
+        GOLD t_002875da: call sites that raise a HITL interrupt do not
+        otherwise invoke the depth policy.  This helper lets them compute a
+        DepthDecision right at interrupt time (reusing DepthPolicy.decide()),
+        so the reasoning can be carried on the inbox item's ``depth_decision``
+        column and rendered by the HITL inbox UI.
+
+        Mirrors the fields of app.models.depth_models.DepthDecision.
+        Returns a plain dict (JSONB-friendly), never ``None`` — callers may
+        attach it directly to ``create_interrupt(depth_decision=...)`` even
+        when no richer signal is available (defaults below).
+        """
+        from app.services.depth_policy import DepthPolicy
+
+        decision = DepthPolicy().decide(
+            risk=risk,  # type: ignore[arg-type]
+            uncertainty=float(uncertainty),
+            budget_remaining_usd=Decimal(str(budget_remaining_usd)),
+            prior_failures=int(prior_failures),
+            tool_requires_approval=bool(tool_requires_approval),
+            retry_count=int(retry_count),
+            policy_override=bool(policy_override),
+        )
+        return {
+            "level": decision.level.value,
+            "reason": decision.reason,
+            "escalate_to_hitl": decision.escalate_to_hitl,
+            "hitl_reason": decision.hitl_reason,
+            "policy_version": decision.policy_version,
+            "estimated_reflection_iterations": decision.estimated_reflection_iterations,
         }

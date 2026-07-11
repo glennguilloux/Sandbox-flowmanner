@@ -62,9 +62,8 @@ def _make_inbox_item(
     item.created_at = datetime.now(UTC)
     item.updated_at = datetime.now(UTC)
     item.task_id = None
+    item.depth_decision = None
     return item
-
-
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────
@@ -130,8 +129,6 @@ async def client(test_app, fake_user, fake_workspace_id, mock_service):
     test_app.dependency_overrides.clear()
 
 
-
-
 # ── Test 1: list_inbox filters by workspace ─────────────────────────
 
 
@@ -139,9 +136,7 @@ async def client(test_app, fake_user, fake_workspace_id, mock_service):
 async def test_list_inbox_filters_by_workspace(client, mock_service, fake_workspace_id):
     """workspace_id query param is enforced on list_inbox."""
     item = _make_inbox_item(workspace_id=fake_workspace_id)
-    mock_service.list_pending = AsyncMock(
-        return_value={"items": [HITLService._item_to_dict(item)], "total": 1}
-    )
+    mock_service.list_pending = AsyncMock(return_value={"items": [HITLService._item_to_dict(item)], "total": 1})
 
     resp = await client.get("/api/v1/inbox/")
 
@@ -319,9 +314,7 @@ async def test_clarify_wrong_type_returns_400(client, mock_service):
 async def test_bulk_resolve_happy_path(client, mock_service):
     """3 items all approved — returns resolved list with all IDs."""
     ids = [str(uuid4()) for _ in range(3)]
-    mock_service.bulk_resolve = AsyncMock(
-        return_value={"resolved": ids, "skipped": [], "failed": []}
-    )
+    mock_service.bulk_resolve = AsyncMock(return_value={"resolved": ids, "skipped": [], "failed": []})
 
     resp = await client.post(
         "/api/v1/inbox/bulk-resolve",

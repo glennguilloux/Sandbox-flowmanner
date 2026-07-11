@@ -308,6 +308,103 @@ class TestHITLServiceLogic:
         assert d["resolved_by"] == 1
         assert d["resolution_note"] == "Use production"
 
+    def test_item_to_dict_includes_depth_decision(self):
+        """_item_to_dict surfaces a populated depth_decision (GOLD t_002875da)."""
+        now = datetime.now(UTC)
+        depth = {
+            "level": "deep",
+            "reason": "risk=high → deep",
+            "escalate_to_hitl": True,
+            "hitl_reason": "tool_requires_approval",
+            "policy_version": "v1.0.0",
+            "estimated_reflection_iterations": 3,
+        }
+        item = InboxItem(
+            id="test-id-3",
+            user_id=1,
+            mission_id="m1",
+            interrupt_type="escalation",
+            title="Ungrounded output",
+            status=InboxItemStatus.PENDING.value,
+            depth_decision=depth,
+            created_at=now,
+            updated_at=now,
+        )
+        d = HITLService._item_to_dict(item)
+        assert d["depth_decision"] == depth
+        assert d["depth_decision"]["level"] == "deep"
+        assert d["depth_decision"]["hitl_reason"] == "tool_requires_approval"
+
+    def test_item_to_dict_depth_decision_absent_is_none(self):
+        """When no depth decision is attached, the field is None (nullable)."""
+        item = InboxItem(
+            id="test-id-4",
+            user_id=1,
+            mission_id="m1",
+            interrupt_type="approval",
+            title="Approve?",
+            status=InboxItemStatus.PENDING.value,
+        )
+        d = HITLService._item_to_dict(item)
+        assert d["depth_decision"] is None
+
+
+class TestBuildDepthDecision:
+    """GOLD t_002875da: depth decision helper for HITL interrupts."""
+
+    def test_build_force_hitl_when_tool_requires_approval(self):
+        from decimal import Decimal
+
+        dd = HITLService.build_depth_decision(
+            risk="medium",
+            uncertainty=0.5,
+            budget_remaining_usd=Decimal("10.0"),
+            prior_failures=0,
+            tool_requires_approval=True,
+            retry_count=0,
+            policy_override=False,
+        )
+        assert dd["level"] in ("deep", "normal", "shallow")
+        assert dd["escalate_to_hitl"] is True
+        assert dd["hitl_reason"] == "tool_requires_approval"
+        assert dd["policy_version"] == "v1.0.0"
+
+    def test_build_high_risk_force_deep(self):
+        from decimal import Decimal
+
+        # High risk forces DEEP reasoning depth, but does NOT by itself
+        # escalate to HITL — HITL is reserved for tool_requires_approval /
+        # retry_exhausted / persistent_failure (see depth_policy._should_escalate_to_hitl).
+        dd = HITLService.build_depth_decision(
+            risk="high",
+            uncertainty=0.9,
+            budget_remaining_usd=Decimal("10.0"),
+            prior_failures=0,
+            tool_requires_approval=False,
+            retry_count=0,
+            policy_override=False,
+        )
+        assert dd["level"] == "deep"
+        assert dd["escalate_to_hitl"] is False
+        assert dd["hitl_reason"] is None
+
+    def test_build_low_risk_low_uncertainty_shallow(self):
+        from decimal import Decimal
+
+        dd = HITLService.build_depth_decision(
+            risk="low",
+            uncertainty=0.1,
+            budget_remaining_usd=Decimal("10.0"),
+            prior_failures=0,
+            tool_requires_approval=False,
+            retry_count=0,
+            policy_override=False,
+        )
+        # No escalation trigger → level either shallow or normal, no HITL.
+        assert dd["escalate_to_hitl"] is False
+        assert dd["hitl_reason"] is None
+        assert dd["level"] in ("shallow", "normal")
+
 
 # ── Import convenience ─────────────────────────────────────────────
 

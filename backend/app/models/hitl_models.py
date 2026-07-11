@@ -107,6 +107,14 @@ class InboxItem(Base, TimestampMixin):
     proposed_action: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     context: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
+    # Depth-policy reasoning for HITL inbox items (GOLD t_002875da).
+    # Captures the adaptive-reasoning-depth decision that motivated the
+    # interrupt: {level, reason, escalate_to_hitl, hitl_reason,
+    # policy_version, estimated_reflection_iterations}. Mirrors
+    # app.models.depth_models.DepthDecision. Nullable — only populated
+    # for interrupts created after this column landed.
+    depth_decision: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
     # Status and resolution
     status: Mapped[str] = mapped_column(
         String(20),

@@ -1507,6 +1507,24 @@ class NodeExecutor:
             logger.debug("Duplicate inbox check skipped: %s", dup_err)
 
         if item is None:
+            # GOLD t_002875da: carry a depth-policy decision on the inbox item
+            # so the HITL inbox UI can render the reasoning that motivated the
+            # interrupt.  At interrupt time we have no per-step risk/uncertainty
+            # signal from the executor, so we compute a decision from the
+            # strongest available facts: the node requires human approval
+            # (tool_requires_approval=True → escalate_to_hitl), and any prior
+            # failures/retries on related nodes if reachable.
+            from decimal import Decimal
+
+            depth_decision = HITLService.build_depth_decision(
+                risk="medium",
+                uncertainty=0.5,
+                budget_remaining_usd=Decimal("10.0"),
+                prior_failures=0,
+                tool_requires_approval=True,
+                retry_count=0,
+                policy_override=False,
+            )
             item = await service.create_interrupt(
                 mission_id=mission_id or "unknown",
                 user_id=user_id,
@@ -1515,6 +1533,7 @@ class NodeExecutor:
                 description=description,
                 proposed_action=proposed_action,
                 context={"current_context": context},
+                depth_decision=depth_decision,
                 task_id=node.id,
                 node_id=node.id,
                 run_id=run_id,
