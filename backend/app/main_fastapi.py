@@ -263,6 +263,10 @@ async def app_error_handler(request: Request, exc: AppError):
 async def general_error_handler(request: Request, exc: Exception):
     # Pull the request_id set by request_id_middleware (header or generated UUID).
     request_id = request.headers.get("X-Request-ID") or ""
+    # trace_id is populated by upstream middleware (AuthCookieMiddleware path).
+    # Emit it as an extra key for v1 / unversioned callers so errors are
+    # machine-correlatable to logs — without changing the `detail` shape.
+    trace_id = getattr(request.state, "trace_id", None)
     structlog.get_logger().error("Unhandled exception", error=str(exc), exc_info=True)
 
     # Fire-and-forget ntfy alert. ntfy failures must not block the 500
@@ -285,9 +289,12 @@ async def general_error_handler(request: Request, exc: Exception):
     except Exception as notify_err:  # pragma: no cover — defensive
         structlog.get_logger().warning("Failed to enqueue 5xx ntfy alert", error=str(notify_err))
 
+    body = {"detail": "An error occurred. Please try again later."}
+    if trace_id:
+        body["trace_id"] = trace_id
     return JSONResponse(
         status_code=500,
-        content={"detail": "An error occurred. Please try again later."},
+        content=body,
     )
 
 
