@@ -54,7 +54,7 @@ from app.tasks.decay_memory import decay_importance, run_decay_job
 # another test module that shares the module-scoped event loop.
 TEST_DB_BASE = os.getenv(
     "FLOWMANNER_DECAY_TEST_DB_BASE",
-    "postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc" "@localhost:5432/flowmanner_phase_b_smoke",
+    "postgresql+asyncpg://flowmanner:REDACTED_DB_PASSWORD" "@localhost:5432/flowmanner_phase_b_smoke",
 )
 
 

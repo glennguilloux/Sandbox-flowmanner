@@ -16,9 +16,10 @@ Two test clusters:
 Run via::
 
     cd /opt/flowmanner/backend
-    DATABASE_URL="postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner" \\
+    DATABASE_URL="postgresql+asyncpg://flowmanner:REDACTED_DB_PASSWORD@127.0.0.1:5432/flowmanner" \\
       .venv/bin/python -m pytest tests/test_memory_extraction_pause_models.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -28,7 +29,7 @@ import pytest
 # Ensure DATABASE_URL is set BEFORE importing app modules that need it.
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner",
+    "postgresql+asyncpg://flowmanner:REDACTED_DB_PASSWORD@127.0.0.1:5432/flowmanner",
 )
 
 
@@ -82,18 +83,12 @@ class TestColumns:
             MemoryExtractionPause,
         )
 
-        col = Base.metadata.tables["memory_extraction_pauses"].columns[
-            "workspace_id"
-        ]
+        col = Base.metadata.tables["memory_extraction_pauses"].columns["workspace_id"]
         assert not col.nullable
         fks = list(col.foreign_keys)
-        matching = [
-            fk for fk in fks if fk.target_fullname == "workspaces.id"
-        ]
+        matching = [fk for fk in fks if fk.target_fullname == "workspaces.id"]
         assert matching, "workspace_id should FK to workspaces.id"
-        assert "CASCADE" in (matching[0].ondelete or ""), (
-            "workspace_id should ON DELETE CASCADE"
-        )
+        assert "CASCADE" in (matching[0].ondelete or ""), "workspace_id should ON DELETE CASCADE"
 
     def test_conversation_id_not_null(self) -> None:
         from app.models import Base
@@ -101,9 +96,7 @@ class TestColumns:
             MemoryExtractionPause,
         )
 
-        col = Base.metadata.tables["memory_extraction_pauses"].columns[
-            "conversation_id"
-        ]
+        col = Base.metadata.tables["memory_extraction_pauses"].columns["conversation_id"]
         assert not col.nullable
 
     def test_expires_at_not_null(self) -> None:
@@ -112,9 +105,7 @@ class TestColumns:
             MemoryExtractionPause,
         )
 
-        col = Base.metadata.tables["memory_extraction_pauses"].columns[
-            "expires_at"
-        ]
+        col = Base.metadata.tables["memory_extraction_pauses"].columns["expires_at"]
         assert not col.nullable
 
     def test_reason_nullable(self) -> None:
@@ -135,9 +126,7 @@ class TestIndexes:
         )
 
         table = Base.metadata.tables["memory_extraction_pauses"]
-        lookup_indexes = [
-            idx for idx in table.indexes if idx.name == "ix_memory_extraction_pauses_lookup"
-        ]
+        lookup_indexes = [idx for idx in table.indexes if idx.name == "ix_memory_extraction_pauses_lookup"]
         assert lookup_indexes, "lookup composite index missing"
         cols = [c.name for c in lookup_indexes[0].columns]
         assert cols == ["user_id", "workspace_id", "conversation_id", "expires_at"]
@@ -149,9 +138,7 @@ class TestIndexes:
         )
 
         table = Base.metadata.tables["memory_extraction_pauses"]
-        expires_indexes = [
-            idx for idx in table.indexes if idx.name == "ix_memory_extraction_pauses_expires_at"
-        ]
+        expires_indexes = [idx for idx in table.indexes if idx.name == "ix_memory_extraction_pauses_expires_at"]
         assert expires_indexes, "expires_at cleanup index missing"
 
 
@@ -165,9 +152,5 @@ class TestModelSurface:
         )
 
         for attr in dir(MemoryExtractionPause):
-            assert not attr.startswith("_TRANSITIONS"), (
-                f"sunder-name leak: {attr}"
-            )
-            assert not attr.startswith("_MISSING_"), (
-                f"sunder-name leak: {attr}"
-            )
+            assert not attr.startswith("_TRANSITIONS"), f"sunder-name leak: {attr}"
+            assert not attr.startswith("_MISSING_"), f"sunder-name leak: {attr}"
