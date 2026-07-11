@@ -334,6 +334,15 @@ class Settings(BaseSettings):
     # or if cross-mission recall proves valuable.
     FLOWMANNER_CROSS_MISSION_MEMORY: bool = True
 
+    # Q6 GOLD-LEDGER #2: bridge ReviewerGuard -> HITL inbox.  When ON, every
+    # completed substrate run has its node outputs verified (lexical-only,
+    # $0 token cost) and any ungrounded claim is drained into /api/inbox as
+    # an ESCALATION.  Escalate-only: never mutates or corrupts run data.
+    # Default OFF — first production wiring of a previously-uncalled engine;
+    # flip to True (env or here) for gradual rollout once inbox-noise volume
+    # is observed on real traffic.
+    REVIEWER_GUARD_DRAIN_ENABLED: bool = False
+
     # Strategy gating — experimental strategies (swarm, pipeline, meta, langgraph)
     # Set to True to enable strategies that require complex workflow structures.
     # Per strategy profiling 2026-07-04, these failed validation with simple workflows.

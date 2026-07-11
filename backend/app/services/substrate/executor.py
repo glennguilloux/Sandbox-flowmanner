@@ -519,6 +519,9 @@ class UnifiedExecutor:
             )
 
         result.execution_time_ms = (time.monotonic() - start_time) * 1000
+        # Attach the run id so post-execution hooks (analytics, audit, the
+        # ReviewerGuard inbox drain) can reference the specific run.
+        result.run_id = run_id
 
         # Finalize run
         await self._finalize_run(db, workflow, run_id, result.status, result.error)
@@ -1012,6 +1015,54 @@ class UnifiedExecutor:
                 )
         except Exception as e:
             logger.debug("Episodic memory consolidation skipped: %s", e)
+
+        # Q6 GOLD-LEDGER #2: ReviewerGuard -> HITL inbox drain.  After a run
+        # completes, verify each node's output for lexical groundedness and
+        # surface any ungrounded claim as an ESCALATION inbox item.  Lexical
+        # only ($0 token cost), escalate-only (cannot corrupt run data).
+        # Best-effort: failures are swallowed so a guard hiccup never blocks
+        # or poisons a completed run.  Gated by a feature flag.
+        try:
+            if settings.REVIEWER_GUARD_DRAIN_ENABLED:
+                await self._run_reviewer_guard_drain(db, workflow, result)
+        except Exception as e:
+            logger.debug("ReviewerGuard inbox drain skipped: %s", e)
+
+    async def _run_reviewer_guard_drain(
+        self,
+        db: AsyncSession,
+        workflow: Workflow,
+        result: StrategyResult,
+    ) -> None:
+        """Verify a completed run's node outputs and drain escalations.
+
+        Builds the transcript + claims from the run's completed node outputs
+        (each output must be grounded in the run's outputs) and, for any
+        escalation returned by ReviewerGuard, creates an ESCALATION inbox
+        item via HITLService.  Lexical-only → no cross-family LLM call.
+        """
+        from app.services.reviewer_guard.inbox_drain import (
+            build_run_context,
+            drain_run_to_inbox,
+        )
+
+        ctx = build_run_context(
+            run_id=result.run_id or workflow.id,
+            mission_id=workflow.id,
+            nodes=workflow.nodes,
+            user_id=workflow.user_id,
+            workspace_id=workflow.workspace_id,
+            brief=workflow.description or workflow.title,
+        )
+        if not ctx.claims:
+            return
+        drained = await drain_run_to_inbox(db, ctx, reviewer_model="deepseek-v4-flash")
+        if drained:
+            logger.info(
+                "ReviewerGuard drained %d escalation(s) for run=%s",
+                drained,
+                ctx.run_id,
+            )
 
 
 def _find_resume_point(workflow: Workflow, state: Any) -> str | None:
