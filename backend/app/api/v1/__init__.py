@@ -83,6 +83,7 @@ templates_router = _import_router("templates")
 trigger_router = _import_router("triggers")
 
 admin_router = _import_router("admin")
+governance_router = _import_router("governance")
 stats_router = _import_router("stats")
 workspace_router = _import_router("workspace", "workspace_router")
 team_router = _import_router("workspace", "team_router")
@@ -242,6 +243,7 @@ for _name, _router in [
     ("replay-export", replay_export_router),
     ("strategies", strategies_router),
     ("hermes-studio", hermes_studio_router),
+    ("governance", governance_router),
 ]:
     if _router:
         _prefix = None

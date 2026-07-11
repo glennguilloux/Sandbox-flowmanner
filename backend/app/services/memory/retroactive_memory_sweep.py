@@ -132,10 +132,23 @@ def _already_flagged(meta: Any) -> bool:
     return RETRO_SWEEP_META_KEY in meta
 
 
-def _annotate_meta(meta: Any, sweep_run_id: str) -> dict[str, Any]:
-    """Return a new meta dict carrying the retro-sweep marker."""
+def _annotate_meta(meta: Any, sweep_run_id: str, scan: PoisonScanResult | None = None) -> dict[str, Any]:
+    """Return a new meta dict carrying the retro-sweep marker + full verdict.
+
+    Persists the COMPLETE poison-scan verdict (``meta["poison_scan"]``) — not
+    just the ``retro_sweep_flagged`` marker — so the operator surface can read
+    severity + provenance without re-running the scan (t_9bb4df81).
+    """
     base = dict(meta) if isinstance(meta, dict) else {}
     base[RETRO_SWEEP_META_KEY] = sweep_run_id
+    if scan is not None and scan.flagged:
+        # Merge so a prior verdict is preserved if the row is re-annotated.
+        prior_raw = base.get("poison_scan")
+        prior: dict[str, Any] = prior_raw if isinstance(prior_raw, dict) else {}
+        verdict_raw = scan.to_metadata().get("poison_scan")
+        verdict: dict[str, Any] = verdict_raw if isinstance(verdict_raw, dict) else {}
+        merged: dict[str, Any] = {**prior, **verdict}
+        base["poison_scan"] = merged
     return base
 
 
@@ -285,7 +298,7 @@ async def retroactive_memory_sweep(
         if item_id is not None:
             findings.routed_items += 1
             try:
-                claim.meta = _annotate_meta(meta, sweep_run_id)  # type: ignore[attr-defined]
+                claim.meta = _annotate_meta(meta, sweep_run_id, scan)  # type: ignore[attr-defined]
                 await db.flush()
             except Exception as exc:  # pragma: no cover - defensive
                 logger.warning("retroactive sweep: annotate claim failed: %s", exc)
@@ -324,7 +337,7 @@ async def retroactive_memory_sweep(
         if item_id is not None:
             findings.routed_items += 1
             try:
-                entry.meta = _annotate_meta(meta, sweep_run_id)  # type: ignore[attr-defined]
+                entry.meta = _annotate_meta(meta, sweep_run_id, scan)  # type: ignore[attr-defined]
                 await db.flush()
             except Exception as exc:  # pragma: no cover - defensive
                 logger.warning("retroactive sweep: annotate entry failed: %s", exc)

@@ -279,3 +279,15 @@ class PersonalMemoryClaim(Base, TimestampMixin):
         nullable=True,
         index=True,
     )
+
+    # Denormalized governance metadata (JSONB). Carries the retroactive
+    # poison-scan verdict (``meta["poison_scan"]``) plus the
+    # ``retro_sweep_flagged`` idempotency marker written by
+    # ``retroactive_memory_sweep``. Null until a sweep flags the row.
+    # Added in t_9bb4df81 — persisted the FULL severity/provenance verdict
+    # that the sweep previously dropped (it only logged it).
+    meta: Mapped[dict | None] = mapped_column(
+        "metadata",
+        JSONB,
+        nullable=True,
+    )
