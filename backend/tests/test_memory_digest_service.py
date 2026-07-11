@@ -17,9 +17,10 @@ Coverage:
 Run via::
 
     cd /opt/flowmanner/backend
-    DATABASE_URL="postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner" \\
+    DATABASE_URL="postgresql+asyncpg://flowmanner:REDACTED_DB_PASSWORD@127.0.0.1:5432/flowmanner" \\
       .venv/bin/python -m pytest tests/test_memory_digest_service.py -v
 """
+
 from __future__ import annotations
 
 import os
@@ -30,7 +31,7 @@ import pytest
 
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner",
+    "postgresql+asyncpg://flowmanner:REDACTED_DB_PASSWORD@127.0.0.1:5432/flowmanner",
 )
 
 
@@ -218,9 +219,7 @@ class TestBuildPreview:
         result_mock.scalars.return_value.all.return_value = []
         db.execute = AsyncMock(return_value=result_mock)
         svc = MemoryDigestService(db)
-        preview = await svc.build_preview(
-            user_id=1, workspace_id="ws-1"
-        )
+        preview = await svc.build_preview(user_id=1, workspace_id="ws-1")
         assert preview.user_id == 1
         assert preview.workspace_id == "ws-1"
         assert preview.is_empty is True
@@ -236,9 +235,7 @@ class TestBuildPreview:
         result_mock.scalars.return_value.all.return_value = [c1, c2]
         db.execute = AsyncMock(return_value=result_mock)
         svc = MemoryDigestService(db)
-        preview = await svc.build_preview(
-            user_id=1, workspace_id="ws"
-        )
+        preview = await svc.build_preview(user_id=1, workspace_id="ws")
         assert preview.claims_count == 2
         assert preview.is_empty is False
         assert {s.subject for s in preview.claims} == {
@@ -257,9 +254,7 @@ class TestBuildPreview:
         result_mock.scalars.return_value.all.return_value = [c1, c2, c3]
         db.execute = AsyncMock(return_value=result_mock)
         svc = MemoryDigestService(db)
-        preview = await svc.build_preview(
-            user_id=1, workspace_id="ws"
-        )
+        preview = await svc.build_preview(user_id=1, workspace_id="ws")
         assert preview.by_claim_type == {"fact": 2, "preference": 1}
 
     async def test_builds_scope_histogram(self) -> None:
@@ -273,9 +268,7 @@ class TestBuildPreview:
         result_mock.scalars.return_value.all.return_value = [c1, c2, c3]
         db.execute = AsyncMock(return_value=result_mock)
         svc = MemoryDigestService(db)
-        preview = await svc.build_preview(
-            user_id=1, workspace_id="ws"
-        )
+        preview = await svc.build_preview(user_id=1, workspace_id="ws")
         assert preview.by_scope == {"personal": 1, "workspace": 2}
 
     async def test_query_filters_by_user_workspace(self) -> None:
@@ -286,9 +279,7 @@ class TestBuildPreview:
         result_mock.scalars.return_value.all.return_value = []
         db.execute = AsyncMock(return_value=result_mock)
         svc = MemoryDigestService(db)
-        await svc.build_preview(
-            user_id=42, workspace_id="ws-99"
-        )
+        await svc.build_preview(user_id=42, workspace_id="ws-99")
         stmt = db.execute.await_args[0][0]
         compiled = str(stmt.compile(compile_kwargs={"literal_binds": True}))
         assert "42" in compiled
@@ -317,9 +308,7 @@ class TestBuildPreview:
         db = _make_mock_db()
         svc = MemoryDigestService(db)
         with pytest.raises(MemoryDigestValidationError):
-            await svc.build_preview(
-                user_id=1, workspace_id="ws", since_days=0
-            )
+            await svc.build_preview(user_id=1, workspace_id="ws", since_days=0)
         # No DB call should have happened.
         assert not db.execute.await_count
 
@@ -483,9 +472,7 @@ class TestListDeliveries:
         item_result.scalars.return_value.all.return_value = [MagicMock()] * 4
         db.execute = AsyncMock(side_effect=[count_result, item_result])
         svc = MemoryDigestService(db)
-        items, total = await svc.list_deliveries(
-            user_id=1, workspace_id="ws"
-        )
+        items, total = await svc.list_deliveries(user_id=1, workspace_id="ws")
         assert total == 10
         assert len(items) == 4
 
@@ -513,9 +500,7 @@ class TestListDeliveries:
         db = _make_mock_db()
         svc = MemoryDigestService(db)
         with pytest.raises(MemoryDigestValidationError):
-            await svc.list_deliveries(
-                user_id=1, workspace_id="ws", status="bogus"
-            )
+            await svc.list_deliveries(user_id=1, workspace_id="ws", status="bogus")
 
     async def test_pagination_uses_offset_limit(self) -> None:
         from app.services.memory_digest_service import MemoryDigestService
@@ -558,9 +543,7 @@ class TestLatestDelivery:
         result_mock.scalar_one_or_none.return_value = MagicMock()
         db.execute = AsyncMock(return_value=result_mock)
         svc = MemoryDigestService(db)
-        result = await svc.latest_delivery(
-            user_id=1, workspace_id="ws"
-        )
+        result = await svc.latest_delivery(user_id=1, workspace_id="ws")
         assert result is not None
 
     async def test_returns_none_when_empty(self) -> None:
@@ -571,9 +554,7 @@ class TestLatestDelivery:
         result_mock.scalar_one_or_none.return_value = None
         db.execute = AsyncMock(return_value=result_mock)
         svc = MemoryDigestService(db)
-        result = await svc.latest_delivery(
-            user_id=1, workspace_id="ws"
-        )
+        result = await svc.latest_delivery(user_id=1, workspace_id="ws")
         assert result is None
 
     async def test_validates_channel_filter(self) -> None:
