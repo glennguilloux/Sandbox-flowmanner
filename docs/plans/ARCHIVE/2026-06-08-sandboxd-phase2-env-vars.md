@@ -1,7 +1,7 @@
 # sandboxd Phase 2 — Environment Variable Changes
 #
 # Generated: 2026-06-08
-# Token: 37fb6669393046712d2b68be235c082ee4d3a82160f5d18450a15205d5ad3046
+# Token: REDACTED_SANDBOXD_TOKEN
 #
 # ═══════════════════════════════════════════════════════════════════════
 # STEP 1: FlowManner .env (/opt/flowmanner/.env)
@@ -9,7 +9,7 @@
 # Add these entries (currently ZERO SANDBOXD_* entries exist):
 #
 SANDBOXD_API_URL=http://10.0.4.1:9090
-SANDBOXD_AUTH_TOKEN=37fb6669393046712d2b68be235c082ee4d3a82160f5d18450a15205d5ad3046
+SANDBOXD_AUTH_TOKEN=REDACTED_SANDBOXD_TOKEN
 SANDBOXD_PREVIEW_DOMAIN=preview.flowmanner.com
 SANDBOXD_ENABLED=true
 SANDBOXD_DEFAULT_TEMPLATE=react-standard
@@ -23,7 +23,7 @@ SANDBOXD_DEFAULT_TEMPLATE=react-standard
 # PREVIEW_ENTRYPOINT=websecure                    # was: web
 # PREVIEW_TLS=true                                # was: false
 # SANDBOXD_API_AUTH_DISABLED=false                # was: true
-# SANDBOXD_API_TOKENS=flowmanner=37fb6669393046712d2b68be235c082ee4d3a82160f5d18450a15205d5ad3046  # was: empty
+# SANDBOXD_API_TOKENS=flowmanner=REDACTED_SANDBOXD_TOKEN  # was: empty
 # SANDBOXD_SET_MEMORY_HIGH=true                   # was: false
 
 # ═══════════════════════════════════════════════════════════════════════

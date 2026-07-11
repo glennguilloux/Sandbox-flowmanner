@@ -17,7 +17,7 @@ Coverage:
 Run via::
 
     cd /opt/flowmanner/backend
-    DATABASE_URL="postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner" \\
+    DATABASE_URL="postgresql+asyncpg://flowmanner:REDACTED_DB_PASSWORD@127.0.0.1:5432/flowmanner" \\
       .venv/bin/python -m pytest tests/test_memory_digest_service.py -v
 """
 from __future__ import annotations
@@ -30,7 +30,7 @@ import pytest
 
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@127.0.0.1:5432/flowmanner",
+    "postgresql+asyncpg://flowmanner:REDACTED_DB_PASSWORD@127.0.0.1:5432/flowmanner",
 )
 
 
