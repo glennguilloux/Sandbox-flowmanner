@@ -2,7 +2,7 @@
 """Add metadata (JSONB) column to personal_memory_claims.
 
 Revision ID: 20260711_governance_poison_scan
-Revises: 20260710_mp2_wallet_txn
+Revises: 20260711_hitl_depth_decision
 Create Date: 2026-07-11 18:30:00
 
 t_9bb4df81: the retroactive poison-sweep must persist the FULL
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "20260711_governance_poison_scan"
-down_revision = "20260710_mp2_wallet_txn"
+down_revision = "20260711_hitl_depth_decision"
 branch_labels = None
 depends_on = None
 
