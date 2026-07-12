@@ -8,7 +8,11 @@ from uuid import uuid4
 import pytest
 
 from app.models.capability_models import BudgetExhausted
-from app.services.substrate.workflow_models import WorkflowNode, WorkflowType
+from app.services.substrate.workflow_models import (
+    EffectClass,
+    WorkflowNode,
+    WorkflowType,
+)
 
 
 def _make_node(
@@ -114,8 +118,15 @@ class TestExecuteMainLoop:
 
     @pytest.mark.asyncio
     async def test_execute_retries_on_failure(self):
+        # A read-only node (llm_call) is REVERSIBLE in production — the
+        # adapter maps it via _REVERSIBLE_NODE_TYPES. A raw WorkflowNode
+        # inherits the fail-closed IRREVERSIBLE default, which makes
+        # NodeExecutor promote the first failure to ESCALATE and refuse to
+        # retry (correct behavior for an irreversible node). To exercise the
+        # retry path this test must model the node as REVERSIBLE.
         ne, mock_executor = _make_mock_node_executor()
         node = _make_node(max_retries=2)
+        node.effect_class = EffectClass.REVERSIBLE
         db = AsyncMock()
         run_id = str(uuid4())
         budget = _make_budget()
