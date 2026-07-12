@@ -1,7 +1,7 @@
 """Mission and MissionTask models (separate from mission.py for services/learning_service.py)."""
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -21,7 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models import Base, TimestampMixin
 
 
-class AbortReason(str, Enum):
+class AbortReason(StrEnum):
     """Typed reasons for aborting a mission."""
 
     USER_REQUESTED = "user_requested"
@@ -32,7 +32,7 @@ class AbortReason(str, Enum):
     MANUAL_INTERVENTION = "manual_intervention"
 
 
-class MissionStatus(str, Enum):
+class MissionStatus(StrEnum):
     """Typed mission lifecycle states with validated transitions.
 
     External (user-visible): draft, pending, queued, running, completed, approved, failed, paused, aborted
