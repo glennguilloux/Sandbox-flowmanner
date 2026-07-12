@@ -6,7 +6,7 @@ import logging
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 logger = logging.getLogger(__name__)
 import uuid  # FastAPI/Pydantic v2 needs uuid at runtime for path param resolution
@@ -603,8 +603,13 @@ class MissionCommandHandlers(CommandHandlerBase):
                 f"Invalid abort reason: '{reason_str}'. Valid reasons: {[r.value for r in AbortReason]}"
             )
 
-        # SELECT ... FOR UPDATE to prevent TOCTOU races
-        result = await self.session.execute(select(Mission).where(Mission.id == str(mission_id)).with_for_update())
+        # SELECT ... FOR UPDATE to prevent TOCTOU races. Bound a lock_timeout
+        # and prefer SKIP LOCKED so a row already held by a concurrent
+        # batch_abort (see batch_abort) is skipped rather than deadlocking.
+        await self.session.execute(text("SET LOCAL lock_timeout = '2s'"))
+        result = await self.session.execute(
+            select(Mission).where(Mission.id == str(mission_id)).with_for_update(skip_locked=True)
+        )
         mission = result.scalars().first()
         if mission is None:
             raise MissionNotFoundError("Mission not found")
@@ -895,8 +900,14 @@ class MissionCommandHandlers(CommandHandlerBase):
             )
 
         str_ids = [str(mid) for mid in mission_ids]
-
-        result = await self.session.execute(select(Mission).where(Mission.id.in_(str_ids)).with_for_update())
+        # Lock the target rows in a deterministic (sorted) order and use
+        # SKIP LOCKED so that any row already held by a concurrent per-mission
+        # abort is skipped instead of deadlocking. A session-level lock_timeout
+        # bounds how long a contended lock can block.
+        await self.session.execute(text("SET LOCAL lock_timeout = '2s'"))
+        result = await self.session.execute(
+            select(Mission).where(Mission.id.in_(str_ids)).order_by(Mission.id).with_for_update(skip_locked=True)
+        )
         missions = result.scalars().all()
 
         results = []

@@ -5,6 +5,8 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from app.core.llm_result import normalize_llm_result
+
 if TYPE_CHECKING:
     from app.services.model_router import ModelRouter
     from app.services.rag.embedding_service import EmbeddingService
@@ -96,20 +98,30 @@ class RetrievalService:
             temperature=0,
         )
 
-        content = response.get("response", "")
+        # Normalize across router return shapes (llm_router returns an object
+        # when bound to a DB session); a success=False is surfaced and the
+        # rerank is skipped via the existing except -> Qdrant ordering.
+        try:
+            content = normalize_llm_result(response, context="retrieval_service._rerank_llm")
+        except Exception as e:
+            logger.warning("LLM re-rank failed, using Qdrant ordering: %s", e)
+            return candidates
+
         try:
             indices = json.loads(content)
-            if isinstance(indices, list):
-                reordered = []
-                seen = set()
-                for idx in indices:
-                    if isinstance(idx, int) and 0 <= idx < len(candidates) and idx not in seen:
-                        reordered.append(candidates[idx])
-                        seen.add(idx)
-                remaining = [c for i, c in enumerate(candidates) if i not in seen]
-                return reordered + remaining
         except (json.JSONDecodeError, TypeError):
             logger.warning("LLM re-rank returned unparseable result, using original order")
+            return candidates
+
+        if isinstance(indices, list):
+            reordered = []
+            seen = set()
+            for idx in indices:
+                if isinstance(idx, int) and 0 <= idx < len(candidates) and idx not in seen:
+                    reordered.append(candidates[idx])
+                    seen.add(idx)
+            remaining = [c for i, c in enumerate(candidates) if i not in seen]
+            return reordered + remaining
 
         return candidates
 

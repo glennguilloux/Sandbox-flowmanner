@@ -37,3 +37,13 @@ repos:
     rev: v8.21.2
     hooks:
       - id: gitleaks
+
+  - repo: local
+    hooks:
+      - id: guard-llm-success
+        name: guard-llm-success
+        description: Fail if any LLM route_request result is read for content without a success check / normalize_llm_result guard.
+        entry: python backend/scripts/guard_llm_success.py app
+        language: system
+        pass_filenames: false
+        files: ^backend/app/.*\.py$

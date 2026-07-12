@@ -136,6 +136,11 @@ dev-build: ## Build the standalone dev backend image
 .PHONY: test
 test: test-backend test-frontend ## Run all tests (backend + frontend)
 
+.PHONY: guard-llm-success
+guard-llm-success: ## CI guard: fail if any route_request result is read without a success check
+	@echo -e "$(GREEN)Running LLM failure-propagation guard...$(RESET)"
+	cd $(BACKEND_DIR) && $(PYTHON) scripts/guard_llm_success.py app
+
 .PHONY: test-backend
 test-backend: ## Run backend pytest
 	@echo -e "$(GREEN)Running backend tests...$(RESET)"
