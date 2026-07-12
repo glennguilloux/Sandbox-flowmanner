@@ -67,7 +67,16 @@ class CompensationService:
             if claim_skipped
             else await self._credit_unused_compute(user_id=user_id, mission_id=mission_id, workspace_id=workspace_id)
         )
-        results["notify"] = await self._notify_user(mission_id=mission_id, user_id=user_id, run_id=run_id)
+        # Notification is gated on the SAME idempotency claim as the refund.
+        # A Celery retry re-runs the whole task; without this guard a retried
+        # compensation would re-notify the user on every attempt. The
+        # compensed_at claim (fresh session, _claim_compensation) is the
+        # single source of truth for "this mission was already compensated".
+        results["notify"] = (
+            {"ok": True, "skipped": True, "reason": "already_compensated"}
+            if claim_skipped
+            else await self._notify_user(mission_id=mission_id, user_id=user_id, run_id=run_id)
+        )
         return results
 
     async def _claim_compensation(self, mission_id: str) -> bool:
@@ -133,6 +142,11 @@ class CompensationService:
             if unused <= 0.0:
                 return {"ok": True, "refunded": 0.0, "reason": "no_unused_compute"}
 
+            # credit_wallet is SYNC and owns its OWN session via
+            # `db or self._get_db()` (marketplace_db.py:725). Do NOT pass the
+            # caller's async AsyncSession here — that would let a sync fn call
+            # .commit()/.rollback() on an async session from a worker thread
+            # (unsafe shared-session coupling). Let it open its own sync session.
             result = await asyncio.to_thread(
                 get_marketplace_service().credit_wallet,
                 str(user_id),
