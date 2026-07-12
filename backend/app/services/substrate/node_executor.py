@@ -259,9 +259,6 @@ class NodeExecutor:
         # fires only post-CONFIRM.
         effect_class = node.effect_class
         is_irreversible = effect_class == EffectClass.IRREVERSIBLE
-        # Mirrors the flag passed into _dispatch for IRREVERSIBLE nodes: once we
-        # STAGE an intent, the node is "committed" and must not be retried.
-        side_effects_committed = is_irreversible
 
         for attempt in range(max_retries + 1):
             # Check abort signal between retries
@@ -333,7 +330,6 @@ class NodeExecutor:
                         run_id,
                         workflow,
                         context_events=context_events,
-                        side_effects_committed=True,
                     )
                     # CONFIRM only after a successful fire.
                     if result.get("success"):
@@ -392,7 +388,7 @@ class NodeExecutor:
             # the external effect (double-send). Promote ANY error — even a
             # RetryableMissionError — to ESCALATE so a human breaks the glass.
             error = result.get("error")
-            if side_effects_committed and is_irreversible and attempt < max_retries:
+            if is_irreversible and attempt < max_retries:
                 logger.error(
                     "Irreversible effect already committed for node %s; NOT retrying "
                     "(would re-fire). Promoting to ESCALATE.",
@@ -609,18 +605,8 @@ class NodeExecutor:
         workflow: Workflow | None = None,
         *,
         context_events: list[SubstrateEvent] | None = None,
-        side_effects_committed: bool = False,
     ) -> dict[str, Any]:
-        """Dispatch a node to the appropriate handler based on its type.
-
-        Args:
-            side_effects_committed: True when the orchestrator has already
-                committed a side_effect_intent for this IRREVERSIBLE node (two-phase
-                STAGE→CONFIRM dispatch). When True AND the node is IRREVERSIBLE, the
-                handlers MUST NOT perform the external fire themselves AND any raised
-                RetryableMissionError is promoted to ESCALATE by the caller — see
-                side-effect-safety-and-planner-trust skill.
-        """
+        """Dispatch a node to the appropriate handler based on its type."""
         match node.type:
             case NodeType.LLM_CALL:
                 return await self._handle_llm(
