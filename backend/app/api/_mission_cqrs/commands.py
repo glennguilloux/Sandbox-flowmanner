@@ -749,6 +749,11 @@ class MissionCommandHandlers(CommandHandlerBase):
 
         prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
         mission.status = MissionStatus.PAUSED
+        # Record the pause timestamp so the auto-fail scanner can compute the
+        # 7-day window. Legacy rows that were paused before this column existed
+        # have paused_at = NULL and are treated as "infinity" by the scanner
+        # (exempt from auto-fail), so backfills are not required.
+        mission.paused_at = datetime.now(UTC)
 
         # Cancel all RUNNING tasks back to PENDING
         task_result = await self.session.execute(

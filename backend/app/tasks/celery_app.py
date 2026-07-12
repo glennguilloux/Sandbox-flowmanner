@@ -66,6 +66,12 @@ celery_app.conf.beat_schedule = {
         "task": "memory.decay_entries",
         "schedule": crontab(hour=3, minute=0),
     },
+    # Pause-timeout auto-fail: transition missions paused > window days to
+    # FAILED and run compensation. Every 5 min (mirrors hitl.expire_items).
+    "expire-paused-missions": {
+        "task": "mission.expire_paused",
+        "schedule": 300.0,  # 5 minutes
+    },
 }
 
 
@@ -158,6 +164,7 @@ def _register_custom_tasks() -> None:
         ("eval_run", "evaluation.run_suite  (Phase 6 eval async execution)"),
         ("memory_extraction_tasks", "memory.extract_claims  (durable memory extraction)"),
         ("decay_memory", "memory.decay_entries  (Epic 3.3 retrieval-lifecycle decay)"),
+        ("expire_paused_missions", "mission.expire_paused  (pause-timeout auto-fail)"),
     ]
 
     registered_modules: list[str] = []

@@ -243,6 +243,11 @@ class Settings(BaseSettings):
     MISSION_RATE_LIMIT_EXECUTE: int = 20
     MISSION_RATE_LIMIT_ABORT: int = 15
     MISSION_RATE_LIMIT_PLAN: int = 20
+    # Pause-timeout auto-fail window (days). A mission paused longer than this
+    # is auto-transitioned PAUSED -> FAILED and compensation is run. See
+    # app/tasks/expire_paused_missions.py. Historical rows with paused_at = NULL
+    # are treated as infinity and exempt.
+    MISSION_PAUSE_AUTO_FAIL_DAYS: int = 7
     MISSION_RATE_LIMIT_DEFAULT: int = 60
     MISSION_RATE_LIMIT_WINDOW_SECONDS: int = 60
     MISSION_RATE_LIMIT_BURST_MULTIPLIER: int = 2
