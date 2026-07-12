@@ -163,19 +163,49 @@ class NodeExecutor:
         # Filter out noisy infrastructure events
         return [e for e in raw_events if e.type not in _NOISY_EVENT_TYPES]
 
-    @staticmethod
-    def _format_context_events(events: list[SubstrateEvent]) -> str:
+    @classmethod
+    def _sanitize_payload(cls, value: Any) -> Any:
+        """Recursively sanitize the string values of an untrusted payload.
+
+        Reuses the shared ``_sanitize_text`` helper (the same one
+        ``_sanitize_tool_output`` uses) so control chars are stripped and
+        each string is length-capped BEFORE JSON serialization — sanitizing
+        the already-serialized JSON would be a no-op because ``json.dumps``
+        escapes control chars to ``\\uXXXX`` text.
+        """
+        if isinstance(value, str):
+            return cls._sanitize_text(value)
+        if isinstance(value, dict):
+            return {k: cls._sanitize_payload(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [cls._sanitize_payload(v) for v in value]
+        return value
+
+    @classmethod
+    def _format_context_events(cls, events: list[SubstrateEvent]) -> str:
         """Format context events as structured text for LLM injection.
 
         Each event is serialized as a compact line with sequence, type,
         actor, and payload summary.  Payloads are truncated to 300 chars
         to avoid blowing up the context window.
+
+        Trust boundary (B3): event payloads carry verbatim tool/agent
+        outputs (RAG, web_search, code, file, browser, sandbox).  This is
+        the single chokepoint where prior-event output re-enters the LLM
+        prompt (see :771).  Every payload's string values are sanitized
+        here via the shared ``_sanitize_text`` helper (control-char strip +
+        length cap — the same helper ``_sanitize_tool_output`` uses) so
+        untrusted output is never injected raw.
         """
         if not events:
             return ""
         lines: list[str] = []
         for ev in events:
-            payload_str = json.dumps(ev.payload or {}, default=str)
+            # Sanitize the untrusted payload BEFORE serialization so control
+            # chars in tool/agent output are stripped (json.dumps would only
+            # escape, not remove, them).
+            sanitized = cls._sanitize_payload(ev.payload or {})
+            payload_str = json.dumps(sanitized, default=str)
             if len(payload_str) > 300:
                 payload_str = payload_str[:300] + "..."
             lines.append(f"[{ev.sequence}] {ev.type} (actor={ev.actor}) {payload_str}")
