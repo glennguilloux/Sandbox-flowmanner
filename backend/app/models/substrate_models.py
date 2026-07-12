@@ -15,7 +15,7 @@ Event columns:
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import BigInteger, DateTime, String
+from sqlalchemy import BigInteger, DateTime, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -58,6 +58,16 @@ class SubstrateEvent(Base):
         String(256),
         nullable=True,
         index=True,
+    )
+
+    # Item #3 / S2: hard dedup-on-write. Because idempotency_key is nullable,
+    # Postgres permits multiple NULLs; only non-null keys are unique-constrained
+    # (correct for an optional key).
+    __table_args__ = (
+        UniqueConstraint(
+            "idempotency_key",
+            name="uq_substrate_events_idempotency_key",
+        ),
     )
 
 
