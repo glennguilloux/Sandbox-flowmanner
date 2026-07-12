@@ -16,6 +16,14 @@ Design invariants:
   table), we log and ALLOW the tool call. Constraints are an
   additive safety net, never a hard dependency of the execution path —
   a constraint store outage must never brick tool dispatch.
+
+* **DESIGN DECISION: the gate is FAIL-OPEN.** If the constraint store is
+  unavailable, ALL tool calls are ALLOWED — including payment/send
+  categories. This is deliberate: bricking tool dispatch on a store blip
+  is worse than a brief allow-all window. The threat-model implication
+  (a constraint-store DoS/partition widens permissions to allow-all) is
+  accepted. A memory-store-independent static deny-list for payment/send
+  tools is a *future* hardening and is NOT implemented here.
 * **Workspace-scoped.** Constraints are loaded by
   ``(user_id, workspace_id)``; the service never crosses a workspace
   boundary. The substrate ``Workflow.user_id`` is a UUID *string* while
