@@ -29,7 +29,9 @@ async def test_swarm_all_subagents_fail_marked_failure():
     from unittest.mock import Mock
 
     executor.is_aborted = Mock(return_value=False)  # swarm.py:71 calls it sync (no await)
-    executor.execute_node.side_effect = RuntimeError("subagent exploded")
+    # Subagent returns a FAILED dict (not an exception) so the REAL dispatch path
+    # at swarm.py:153 sets any_failed=True and line 193 (`and not any_failed`) decides.
+    executor.execute_node = AsyncMock(return_value={"success": False, "error": "subagent failed"})
     executor.call_llm = AsyncMock(return_value={"success": True, "response": "synthesized ok"})
 
     workflow = Workflow(
