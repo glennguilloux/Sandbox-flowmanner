@@ -427,7 +427,21 @@ class MissionCommandHandlers(CommandHandlerBase):
                 tasks = await get_mission_tasks(self.session, mission_id)
 
             workflow = mission_to_workflow(mission, tasks)
-            strategy_result = await unified.execute(self.session, workflow)
+
+            # GC3: mint a FRESH substrate_run_id for this execution and
+            # persist it on mission.plan BEFORE the executor runs, so the
+            # run is addressable (abort-by-run_id, event-log scoping,
+            # replay) and a retry cannot accidentally reuse attempt-1's id.
+            # run_id is RUN-SCOPED (GC2) — the event-log idempotency
+            # key is keyed on it, so a fresh id == fresh keys == no
+            # silent replay of attempt-1 output (FM-1).
+            run_id = str(uuid4())
+            if mission.plan is None:
+                mission.plan = {}
+            mission.plan["substrate_run_id"] = run_id
+            await self.session.flush()
+
+            strategy_result = await unified.execute(self.session, workflow, run_id=run_id)
             result = {
                 "success": strategy_result.success,
                 "status": strategy_result.status,
@@ -510,6 +524,16 @@ class MissionCommandHandlers(CommandHandlerBase):
 
         prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
         mission.status = MissionStatus.QUEUED
+
+        # GC3: mint a FRESH substrate_run_id and persist it on mission.plan
+        # so the Celery worker (and any future retry) executes against a
+        # run-scoped idempotency space (GC2) and never silently replays
+        # attempt-1 output into attempt-2 (FM-1).
+        run_id = str(uuid4())
+        if mission.plan is None:
+            mission.plan = {}
+        mission.plan["substrate_run_id"] = run_id
+
         await self.session.commit()
 
         # Log the transition
@@ -523,6 +547,7 @@ class MissionCommandHandlers(CommandHandlerBase):
                 "next_state": MissionStatus.QUEUED,
                 "cause": "Async execution queued by user",
                 "user_id": str(user.id),
+                "substrate_run_id": run_id,
             },
         )
         self.session.add(log)
@@ -532,7 +557,7 @@ class MissionCommandHandlers(CommandHandlerBase):
         try:
             from app.tasks.mission_execution import dispatch_mission_execution
 
-            dispatch_mission_execution(str(mission_id), user.id)
+            dispatch_mission_execution(str(mission_id), user.id, run_id=run_id)
         except Exception:
             # Fallback: use UnifiedExecutor in a background task
             _fallback_log = __import__("structlog").get_logger(__name__)
@@ -815,13 +840,31 @@ class MissionCommandHandlers(CommandHandlerBase):
         prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
         mission.status = MissionStatus.PENDING
         mission.error_message = None
+
+        # GC3: mint a FRESH substrate_run_id for the retry. Retrying with the
+        # previous run_id is the silent-replay bug (FM-1): the event-log
+        # idempotency key is RUN-SCOPED (GC2), so reusing attempt-1's id
+        # lets node_executor replay attempt-1 output instead of re-calling the
+        # model. The fresh id resets the idempotency space and is persisted
+        # on mission.plan so the worker executes attempt-2 in its own scope.
+        fresh_run_id = str(uuid4())
+        if mission.plan is None:
+            mission.plan = {}
+        mission.plan["substrate_run_id"] = fresh_run_id
+
         await self.session.commit()
 
         if self.audit:
-            self.audit.mission_retried(
-                mission_id=mission_id,
+            # GC4 / FM-2: the retry audit is forensic-critical — it MUST
+            # survive a rollback of this handler's transaction. Write it in
+            # its OWN autonomous session via record_async (MissionLog.mission_id
+            # is now a soft reference, no FK). Swallowed + alerted on failure.
+            await self.audit.record_async(
+                action="mission.retry",
                 actor_id=user.id,
+                mission_id=mission_id,
                 old_status=prev_status,
+                new_status=MissionStatus.PENDING.value,
                 request_id=self._request_id,
             )
 

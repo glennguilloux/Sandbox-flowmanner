@@ -66,6 +66,14 @@ celery_app.conf.beat_schedule = {
         "task": "memory.decay_entries",
         "schedule": crontab(hour=3, minute=0),
     },
+    # FM-3 — MissionReaper: recover RUNNING missions stranded by a
+    # dead worker (expired/absent substrate_worker_leases + stale started_at).
+    # Reaps to FAILED(stale_pause), NOT ABORTED (keeps retry path open).
+    # Every 5 minutes.
+    "reap-stale-missions": {
+        "task": "mission.reap_stale",
+        "schedule": 300.0,
+    },
 }
 
 
@@ -158,6 +166,7 @@ def _register_custom_tasks() -> None:
         ("eval_run", "evaluation.run_suite  (Phase 6 eval async execution)"),
         ("memory_extraction_tasks", "memory.extract_claims  (durable memory extraction)"),
         ("decay_memory", "memory.decay_entries  (Epic 3.3 retrieval-lifecycle decay)"),
+        ("mission_reaper", "mission.reap_stale  (FM-3 dead-worker RUNNING reaper)"),
     ]
 
     registered_modules: list[str] = []

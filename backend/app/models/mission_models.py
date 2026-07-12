@@ -232,7 +232,12 @@ class MissionLog(Base):
     __tablename__ = "mission_logs"
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
-    mission_id: Mapped[str] = mapped_column(UUID(as_uuid=True), ForeignKey("missions.id"), nullable=False, index=True)
+    # FM-2 / GC4: mission_id is a SOFT reference — NO FK.  The audit row
+    # must survive even when the mission row is gone/rolled back, so it
+    # must not depend on missions.id referential integrity.  The FK was
+    # dropped in migration 20260712_mission_log_soft_ref; keep the model
+    # in sync so create_all / autogenerate don't re-add it.
+    mission_id: Mapped[str] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     task_id: Mapped[str | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     level: Mapped[str | None] = mapped_column(String(20), default="info")
     message: Mapped[str] = mapped_column(Text, nullable=False)

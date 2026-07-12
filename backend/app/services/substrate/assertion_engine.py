@@ -38,6 +38,11 @@ class AssertionType:
     TASK_COMPLETION = "task_completion"
     NO_CIRCUIT_BREAKER = "no_circuit_breaker"
     BASELINE_VERSION = "baseline_version"
+    # FM-1 gate (GC2/GC3): every upstream output a node consumes in run
+    # R must come from an event that belongs to run R — never from a prior
+    # run's events (which would be attempt-1 output silently replayed into
+    # attempt-2 because the retry reused a run_id).
+    SAME_RUN_DEPENDENCIES = "same_run_dependencies"
 
 
 # ── Baseline version metadata ─────────────────────────────────────
@@ -163,6 +168,8 @@ class ReplayAssertionEngine:
                                 current=current_baseline_version,
                             )
                         )
+                    case AssertionType.SAME_RUN_DEPENDENCIES:
+                        results.append(await self._check_same_run_dependencies(db, run_id, assertion))
                     case _:
                         results.append(
                             AssertionResult(
@@ -632,9 +639,7 @@ class ReplayAssertionEngine:
                 severity=Severity.WARNING,
                 actual=current.to_dict(),
                 expected=stored.to_dict(),
-                message=(
-                    f"Baseline drift detected: {'; '.join(drift_fields)}. " f"Re-extract baseline from a fresh run."
-                ),
+                message=(f"Baseline drift detected: {'; '.join(drift_fields)}. Re-extract baseline from a fresh run."),
             )
 
         return AssertionResult(
@@ -644,6 +649,88 @@ class ReplayAssertionEngine:
             actual=current.to_dict(),
             expected=stored.to_dict(),
             message="Baseline version matches current environment",
+        )
+
+    # ── FM-1 run-isolation guard ──────────────────────────────────
+
+    async def assert_run_isolation(self, db: AsyncSession, run_id: str) -> AssertionResult:
+        """One-shot FM-1 gate: assert run ``run_id`` has no cross-run deps.
+
+        Call this AFTER a replay/rebuild of run ``run_id`` (e.g. right
+        after a retry's attempt-2 completes).  If an upstream output it
+        consumed actually belonged to a DIFFERENT run_id, the run is
+        contaminated — attempt-1 output was replayed into attempt-2.
+        """
+        return await self._check_same_run_dependencies(
+            db,
+            run_id,
+            {"type": AssertionType.SAME_RUN_DEPENDENCIES},
+        )
+
+    async def _check_same_run_dependencies(
+        self,
+        db: AsyncSession,
+        run_id: str,
+        assertion: dict[str, Any],
+    ) -> AssertionResult:
+        """Verify every upstream reference in ``run_id`` points within ``run_id``.
+
+        A node emits a completion/dependent event whose ``payload`` carries the
+        ``task_id`` (or ``node_id``) of the upstream it consumed.  We collect
+        all consumed-upstream task_ids for the run, then confirm each such
+        upstream event belongs to THIS run_id (never a sibling run).  A hit
+        proves FM-1: the dependency resolver pulled an output from the wrong
+        (prior-attempt) run.
+        """
+        events = await self._event_log.get_events(db, run_id)
+
+        # Map task_id -> the run_id that produced its completion event.
+        producer_run: dict[str, str] = {}
+        consumed_upstream: set[str] = set()
+        for e in events:
+            p = e.payload or {}
+            # Producer side: this event completes/satisfies a task.
+            if e.type in (
+                SubstrateEventType.NODE_COMPLETED,
+                SubstrateEventType.TOOL_RESPONSE,
+                SubstrateEventType.RUN_COMPLETED,
+            ):
+                tid = str(p.get("task_id") or p.get("node_id") or "")
+                if tid:
+                    producer_run[tid] = e.run_id
+            # Consumer side: this event declares an upstream it consumed.
+            upstream = p.get("upstream") or p.get("depends_on") or p.get("input_from")
+            if isinstance(upstream, str) and upstream:
+                consumed_upstream.add(upstream)
+            elif isinstance(upstream, list):
+                consumed_upstream.update(str(u) for u in upstream if u)
+
+        # Any consumed upstream whose producer event is in a DIFFERENT run
+        # is cross-attempt contamination.
+        foreign: list[dict[str, Any]] = []
+        for tid in consumed_upstream:
+            producer = producer_run.get(tid)
+            if producer is not None and producer != run_id:
+                foreign.append({"task_id": tid, "foreign_run_id": producer})
+
+        passed = not foreign
+        severity = Severity.INFO if passed else Severity.FAILURE
+        message = (
+            "All dependencies resolve within run_id"
+            if passed
+            else f"Cross-run dependency contamination: {len(foreign)} upstream output(s) from a different run_id"
+        )
+        return AssertionResult(
+            assertion_type=AssertionType.SAME_RUN_DEPENDENCIES,
+            passed=passed,
+            severity=severity,
+            actual={
+                "run_id": run_id,
+                "consumed_upstream": sorted(consumed_upstream),
+                "foreign_dependencies": foreign,
+            },
+            expected={"all_upstream_run_id": run_id},
+            message=message,
         )
 
 

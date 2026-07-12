@@ -46,7 +46,7 @@ class ExecuteMissionTask(Task):
     acks_late = True
     reject_on_worker_lost = True
 
-    def run(self, mission_id: str, user_id: int):
+    def run(self, mission_id: str, user_id: int, run_id: str | None = None):
         """Synchronous entry point — runs the async execution via asyncio.
 
         If no event loop is running, uses asyncio.run().
@@ -56,16 +56,16 @@ class ExecuteMissionTask(Task):
             loop = asyncio.get_running_loop()
         except RuntimeError:
             # No running loop — safe to use asyncio.run()
-            return asyncio.run(self._execute_async(mission_id, user_id))
+            return asyncio.run(self._execute_async(mission_id, user_id, run_id=run_id))
         else:
             # Loop exists — use a separate one for Celery isolation
             new_loop = asyncio.new_event_loop()
             try:
-                return new_loop.run_until_complete(self._execute_async(mission_id, user_id))
+                return new_loop.run_until_complete(self._execute_async(mission_id, user_id, run_id=run_id))
             finally:
                 new_loop.close()
 
-    async def _execute_async(self, mission_id: str, user_id: int):
+    async def _execute_async(self, mission_id: str, user_id: int, run_id: str | None = None):
         """Async execution with proper session management."""
         async with AsyncSessionLocal() as session:
             try:
@@ -83,6 +83,16 @@ class ExecuteMissionTask(Task):
                         status=(mission.status.value if hasattr(mission.status, "value") else mission.status),
                     )
                     return
+
+                # GC3: resolve the run-scoped id (GC2). Prefer the
+                # fresh id minted by the API handler (passed in), else the
+                # persisted mission.plan["substrate_run_id"], else mint one.
+                # A retry MUST supply a fresh id (never reuse attempt-1's)
+                # so the event-log idempotency space is reset (FM-1).
+                run_id = run_id or (mission.plan or {}).get("substrate_run_id") or str(uuid.uuid4())
+                if mission.plan is None:
+                    mission.plan = {}
+                mission.plan["substrate_run_id"] = run_id
 
                 # Transition to RUNNING
                 prev = mission.status
@@ -109,7 +119,7 @@ class ExecuteMissionTask(Task):
 
                 tasks = await get_mission_tasks(session, uuid.UUID(mission_id))
                 workflow = mission_to_workflow(mission, tasks)
-                strategy_result = await get_unified_executor().execute(session, workflow)
+                strategy_result = await get_unified_executor().execute(session, workflow, run_id=run_id)
                 exec_result = {
                     "success": strategy_result.success,
                     "status": strategy_result.status,
@@ -179,17 +189,25 @@ class ExecuteMissionTask(Task):
 # ── Dispatch helper ───────────────────────────────────────────────────────────
 
 
-def dispatch_mission_execution(mission_id: str, user_id: int) -> None:
+def dispatch_mission_execution(
+    mission_id: str,
+    user_id: int,
+    run_id: str | None = None,
+) -> None:
     """Queue a mission for async execution via Celery.
 
     Safe to call from within a sync or async context.
     Replace all asyncio.create_task(_run_execution) patterns with this.
+
+    run_id: the substrate run-scoped id minted by the API handler. Passed
+        through to the Celery task so the worker executes in the same
+        idempotency space (FM-1 / GC2+GC3).
     """
     from celery import current_app
 
     current_app.send_task(
         "mission.execute_async",
-        args=[mission_id, user_id],
+        args=[mission_id, user_id, run_id],
         queue="celery",
     )
     logger.info("mission_execute_dispatched", mission_id=mission_id)
