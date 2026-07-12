@@ -795,9 +795,38 @@ class MissionCommandHandlers(CommandHandlerBase):
 
     async def resume_mission(self, user: User, mission_id: uuid.UUID) -> MissionExecutionStatus:
         # NOTE: not wrapped in wrap_command — multi-commit flow:
-        #   1. commit status → QUEUED
-        #   2. commit transition log separately
-        mission = await require_mission_access(self.session, mission_id, user.id)
+        #   1. SELECT … FOR UPDATE locks the mission row atomically
+        #   2. commit status → QUEUED
+        #   3. commit transition log separately
+        # Trust B2: the expire_paused_missions beat task locks PAUSED rows with
+        # FOR UPDATE SKIP LOCKED before flipping them to FAILED. Without a lock
+        # here, resume's plain SELECT would not be skipped and the two
+        # transactions could interleave (resume commits QUEUED, expire commits
+        # FAILED → user's resume clobbered). Locking the row FOR UPDATE means
+        # expire's SKIP LOCKED skips the row we hold, giving mutual exclusion.
+        await self.session.execute(text("SET LOCAL lock_timeout = '2s'"))
+        result = await self.session.execute(select(Mission).where(Mission.id == str(mission_id)).with_for_update())
+        mission = result.scalars().first()
+        if mission is None:
+            raise MissionNotFoundError("Mission not found")
+        # Workspace-aware access check (post-lock to avoid TOCTOU), mirroring
+        # abort_mission. Preserves require_mission_access ownership semantics.
+        if mission.workspace_id:
+            from sqlalchemy import select as _sel
+
+            from app.models.workspace_models import WorkspaceMember
+
+            member_result = await self.session.execute(
+                _sel(WorkspaceMember).where(
+                    WorkspaceMember.workspace_id == mission.workspace_id,
+                    WorkspaceMember.user_id == user.id,
+                    WorkspaceMember.is_active == True,
+                )
+            )
+            if member_result.scalar_one_or_none() is None:
+                raise MissionNotFoundError("Mission not found")
+        elif mission.user_id != user.id:
+            raise MissionNotFoundError("Mission not found")
 
         if mission.status != MissionStatus.PAUSED:
             raise MissionTransitionConflictError(f"Can only resume a paused mission, not '{mission.status}'")
