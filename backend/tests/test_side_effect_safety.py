@@ -19,7 +19,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.models.mission_models import MissionStatus
+from app.models.mission_models import MissionStatus, MissionTaskStatus
 from app.models.substrate_models import SubstrateEventType
 from app.services.mission_errors import RetryableMissionError
 from app.services.nexus.observability import ObservabilityService
@@ -199,6 +199,27 @@ def test_planned_pending_review_in_check_constraint_tuple():
     from app.models.mission_models import ALL_MISSION_STATUSES
 
     assert "planned_pending_review" in ALL_MISSION_STATUSES
+
+
+# ── T4b: MissionTaskStatus._TRANSITIONS must NOT be a phantom enum member ──
+# Regression for recon finding #1: a (str, Enum) leaks class attributes into
+# the enum namespace, so a previous in-class _TRANSITIONS dict became a 5th
+# enum member, breaking is_terminal / can_transition_to (and the ORM status-set
+# listener). It now lives at module level and is exposed via a property.
+
+
+def test_mission_task_status_transitions_not_an_enum_member():
+    assert "_TRANSITIONS" not in [m.name for m in MissionTaskStatus]
+
+
+def test_mission_task_status_is_terminal_returns_bool():
+    assert isinstance(MissionTaskStatus.PENDING.is_terminal, bool)
+    assert MissionTaskStatus.PENDING.is_terminal is False
+    assert MissionTaskStatus.COMPLETED.is_terminal is True
+
+
+def test_mission_task_status_can_transition_to():
+    assert MissionTaskStatus.PENDING.can_transition_to(MissionTaskStatus.RUNNING) is True
 
 
 # ── T5: observability alarms ────────────────────────────────────────────────
