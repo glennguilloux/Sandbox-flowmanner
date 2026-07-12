@@ -965,7 +965,9 @@ class NodeExecutor:
         # Epic 4.1b: standing-constraint gate. Loads the user's durable
         # ``constraint`` claims and blocks / escalates conflicting tool
         # calls. Fail-open by design — a memory-store error must never
-        # brick tool dispatch.
+        # brick tool dispatch. NOTE: fail-open means a constraint-store
+        # outage widens permissions to allow-all (incl. payment/send); a
+        # static deny-list for those is future hardening, not here.
         workspace_id = getattr(workflow, "workspace_id", None) or ""
         if workspace_id:
             from app.services.pre_tool_constraints import (
