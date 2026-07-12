@@ -51,7 +51,7 @@ async def test_swarm_all_subagents_fail_marked_failure():
     # CORRECT: any subagent failure forces success=False.
     assert isinstance(result, StrategyResult)
     assert result.success is False, "all-subagent-failure run must not be marked success"
-    assert getattr(result, "partial_failure", False) is True
+    assert result.data.get("partial_failure") is True
 
 
 # Test 2: tool prompt-injection isolated at the trust boundary

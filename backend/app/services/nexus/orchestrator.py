@@ -200,10 +200,20 @@ class NexusOrchestrator:
                     task_name=f"capability:{capability_id}",
                     metadata={"capability_id": capability_id, "params": params},
                 )
-                # Wait for task completion
+                # Wait for task completion — bounded (trust-boundary skill:
+                # an autonomous loop MUST have a hard wall-clock bound; an
+                # unbounded `while True:` hangs forever if the distributed
+                # task is lost / never flips status).
                 import asyncio
 
+                poll_deadline_s = float(getattr(self.distributed_executor, "poll_timeout_seconds", 300) or 300)
+                poll_start = datetime.now(UTC).timestamp()
                 while True:
+                    if datetime.now(UTC).timestamp() - poll_start > poll_deadline_s:
+                        return OperationResult(
+                            success=False,
+                            error=f"Distributed task {task_id} poll timed out after {poll_deadline_s}s",
+                        )
                     task = self.distributed_executor.get_task_status(task_id)
                     if task and task.status.value in ("success", "failure"):
                         break

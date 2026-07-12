@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -674,6 +675,30 @@ class NodeExecutor:
             "error": getattr(result, "error", None),
         }
 
+    # Trust-boundary (agent-loop-trust-boundary skill): tool output re-enters
+    # the prompt on the next node, so it must be sanitized at this boundary.
+    _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+    _MAX_OUTPUT_CHARS = 16_000
+
+    @classmethod
+    def _sanitize_tool_output(cls, normalized: dict[str, Any]) -> dict[str, Any]:
+        """Delimit + strip control chars + length-cap the untrusted OUTPUT field."""
+        out = normalized.get("output")
+        if isinstance(out, dict):
+            text = out.get("text") or out.get("stdout") or ""
+            if isinstance(text, str):
+                out = {**out, "text": cls._sanitize_text(text)}
+        elif isinstance(out, str):
+            out = cls._sanitize_text(out)
+        return {**normalized, "output": out}
+
+    @classmethod
+    def _sanitize_text(cls, text: str) -> str:
+        text = cls._CONTROL_CHARS.sub(" ", text)
+        if len(text) > cls._MAX_OUTPUT_CHARS:
+            text = text[: cls._MAX_OUTPUT_CHARS] + " …[truncated]"
+        return text
+
     async def _handle_llm(
         self,
         db: AsyncSession,
@@ -989,6 +1014,12 @@ class NodeExecutor:
         params = node.config.get("params", {})
         tool_result = await handler(params, context)
         normalized = self._tool_result_to_dict(tool_result)
+
+        # Trust-boundary (agent-loop-trust-boundary skill): the capability and
+        # standing-constraint gates above (:920, :937) check the CALLER/tool,
+        # NOT the OUTPUT. A web_search/rag/file_reader result is untrusted and
+        # re-enters the prompt on the next node — sanitize it here.
+        normalized = self._sanitize_tool_output(normalized)
 
         # Q1-B Chunk 4: emit tool_execution cost event
         if normalized.get("success"):
