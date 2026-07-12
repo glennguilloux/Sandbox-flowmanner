@@ -142,20 +142,21 @@ class TestHandleResumeMission:
         from app.api._mission_cqrs.commands import MissionCommandHandlers
         from app.models.mission_models import MissionStatus
 
-        mock_db = AsyncMock()
-        mock_db.commit = AsyncMock()
-        mock_db.add = MagicMock()
         mock_mission = make_mission(status="paused")
 
-        with (
-            patch(
-                "app.api._mission_cqrs.commands.require_mission_access",
-                new=AsyncMock(return_value=mock_mission),
-            ),
-            patch(
-                "app.api._mission_cqrs.commands.get_mission_tasks",
-                new=AsyncMock(return_value=[]),
-            ),
+        # resume_mission now locks the row FOR UPDATE via self.session.execute()
+        # (Trust B2), so the double must return the mission through
+        # .scalars().first() instead of require_mission_access.
+        exec_result = MagicMock()
+        exec_result.scalars.return_value.first.return_value = mock_mission
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(return_value=exec_result)
+        mock_db.commit = AsyncMock()
+        mock_db.add = MagicMock()
+
+        with patch(
+            "app.api._mission_cqrs.commands.get_mission_tasks",
+            new=AsyncMock(return_value=[]),
         ):
             handler = MissionCommandHandlers(mock_db)
             result = await handler.resume_mission(make_user(), MISSION_ID)
@@ -167,13 +168,14 @@ class TestHandleResumeMission:
         from app.services.mission_errors import MissionTransitionConflictError
 
         mock_mission = make_mission(status="completed")
-        with patch(
-            "app.api._mission_cqrs.commands.require_mission_access",
-            new=AsyncMock(return_value=mock_mission),
-        ):
-            handler = MissionCommandHandlers(AsyncMock())
-            with pytest.raises(MissionTransitionConflictError):
-                await handler.resume_mission(make_user(), MISSION_ID)
+        exec_result = MagicMock()
+        exec_result.scalars.return_value.first.return_value = mock_mission
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(return_value=exec_result)
+
+        handler = MissionCommandHandlers(mock_db)
+        with pytest.raises(MissionTransitionConflictError):
+            await handler.resume_mission(make_user(), MISSION_ID)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
