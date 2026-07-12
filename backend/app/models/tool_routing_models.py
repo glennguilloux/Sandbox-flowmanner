@@ -90,3 +90,14 @@ class ToolRouteDecidedEvent(BaseModel):
     workspace_id: str
     user_id: int
     mission_id: str | None = None
+
+
+# ── Forward-ref resolution ──────────────────────────────────────────────────
+# `ToolRouteResult.scores: list[ToolScore]` is a same-module forward reference.
+# Without an explicit rebuild, Pydantic v2 leaves it unresolved, and FastAPI's
+# OpenAPI generator SILENTLY SKIPS the route that uses this model
+# (/api/tool-routing/route) — "unresolved forward refs". model_rebuild() is
+# idempotent and behavior-preserving.
+ToolScore.model_rebuild()
+ToolRouteResult.model_rebuild()
+ToolRouteDecidedEvent.model_rebuild()

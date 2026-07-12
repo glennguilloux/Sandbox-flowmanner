@@ -57,11 +57,25 @@ class MissionRoutingEventsResponse(BaseModel):
 # ── Endpoints ──────────────────────────────────────────────────────
 
 
+def _tool_router_dep() -> ToolRouter:
+    """No-arg dependency wrapper around the get_tool_router singleton factory.
+
+    FastAPI analyzes a dependency's signature to build request params. The
+    underlying `get_tool_router(registry: ToolConverter | None = None, ...)`
+    factory has defaulted params whose types are plain (non-Pydantic) classes,
+    which FastAPI misreads as query params and rejects ("Invalid args for
+    response field"), causing the OpenAPI wrapper to SKIP /api/tool-routing/route.
+    A zero-parameter wrapper gives FastAPI nothing problematic to analyze while
+    preserving identical runtime behavior (the singleton is still returned).
+    """
+    return get_tool_router()
+
+
 @router.post("/tool-routing/route", response_model=ToolRouteResult)
 async def route_tools(
     body: RouteRequest,
     current_user: Any = Depends(get_current_user),
-    tool_router: ToolRouter = Depends(get_tool_router),
+    tool_router: ToolRouter = Depends(_tool_router_dep),
 ) -> ToolRouteResult:
     """Score and select top-k tool candidates for a task.
 
@@ -135,3 +149,13 @@ async def get_mission_routing_events(
         events=event_responses,
         count=len(event_responses),
     )
+
+
+# ── Runtime imports for OpenAPI annotation resolution ───────────────────────
+# `tool_routing.py` uses `from __future__ import annotations`; the handler param
+# `tool_router: ToolRouter` is stored as the string "ToolRouter". FastAPI
+# resolves it against this module's runtime globals at OpenAPI-gen time, but
+# `ToolRouter` is only imported under `TYPE_CHECKING` (not at runtime), so
+# get_typed_signature raises and the resilient OpenAPI wrapper SKIPS the route.
+# Importing at runtime fixes spec generation (behavior-preserving).
+from app.services.tool_router import ToolRouter

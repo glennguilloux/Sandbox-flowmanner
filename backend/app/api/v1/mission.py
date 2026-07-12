@@ -364,3 +364,16 @@ async def get_global_analytics(
     q: MissionQueryHandlers = Depends(get_mission_queries),
 ):
     return await q.global_analytics(user.id)
+
+
+# ── Runtime imports for OpenAPI annotation resolution ───────────────────────
+# `mission.py` uses `from __future__ import annotations`; handler params like
+# `q: MissionQueryHandlers`, `c: MissionCommandHandlers`, `user: User` are stored
+# as strings. FastAPI resolves them against this module's runtime globals at
+# OpenAPI-gen time, but they are only imported under `TYPE_CHECKING` above (not
+# present at runtime), so get_typed_signature raises and the resilient OpenAPI
+# wrapper SKIPS those routes. These runtime imports fix spec generation
+# (behavior-preserving; no circular import — verified).
+from app.api._mission_cqrs.commands import MissionCommandHandlers
+from app.api._mission_cqrs.queries import MissionQueryHandlers
+from app.models.user import User

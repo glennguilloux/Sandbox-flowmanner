@@ -182,6 +182,7 @@ async def _get_replay_event_page(
     events, total, cursor = _normalize_replay_page(page)
     return events[:1], 1 if events else total, cursor
 
+
 @router.get("/{mission_id}/events")
 async def get_mission_events(
     mission_id: UUID,
@@ -341,3 +342,18 @@ async def get_mission_event_at_sequence(
         "event": _serialize_event(events[0]),
         "state_at_sequence": state.to_dict(),
     }
+
+
+# ── Runtime imports for OpenAPI annotation resolution ───────────────────────
+# `substrate.py` uses `from __future__ import annotations`, so annotations are
+# stored as strings that FastAPI must resolve against this module's runtime
+# globals at OpenAPI-gen time. `User` and `UUID` are imported only under
+# `TYPE_CHECKING` above (absent at runtime): `user: User` and — critically — the
+# `mission_id: UUID` PATH PARAM become unresolved forward refs, so Pydantic's
+# TypeAdapter for the path param raises and the resilient OpenAPI wrapper SKIPS
+# these routes (/replay-state, /event/{sequence}). Importing them at runtime
+# fixes spec generation (behavior-preserving). (Depends-injected params such as
+# `db: AsyncSession` are ignored by schema generation and need no runtime import.)
+from uuid import UUID
+
+from app.models.user import User

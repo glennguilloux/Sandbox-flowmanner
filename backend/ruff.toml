@@ -118,3 +118,20 @@ ignore = [
 # (.worktrees/<id>/backend/app/models/hitl_models.py) — the plain
 # app/models/*.py glob does not match the worktree-nested path.
 "**/hitl_models.py" = ["TCH003", "UP042"]
+# ── OpenAPI forward-ref resolution (mission / substrate / tool-routing) ──────
+# These modules use `from __future__ import annotations`. Names used in FastAPI
+# route/dependency signatures and path params (UUID, User, the CQRS handler
+# types, ToolConverter) MUST be importable at RUNTIME so FastAPI/Pydantic can
+# resolve the stringified annotations when generating the OpenAPI spec. If they
+# live in a TYPE_CHECKING block the routes are SILENTLY SKIPPED from the spec
+# ("unresolved forward refs"), which broke the frontend↔backend contract
+# scanner's source of truth. TCH001/TCH003 (move-into-type-checking) are
+# therefore false positives here — the imports are intentionally at runtime.
+"app/api/v1/mission.py" = ["TCH001", "TCH003"]
+"app/api/v1/substrate.py" = ["TCH001", "TCH003"]
+"app/services/tool_router.py" = ["TCH001"]
+# schemas/mission.py: uuid / datetime / MissionStatus back Pydantic model fields
+# and the model_rebuild() forward-ref resolution added for OpenAPI completeness;
+# runtime-needed, not deferrable to TYPE_CHECKING (same precedent as
+# schemas/personal_memory.py).
+"app/schemas/mission.py" = ["TCH001", "TCH003"]

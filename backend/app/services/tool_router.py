@@ -588,3 +588,16 @@ def reset_tool_router() -> None:
     """Reset the singleton (for testing)."""
     global _router
     _router = None
+
+
+# ── Forward-ref resolution ──────────────────────────────────────────────────
+# This module uses `from __future__ import annotations`, so `ToolRouter.registry:
+# ToolConverter | None` (and the TYPE_CHECKING-only import of ToolConverter) is a
+# string forward ref. Without ToolConverter being resolvable in this module's
+# runtime globals, Pydantic v2 cannot build the TypeAdapter for the
+# get_tool_router dependency's return type, and FastAPI's OpenAPI generator
+# SILENTLY SKIPS the route that uses it (e.g. /api/tool-routing/route) —
+# "unresolved forward refs". Importing ToolConverter at runtime is
+# behavior-preserving (ToolConverter is a plain class, not a Pydantic model, so
+# model_rebuild() does not apply).
+from app.services.langgraph.tool_converter import ToolConverter
