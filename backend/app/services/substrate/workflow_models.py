@@ -20,7 +20,37 @@ from pydantic import BaseModel, Field
 
 from app.models.capability_models import Budget
 
+__all__ = [
+    "EffectClass",
+    "NodeType",
+    "StrategyResult",
+    "Workflow",
+    "WorkflowEdge",
+    "WorkflowNode",
+    "WorkflowType",
+]
+
 # ── Node types (union of all old executor node types) ────────────────
+
+
+class EffectClass(str, Enum):
+    """Per-invocation classification of a node's external side effect.
+
+    Declared on the WorkflowNode (by the planner/adapter that builds it) — NEVER
+    inferred from the backend type. A POST can be reversible (idempotent upsert)
+    or not (send email); a GET can be irreversible (debiting a quota). The class
+    describes the *semantics* of this invocation's effect.
+
+    Default is IRREVERSIBLE (fail-closed): an unannotated node is treated as a
+    point-of-no-return effect, so the two-phase STAGE→CONFIRM dispatch gates it.
+    Read-only nodes (LLM_CALL, CODE_EXECUTION, RAG_QUERY, WEB_SEARCH, read-only
+    FILE_OPERATION, HUMAN_REVIEW/APPROVAL, the PHASE_GATE/FAN_OUT/FAN_IN passthrough)
+    MUST be explicitly annotated REVERSIBLE — see node_executor / side-effect-safety
+    skill.
+    """
+
+    REVERSIBLE = "reversible"
+    IRREVERSIBLE = "irreversible"
 
 
 class NodeType(str, Enum):
@@ -55,6 +85,11 @@ class NodeType(str, Enum):
     FAN_OUT = "fan_out"  # Swarm decomposition
     FAN_IN = "fan_in"  # Swarm synthesis
     SANDBOX = "sandbox"  # sandboxd Docker container execution
+
+    # Convention: read-only / internal-passthrough node types are annotated
+    # REVERSIBLE by the planner/adapter (see EffectClass + side-effect-safety
+    # skill). The IRREVERSIBLE default otherwise applies to TOOL_CALL,
+    # BROWSER_*, SUB_WORKFLOW, SANDBOX.
 
 
 # ── Workflow types (maps 1:1 to old executors) ──────────────────────
@@ -94,6 +129,12 @@ class WorkflowNode(BaseModel):
     assigned_agent_id: str | None = None
     max_retries: int = 3
     fallback_strategy: str = "human_escalate"
+    # Side-effect classification (per-invocation, fail-closed default).
+    # IRREVERSIBLE nodes are gated by the two-phase STAGE→CONFIRM dispatch in
+    # NodeExecutor.execute(): the effect intent is committed before any
+    # external call, and the effect is only FIRED after the orchestrator's
+    # fallback/skip/escalate decision. Read-only nodes MUST set REVERSIBLE.
+    effect_class: EffectClass = EffectClass.IRREVERSIBLE
     # Runtime fields (populated during execution)
     status: str = "pending"
     output_data: dict[str, Any] | None = None

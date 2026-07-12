@@ -398,6 +398,17 @@ class MissionCommandHandlers(CommandHandlerBase):
     ) -> MissionExecutionStatus:
         mission = await require_mission_access(self.session, mission_id, user.id)
 
+        # ── Planner-trust gate: block execution while pending human review ──
+        # (side-effect-safety-and-planner-trust skill) A plan forced into
+        # PLANNED_PENDING_REVIEW (FALLBACK override, rubber-stamp audit) must NOT
+        # be executed/retried until a human clears it. Returns 409.
+        if mission.status == MissionStatus.PLANNED_PENDING_REVIEW:
+            raise MissionTransitionConflictError(
+                f"Mission '{mission_id}' is PLANNED_PENDING_REVIEW and requires "
+                f"human approval before execution. It cannot be executed or retried "
+                f"until the review is cleared."
+            )
+
         old_status = mission.status.value if hasattr(mission.status, "value") else mission.status
 
         async def _op():
@@ -495,6 +506,15 @@ class MissionCommandHandlers(CommandHandlerBase):
         #   2. commit transition log separately
         #   3. Dispatch to Celery (durable, retryable) instead of fire-and-forget
         mission = await require_mission_access(self.session, mission_id, user.id)
+
+        # ── Planner-trust gate: block execution while pending human review ──
+        # (side-effect-safety-and-planner-trust skill) See execute_mission.
+        if mission.status == MissionStatus.PLANNED_PENDING_REVIEW:
+            raise MissionTransitionConflictError(
+                f"Mission '{mission_id}' is PLANNED_PENDING_REVIEW and requires "
+                f"human approval before execution. It cannot be queued for async "
+                f"execution until the review is cleared."
+            )
 
         # Round-trip hook — accept selected_plan_id so the Celery worker
         # dispatches against the rebuilt task list.  Unknown IDs log and
@@ -811,6 +831,15 @@ class MissionCommandHandlers(CommandHandlerBase):
 
         if mission.status != MissionStatus.FAILED:
             raise MissionTransitionConflictError(f"Can only retry a failed mission, not '{mission.status}'")
+
+        # ── Planner-trust gate: block retry while pending human review ──
+        # (side-effect-safety-and-planner-trust skill) Even a retry must not
+        # bypass the review substate.
+        if mission.status == MissionStatus.PLANNED_PENDING_REVIEW:
+            raise MissionTransitionConflictError(
+                f"Mission '{mission_id}' is PLANNED_PENDING_REVIEW and cannot be "
+                f"retried until a human clears the review."
+            )
 
         prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
         mission.status = MissionStatus.PENDING

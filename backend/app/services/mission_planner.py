@@ -352,12 +352,45 @@ class MissionPlanner:
             if not candidates:
                 raise RuntimeError("No candidates generated")
 
+            # ── Planner-trust gate: forced-fallback plans route to human review ──
+            # (side-effect-safety-and-planner-trust skill) A degraded winner must
+            # NOT auto-ship: route the mission to PLANNED_PENDING_REVIEW and trip
+            # the fallback-rate alarm. select_plan() invokes this only when the
+            # winning candidate is degraded (HARD override, score-independent).
+            async def _on_fallback_winner(winner_cand, reason: str) -> None:
+                from app.models.mission_models import MissionStatus
+                from app.services.nexus.observability import get_observability_service
+
+                logger.warning(
+                    "Forced-fallback plan %s selected for mission %s (reason=%s); "
+                    "routing to PLANNED_PENDING_REVIEW — human approval required.",
+                    winner_cand.plan_id,
+                    mission_id,
+                    reason,
+                )
+                # Block execution until a human clears review (409 guard in commands).
+                mission.status = MissionStatus.PLANNED_PENDING_REVIEW
+                # Fallback-rate sliding-window alarm (counter consumed by an
+                # alert evaluator that detects sustained degradation).
+                try:
+                    obs = get_observability_service()
+                    await obs.increment_counter(
+                        "planner_fallback_rate",
+                        labels={
+                            "mission_id": str(mission_id),
+                            "strategy": winner_cand.generation_strategy,
+                        },
+                    )
+                except Exception:
+                    logger.debug("observability_fallback_counter_failed", exc_info=True)
+
             # 2. Select winner
             policy = "min_cost" if mode == "on" else "balanced"
             winner, sorted_candidates = await select_plan(
                 candidates,
                 policy=policy,
                 min_quality_threshold=min_quality,
+                on_fallback=_on_fallback_winner,
             )
 
             # 3. Persist all candidates to MissionPlanCandidate table
@@ -387,6 +420,10 @@ class MissionPlanner:
                 "policy": policy,
                 "candidate_count": len(candidates),
                 "ranked_ids": [c.plan_id for c in sorted_candidates],
+                # Planner-trust transparency (side-effect-safety-and-planner-trust):
+                # surfaces whether the shipped plan is a forced fallback that a
+                # human must clear before execution.
+                "requires_review": getattr(winner, "degraded", False),
             }
             mission.plan = plan_meta
 

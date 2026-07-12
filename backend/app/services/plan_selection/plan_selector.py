@@ -9,19 +9,27 @@ Policies:
 
 from __future__ import annotations
 
+import inspect
 import logging
-from typing import TYPE_CHECKING
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from .plan_candidate import PlanCandidate
 
 logger = logging.getLogger(__name__)
 
+# Callback invoked when the winning candidate is a forced fallback / degraded
+# plan. Signature: async (winner: PlanCandidate, reason: str) -> None
+# (PlanCandidate is a TYPE_CHECKING import, so we type the alias loosely.)
+FallbackHook = Callable[..., None | Awaitable[None]]
+
 
 async def select_plan(
     candidates: list[PlanCandidate],
     policy: str = "auto",
     min_quality_threshold: float = 0.6,
+    on_fallback: FallbackHook | None = None,
 ) -> tuple[PlanCandidate, list[PlanCandidate]]:
     """Select the winning plan candidate by policy.
 
@@ -31,6 +39,12 @@ async def select_plan(
             ``"max_quality"``, or ``"balanced"``.
         min_quality_threshold: Minimum quality score for a candidate
             to be eligible (default 0.6).
+        on_fallback: Optional hook invoked when the winning candidate is a
+            forced fallback / degraded plan (``degraded=True``). The planner
+            wires this to route the mission to ``PLANNED_PENDING_REVIEW``
+            and fire the fallback-rate alarm — see
+            side-effect-safety-and-planner-trust skill. This is a HARD override:
+            a degraded winner is reported regardless of its quality score.
 
     Returns:
         ``(winner, all_sorted_desc_by_score)`` where ``all_sorted`` is
@@ -82,5 +96,15 @@ async def select_plan(
         len(candidates),
         len(eligible),
     )
+
+    # ── Planner-trust gate: forced-fallback plans NEVER auto-ship ──
+    # (side-effect-safety-and-planner-trust skill) A degraded winner is a HARD
+    # override — regardless of its quality score it must route to human review
+    # (PLANNED_PENDING_REVIEW) and trip the fallback-rate alarm. The planner
+    # supplies on_fallback to perform both.
+    if winner.degraded and on_fallback is not None:
+        result = on_fallback(winner, "degraded_fallback_plan")
+        if inspect.isawaitable(result):
+            await result
 
     return winner, sorted_candidates

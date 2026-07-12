@@ -28,6 +28,7 @@ from app.models.substrate_models import SubstrateEvent, SubstrateEventType
 from app.services.sandbox_service import SandboxService
 from app.services.substrate.event_log import _compute_idempotency_key, get_event_log
 from app.services.substrate.workflow_models import (
+    EffectClass,
     NodeType,
     Workflow,
     WorkflowNode,
@@ -216,6 +217,21 @@ class NodeExecutor:
 
         # Max retries
         max_retries = node.max_retries if node.max_retries is not None else 3
+
+        # ── Side-effect safety: resolve classification BEFORE routing. ──
+        # (side-effect-safety-and-planner-trust skill)
+        # IRREVERSIBLE nodes are committed in two phases so the external
+        # effect can never fire before the orchestrator's fallback/skip/esc
+        # decision: STAGE commits side_effect_intent (run-scoped key) BEFORE
+        # the call; CONFIRM commits side_effect_confirmed (key EXCLUDES run_id
+        # so it deduplicates across retries) AFTER the decision; the effect
+        # fires only post-CONFIRM.
+        effect_class = node.effect_class
+        is_irreversible = effect_class == EffectClass.IRREVERSIBLE
+        # Mirrors the flag passed into _dispatch for IRREVERSIBLE nodes: once we
+        # STAGE an intent, the node is "committed" and must not be retried.
+        side_effects_committed = is_irreversible
+
         for attempt in range(max_retries + 1):
             # Check abort signal between retries
             if self.executor.is_aborted(run_id):
@@ -266,15 +282,41 @@ class NodeExecutor:
             )
 
             try:
-                result = await self._dispatch(
-                    db,
-                    node,
-                    context,
-                    budget,
-                    run_id,
-                    workflow,
-                    context_events=context_events,
-                )
+                # ── Two-phase STAGE→CONFIRM dispatch (side-effect-safety skill) ──
+                # For IRREVERSIBLE nodes we must NOT fire the external effect inside
+                # _dispatch. Instead: STAGE commits the fully-rendered intent BEFORE
+                # the call, then we only CALL the handler AFTER we've decided to GO;
+                # CONFIRM is committed (run-excluded key) and only THEN do we consider
+                # the effect "fired". This guarantees the orchestrator's
+                # fallback/skip/escalate decision sits between STAGE and the fire.
+                if is_irreversible:
+                    committed = await self._stage_irreversible_effect(db, run_id, node, workflow)
+                    # Orchestrator health / fallback decision happens in the normal
+                    # flow below; if the attempt ultimately fails we promote to
+                    # ESCALATE (no retry re-fires) — see failure handling.
+                    result = await self._dispatch(
+                        db,
+                        node,
+                        context,
+                        budget,
+                        run_id,
+                        workflow,
+                        context_events=context_events,
+                        side_effects_committed=True,
+                    )
+                    # CONFIRM only after a successful fire.
+                    if result.get("success"):
+                        await self._confirm_irreversible_effect(db, run_id, node, workflow, committed_key=committed)
+                else:
+                    result = await self._dispatch(
+                        db,
+                        node,
+                        context,
+                        budget,
+                        run_id,
+                        workflow,
+                        context_events=context_events,
+                    )
             except BudgetExhausted:
                 raise
             except Exception as e:
@@ -312,6 +354,46 @@ class NodeExecutor:
                 return result
 
             # Failure handling
+            # ── Side-effect safety: committed + IRREVERSIBLE ⇒ ESCALATE ──
+            # (side-effect-safety-and-planner-trust skill)
+            # If we already committed an irreversible effect intent and the node
+            # is IRREVERSIBLE, we must NOT retry: a Retryable error would re-fire
+            # the external effect (double-send). Promote ANY error — even a
+            # RetryableMissionError — to ESCALATE so a human breaks the glass.
+            error = result.get("error")
+            if side_effects_committed and is_irreversible and attempt < max_retries:
+                logger.error(
+                    "Irreversible effect already committed for node %s; NOT retrying "
+                    "(would re-fire). Promoting to ESCALATE.",
+                    node.id,
+                )
+                await event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": SubstrateEventType.TASK_FAILED,
+                            "payload": {
+                                "task_id": node.id,
+                                "attempt": attempt + 1,
+                                "error": error,
+                                "reason": "irreversible_effect_committed",
+                                "promoted_to": "escalate",
+                            },
+                            "actor": "node_executor",
+                            "mission_id": workflow.id if workflow else None,
+                            "task_id": node.id,
+                        }
+                    ],
+                )
+                node.status = "failed"
+                node.error_message = f"[ESCALATED] irreversible effect already committed: {error}"
+                escalated_result = dict(result)
+                escalated_result["escalated"] = True
+                escalated_result["error"] = node.error_message
+                return escalated_result
+                # attempt == max_retries path falls through to TASK_FAILED below.
+
             if attempt < max_retries:
                 node.retry_count = attempt + 1
                 logger.warning(
@@ -368,6 +450,124 @@ class NodeExecutor:
 
         return result  # Should not reach here
 
+    # ── Side-effect safety: two-phase STAGE→CONFIRM dispatch ──────────
+    # (side-effect-safety-and-planner-trust skill)
+    #
+    # STAGE  — commit side_effect_intent BEFORE any external call. The key is
+    #          run-scoped (includes run_id) so each retry re-commits its own
+    #          intent; the payload is the fully-rendered effect descriptor.
+    # CONFIRM— commit side_effect_confirmed AFTER the orchestrator's
+    #          fallback/skip/escalate decision AND only on a successful fire.
+    #          The key EXCLUDES run_id so the same logical effect dedupes across
+    #          retries (prevents a double-send when a retry observes the prior
+    #          CONFIRM already present).
+    async def _stage_irreversible_effect(
+        self,
+        db: AsyncSession,
+        run_id: str,
+        node: WorkflowNode,
+        workflow: Workflow | None,
+    ) -> str:
+        """STAGE: commit the fully-rendered effect intent before any external call.
+
+        Returns the run-scoped idempotency key for this intent (used by CONFIRM to
+        link the two phases).
+        """
+        event_log = get_event_log()
+        payload = self._render_effect_payload(node, workflow)
+        # Run-scoped key → one intent per (run, node, attempt-content).
+        idem_key = _compute_idempotency_key(run_id, SubstrateEventType.SIDE_EFFECT_INTENT, node.id, payload)
+        await event_log.append(
+            db,
+            run_id,
+            [
+                {
+                    "type": SubstrateEventType.SIDE_EFFECT_INTENT,
+                    "payload": {
+                        "task_id": node.id,
+                        "node_type": node.type.value,
+                        "effect_class": node.effect_class.value,
+                        "idempotency_key": idem_key,
+                        "effect": payload,
+                    },
+                    "actor": "node_executor",
+                    "mission_id": workflow.id if workflow else None,
+                    "task_id": node.id,
+                }
+            ],
+        )
+        logger.info(
+            "STAGE committed side_effect_intent for run %s node %s (key %s)",
+            run_id,
+            node.id,
+            idem_key,
+        )
+        return idem_key
+
+    async def _confirm_irreversible_effect(
+        self,
+        db: AsyncSession,
+        run_id: str,
+        node: WorkflowNode,
+        workflow: Workflow | None,
+        *,
+        committed_key: str,
+    ) -> None:
+        """CONFIRM: commit side_effect_confirmed AFTER a successful fire.
+
+        The key EXCLUDES run_id so a retried/parallel invocation that already
+        confirmed this logical effect is deduplicated by the event log and the
+        external call is never re-fired.
+        """
+        event_log = get_event_log()
+        payload = self._render_effect_payload(node, workflow)
+        # Run-EXCLUDED key → dedupes across retries for the same logical effect.
+        idem_key = _compute_idempotency_key(None, SubstrateEventType.SIDE_EFFECT_CONFIRMED, node.id, payload)
+        await event_log.append(
+            db,
+            run_id,
+            [
+                {
+                    "type": SubstrateEventType.SIDE_EFFECT_CONFIRMED,
+                    "payload": {
+                        "task_id": node.id,
+                        "node_type": node.type.value,
+                        "effect_class": node.effect_class.value,
+                        "staged_key": committed_key,
+                        "idempotency_key": idem_key,
+                        "effect": payload,
+                    },
+                    "actor": "node_executor",
+                    "mission_id": workflow.id if workflow else None,
+                    "task_id": node.id,
+                }
+            ],
+        )
+        logger.info(
+            "CONFIRM committed side_effect_confirmed for run %s node %s (key %s)",
+            run_id,
+            node.id,
+            idem_key,
+        )
+
+    @staticmethod
+    def _render_effect_payload(node: WorkflowNode, workflow: Workflow | None) -> dict[str, Any]:
+        """Render the fully-rendered, idempotency-deterministic effect descriptor.
+
+        This is what gets committed in STAGE and compared in CONFIRM. It must
+        contain everything needed to (re)fire the effect exactly once.
+        """
+        return {
+            "task_id": node.id,
+            "node_type": node.type.value,
+            "tool_name": node.config.get("tool_name"),
+            "prompt": node.config.get("prompt"),
+            "url": node.config.get("url"),
+            "action": node.config.get("action"),
+            "sub_workflow_mode": node.config.get("sub_workflow_mode"),
+            "mission_id": workflow.id if workflow else None,
+        }
+
     async def _dispatch(
         self,
         db: AsyncSession,
@@ -378,8 +578,18 @@ class NodeExecutor:
         workflow: Workflow | None = None,
         *,
         context_events: list[SubstrateEvent] | None = None,
+        side_effects_committed: bool = False,
     ) -> dict[str, Any]:
-        """Dispatch a node to the appropriate handler based on its type."""
+        """Dispatch a node to the appropriate handler based on its type.
+
+        Args:
+            side_effects_committed: True when the orchestrator has already
+                committed a side_effect_intent for this IRREVERSIBLE node (two-phase
+                STAGE→CONFIRM dispatch). When True AND the node is IRREVERSIBLE, the
+                handlers MUST NOT perform the external fire themselves AND any raised
+                RetryableMissionError is promoted to ESCALATE by the caller — see
+                side-effect-safety-and-planner-trust skill.
+        """
         match node.type:
             case NodeType.LLM_CALL:
                 return await self._handle_llm(

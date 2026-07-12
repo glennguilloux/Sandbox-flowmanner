@@ -160,6 +160,13 @@ class SubstrateEventType:
     SANDBOX_TASK_FAILED = "sandbox.task_failed"
     SANDBOX_SNAPSHOT_CREATED = "sandbox.snapshot_created"
 
+    # Side-effect safety (two-phase STAGE→CONFIRM dispatch, side-effect-safety skill)
+    # STAGE: committed BEFORE any external call — the intent to fire an effect.
+    SIDE_EFFECT_INTENT = "side_effect.intent"
+    # CONFIRM: committed AFTER the orchestrator's fallback/skip/escalate decision;
+    # the external effect is only FIRED after this event is written.
+    SIDE_EFFECT_CONFIRMED = "side_effect.confirmed"
+
     # Backward-compat aliases (deprecated — use RUN_* / NODE_* instead)
     MISSION_STARTED = RUN_STARTED
     MISSION_COMPLETED = RUN_COMPLETED

@@ -53,27 +53,27 @@ class MissionStatus(str, Enum):
     PAUSED = "paused"
     ABORTED = "aborted"
     CANCELLED = "aborted"  # deprecated alias for ABORTED — same value
+    # Planner generated, but trust gate forced human review (e.g. FALLBACK
+    # strategy override, or rubber-stamp approval audit). Execution/retry is
+    # blocked while in this substate — see side-effect-safety-and-planner-trust.
+    PLANNED_PENDING_REVIEW = "planned_pending_review"
 
-    # Valid transitions from each state (use enum members, not strings)
-    _TRANSITIONS: dict["MissionStatus", set["MissionStatus"]] = {
-        DRAFT: {PENDING, ABORTED},  # type: ignore[arg-type, dict-item]
-        PENDING: {PLANNING, QUEUED, ABORTED},  # type: ignore[arg-type, dict-item]
-        PLANNING: {PLANNED, ABORTED},  # type: ignore[arg-type, dict-item]
-        PLANNED: {EXECUTING, ABORTED},  # type: ignore[arg-type, dict-item]
-        EXECUTING: {RUNNING, ABORTED},  # type: ignore[arg-type, dict-item]
-        QUEUED: {RUNNING, ABORTED},  # type: ignore[arg-type, dict-item]
-        RUNNING: {COMPLETED, APPROVED, FAILED, PAUSED, ABORTED},  # type: ignore[arg-type, dict-item]
-        PAUSED: {RUNNING, ABORTED},  # type: ignore[arg-type, dict-item]
-        COMPLETED: {APPROVED},  # type: ignore[arg-type, dict-item]  # completed can be promoted to approved
-        APPROVED: set(),  # type: ignore[arg-type, dict-item]  # terminal
-        FAILED: set(),  # type: ignore[arg-type, dict-item]  # terminal
-        ABORTED: set(),  # type: ignore[arg-type, dict-item]  # terminal
-    }
+    # ── Transition table ──────────────────────────────────────────────────
+    # DEFINED AS A MODULE-LEVEL DICT, NOT a class attribute. A
+    # ``MissionStatus(str, Enum)`` LEAKS class attributes into the enum
+    # namespace (see the ALL_MISSION_STATUSES warning below), which makes
+    # ``self._TRANSITIONS`` resolve to the enum itself instead of the dict —
+    # breaking is_terminal / can_transition_to. Keeping it module-level
+    # avoids that shadowing. (Pre-existing bug; fixed while extending the
+    # table for PLANNED_PENDING_REVIEW.)
+    @property
+    def _transitions(self) -> dict["MissionStatus", set["MissionStatus"]]:
+        return _MISSION_TRANSITIONS
 
     @property
     def is_terminal(self) -> bool:
         """Return True if this status is a terminal/final state."""
-        return not self._TRANSITIONS.get(self, set())
+        return not self._transitions.get(self, set())
 
     @property
     def is_active(self) -> bool:
@@ -82,8 +82,38 @@ class MissionStatus(str, Enum):
 
     def can_transition_to(self, target: "MissionStatus") -> bool:
         """Return True if transitioning from self to target is valid."""
-        allowed = self._TRANSITIONS.get(self, set())
+        allowed = self._transitions.get(self, set())
         return target in allowed
+
+
+# ── Mission status transition table (module-level, NOT a class attribute) ──
+# A ``MissionStatus(str, Enum)`` leaks class attributes into the enum
+# namespace, so defining this inside the class makes ``self._TRANSITIONS``
+# resolve to the enum instead of the dict — breaking is_terminal /
+# can_transition_to. Keep it module-level. Keys/values are MissionStatus
+# members. (Pre-existing bug fixed while extending for PLANNED_PENDING_REVIEW.)
+_MISSION_TRANSITIONS: dict["MissionStatus", set["MissionStatus"]] = {
+    MissionStatus.DRAFT: {MissionStatus.PENDING, MissionStatus.ABORTED},
+    MissionStatus.PENDING: {MissionStatus.PLANNING, MissionStatus.QUEUED, MissionStatus.ABORTED},
+    MissionStatus.PLANNING: {MissionStatus.PLANNED, MissionStatus.ABORTED},
+    MissionStatus.PLANNED: {MissionStatus.EXECUTING, MissionStatus.ABORTED},
+    MissionStatus.EXECUTING: {MissionStatus.RUNNING, MissionStatus.ABORTED},
+    MissionStatus.QUEUED: {MissionStatus.RUNNING, MissionStatus.ABORTED},
+    MissionStatus.RUNNING: {
+        MissionStatus.COMPLETED,
+        MissionStatus.APPROVED,
+        MissionStatus.FAILED,
+        MissionStatus.PAUSED,
+        MissionStatus.ABORTED,
+    },
+    MissionStatus.PAUSED: {MissionStatus.RUNNING, MissionStatus.ABORTED},
+    MissionStatus.COMPLETED: {MissionStatus.APPROVED},
+    MissionStatus.APPROVED: set(),
+    MissionStatus.FAILED: set(),
+    MissionStatus.ABORTED: set(),
+    # Planner-trust substate: review cleared → re-planned; never EXECUTING.
+    MissionStatus.PLANNED_PENDING_REVIEW: {MissionStatus.PLANNED, MissionStatus.ABORTED},
+}
 
 
 class MissionTaskStatus(str, Enum):
@@ -136,6 +166,7 @@ ALL_MISSION_STATUSES: tuple[str, ...] = (
     "failed",
     "paused",
     "aborted",
+    "planned_pending_review",
 )
 ALL_TASK_STATUSES: tuple[str, ...] = ("pending", "running", "completed", "failed")
 

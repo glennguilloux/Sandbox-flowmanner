@@ -14,12 +14,41 @@ from typing import Any
 
 from app.models.capability_models import Budget
 from app.services.substrate.workflow_models import (
+    EffectClass,
     NodeType,
     Workflow,
     WorkflowEdge,
     WorkflowNode,
     WorkflowType,
 )
+
+# Per-NodeType default side-effect classification (side-effect-safety skill).
+# Read-only / internal-passthrough node types are REVERSIBLE so they keep normal
+# retry semantics. TOOL_CALL, BROWSER_*, SUB_WORKFLOW, SANDBOX default to
+# IRREVERSIBLE (WorkflowNode.effect_class default) — see the skill's self-critique
+# table. NOTE: classification is per-invocation semantics, not backend type; a
+# caller may still override effect_class on the WorkflowNode for a specific tool
+# that happens to be a pure read (e.g. web_search/rag_search/code_executor).
+_REVERSIBLE_NODE_TYPES: frozenset[NodeType] = frozenset(
+    {
+        NodeType.LLM_CALL,
+        NodeType.CODE_EXECUTION,
+        NodeType.RAG_QUERY,
+        NodeType.WEB_SEARCH,
+        NodeType.FILE_OPERATION,  # current handlers implement read/list only
+        NodeType.HUMAN_REVIEW,
+        NodeType.APPROVAL,
+        NodeType.PHASE_GATE,
+        NodeType.FAN_OUT,
+        NodeType.FAN_IN,
+    }
+)
+
+
+def _effect_class_for(node_type: NodeType) -> EffectClass:
+    """Resolve the default EffectClass for a node type in an adapter."""
+    return EffectClass.REVERSIBLE if node_type in _REVERSIBLE_NODE_TYPES else EffectClass.IRREVERSIBLE
+
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +140,7 @@ def mission_to_workflow(
                     retry_count=getattr(task, "retry_count", 0),
                     tokens_used=getattr(task, "tokens_used", 0),
                     cost=getattr(task, "cost", 0.0),
+                    effect_class=_effect_class_for(node_type),
                 )
             )
 
@@ -171,6 +201,12 @@ def flow_to_workflow(flow: Any) -> Workflow:
             ),
             title=node_data.get("data", {}).get("label", ""),
             config=node_data.get("data", {}),
+            effect_class=_effect_class_for(
+                _TASK_TYPE_MAP.get(
+                    node_data.get("data", {}).get("nodeType", "llm"),
+                    NodeType.LLM_CALL,
+                )
+            ),
         )
         for node_data in flow_def.get("nodes", [])
     ]
