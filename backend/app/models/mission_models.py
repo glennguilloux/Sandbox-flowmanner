@@ -116,7 +116,7 @@ _MISSION_TRANSITIONS: dict["MissionStatus", set["MissionStatus"]] = {
 }
 
 
-class MissionTaskStatus(str, Enum):
+class MissionTaskStatus(StrEnum):
     """Typed task lifecycle states with validated transitions."""
 
     PENDING = "pending"
@@ -124,13 +124,9 @@ class MissionTaskStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
 
-    # Valid transitions from each state (use enum members, not strings)
-    _TRANSITIONS: dict["MissionTaskStatus", set["MissionTaskStatus"]] = {
-        PENDING: {RUNNING},  # type: ignore[arg-type, dict-item]
-        RUNNING: {COMPLETED, FAILED},  # type: ignore[arg-type, dict-item]
-        FAILED: {PENDING},  # type: ignore[arg-type, dict-item]  # allow retry
-        COMPLETED: set(),  # type: ignore[arg-type, dict-item]  # terminal
-    }
+    @property
+    def _TRANSITIONS(self) -> dict["MissionTaskStatus", set["MissionTaskStatus"]]:
+        return _MISSION_TASK_TRANSITIONS
 
     @property
     def is_terminal(self) -> bool:
@@ -146,6 +142,20 @@ class MissionTaskStatus(str, Enum):
         """Return True if transitioning from self to target is valid."""
         allowed = self._TRANSITIONS.get(self, set())
         return target in allowed
+
+
+# ── Task status transition table (module-level, NOT a class attribute) ──
+# A ``MissionTaskStatus(str, Enum)`` leaks class attributes into the enum
+# namespace, so defining this inside the class makes ``self._TRANSITIONS``
+# resolve to the enum instead of the dict — breaking is_terminal /
+# can_transition_to. Keep it module-level. Keys/values are MissionTaskStatus
+# members.
+_MISSION_TASK_TRANSITIONS: dict["MissionTaskStatus", set["MissionTaskStatus"]] = {
+    MissionTaskStatus.PENDING: {MissionTaskStatus.RUNNING},
+    MissionTaskStatus.RUNNING: {MissionTaskStatus.COMPLETED, MissionTaskStatus.FAILED},
+    MissionTaskStatus.FAILED: {MissionTaskStatus.PENDING},  # allow retry
+    MissionTaskStatus.COMPLETED: set(),  # terminal
+}
 
 
 # ── Models ───────────────────────────────────────────────────────────────────
