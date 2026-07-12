@@ -106,7 +106,7 @@ _MISSION_TRANSITIONS: dict["MissionStatus", set["MissionStatus"]] = {
         MissionStatus.PAUSED,
         MissionStatus.ABORTED,
     },
-    MissionStatus.PAUSED: {MissionStatus.RUNNING, MissionStatus.ABORTED},
+    MissionStatus.PAUSED: {MissionStatus.RUNNING, MissionStatus.FAILED, MissionStatus.ABORTED},
     MissionStatus.COMPLETED: {MissionStatus.APPROVED},
     MissionStatus.APPROVED: set(),
     MissionStatus.FAILED: set(),
@@ -217,6 +217,12 @@ class Mission(Base, TimestampMixin):
         nullable=True,
         index=True,
     )
+    # Pause-timeout auto-fail (expire_paused_missions.py): NULL = legacy /
+    # paused before this column existed, treated as infinity (exempt from auto-fail).
+    paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    # Compensation durability (mission_compensation_service.py): set in its own
+    # session before a refund runs so a Celery retry cannot double-refund.
+    compensated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class MissionTask(Base, TimestampMixin):

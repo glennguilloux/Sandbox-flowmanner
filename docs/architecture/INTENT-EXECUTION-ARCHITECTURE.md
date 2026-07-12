@@ -3,6 +3,15 @@
 > Source of truth: the Hermes skill `flowmanner-intent-execution-architecture`.
 > This document is the repo-tracked copy so the constitution lives with the code.
 
+> NOTE (2026-07-12): the skill is now materialized at
+> `~/.hermes/skills/software-development/flowmanner-intent-execution-architecture/`
+> (SKILL.md + `references/principle_enforcement_map.md`). The claim above is
+> therefore TRUE. Two anchors in this doc are stale and corrected there:
+>  - Principle 5's `_MISSION_TRANSITIONS` table + 409 listener live in
+>    `app/models/mission_models.py` (`:95`, `:320`), NOT `substrate/workflow_models.py`.
+>  - `classify_error` lives in `app/services/nexus/failure_analyzer.py:324`
+>    (`FailureAnalyzer`), NOT `mission_errors.py` (which only defines `MissionError`).
+
 Flowmanner is an **Intent Execution Platform**, not an automation platform.
 
 ## The 10 Principles
