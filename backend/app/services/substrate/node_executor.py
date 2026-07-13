@@ -29,6 +29,7 @@ from app.models.substrate_models import SubstrateEvent, SubstrateEventType
 from app.services.sandbox_service import SandboxService
 from app.services.substrate.context_manager import ContextManager
 from app.services.substrate.event_log import _compute_idempotency_key, get_event_log
+from app.services.substrate.hitl_pause import HITLPaused
 from app.services.substrate.workflow_models import (
     EffectClass,
     NodeType,
@@ -436,6 +437,15 @@ class NodeExecutor:
                         context_events=context_events,
                     )
             except BudgetExhausted:
+                raise
+            except HITLPaused:
+                # Q1-B chunk 1: a node (HITL interrupt node OR a tool node whose
+                # standing constraint escalated) raised HITLPaused to actually
+                # pause the run. Propagate it so UnifiedExecutor._execute_inner
+                # can release the lease and emit RUN_PAUSED. This MUST come
+                # before the generic Exception handler — HITLPaused is a control
+                # signal, not a node failure. (The generic handler previously
+                # swallowed it, which silently broke every HITL pause.)
                 raise
             except Exception as e:
                 logger.exception("Node %s execution error", node.id)
@@ -1184,21 +1194,20 @@ class NodeExecutor:
                     "constraint_id": verdict.triggered_claim_id,
                 }
             if verdict.decision == "escalate":
-                # Route through the existing HITL approval gate instead of
-                # silently forbidding. The mission executor's pending-inbox
-                # path (raise_interrupt) is the production surface; here we
-                # surface the gate decision so the caller can interrupt.
-                logger.info(
-                    "Tool %s requires approval per standing constraint: %s",
-                    tool_name,
-                    verdict.reason,
+                # REAL human-in-the-loop gate (G-9). A standing constraint
+                # says this tool needs a human's sign-off before it runs.
+                # Pause the run by raising HITLPaused — exactly the same
+                # mechanism an APPROVAL/HUMAN_REVIEW node uses — so the run
+                # is released (lease) and a human-review inbox item is
+                # created. On approval the executor re-enters this node and
+                # the approved tool proceeds; on reject the node fails.
+                #
+                # NOTE: this must NOT simply return a failure dict — that
+                # would be a silent hard block, not HITL. The run genuinely
+                # pauses here.
+                return await self._escalate_constraint_to_hitl(
+                    db, node, run_id, workflow, verdict
                 )
-                return {
-                    "success": False,
-                    "error": f"Approval required: {verdict.reason}",
-                    "constraint_escalate": True,
-                    "constraint_id": verdict.triggered_claim_id,
-                }
 
         # Route to tool handler
         handlers = {
@@ -1920,8 +1929,15 @@ class NodeExecutor:
             "config": {k: v for k, v in node.config.items() if k not in ("approval_prompt",)},
         }
 
-        # Determine the user to notify
-        user_id = int(workflow.user_id) if workflow and workflow.user_id else 0
+        # Determine the user to notify. workflow.user_id is a UUID *string*
+        # (substrate contract) while inbox_items.user_id is an int — coerce
+        # only when it's already numeric; otherwise fall back to 0 so a
+        # UUID string never raises ValueError here.
+        if workflow and workflow.user_id:
+            _raw = workflow.user_id
+            user_id = int(_raw) if isinstance(_raw, int) else (int(_raw) if str(_raw).isdigit() else 0)
+        else:
+            user_id = 0
         workspace_id = getattr(workflow, "workspace_id", None) if workflow else None
         mission_id = workflow.id if workflow else None
 
