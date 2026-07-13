@@ -21,16 +21,19 @@ FastAPI JSONResponse (v1 routes never use the v2 envelope).
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timezone
 from typing import TYPE_CHECKING, Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, type_coerce
 from sqlalchemy.dialects.postgresql import JSONB
 
 from app.api.deps import get_current_user, get_db, require_role
 from app.models.memory_models import PendingWrite, PendingWriteStatus
 from app.models.personal_memory_models import PersonalMemoryClaim
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -244,10 +247,14 @@ async def _fetch_source(
 
 
 # ── ControlFlowAgent HITL approval resume ───────────────────────────────────
-# The ControlFlowAgent graph dead-ends at _check_approval_result returning
-# "pending" (routes to END). The decision can ONLY arrive through this explicit
-# callback, which flips the tool status and clears awaiting_approval, then
-# re-invokes the graph to continue. See app/governance/controlflow/agent.py.
+# NOTICE (G-4 / G-6, 2026-07-13): This endpoint is UN-WIRED SCAFFOLDING. The
+# real, enforced human-in-the-loop gate is the HITL inbox
+# (app/api/v1/hitl.py -> HITLPaused -> dispatch_hitl_resume). This endpoint has
+# no live client and does NOT drive production approvals; its callback
+# (ControlFlowAgent.resolve_approval) is dead-end reached from the graph. It is
+# retained as the intended wiring point, but MUST fail closed: an approval can
+# only be recorded by the session owner (or an admin), and the agent.authz
+# check is defense-in-depth. See app/governance/controlflow/agent.py.
 from pydantic import BaseModel
 
 from app.governance.controlflow.agent import get_agent
@@ -268,15 +275,47 @@ async def resolve_agent_approval(
     """Record a human approval/rejection for a paused ControlFlowAgent session.
 
     Body: {"decision": "approved"|"rejected", "tool_index"?: int}
-    Auth: any authenticated user (the decision is audited via approved_by=user.id).
+
+    Authz (G-4): FAILS CLOSED. An approval decision is a sensitive, state-changing
+    action, so it is restricted to the session owner or an admin (mirrors the HITL
+    inbox path in app/api/v1/hitl.py, which rejects decisions from non-owners with
+    404). If the caller is not the owner and not an admin, the request is denied
+    with 403 — never fail-open. The agent's ``resolve_approval`` also enforces
+    ownership as defense-in-depth (raises ValueError -> 400).
+
+    WARNING: this endpoint is NOT the live approval gate (the HITL inbox is). It
+    has no production caller. Treat a green test here as proof of the *authz guard
+    only*, not of an end-to-end approval flow.
     """
+    # Load the session to discover its owner. The agent persists session state;
+    # use the same loader the agent uses so we read the live owner (user_id).
     agent = get_agent()
+    owner_id: int | None = None
+    try:
+        state = agent._load_state(session_id)
+        if state:
+            owner_id = state.get("user_id")
+    except Exception:
+        # If we cannot read state, do NOT silently proceed — fail closed below
+        # (non-owner + non-admin is denied). Continue to the authz decision.
+        logger.warning("resolve_agent_approval: could not load session state for %s", session_id)
+
+    is_admin = bool(getattr(user, "is_admin", False)) or bool(getattr(user, "is_superuser", False))
+    is_owner = owner_id is not None and int(owner_id) == int(user.id)
+
+    if not (is_admin or is_owner):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not own this approval session and are not an admin",
+        )
+
     try:
         result = await agent.resolve_approval(
             session_id=session_id,
             decision=body.decision,
             approved_by=user.id,
             tool_index=body.tool_index,
+            owner_id=user.id,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e

@@ -9,6 +9,19 @@ Main agent implementation that orchestrates:
 - Tool execution via WorkerHandler (Celery workers)
 - Persistence
 
+.. warning::
+    STATUS — UN-WIRED SCAFFOLDING (as of 2026-07-13). This agent is NOT the
+    live human-in-the-loop gate. The real, enforced approval path is the HITL
+    inbox (app/api/v1/hitl.py -> HITLPaused -> dispatch_hitl_resume). This
+    agent's ``resolve_approval`` has NO production caller: the graph dead-ends
+    at ``_check_approval_result`` returning "pending" (routing to END), and the
+    inbox does not yet invoke ``resolve_approval``. ``ControlFlowAgent.get_agent``
+    IS used live by app/services/substrate/strategies/langgraph.py to build the
+    ``graph_name="governance"`` substrate strategy (it reads ``self.graph``), so
+    the agent class stays — but its approval callback does not drive production
+    approvals. Do NOT treat a green import/test of ``resolve_approval`` as proof
+    the approval path works end-to-end.
+
 Migrated from services/langgraph/agent.py to governance/controlflow/
 """
 
@@ -386,6 +399,7 @@ class ControlFlowAgent:
         decision: str,
         approved_by: int | None = None,
         tool_index: int | None = None,
+        owner_id: int | None = None,
     ) -> dict[str, Any]:
         """Record a human approval decision and resume the flow.
 
@@ -407,6 +421,13 @@ class ControlFlowAgent:
 
             Do NOT treat a green import/test of this method as proof the approval path
             works end-to-end.
+
+            ``owner_id`` is an OPTIONAL defense-in-depth ownership check (mirrors the
+            HITL inbox path, which rejects decisions from non-owners). When supplied it
+            MUST match the session's ``user_id``; the calling endpoint is responsible for
+            enforcing ownership — this method only raises if the values are both present
+            and differ. This is belt-and-suspenders: the endpoint is the authoritative
+            authz gate.
 
         This is the ACTUAL approval callback path — the missing link that the
         earlier defensive re-derivation was masking. The graph dead-ends at
@@ -437,6 +458,14 @@ class ControlFlowAgent:
             raise ValueError(f"No agent session found for session_id={session_id}")
         if not state["awaiting_approval"]:
             raise ValueError(f"Session {session_id} is not currently awaiting approval")
+
+        # Defense-in-depth ownership check (authoritative authz lives in the
+        # endpoint). Rejects approvals from a caller that does not own the session.
+        _owner = state.get("user_id")
+        if owner_id is not None and _owner is not None and int(owner_id) != int(_owner):
+            raise ValueError(
+                f"User {owner_id} does not own session {session_id} (owner={_owner})"
+            )
 
         targets = [state["pending_tools"][tool_index]] if tool_index is not None else state["pending_tools"]
         for tool in targets:
