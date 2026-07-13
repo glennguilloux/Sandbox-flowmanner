@@ -11,6 +11,7 @@ Celery tasks for swarm operations including:
 This module provides background task processing for the swarm coordination system.
 """
 
+import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -34,7 +35,7 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
         Task execution result
     """
     try:
-        logger.info(f"Executing task {task_id} with agent {agent_id}")
+        logger.info("Executing task %s with agent %s", task_id, agent_id)
 
         # Import models and services
         from app.database import SessionLocal
@@ -46,7 +47,7 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
 
         try:
             # Get task record
-            task = db.query(SwarmTask).filter(SwarmTask.id == task_id).first()
+            task = asyncio.run(db.run_sync(lambda s: s.query(SwarmTask).filter(SwarmTask.id == task_id).first()))
             if not task:
                 raise ValueError(f"Task {task_id} not found")
 
@@ -55,7 +56,9 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
             db.commit()
 
             # Get agent info
-            agent = db.query(SwarmAgent).filter(SwarmAgent.agent_instance_id == agent_id).first()
+            agent = asyncio.run(
+                db.run_sync(lambda s: s.query(SwarmAgent).filter(SwarmAgent.agent_instance_id == agent_id).first())
+            )
 
             # Initialize services
             model_router = get_agent_model_router_service()
@@ -106,7 +109,7 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
             if redis_cache_manager.redis_client:
                 redis_cache_manager.redis_client.decr(f"swarm:{task.swarm_id}:agent:{agent_id}:active_tasks")
 
-            logger.info(f"✅ Task {task_id} completed successfully")
+            logger.info("✅ Task %s completed successfully", task_id)
 
             return {"success": True, "task_id": task_id, "result": task_result}
 
@@ -114,7 +117,7 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
             db.close()
 
     except Exception as e:
-        logger.error(f"❌ Task {task_id} failed: {e}")
+        logger.error("❌ Task %s failed: %s", task_id, e)
 
         # Update task as failed
         try:
@@ -123,7 +126,7 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
 
             db = SessionLocal()
             try:
-                task = db.query(SwarmTask).filter(SwarmTask.id == task_id).first()
+                task = asyncio.run(db.run_sync(lambda s: s.query(SwarmTask).filter(SwarmTask.id == task_id).first()))
                 if task:
                     task.mark_failed(error=str(e))
                     db.commit()
@@ -136,12 +139,17 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
             finally:
                 db.close()
         except Exception as db_error:
-            logger.error(f"Failed to update task failure status: {db_error}")
+            logger.error("Failed to update task failure status: %s", db_error)
 
         # Retry with exponential backoff
         if self.request.retries < 3:
             retry_in = 60 * (2**self.request.retries)
-            logger.info(f"Retrying task {task_id} in {retry_in}s (attempt {self.request.retries + 1}/3)")
+            logger.info(
+                "Retrying task %s in %ss (attempt %s/3)",
+                task_id,
+                retry_in,
+                self.request.retries + 1,
+            )
             raise self.retry(exc=e, countdown=retry_in)
 
         return {"success": False, "task_id": task_id, "error": str(e)}
@@ -192,7 +200,7 @@ def _execute_task_by_type(task_type: str, payload: dict[str, Any], agent, db) ->
             }
 
     except Exception as e:
-        logger.error(f"Task execution failed: {e}")
+        logger.error("Task execution failed: %s", e)
         raise
 
 
@@ -340,7 +348,11 @@ def check_consensus_timeouts():
 
         try:
             # Find all pending consensus rounds
-            pending_rounds = db.query(SwarmConsensusRound).filter(SwarmConsensusRound.result == "pending").all()
+            pending_rounds = asyncio.run(
+                db.run_sync(
+                    lambda s: s.query(SwarmConsensusRound).filter(SwarmConsensusRound.result == "pending").all()
+                )
+            )
 
             resolved_count = 0
             for consensus in pending_rounds:
@@ -372,9 +384,9 @@ def check_consensus_timeouts():
                         )
 
                     resolved_count += 1
-                    logger.info(f"Auto-resolved consensus {consensus.id} due to timeout")
+                    logger.info("Auto-resolved consensus %s due to timeout", consensus.id)
 
-            logger.info(f"Consensus timeout check complete: {resolved_count} rounds resolved")
+            logger.info("Consensus timeout check complete: %s rounds resolved", resolved_count)
 
             return {"success": True, "resolved_count": resolved_count}
 
@@ -382,7 +394,7 @@ def check_consensus_timeouts():
             db.close()
 
     except Exception as e:
-        logger.error(f"❌ Consensus timeout check failed: {e}")
+        logger.error("❌ Consensus timeout check failed: %s", e)
         return {"success": False, "error": str(e)}
 
 
@@ -403,7 +415,9 @@ def check_agent_heartbeats():
 
         try:
             # Find active agents
-            active_agents = db.query(SwarmAgent).filter(SwarmAgent.status == "active").all()
+            active_agents = asyncio.run(
+                db.run_sync(lambda s: s.query(SwarmAgent).filter(SwarmAgent.status == "active").all())
+            )
 
             offline_count = 0
             heartbeat_threshold = timedelta(minutes=5)
@@ -417,7 +431,9 @@ def check_agent_heartbeats():
                     offline_count += 1
 
                     logger.warning(
-                        f"Agent {agent.agent_instance_id} marked offline - last heartbeat: {last_active.isoformat()}"
+                        "Agent %s marked offline - last heartbeat: %s",
+                        agent.agent_instance_id,
+                        last_active.isoformat(),
                     )
 
                     # Update Redis
@@ -434,7 +450,7 @@ def check_agent_heartbeats():
 
             db.commit()
 
-            logger.info(f"Heartbeat check complete: {offline_count} agents marked offline")
+            logger.info("Heartbeat check complete: %s agents marked offline", offline_count)
 
             return {
                 "success": True,
@@ -446,7 +462,7 @@ def check_agent_heartbeats():
             db.close()
 
     except Exception as e:
-        logger.error(f"❌ Heartbeat check failed: {e}")
+        logger.error("❌ Heartbeat check failed: %s", e)
         return {"success": False, "error": str(e)}
 
 
@@ -469,7 +485,9 @@ def check_swarm_budgets():
 
         try:
             # Find active swarms
-            active_swarms = db.query(SwarmProfile).filter(SwarmProfile.status == "active").all()
+            active_swarms = asyncio.run(
+                db.run_sync(lambda s: s.query(SwarmProfile).filter(SwarmProfile.status == "active").all())
+            )
 
             action_count = 0
             warning_count = 0
@@ -482,15 +500,19 @@ def check_swarm_budgets():
                     # Budget exceeded - pause swarm
                     coordinator.pause_swarm(swarm.swarm_id)
                     action_count += 1
-                    logger.warning(f"Swarm {swarm.swarm_id} paused due to budget exceeded")
+                    logger.warning("Swarm %s paused due to budget exceeded", swarm.swarm_id)
 
                 elif budget_check.get("warnings", []):
                     # Budget warning
                     warning_count += 1
                     warnings = budget_check.get("warnings", [])
-                    logger.warning(f"Swarm {swarm.swarm_id} budget warnings: {warnings}")
+                    logger.warning("Swarm %s budget warnings: %s", swarm.swarm_id, warnings)
 
-            logger.info(f"Budget check complete: {action_count} swarms paused, {warning_count} swarms with warnings")
+            logger.info(
+                "Budget check complete: %s swarms paused, %s swarms with warnings",
+                action_count,
+                warning_count,
+            )
 
             return {
                 "success": True,
@@ -503,5 +525,5 @@ def check_swarm_budgets():
             db.close()
 
     except Exception as e:
-        logger.error(f"❌ Budget check failed: {e}")
+        logger.error("❌ Budget check failed: %s", e)
         return {"success": False, "error": str(e)}

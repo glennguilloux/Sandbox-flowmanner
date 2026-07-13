@@ -364,7 +364,20 @@ class ControlFlowAgent:
     def _check_approval_result(self, state: AgentState) -> str:
         """Check approval result"""
         if state["awaiting_approval"]:
-            return "pending"
+            # The human/approval path records its decision by setting each
+            # tool's status (approved/rejected). There is no separate flag
+            # reset on that path, so re-derive whether we are still waiting.
+            # Keep waiting only if a tool still needs a decision.
+            unresolved = [
+                t
+                for t in state["pending_tools"]
+                if t["requires_approval"] and t["status"] not in ("approved", "rejected")
+            ]
+            if unresolved:
+                return "pending"
+            # All approval-required tools have a definitive status.
+            state["awaiting_approval"] = False
+            state["current_approval_request"] = None
 
         # Check if tools were approved or rejected
         for tool in state["pending_tools"]:
@@ -376,26 +389,36 @@ class ControlFlowAgent:
     async def _execute_tools_node(self, state: AgentState) -> AgentState:
         """Execute approved tools"""
         for tool in state["pending_tools"]:
-            if tool["status"] in ["pending", "approved"]:
-                # Execute tool
-                result = self._execute_tool(state, tool)  # type: ignore[arg-type]
+            # Only execute tools with a definitive go-ahead.
+            # - "approved" tools run.
+            # - "pending" tools that do NOT require approval run (happy path).
+            # - "pending" tools that REQUIRE approval must wait (not executed).
+            # - "rejected" tools must never run.
+            should_execute = tool["status"] == "approved" or (
+                tool["status"] == "pending" and not tool["requires_approval"]
+            )
+            if not should_execute:
+                continue
 
-                # Update tool execution
-                if result["success"]:
-                    tool = update_tool_execution(
-                        tool,
-                        status="completed",
-                        result=result,
-                    )
-                else:
-                    tool = update_tool_execution(
-                        tool,
-                        status="failed",
-                        error=result.get("error", "Execution failed"),
-                    )
+            # Execute tool
+            result = self._execute_tool(state, tool)  # type: ignore[arg-type]
 
-                # Add to history
-                state["tool_history"] = state["tool_history"] + [tool]
+            # Update tool execution
+            if result["success"]:
+                tool = update_tool_execution(
+                    tool,
+                    status="completed",
+                    result=result,
+                )
+            else:
+                tool = update_tool_execution(
+                    tool,
+                    status="failed",
+                    error=result.get("error", "Execution failed"),
+                )
+
+            # Add to history
+            state["tool_history"] = state["tool_history"] + [tool]
 
         # Clear pending tools
         state["pending_tools"] = []

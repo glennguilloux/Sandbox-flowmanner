@@ -14,6 +14,7 @@ from app.api.middleware.audit import AuditMiddleware
 from app.api.middleware.metrics import MetricsMiddleware
 from app.api.middleware.rate_limit import GlobalRateLimitMiddleware
 from app.api.middleware.security_headers import SecurityHeadersMiddleware
+from app.api.middleware.versioning import APIVersioningMiddleware
 from app.api.v1 import api_v1_router
 from app.api.v1.health import router as health_router
 from app.config import settings
@@ -127,6 +128,12 @@ app.add_middleware(
 
 # Security headers middleware
 app.add_middleware(SecurityHeadersMiddleware)
+
+# API versioning middleware (Accept-Version negotiation + X-API-Version /
+# Deprecation / Sunset / Link deprecation headers). Mounted after the
+# security/cors middleware and before audit/metrics so it wraps only the
+# request/response headers of API paths without interfering with auth/session.
+app.add_middleware(APIVersioningMiddleware)
 
 # Audit logging middleware
 app.add_middleware(AuditMiddleware)
