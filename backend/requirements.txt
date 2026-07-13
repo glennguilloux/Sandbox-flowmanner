@@ -54,7 +54,7 @@ numpy==1.26.4
 
 # Computer vision (optional dependency for chart_data_extractor tool) —
 # headless build (no GUI libs) since this is a server; still imports as `cv2`
-opencv-python-headless==5.0.0.93
+opencv-python-headless==4.10.0.84
 
 # Docker & System
 docker==7.0.0
