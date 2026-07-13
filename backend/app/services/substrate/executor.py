@@ -845,6 +845,15 @@ class UnifiedExecutor:
         """Check if the circuit breaker allows a call.
 
         Returns (allowed, reason). Used by NodeExecutor before calls.
+
+        RELIABILITY — FAIL CLOSED (R-4): if the breaker check itself throws
+        (DB error, serialization, etc.), the guardrail is NOT silently skipped.
+        By default (FLOWMANNER_CIRCUIT_BREAKER_FAIL_CLOSED=True) we DENY the
+        call: a guardrail that can't verify safety must not permit the action.
+        The failure is logged at ERROR and emitted as a metric so it is
+        observable. The fail-open behaviour is a deliberate, config-gated
+        escape hatch that MUST be explicitly opted into and is still loudly
+        logged + metered.
         """
         try:
             from app.services.circuit_breaker_service import CircuitBreakerService
@@ -856,7 +865,29 @@ class UnifiedExecutor:
                     return True, ""
                 return await service.check_before_call(breaker, call_type=call_type)
         except Exception as e:
-            logger.debug("Circuit breaker check skipped: %s", e)
+            # A guardrail that cannot verify safety must deny, not allow.
+            fail_closed = True
+            try:
+                from app.config import settings as _settings
+
+                fail_closed = getattr(_settings, "FLOWMANNER_CIRCUIT_BREAKER_FAIL_CLOSED", True)
+            except Exception:
+                pass
+            try:
+                from app.core.metrics import record_circuit_breaker_guard_failure
+
+                record_circuit_breaker_guard_failure("check")
+            except Exception:
+                pass
+            if fail_closed:
+                logger.error(
+                    "Circuit breaker check FAILED (denying call, fail-closed): %s", e
+                )
+                return False, "circuit breaker check failed"
+            # Deliberate, documented fail-open escape hatch (not recommended).
+            logger.error(
+                "Circuit breaker check FAILED (fail-open per config, ALLOWING call): %s", e
+            )
             return True, ""
 
     async def record_circuit_breaker_call(
@@ -866,7 +897,14 @@ class UnifiedExecutor:
         call_type: str = "llm",
         cost_usd: float = 0.0,
     ) -> None:
-        """Record a call in the circuit breaker counters."""
+        """Record a call in the circuit breaker counters.
+
+        RELIABILITY (R-4): a recording failure must not be silently swallowed.
+        Cost/cap violations that go unrecorded defeat the breaker's accounting.
+        On any exception we log at ERROR (not debug) and emit a metric so the
+        gap is observable. Recording never blocks the call, but it is no longer
+        invisible.
+        """
         try:
             from app.services.circuit_breaker_service import CircuitBreakerService
 
@@ -876,7 +914,13 @@ class UnifiedExecutor:
                 if breaker is not None:
                     await service.record_call(breaker, call_type=call_type, cost_usd=cost_usd)
         except Exception as e:
-            logger.debug("Circuit breaker record skipped: %s", e)
+            logger.error("Circuit breaker record FAILED (call not counted): %s", e)
+            try:
+                from app.core.metrics import record_circuit_breaker_guard_failure
+
+                record_circuit_breaker_guard_failure("record")
+            except Exception:
+                pass
 
     # ── Q1-B: HITL pause handler ────────────────────────────────────
 

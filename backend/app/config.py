@@ -311,6 +311,11 @@ class Settings(BaseSettings):
 
     # Q1-A chunk 5: Per-workspace+provider circuit breaker
     FLOWMANNER_CIRCUIT_BREAKER_ENABLED: bool = True
+    # Fail-closed default: if the breaker's pre-call check throws (DB/serialization
+    # error), the guardrail DENIES the call rather than silently allowing it. Set to
+    # False only to restore the old fail-open behaviour (not recommended; it defeats
+    # the breaker). When False, check failures are still surfaced at ERROR + metric.
+    FLOWMANNER_CIRCUIT_BREAKER_FAIL_CLOSED: bool = True
 
     # Q1-B chunk 2: HITL timeout + expiry worker
     HITL_DEFAULT_TIMEOUT_HOURS: int = 24
