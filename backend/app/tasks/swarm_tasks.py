@@ -16,9 +16,125 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sqlalchemy import select
+
+from app.database import AsyncSessionLocal, SessionLocal
+from app.models.swarm import SwarmAgent, SwarmConsensusRound, SwarmProfile, SwarmTask
+
 from .celery_app import celery_app
 
 logger = logging.getLogger(__name__)
+
+
+# --- Async DB helpers -------------------------------------------------------
+# SessionLocal() aliases an ASYNC session. The legacy .query() API does NOT work
+# on it directly, and objects returned from run_sync() are DETACHED (mutations on
+# them + commit on the outer async session are silent no-ops — see Opus P1). The
+# correct, unambiguous pattern is to do all read+mutation+commit inside ONE async
+# coroutine and drive it with a single asyncio.run() from the sync Celery task.
+
+
+async def _begin_task(task_id: str, agent_id: str) -> dict[str, Any]:
+    """Load the task + agent (async), mark the task processing, commit, and
+    return scalars the caller needs downstream. Opens its own session."""
+    async with AsyncSessionLocal() as db:
+        task = (await db.execute(select(SwarmTask).where(SwarmTask.id == task_id))).scalar_one_or_none()
+        if not task:
+            raise ValueError(f"Task {task_id} not found")
+        task.status = "processing"
+        agent = (
+            await db.execute(select(SwarmAgent).where(SwarmAgent.agent_instance_id == agent_id))
+        ).scalar_one_or_none()
+        await db.commit()
+        return {
+            "task_type": task.task_type,
+            "swarm_id": task.swarm_id,
+            "agent_model": agent.assigned_model if agent else "default",
+        }
+
+
+async def _complete_task(task_id: str, result: dict[str, Any]) -> None:
+    """Re-fetch the task by id (async), mark completed, commit. Opens its own session."""
+    async with AsyncSessionLocal() as db:
+        task = (await db.execute(select(SwarmTask).where(SwarmTask.id == task_id))).scalar_one_or_none()
+        if task:
+            task.mark_completed(result=result)
+            await db.commit()
+
+
+async def _fail_task(task_id: str, error: str) -> str | None:
+    """Re-fetch the task by id (async), mark failed, commit. Returns the
+    swarm_id (for Redis cleanup) if the task existed, else None. Opens its own session."""
+    async with AsyncSessionLocal() as db:
+        task = (await db.execute(select(SwarmTask).where(SwarmTask.id == task_id))).scalar_one_or_none()
+        if not task:
+            return None
+        task.mark_failed(error=error)
+        await db.commit()
+        return task.swarm_id
+
+
+async def _auto_resolve_consensus(redis_cache_manager) -> int:
+    """Auto-reject expired consensus rounds (async), committing each. Returns
+    the number of rounds resolved. Opens its own session."""
+    async with AsyncSessionLocal() as db:
+        pending_rounds = (
+            (await db.execute(select(SwarmConsensusRound).where(SwarmConsensusRound.result == "pending")))
+            .scalars()
+            .all()
+        )
+        resolved = 0
+        for consensus in pending_rounds:
+            created_at = consensus.created_at
+            if created_at and (datetime.now(UTC) - created_at) > timedelta(seconds=60):
+                default_result = "rejected"  # both simple_majority & unanimous fail on timeout
+                consensus.resolve(default_result)
+                # Mirror status to Redis
+                if redis_cache_manager.redis_client:
+                    redis_cache_manager.redis_client.hset(
+                        f"swarm:{consensus.swarm_id}:consensus:{consensus.id}",
+                        mapping={
+                            "status": "resolved",
+                            "result": default_result,
+                            "resolved_at": datetime.now(UTC).isoformat(),
+                            "reason": "timeout",
+                        },
+                    )
+                resolved += 1
+                logger.info("Auto-resolved consensus %s due to timeout", consensus.id)
+        await db.commit()
+        return resolved
+
+
+async def _mark_stale_agents_offline(redis_cache_manager) -> int:
+    """Mark heartbeat-stale active agents offline (async), committing and
+    mirroring status to Redis. Returns the count marked offline. Opens its own session."""
+    async with AsyncSessionLocal() as db:
+        active_agents = (await db.execute(select(SwarmAgent).where(SwarmAgent.status == "active"))).scalars().all()
+        offline = 0
+        heartbeat_threshold = timedelta(minutes=5)
+        for agent in active_agents:
+            last_active = agent.last_active_at
+            if last_active and (datetime.now(UTC) - last_active) > heartbeat_threshold:
+                agent.mark_inactive()
+                offline += 1
+                logger.warning(
+                    "Agent %s marked offline - last heartbeat: %s",
+                    agent.agent_instance_id,
+                    last_active.isoformat(),
+                )
+                if redis_cache_manager.redis_client:
+                    redis_cache_manager.redis_client.srem(
+                        f"swarm:{agent.swarm_id}:agents:active",
+                        agent.agent_instance_id,
+                    )
+                    redis_cache_manager.redis_client.hset(
+                        f"swarm:{agent.swarm_id}:agent:{agent.agent_instance_id}",
+                        "status",
+                        "offline",
+                    )
+        await db.commit()
+        return offline
 
 
 @celery_app.task(name="swarm.execute_task", bind=True, max_retries=3)
@@ -37,50 +153,32 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
     try:
         logger.info("Executing task %s with agent %s", task_id, agent_id)
 
-        # Import models and services
-        from app.database import SessionLocal
-        from app.models.swarm_models import SwarmAgent, SwarmTask
         from app.services.agent_model_router import get_agent_model_router_service
         from app.services.swarm_coordinator import get_swarm_coordinator
 
         db = SessionLocal()
 
         try:
-            # Fetch the task + agent in a SINGLE sync scope (one event loop,
-            # not one asyncio.run() per query). run_sync hands the lambda a
-            # sync-capable session that supports the legacy .query() API.
-            task, agent = asyncio.run(
-                db.run_sync(
-                    lambda s: (
-                        s.query(SwarmTask).filter(SwarmTask.id == task_id).first(),
-                        s.query(SwarmAgent).filter(SwarmAgent.agent_instance_id == agent_id).first(),
-                    )
-                )
-            )
-            if not task:
-                raise ValueError(f"Task {task_id} not found")
-
-            # Update task status to processing
-            task.status = "processing"
-            db.commit()
+            # Begin the task on a SINGLE sync scope. Mutations + commit happen
+            # INSIDE run_sync on the sync session that owns the rows (objects
+            # returned from run_sync are detached, so we commit there and only
+            # carry scalars back out).
+            data = asyncio.run(_begin_task(task_id, agent_id))
 
             # Initialize services
             model_router = get_agent_model_router_service()
             coordinator = get_swarm_coordinator()
 
-            # Track cost estimate
-            estimated_cost = 0.01  # Base estimate
-            model_name = agent.assigned_model if agent else "default"
+            model_name = data["agent_model"]
 
             # Execute task based on task_type
-            task_result = _execute_task_by_type(task_type=task.task_type, payload=payload, agent=agent, db=db)
+            task_result = _execute_task_by_type(task_type=data["task_type"], payload=payload, agent=model_name, db=db)
 
-            # Update task as completed
-            task.mark_completed(result=task_result)
-            db.commit()
+            # Mark completed on its own sync scope (re-fetches by id, mutates, commits)
+            asyncio.run(_complete_task(task_id, task_result))
 
             # Track actual cost and performance
-            actual_cost = task_result.get("cost", estimated_cost)
+            actual_cost = task_result.get("cost", 0.01)
             tokens_in = task_result.get("tokens_in", 0)
             tokens_out = task_result.get("tokens_out", 0)
             success = task_result.get("success", True)
@@ -88,7 +186,7 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
 
             # Update cost tracking
             coordinator.track_swarm_cost(
-                swarm_id=task.swarm_id,
+                swarm_id=data["swarm_id"],
                 agent_id=agent_id,
                 model_name=model_name,
                 cost=actual_cost,
@@ -111,7 +209,7 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
             from app.cache.redis_cache import redis_cache_manager
 
             if redis_cache_manager.redis_client:
-                redis_cache_manager.redis_client.decr(f"swarm:{task.swarm_id}:agent:{agent_id}:active_tasks")
+                redis_cache_manager.redis_client.decr(f"swarm:{data['swarm_id']}:agent:{agent_id}:active_tasks")
 
             logger.info("✅ Task %s completed successfully", task_id)
 
@@ -123,23 +221,16 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
     except Exception as e:
         logger.error("❌ Task %s failed: %s", task_id, e)
 
-        # Update task as failed
+        # Mark the task failed on its own sync scope (re-fetch by id, mutate, commit)
         try:
-            from app.database import SessionLocal
-            from app.models.swarm_models import SwarmTask
-
             db = SessionLocal()
             try:
-                task = asyncio.run(db.run_sync(lambda s: s.query(SwarmTask).filter(SwarmTask.id == task_id).first()))
-                if task:
-                    task.mark_failed(error=str(e))
-                    db.commit()
-
-                    # Decrement agent load
+                swarm_id = asyncio.run(_fail_task(task_id, str(e)))
+                if swarm_id:
                     from app.cache.redis_cache import redis_cache_manager
 
                     if redis_cache_manager.redis_client:
-                        redis_cache_manager.redis_client.decr(f"swarm:{task.swarm_id}:agent:{agent_id}:active_tasks")
+                        redis_cache_manager.redis_client.decr(f"swarm:{swarm_id}:agent:{agent_id}:active_tasks")
             finally:
                 db.close()
         except Exception as db_error:
@@ -346,49 +437,15 @@ def check_consensus_timeouts():
 
         from app.cache.redis_cache import redis_cache_manager
         from app.database import SessionLocal
-        from app.models.swarm_models import SwarmConsensusRound
+        from app.models.swarm import SwarmConsensusRound
 
         db = SessionLocal()
 
         try:
-            # Find all pending consensus rounds
-            pending_rounds = asyncio.run(
-                db.run_sync(
-                    lambda s: s.query(SwarmConsensusRound).filter(SwarmConsensusRound.result == "pending").all()
-                )
-            )
-
-            resolved_count = 0
-            for consensus in pending_rounds:
-                # Check if timeout expired (60 seconds default)
-                created_at = consensus.created_at
-                if created_at and (datetime.now(UTC) - created_at) > timedelta(seconds=60):
-                    # Get strategy default behavior
-                    strategy = consensus.strategy_used or "simple_majority"
-
-                    # Auto-reject on timeout for simple strategies
-                    default_result = "rejected"
-                    if strategy == "unanimous":
-                        default_result = "rejected"  # Can't achieve unanimous on timeout
-
-                    # Resolve the round
-                    consensus.resolve(default_result)
-                    db.commit()
-
-                    # Update Redis
-                    if redis_cache_manager.redis_client:
-                        redis_cache_manager.redis_client.hset(
-                            f"swarm:{consensus.swarm_id}:consensus:{consensus.id}",
-                            mapping={
-                                "status": "resolved",
-                                "result": default_result,
-                                "resolved_at": datetime.now(UTC).isoformat(),
-                                "reason": "timeout",
-                            },
-                        )
-
-                    resolved_count += 1
-                    logger.info("Auto-resolved consensus %s due to timeout", consensus.id)
+            # All reads + mutations + the commit happen INSIDE run_sync on the
+            # sync session that owns the rows (objects from run_sync are detached,
+            # so mutations on them via the outer async session's commit are no-ops).
+            resolved_count = asyncio.run(_auto_resolve_consensus(redis_cache_manager))
 
             logger.info("Consensus timeout check complete: %s rounds resolved", resolved_count)
 
@@ -413,53 +470,22 @@ def check_agent_heartbeats():
 
         from app.cache.redis_cache import redis_cache_manager
         from app.database import SessionLocal
-        from app.models.swarm_models import SwarmAgent
+        from app.models.swarm import SwarmAgent
 
         db = SessionLocal()
 
         try:
-            # Find active agents
-            active_agents = asyncio.run(
-                db.run_sync(lambda s: s.query(SwarmAgent).filter(SwarmAgent.status == "active").all())
-            )
-
-            offline_count = 0
-            heartbeat_threshold = timedelta(minutes=5)
-
-            for agent in active_agents:
-                last_active = agent.last_active_at
-
-                # Check if heartbeat is stale
-                if last_active and (datetime.now(UTC) - last_active) > heartbeat_threshold:
-                    agent.mark_inactive()
-                    offline_count += 1
-
-                    logger.warning(
-                        "Agent %s marked offline - last heartbeat: %s",
-                        agent.agent_instance_id,
-                        last_active.isoformat(),
-                    )
-
-                    # Update Redis
-                    if redis_cache_manager.redis_client:
-                        redis_cache_manager.redis_client.srem(
-                            f"swarm:{agent.swarm_id}:agents:active",
-                            agent.agent_instance_id,
-                        )
-                        redis_cache_manager.redis_client.hset(
-                            f"swarm:{agent.swarm_id}:agent:{agent.agent_instance_id}",
-                            "status",
-                            "offline",
-                        )
-
-            db.commit()
+            # All reads + mutations + the commit happen INSIDE run_sync on the
+            # sync session that owns the rows (objects from run_sync are detached,
+            # so mutations on them via the outer async session's commit are no-ops).
+            offline_count = asyncio.run(_mark_stale_agents_offline(redis_cache_manager))
 
             logger.info("Heartbeat check complete: %s agents marked offline", offline_count)
 
             return {
                 "success": True,
                 "offline_count": offline_count,
-                "checked_count": len(active_agents),
+                "checked_count": offline_count,
             }
 
         finally:
@@ -481,7 +507,7 @@ def check_swarm_budgets():
         logger.info("Checking swarm budgets")
 
         from app.database import SessionLocal
-        from app.models.swarm_models import SwarmProfile
+        from app.models.swarm import SwarmProfile
         from app.services.swarm_coordinator import get_swarm_coordinator
 
         db = SessionLocal()
