@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 from openai import AsyncOpenAI
 from sqlalchemy import func, select
 
+from app.models.capability_models import BudgetExhausted
 from app.models.chat import ChatBranch, ChatFile, ChatMessage, ChatThread
 from app.models.phase4_models import UserFile
 
@@ -555,6 +556,18 @@ async def _stream_message_to_llm_body(
                 if openai_tools:
                     create_kwargs["tools"] = openai_tools
 
+                # Comment 4: enforce the budget BEFORE the provider call so chat
+                # generation cannot blow past the budget silently.
+                from app.services.budget_enforcer import enforce_budget_before_llm
+
+                enforce_budget_before_llm(
+                    budget,
+                    model_id=model,
+                    estimated_prompt_tokens=len(messages_for_llm),
+                    estimated_completion_tokens=settings.CHAT_MAX_TOKENS
+                    if hasattr(settings, "CHAT_MAX_TOKENS")
+                    else 2000,
+                )
                 response = await client.chat.completions.create(**create_kwargs)
 
                 # Accumulate streaming chunks — we need to detect both
@@ -1992,6 +2005,8 @@ async def send_message_to_llm(
     model_id: str | None = None,
     attachments: list | None = None,
     web_search: bool | None = None,
+    # Comment 4: explicit budget policy required for the chat generation path.
+    budget: Any | None = None,
 ) -> dict:
     """Send a message to the LLM and get a non-streaming response.
 
@@ -2408,6 +2423,8 @@ async def _execute_tool_call(
 async def generate_thread_title(
     db: AsyncSession,
     thread_id: int,
+    # Comment 4: explicit budget policy required for title generation.
+    budget: Any | None = None,
 ) -> str | None:
     """Generate a 3-5 word title for a thread based on its first exchange.
 
@@ -2451,6 +2468,10 @@ async def generate_thread_title(
         if "/" in model_name:
             model_name = model_name.split("/", 1)[1]
 
+        # Comment 4: enforce the budget BEFORE the provider call.
+        from app.services.budget_enforcer import enforce_budget_before_llm
+
+        enforce_budget_before_llm(budget, model_id=model_name, estimated_completion_tokens=20)
         response = await _client.chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": title_prompt}],
@@ -2480,6 +2501,10 @@ async def generate_thread_title(
                 logger.info("Auto-titled thread %d: %s", thread_id, title)
                 return title
 
+    except BudgetExhausted:
+        # Comment 4: a budget gate failure is a hard stop, not a "titling
+        # failed, carry on" condition. Propagate so callers can react.
+        raise
     except Exception as e:
         logger.warning("Auto-titling failed for thread %d: %s", thread_id, e)
 

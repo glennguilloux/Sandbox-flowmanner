@@ -16,6 +16,7 @@ from app.models.mission_advanced_models import MissionTemplate
 from app.models.mission_models import (
     AbortReason,
     Mission,
+    MissionExecutionOutbox,
     MissionLog,
     MissionStatus,
     MissionTask,
@@ -39,6 +40,7 @@ from app.services.mission_errors import (
     MissionNotFoundError,
     MissionTransitionConflictError,
     MissionValidationError,
+    RetryableMissionError,
 )
 from app.services.mission_planner import MissionPlanner
 from app.services.mission_service import (
@@ -530,50 +532,69 @@ class MissionCommandHandlers(CommandHandlerBase):
 
         prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
         mission.status = MissionStatus.QUEUED
-        await self.session.commit()
 
-        # Log the transition
-        log = MissionLog(
-            mission_id=mission_id,
-            level="info",
-            message=f"Mission queued for async execution (was: {prev_status})",
-            data={
-                "actor": "api",
-                "prev_state": prev_status,
-                "next_state": MissionStatus.QUEUED,
-                "cause": "Async execution queued by user",
-                "user_id": str(user.id),
-            },
+        # Comment 8: generate a stable run_id up front and thread it through to
+        # Celery, the substrate executor, and the outbox so replay, leases,
+        # aborts, and event correlation all share one identity.
+        run_id = str(uuid4())
+        selected_plan_id = None
+        if payload is not None:
+            selected_plan_id = getattr(payload, "selected_plan_id", None)
+            selected_plan_id = str(selected_plan_id) if selected_plan_id is not None else None
+
+        # Persist the run identity onto the mission plan before commit so a
+        # later abort/resume knows which substrate run to target.
+        mission.plan = {**(mission.plan or {}), "substrate_run_id": run_id}
+
+        self.session.add(
+            MissionLog(
+                mission_id=mission_id,
+                level="info",
+                message=f"Mission queued for async execution (was: {prev_status})",
+                data={
+                    "actor": "api",
+                    "prev_state": prev_status,
+                    "next_state": MissionStatus.QUEUED,
+                    "cause": "Async execution queued by user",
+                    "user_id": str(user.id),
+                    "run_id": run_id,
+                },
+            )
         )
-        self.session.add(log)
         await self.session.commit()
 
-        # B3: Dispatch to Celery for durable execution
+        # B3: Dispatch to Celery for durable execution. If the broker is
+        # unreachable at dispatch time, fail closed: persist an outbox row in
+        # the same transaction the mission was already QUEUED under and raise a
+        # retryable error. We never silently fall back to an orphaned
+        # asyncio.create_task that dies with the request.
         try:
             from app.tasks.mission_execution import dispatch_mission_execution
 
-            dispatch_mission_execution(str(mission_id), user.id)
-        except Exception:
-            # Fallback: use UnifiedExecutor in a background task
-            _fallback_log = __import__("structlog").get_logger(__name__)
-            _fallback_log.warning("celery_dispatch_failed_fallback", mission_id=str(mission_id))
-
-            async def _run_execution():
-                from app.database import AsyncSessionLocal
-                from app.services.substrate.adapters import mission_to_workflow
-                from app.services.substrate.executor import get_unified_executor
-
-                async with AsyncSessionLocal() as db_session:
-                    result = await db_session.execute(select(Mission).where(Mission.id == str(mission_id)))
-                    m = result.scalars().first()
-                    if m:
-                        tasks = await get_mission_tasks(db_session, mission_id)
-                        workflow = mission_to_workflow(m, tasks)
-                        await get_unified_executor().execute(db_session, workflow)
-
-            import asyncio
-
-            asyncio.create_task(_run_execution())
+            dispatch_mission_execution(str(mission_id), user.id, run_id, selected_plan_id)
+        except Exception as dispatch_exc:
+            logger.warning(
+                "celery_dispatch_failed_persist_outbox mission_id=%s run_id=%s error=%s",
+                str(mission_id),
+                run_id,
+                str(dispatch_exc),
+            )
+            self.session.add(
+                MissionExecutionOutbox(
+                    mission_id=str(mission_id),
+                    user_id=user.id,
+                    run_id=run_id,
+                    selected_plan_id=selected_plan_id,
+                    status="pending",
+                    error=str(dispatch_exc),
+                )
+            )
+            await self.session.commit()
+            raise RetryableMissionError(
+                f"Mission '{mission_id}' was queued but dispatch to the execution "
+                f"worker failed. A durable outbox row was recorded; retry the "
+                f"request. run_id={run_id}"
+            ) from dispatch_exc
 
         tasks = await get_mission_tasks(self.session, mission_id)
         return MissionExecutionStatus(

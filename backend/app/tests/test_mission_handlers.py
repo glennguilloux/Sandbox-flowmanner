@@ -1059,3 +1059,105 @@ class TestHandleGlobalAnalytics:
             handler = MissionQueryHandlers(MagicMock())
             result = await handler.global_analytics(user_id=1)
             assert "total" in result
+
+
+class TestExecuteAsyncDispatchFailure:
+    """Comment 8: dispatch failure must fail closed, not spawn an orphaned task."""
+
+    @pytest.mark.asyncio
+    async def test_dispatch_failure_persists_outbox_and_raises(self):
+        from app.api._mission_cqrs.commands import MissionCommandHandlers
+        from app.services.mission_errors import RetryableMissionError
+
+        mock_db = AsyncMock()
+        mock_db.commit = AsyncMock()
+        mock_db.add = MagicMock()
+
+        # Capture any outbox row added to the session.
+        captured = []
+
+        def _capture_add(obj):
+            captured.append(obj)
+
+        mock_db.add.side_effect = _capture_add
+
+        mock_mission = make_mission(status="planned")
+
+        with (
+            patch(
+                "app.api._mission_cqrs.commands.require_mission_access",
+                new=AsyncMock(return_value=mock_mission),
+            ),
+            patch(
+                "app.api._mission_cqrs.commands.get_mission_tasks",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "app.tasks.mission_execution.dispatch_mission_execution",
+                new=MagicMock(side_effect=RuntimeError("broker down")),
+            ),
+        ):
+            handler = MissionCommandHandlers(mock_db)
+            with pytest.raises(RetryableMissionError):
+                await handler.execute_async(make_user(), MISSION_ID)
+
+        # The mission plan must carry a stable run_id.
+        assert mock_mission.plan is not None
+        run_id = mock_mission.plan.get("substrate_run_id")
+        assert run_id
+
+        # An outbox row was persisted for a worker to pick up.
+        outbox_rows = [o for o in captured if type(o).__name__ == "MissionExecutionOutbox"]
+        assert outbox_rows, "expected a MissionExecutionOutbox row to be persisted"
+        assert outbox_rows[0].mission_id == str(MISSION_ID)
+        assert outbox_rows[0].run_id == run_id
+        assert outbox_rows[0].status == "pending"
+
+    @pytest.mark.asyncio
+    async def test_dispatch_success_records_run_id_and_no_outbox(self):
+        from app.api._mission_cqrs.commands import MissionCommandHandlers
+
+        mock_db = AsyncMock()
+        mock_db.commit = AsyncMock()
+        mock_db.add = MagicMock()
+        captured = []
+
+        def _capture_add(obj):
+            captured.append(obj)
+
+        mock_db.add.side_effect = _capture_add
+
+        dispatched = {}
+
+        def _dispatch(mission_id, user_id, run_id=None, selected_plan_id=None):
+            dispatched["run_id"] = run_id
+            dispatched["selected_plan_id"] = selected_plan_id
+
+        mock_mission = make_mission(status="planned")
+        payload = SimpleNamespace(selected_plan_id="plan-123")
+
+        with (
+            patch(
+                "app.api._mission_cqrs.commands.require_mission_access",
+                new=AsyncMock(return_value=mock_mission),
+            ),
+            patch(
+                "app.api._mission_cqrs.commands.get_mission_tasks",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "app.api._mission_cqrs.commands._rebuild_tasks_from_candidate",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch(
+                "app.tasks.mission_execution.dispatch_mission_execution",
+                new=MagicMock(side_effect=_dispatch),
+            ),
+        ):
+            handler = MissionCommandHandlers(mock_db)
+            await handler.execute_async(make_user(), MISSION_ID, payload)
+
+        assert dispatched.get("run_id")
+        assert dispatched.get("selected_plan_id") == "plan-123"
+        assert mock_mission.plan.get("substrate_run_id") == dispatched["run_id"]
+        assert not any(type(o).__name__ == "MissionExecutionOutbox" for o in captured)

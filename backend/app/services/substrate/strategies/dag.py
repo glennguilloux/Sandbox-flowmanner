@@ -59,8 +59,8 @@ class DAGStrategy(ExecutionStrategy):
         context: dict[str, Any],
         executor: UnifiedExecutor,
         db: AsyncSession,
+        run_id: str,
     ) -> StrategyResult:
-        run_id = workflow.metadata.get("substrate_run_id", str(uuid4()))
         layers = self._topological_sort(workflow)
 
         completed_nodes: list[str] = []

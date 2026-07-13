@@ -190,27 +190,26 @@ class ProviderFallbackMiddleware:
             logger.warning("Failed to track cost: %s", e)
 
     def _calculate_cost(self, model: str, prompt_tokens: int, completion_tokens: int) -> float:
-        """Calculate cost based on model pricing (simplified)."""
-        # Default pricing per 1M tokens
-        pricing = {
-            "gpt-4o": {"input": 2.50, "output": 10.00},
-            "gpt-4o-mini": {"input": 0.15, "output": 0.60},
-            "claude-3-opus": {"input": 15.00, "output": 75.00},
-            "claude-3-sonnet": {"input": 3.00, "output": 15.00},
-            "claude-3-haiku": {"input": 0.25, "output": 1.25},
-            "qwen3.5:35b": {"input": 0.0, "output": 0.0},  # Local model
-        }
+        """Calculate cost based on model pricing.
 
-        # Find matching pricing
-        model_key = model.lower()
-        for key, prices in pricing.items():
-            if key in model_key:
-                input_cost = (prompt_tokens / 1_000_000) * prices["input"]
-                output_cost = (completion_tokens / 1_000_000) * prices["output"]
-                return input_cost + output_cost
+        Comment 5: pricing is resolved from the authoritative model catalog
+        (app/services/model_catalog) instead of the hard-coded map that used to
+        live here.  The catalog is the single source of truth; unknown pricing
+        for a paid model is an error there, so we only fall back to a local/free
+        assumption when the catalog cannot be reached.
+        """
+        try:
+            from app.services.model_catalog import get_model_catalog
 
-        # Default: assume local/free
-        return 0.0
+            catalog = get_model_catalog()
+            return catalog.estimate_cost(
+                model,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+            )
+        except Exception:
+            # Fallback to a local/free assumption when the catalog is unavailable.
+            return 0.0
 
     def _get_provider(self, model: str) -> str:
         """Get provider name from model."""

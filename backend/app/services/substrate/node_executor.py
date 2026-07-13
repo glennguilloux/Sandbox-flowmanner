@@ -27,6 +27,7 @@ from app.integrations.sandboxd_client import SandboxdClient, get_sandboxd_client
 from app.models.capability_models import Action, Budget, BudgetExhausted, ResourceRef
 from app.models.substrate_models import SubstrateEvent, SubstrateEventType
 from app.services.sandbox_service import SandboxService
+from app.services.substrate.context_manager import ContextManager
 from app.services.substrate.event_log import _compute_idempotency_key, get_event_log
 from app.services.substrate.workflow_models import (
     EffectClass,
@@ -113,6 +114,11 @@ class NodeExecutor:
         self.executor = unified_executor
         self._sbx_client: SandboxdClient | None = None
         self._sbx_svc: SandboxService | None = None
+        # Comment 11: dedicated long-context substrate for Opus deep dives.
+        # The manager is created per run so chunk ids / pinned evidence /
+        # rolling summaries are scoped to one execution and replayable via the
+        # context.plan substrate event it emits.
+        self._context_managers: dict[str, ContextManager] = {}
 
     @property
     def _sandbox_client(self) -> SandboxdClient:
@@ -127,6 +133,15 @@ class NodeExecutor:
         return self._sbx_svc
 
     # ── Context window (Q2-Q3 Chunk 2 Tier 1) ──────────────────────
+
+    # ── Comment 11: long-context management ──────────────────────────
+    def _context_manager(self, run_id: str) -> ContextManager:
+        """Return the per-run :class:`ContextManager` (creating it on demand)."""
+        mgr = self._context_managers.get(run_id)
+        if mgr is None:
+            mgr = ContextManager()
+            self._context_managers[run_id] = mgr
+        return mgr
 
     async def _build_context_window(
         self,
@@ -318,7 +333,83 @@ class NodeExecutor:
                 # the effect "fired". This guarantees the orchestrator's
                 # fallback/skip/escalate decision sits between STAGE and the fire.
                 if is_irreversible:
+                    # Comment 3: crash-window guard. Before any external call,
+                    # check whether this logical effect was ALREADY confirmed
+                    # (the run-excluded key dedupes across retries/parallel
+                    # workers). If so, skip the external call and return a
+                    # replayed success — no double-fire after a crash between
+                    # dispatch and confirmation.
+                    event_log = get_event_log()
+                    payload = self._render_effect_payload(node, workflow)
+                    confirm_key = _compute_idempotency_key(
+                        None, SubstrateEventType.SIDE_EFFECT_CONFIRMED, node.id, payload
+                    )
+                    already_confirmed = await event_log.find_by_idempotency_key(db, confirm_key)
+                    if already_confirmed is not None:
+                        logger.info(
+                            "Skipping irreversible dispatch for node %s: effect already "
+                            "confirmed (key %s) — replaying success.",
+                            node.id,
+                            confirm_key,
+                        )
+                        return {
+                            "success": True,
+                            "output": (already_confirmed.payload or {}).get("effect", {}),
+                            "tokens": 0,
+                            "cost": 0.0,
+                            "replayed": True,
+                            "replay_reason": "side_effect_already_confirmed",
+                        }
+
+                    # Intent exists but was never confirmed (crash window between
+                    # STAGE and CONFIRM, or a stalled retry). Do NOT re-fire the
+                    # external effect blindly. Escalate to HITL so a human (or an
+                    # external idempotency/outbox acknowledgement) breaks the glass.
+                    intent_key = _compute_idempotency_key(
+                        run_id, SubstrateEventType.SIDE_EFFECT_INTENT, node.id, payload
+                    )
+                    existing_intent = await event_log.find_by_idempotency_key(db, intent_key)
+                    if existing_intent is not None and already_confirmed is None:
+                        logger.error(
+                            "Irreversible intent staged but not confirmed for node %s "
+                            "(key %s). Escalating to HITL instead of re-firing.",
+                            node.id,
+                            intent_key,
+                        )
+                        await event_log.append(
+                            db,
+                            run_id,
+                            [
+                                {
+                                    "type": SubstrateEventType.TASK_FAILED,
+                                    "payload": {
+                                        "task_id": node.id,
+                                        "error": "irreversible effect intent without confirmation",
+                                        "reason": "intent_not_confirmed",
+                                        "promoted_to": "hitl_escalate",
+                                    },
+                                    "actor": "node_executor",
+                                    "mission_id": workflow.id if workflow else None,
+                                    "task_id": node.id,
+                                }
+                            ],
+                        )
+                        node.status = "failed"
+                        node.error_message = (
+                            "Irreversible effect intent staged without confirmation; "
+                            "escalated for outbox/idempotency acknowledgement."
+                        )
+                        return {
+                            "success": False,
+                            "escalated": True,
+                            "requires_acknowledgement": True,
+                            "error": node.error_message,
+                        }
+
+                    # Forward a stable idempotency key to external tools that
+                    # support it (run-scoped, so each attempt has its own key).
                     committed = await self._stage_irreversible_effect(db, run_id, node, workflow)
+                    node.config = {**node.config, "idempotency_key": committed}
                     # Orchestrator health / fallback decision happens in the normal
                     # flow below; if the attempt ultimately fails we promote to
                     # ESCALATE (no retry re-fires) — see failure handling.
@@ -747,7 +838,62 @@ class NodeExecutor:
 
         # Item #3: LLM output replay — check for recorded response
         event_log = get_event_log()
-        model_id = node.assigned_model or node.config.get("model_id", "deepseek-v4-flash")
+
+        # Comment 7: consume the depth/reasoning profile (promoted from the
+        # DepthPolicy decision) to pick the model + ReasoningOptions. An
+        # explicitly assigned model is still honored for normal/deep when it
+        # satisfies the profile's tier; otherwise depth selection wins.
+        from app.services.substrate.depth_selection import select_model_for_depth
+        from app.services.substrate.workflow_models import ReasoningProfile
+
+        _profile = node.reasoning_profile or ReasoningProfile.NORMAL
+        _budget_remaining = None
+        if hasattr(budget, "remaining"):
+            try:
+                _budget_remaining = budget.remaining().get("cost_usd")
+            except Exception:
+                _budget_remaining = None
+        _sel = select_model_for_depth(
+            _profile,
+            budget_remaining_usd=_budget_remaining,
+            explicit_model=node.assigned_model,
+        )
+        model_id = _sel.model_id
+        reasoning_options = _sel.reasoning
+        if node.assigned_model and node.assigned_model != _sel.model_id:
+            logger.info(
+                "Depth profile %s overrode node model %s -> %s%s",
+                _profile.value,
+                node.assigned_model,
+                _sel.model_id,
+                f" (degraded: {_sel.degradation_note})" if _sel.degraded else "",
+            )
+
+        # Emit the existing DEPTH_DECIDED event so replay explains the choice.
+        try:
+            await event_log.append(
+                db,
+                run_id,
+                [
+                    {
+                        "type": "depth.decided",
+                        "payload": {
+                            "node_id": node.id,
+                            "profile": _profile.value,
+                            "model_id": _sel.model_id,
+                            "reflection_iterations": _sel.reflection_iterations,
+                            "degraded": _sel.degraded,
+                            "degradation_note": _sel.degradation_note,
+                        },
+                        "actor": "node_executor",
+                        "mission_id": mission_id,
+                        "task_id": node.id,
+                    }
+                ],
+            )
+        except Exception as e:
+            logger.debug("Failed to record depth.decided event: %s", e)
+
         prompt = node.config.get("prompt", node.description or node.title)
 
         replay_key = _compute_idempotency_key(
@@ -793,6 +939,44 @@ class NodeExecutor:
                     }
                 )
 
+        # Comment 11: long-context assembly for deep/long-context nodes.
+        # This is the dedicated long-context substrate (NOT personal/episodic
+        # memory). When the node profile is deep, or the node explicitly opts
+        # into long-context, we consult the run-scoped ContextManager, inject
+        # the rendered context BEFORE the user prompt, and persist a
+        # context.plan substrate event so replay explains exactly what the
+        # model saw (which chunks, pins, rolling summary, token budget).
+        wants_context = _profile == ReasoningProfile.DEEP or node.config.get("long_context") is True
+        if wants_context:
+            _mgr = self._context_manager(run_id)
+            if _mgr.has_sources():
+                _query = node.config.get("context_query", prompt)
+                try:
+                    _plan, _rendered = _mgr.build_plan(
+                        run_id,
+                        node.id,
+                        query=_query,
+                        token_budget=node.config.get("context_token_budget"),
+                    )
+                except Exception as e:  # never block execution on context build
+                    _plan, _rendered = None, None
+                    logger.debug("ContextManager.build_plan failed: %s", e)
+                if _rendered:
+                    messages.append(
+                        {
+                            "role": "system",
+                            "content": (
+                                "Long-context research window (ingested sources, "
+                                "pinned evidence, rolling summary):\n" + _rendered
+                            ),
+                        }
+                    )
+                if _plan is not None:
+                    try:
+                        await _mgr.record_context_event(db, run_id, _plan, node_id=node.id, mission_id=mission_id)
+                    except Exception as e:  # fire-and-forget persistence
+                        logger.debug("Failed to record context.plan event: %s", e)
+
         messages.append({"role": "user", "content": prompt})
 
         response = await enforcer.call(
@@ -805,6 +989,7 @@ class NodeExecutor:
             task_id=node.id,
             temperature=node.config.get("temperature", 0.7),
             max_tokens=node.config.get("max_tokens", 2000),
+            reasoning=reasoning_options,
         )
 
         if not response.get("success"):
@@ -863,6 +1048,10 @@ class NodeExecutor:
             "cost": cost_usd,
             "model": response.get("model", model_id),
             "provider": response.get("provider", "unknown"),
+            "reasoning_profile": _profile.value,
+            "reflection_iterations": _sel.reflection_iterations,
+            "depth_degraded": _sel.degraded,
+            "depth_degradation_note": _sel.degradation_note,
         }
 
     # ── Tool handler ────────────────────────────────────────────────

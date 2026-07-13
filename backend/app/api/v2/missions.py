@@ -307,7 +307,15 @@ async def execute_mission_async(
     payload: MissionExecuteRequest | None = None,
     user: User = Depends(get_current_user),
     c: MissionCommandHandlers = Depends(get_mission_commands),
+    _idem: Any = Depends(idempotency()),
+    _rate: Any = Depends(rate_limit("mission:execute")),
 ):
+    # Comment 8: match the synchronous execute endpoint's idempotency + rate
+    # limiting so repeated async-execute calls are de-duplicated and throttled.
+    if isinstance(_idem, JSONResponse):
+        return _idem
+    if isinstance(_rate, JSONResponse):
+        return _rate
     return ok((await c.execute_async(user, mission_id, payload)).model_dump())
 
 

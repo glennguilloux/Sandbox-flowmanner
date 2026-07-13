@@ -56,8 +56,8 @@ class GraphStrategy(ExecutionStrategy):
         context: dict[str, Any],
         executor: UnifiedExecutor,
         db: AsyncSession,
+        run_id: str,
     ) -> StrategyResult:
-        run_id = workflow.metadata.get("substrate_run_id", str(uuid4()))
         start_node_id = context.get("start_node_id")
 
         active_ids = (

@@ -93,6 +93,24 @@ _MISSION_TYPE_MAP: dict[str, WorkflowType] = {
 }
 
 
+def _build_mission_metadata(mission: Any) -> dict[str, Any]:
+    """Build workflow metadata, omitting substrate_run_id unless a real ID exists.
+
+    Comment 1: the executor is the sole source of the run ID. The adapter must
+    never inject a ``None`` ``substrate_run_id`` (which previously caused
+    strategies to fall back to a freshly generated UUID, splitting event
+    correlation). Only forward a real ID when the mission plan carries one.
+    """
+    metadata: dict[str, Any] = {
+        "fallback_strategy": getattr(mission, "fallback_strategy", "human_escalate"),
+    }
+    if getattr(mission, "plan", None):
+        _rid = mission.plan.get("substrate_run_id")
+        if _rid:
+            metadata["substrate_run_id"] = _rid
+    return metadata
+
+
 def mission_to_workflow(
     mission: Any,  # app.models.mission_models.Mission
     tasks: list[Any] | None = None,  # list of MissionTask
@@ -172,12 +190,7 @@ def mission_to_workflow(
         budget=budget,
         user_id=str(mission.user_id) if hasattr(mission, "user_id") else None,
         workspace_id=(str(mission.workspace_id) if hasattr(mission, "workspace_id") and mission.workspace_id else None),
-        metadata={
-            "substrate_run_id": (
-                mission.plan.get("substrate_run_id") if hasattr(mission, "plan") and mission.plan else None
-            ),
-            "fallback_strategy": getattr(mission, "fallback_strategy", "human_escalate"),
-        },
+        metadata=_build_mission_metadata(mission),
     )
 
 

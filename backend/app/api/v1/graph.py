@@ -20,13 +20,11 @@ from app.schemas.graph import (
 )
 from app.services.graph_service import (
     create_graph_workflow,
-    execute_graph_workflow,
     get_graph_execution,
     get_graph_states,
     list_graph_executions,
     list_graph_workflows,
     require_graph_access,
-    resume_graph_execution,
 )
 from app.services.mission_errors import GraphNotFoundError
 
@@ -154,31 +152,42 @@ async def delete_item(
 async def run_graph(
     workflow_id: uuid.UUID,
     payload: GraphExecutionCreate,
-    db: AsyncSession = Depends(get_db),
+    response: Response,
     user: User = Depends(get_current_user),
 ):
-    try:
-        await require_graph_access(db, workflow_id, user.id)
-    except GraphNotFoundError:
-        raise _graph_not_found()
-    return await execute_graph_workflow(db, workflow_id, user.id, payload.input_data)
+    # Comment 12: the v1 graph execution engine was removed (commit 1f4df6ec,
+    # "dead code"). Rather than create a doomed background execution that can
+    # only fail with "graph execution engine retired", retire execute/resume
+    # with a hard 410 and point callers at the v2 blueprints/runs source of
+    # truth. Deprecation headers (Sunset / successor Link) are already injected
+    # by the router dependency for every v1 graph response.
+    _add_deprecation_headers(response)
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail=(
+            "v1 graph execution is retired. The graph execution engine was "
+            "removed; use v2 blueprints/runs (/api/v2/blueprints, /api/v2/runs) "
+            "for graph-style execution."
+        ),
+    )
 
 
 @router.post("/{workflow_id}/resume/{execution_id}", response_model=GraphExecutionResponse)
 async def resume_graph(
     workflow_id: uuid.UUID,
     execution_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    response: Response,
     user: User = Depends(get_current_user),
 ):
-    try:
-        await require_graph_access(db, workflow_id, user.id)
-    except GraphNotFoundError:
-        raise _graph_not_found()
-    result = await resume_graph_execution(db, execution_id, user.id)
-    if result is None:
-        raise _not_found()
-    return result
+    # Comment 12: resume of a retired execution path is gone (410).
+    _add_deprecation_headers(response)
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail=(
+            "v1 graph execution is retired. Resume is no longer available; "
+            "use v2 blueprints/runs (/api/v2/blueprints, /api/v2/runs)."
+        ),
+    )
 
 
 @router.get("/{workflow_id}/executions")

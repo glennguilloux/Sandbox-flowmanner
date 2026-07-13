@@ -51,20 +51,18 @@ class LLMManager:
     _instances: OrderedDict[str, Any] = OrderedDict()
     _lock = threading.Lock()
 
-    MODEL_MAP = {
-        "llamacpp-qwen3.6-27b": "Qwen3.6-27B-Q5_K_M-mtp.gguf",
-        "llamacpp-qwen2.5-14b": "qwen2.5:14b",
-        "llamacpp-qwen2.5-coder-7b": "qwen2.5-coder:7b",
-        "llamacpp-qwen2.5-1.5b": "qwen2.5:1.5b",
-        "llamacpp-qwen3.6-latest": "qwen3.6:latest",
-        "openrouter-gemma-2-9b-free": "openrouter/google/gemma-2-9b-it:free",
-        "openrouter-claude-3.5-sonnet": "openrouter/anthropic/claude-3.5-sonnet",
-        "openrouter-gpt-4o": "openrouter/openai/gpt-4o",
-        "openrouter-gemini-2.0-flash": "openrouter/google/gemini-2.0-flash",
-        "openrouter-deepseek-coder": "openrouter/deepseek/deepseek-coder",
-        "claude-3-5-sonnet": "anthropic/claude-3-5-sonnet-20241022",
-        "claude-3-haiku": "anthropic/claude-3-haiku-20240307",
-    }
+    # MODEL_MAP is no longer hard-coded (Comment 5). The authoritative model
+    # catalog (app/services/model_catalog) owns provider -> upstream model name
+    # mappings, pricing, and availability. We expose it as a property so legacy
+    # callers (memory services, meta_review, etc.) that read
+    # ``manager.MODEL_MAP.get(model_id, model_id)`` keep working unchanged.
+
+    @property
+    def MODEL_MAP(self) -> dict[str, str]:
+        from app.services.model_catalog import get_model_catalog
+
+        catalog = get_model_catalog()
+        return {spec.model_id: spec.upstream_model_name for spec in catalog.all()}
 
     @classmethod
     def clear_cache(cls):

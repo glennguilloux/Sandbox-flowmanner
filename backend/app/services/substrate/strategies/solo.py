@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
 
 from app.services.substrate.strategies.base import ExecutionStrategy
 from app.services.substrate.workflow_models import (
@@ -49,9 +48,9 @@ class SoloStrategy(ExecutionStrategy):
         context: dict[str, Any],
         executor: UnifiedExecutor,
         db: AsyncSession,
+        run_id: str,
     ) -> StrategyResult:
         node = workflow.nodes[0]
-        run_id = workflow.metadata.get("substrate_run_id", str(uuid4()))
 
         # Check abort signal before execution
         if executor.is_aborted(run_id):

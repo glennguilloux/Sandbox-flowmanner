@@ -61,6 +61,7 @@ class ExecutionStrategy(ABC):
         context: dict[str, Any],
         executor: UnifiedExecutor,
         db: AsyncSession,
+        run_id: str,
     ) -> StrategyResult:
         """Execute the strategy against a workflow.
 
@@ -71,6 +72,11 @@ class ExecutionStrategy(ABC):
                       (event_log, budget_enforcer, capability_engine, etc.).
             db: The database session from the API route — strategies MUST
                 use this session, not create their own.
+            run_id: The substrate run ID. This is the ONLY authoritative run
+                ID for the execution and is owned by UnifiedExecutor. Strategies
+                MUST NOT generate or read their own run ID; all events, abort
+                checks, leases, and HITL resume use this value so that replay,
+                leases, aborts, and event correlation stay consistent.
 
         Returns:
             StrategyResult with success, status, and execution details.

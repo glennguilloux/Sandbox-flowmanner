@@ -215,8 +215,29 @@ class CostOptimizer:
         )
 
     def get_model_pricing(self, model_id: str) -> ModelPricing:
-        """Get pricing for a model, with fallback to default"""
-        return self._model_pricing.get(model_id, self._model_pricing["default"])
+        """Get pricing for a model.
+
+        Comment 5: prices are read from the authoritative model catalog. The
+        legacy ``_model_pricing`` map is still consulted first for models that
+        were explicitly overridden via :meth:`set_model_pricing`, then the
+        catalog, then the hard-coded default.
+        """
+        if model_id in self._model_pricing:
+            return self._model_pricing[model_id]
+        try:
+            from app.services.model_catalog import get_model_catalog
+
+            catalog = get_model_catalog()
+            spec = catalog.get(model_id) or catalog.get(model_id.split("/")[-1])
+            if spec is not None:
+                return ModelPricing(
+                    model_id,
+                    input_cost_per_1k=spec.input_per_1m,
+                    output_cost_per_1k=spec.output_per_1m,
+                )
+        except Exception as exc:  # pragma: no cover - catalog is always present
+            logger.debug("CostOptimizer catalog lookup failed for %s: %s", model_id, exc)
+        return self._model_pricing["default"]
 
     async def set_budget(self, budget: Budget):
         """Set budget for an agent or user"""

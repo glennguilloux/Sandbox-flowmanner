@@ -64,6 +64,7 @@ def _run_coroutine(coro: Coroutine[Any, Any, dict[str, Any]]) -> dict[str, Any]:
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
         return ex.submit(asyncio.run, coro).result()
 
+
 # A claim is "supported" when the verifier answers YES and supplies a
 # non-empty evidence span, OR when it answers YES-but-no-quote and the
 # lexical check (Q6-A) already confirmed grounding.
@@ -186,8 +187,33 @@ class SecondPassVerifier:
             return ""
         return str(result.get("response") or result.get("content") or "")
 
+    async def _acall(self, messages: list[dict[str, str]]) -> str:
+        """Async LLM path (Comment 9): used by :meth:`averify`."""
+        if self._call_llm_override is not None:
+            # Allow an async override too.
+            ov = self._call_llm_override
+            if hasattr(ov, "__await__"):
+                return await ov(messages)
+            return ov(messages)
+        from decimal import Decimal
+
+        from app.models.capability_models import Budget
+        from app.services.budget_enforcer import get_budget_enforcer
+
+        enforcer = get_budget_enforcer()
+        result = await enforcer.call(
+            budget=Budget(max_cost_usd=Decimal("0.05"), max_wall_time_seconds=60, max_iterations=1),
+            model_id=self.model_id,
+            messages=messages,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )
+        if not result.get("success", False):
+            return ""
+        return str(result.get("response") or result.get("content") or "")
+
     def verify(self, *, transcript_text: str, claim_id: str, claim_content: str) -> VerificationResult:
-        """Run the second-pass check for one claim.
+        """Run the second-pass check for one claim (synchronous caller).
 
         On any LLM soft-failure we return ``supports=False`` with
         ``degraded=True`` — the safe default (distrust on uncertainty).
@@ -195,6 +221,47 @@ class SecondPassVerifier:
         messages = _evidence_prompt(transcript_text, claim_content)
         try:
             content = self._call(messages)
+        except Exception:  # BudgetExhausted, network, etc.
+            logger.exception("verifier.llm_failure claim_id=%s", claim_id)
+            return VerificationResult(
+                claim_id=claim_id,
+                supports=False,
+                evidence="",
+                reason="verifier LLM call failed",
+                model_id=self.model_id,
+                degraded=True,
+            )
+        if not content:
+            return VerificationResult(
+                claim_id=claim_id,
+                supports=False,
+                evidence="",
+                reason="verifier returned empty output",
+                model_id=self.model_id,
+                degraded=True,
+            )
+        parsed = _parse_verifier_response(content)
+        return VerificationResult(
+            claim_id=claim_id,
+            supports=bool(parsed["supports"]),
+            evidence=str(parsed["evidence"]),
+            reason=str(parsed["reason"]),
+            model_id=self.model_id,
+        )
+
+    async def averify(self, *, transcript_text: str, claim_id: str, claim_content: str) -> VerificationResult:
+        """Async second-pass check (Comment 9).
+
+        Mirrors :meth:`verify` but awaits the LLM path directly instead of
+        bridging through a worker thread, so it can be called from the async
+        inbox-drain orchestrator without re-entering a live event loop.
+
+        On any LLM soft-failure we return ``supports=False`` with
+        ``degraded=True`` — the safe default (distrust on uncertainty).
+        """
+        messages = _evidence_prompt(transcript_text, claim_content)
+        try:
+            content = await self._acall(messages)
         except Exception:  # BudgetExhausted, network, etc.
             logger.exception("verifier.llm_failure claim_id=%s", claim_id)
             return VerificationResult(

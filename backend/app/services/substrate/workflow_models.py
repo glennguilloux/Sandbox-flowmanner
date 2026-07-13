@@ -26,6 +26,7 @@ __all__ = [
     "StrategyResult",
     "Workflow",
     "WorkflowEdge",
+    "ReasoningProfile",
     "WorkflowNode",
     "WorkflowType",
 ]
@@ -113,6 +114,20 @@ class WorkflowType(str, Enum):
 # ── Workflow components ──────────────────────────────────────────────
 
 
+class ReasoningProfile(str, Enum):
+    """Reasoning depth profile carried on a node/execution context (Comment 7).
+
+    Mirrors DepthPolicy depth levels. ``shallow`` -> local/cheap, no reasoning;
+    ``normal`` -> default cloud path; ``deep`` -> premium-reasoning tier when
+    budget + catalog policy allow (e.g. Opus). The profile drives model and
+    reasoning-option selection in ``NodeExecutor._handle_llm``.
+    """
+
+    SHALLOW = "shallow"
+    NORMAL = "normal"
+    DEEP = "deep"
+
+
 class WorkflowNode(BaseModel):
     """A single node in a workflow.
 
@@ -127,6 +142,10 @@ class WorkflowNode(BaseModel):
     dependencies: list[str] = Field(default_factory=list)
     assigned_model: str | None = None
     assigned_agent_id: str | None = None
+    # Comment 7: reasoning depth profile for this node. Consumed by
+    # NodeExecutor._handle_llm to select the model + ReasoningOptions. Defaults
+    # to NORMAL when the planner/adapter does not set it.
+    reasoning_profile: ReasoningProfile = ReasoningProfile.NORMAL
     max_retries: int = 3
     fallback_strategy: str = "human_escalate"
     # Side-effect classification (per-invocation, fail-closed default).

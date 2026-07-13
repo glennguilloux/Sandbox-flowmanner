@@ -147,6 +147,7 @@ class ReviewerGuard:
         *,
         run_verifier: bool = True,
         transcript_text: str | None = None,
+        verifier_results: dict[str, VerificationResult] | None = None,
     ) -> VerificationBatch:
         """Verify a batch of reviewer-proposed writes.
 
@@ -161,7 +162,12 @@ class ReviewerGuard:
             vtext = "\n".join(f"[{s.span_id}] {s.text}" for s in self._verifier_impl._spans)
 
         for claim in claims:
-            decision = self._verify_one(claim, run_verifier=run_verifier, transcript_text=vtext)
+            decision = self._verify_one(
+                claim,
+                run_verifier=run_verifier,
+                transcript_text=vtext,
+                verifier_result=(verifier_results or {}).get(claim.claim_id),
+            )
             decisions.append(decision)
             # Feed Q6-D.
             self.degradation.record_grounding(decision.grounded)
@@ -182,6 +188,7 @@ class ReviewerGuard:
         *,
         run_verifier: bool,
         transcript_text: str | None,
+        verifier_result: VerificationResult | None = None,
     ) -> ClaimDecision:
         # ── Q6-A: lexical groundedness ──
         gverdict: GroundingVerdict = self._verifier_impl.verify(claim)
@@ -194,14 +201,19 @@ class ReviewerGuard:
         vresult: VerificationResult | None = None
         verifier_supports: bool | None = None
         verifier_contradicts = False
-        if self.verifier is not None and run_verifier and transcript_text is not None:
-            _vr: VerificationResult = self.verifier.verify(
+        # Prefer a pre-computed (async) verifier result when the caller passed
+        # one (avoids a second LLM call / thread bridge).  Otherwise, if a
+        # verifier is wired in and we are asked to run it, call it synchronously.
+        if verifier_result is not None:
+            vresult = verifier_result
+            verifier_supports = verifier_result.supports
+        elif self.verifier is not None and run_verifier and transcript_text is not None:
+            vresult = self.verifier.verify(
                 transcript_text=transcript_text,
                 claim_id=claim.claim_id,
                 claim_content=claim.content,
             )
-            vresult = _vr
-            verifier_supports = _vr.supports
+            verifier_supports = vresult.supports
             # Contradiction: lexical grounded BUT verifier says no (and the
             # verifier didn't degrade).  Degraded verifier → escalate on
             # uncertainty, not "contradict".

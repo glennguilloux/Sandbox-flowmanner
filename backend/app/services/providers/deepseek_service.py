@@ -15,7 +15,15 @@ from typing import Any
 
 import httpx
 
-from ...app_config import Config
+# Config was imported from a non-existent 'app.app_config' module. Use the
+# real settings/env instead. DeepSeek OpenAI-compatible base is
+# https://api.deepseek.com (per ops). The Anthropic-compatible mirror lives at
+# https://api.deepseek.com/anthropic but is not used on this path.
+from app.config import settings
+
+_DEEPSEEK_BASE_URL = getattr(settings, "DEEPSEEK_BASE_URL", None) or os.getenv(
+    "DEEPSEEK_BASE_URL", "https://api.deepseek.com"
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +43,7 @@ class DeepSeekService:
     def __init__(self, api_key: str | None = None):
         # Use provided API key (user key) or fall back to platform key from Config
         self.api_key = api_key or os.getenv("DEEPSEEK_API_KEY")
-        self.base_url = Config.DEEPSEEK_BASE_URL
+        self.base_url = _DEEPSEEK_BASE_URL
 
         # Rate limiting
         self.max_retries = int(os.getenv("DEEPSEEK_MAX_RETRIES", "3"))

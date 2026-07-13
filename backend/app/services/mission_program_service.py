@@ -24,6 +24,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 from sqlalchemy import and_, func, or_, select
 
@@ -46,6 +47,14 @@ from app.schemas.program import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+async def _nop_log(db, mission_id, task_id, level, message, extra_data=None):
+    return None
+
+
+async def _nop_transition(db, mission, new_status, *, cause="", error_message=None, level="info"):
+    return None
 
 
 # ── Exception hierarchy (per plan §T5) ──────────────────────────────────
@@ -378,8 +387,16 @@ class MissionProgramService:
         # onto the ProgramRun; the runner itself is synchronous from
         # this caller's point of view (the substrate is async but
         # in-process — async/await is a no-op for our purposes here).
+        # 6b. Resolve executable nodes BEFORE calling the substrate. A solo
+        # program previously shipped an EMPTY task list, so ``mission_to_workflow``
+        # produced a workflow with zero nodes and SoloStrategy.validate() failed
+        # before doing useful work (Comment 2). Generate a plan, persist
+        # MissionTask rows in this same session, then read them back so the
+        # workflow passed to the executor contains exactly one executable node.
+        tasks = await self._plan_and_persist_tasks(mission)
+
         try:
-            workflow = mission_to_workflow(mission, tasks=[])
+            workflow = mission_to_workflow(mission, tasks=tasks)
             executor = get_unified_executor()
             result = await executor.execute(self.db, workflow)
             run.status = "completed" if getattr(result, "success", False) else "failed"
@@ -410,6 +427,74 @@ class MissionProgramService:
             user_id=user_id,
         )
         return run
+
+    # ── T8/Comment 2: plan + persist executable nodes before dispatch ──
+
+    async def _plan_and_persist_tasks(self, mission: Any) -> list[Any]:
+        """Generate a plan for ``mission`` and persist ``MissionTask`` rows.
+
+        Returns the list of persisted ``MissionTask`` ORM rows (so the caller
+        can build a non-empty workflow). We never ship an empty task list to
+        the substrate: if planning yields nothing we persist a single default
+        LLM task so a SOLO program always has exactly one executable node.
+
+        Transaction discipline: persists via ``self.db.add`` + ``flush()`` only.
+        The caller (CQRS command handler) owns the surrounding commit.
+        """
+        from app.models.mission_models import MissionTask, MissionTaskStatus
+
+        plan_tasks: list[dict[str, Any]] = []
+        try:
+            from app.services.mission_planner import MissionPlanner
+
+            planner = MissionPlanner(
+                cost_tracker=None,
+                get_model_router=lambda: None,
+                log_callback=_nop_log,
+                transition_callback=_nop_transition,
+            )
+            prompt = planner._build_plan_prompt(mission)
+            plan_tasks = await planner._generate_plan(
+                prompt,
+                db=self.db,
+                user_id=getattr(mission, "user_id", None),
+                mission_id=str(mission.id),
+            )
+        except Exception:  # pragma: no cover — planning is best-effort here
+            logger.exception("fire_program: planning failed; using default task")
+            plan_tasks = []
+
+        if not plan_tasks:
+            plan_tasks = [
+                {
+                    "title": mission.title or "Execute mission",
+                    "description": mission.description or mission.title or "Execute mission",
+                    "task_type": "llm",
+                    "dependencies": [],
+                }
+            ]
+
+        persisted: list[Any] = []
+        for idx, task_def in enumerate(plan_tasks):
+            task = MissionTask(
+                id=str(uuid4()),
+                mission_id=str(mission.id),
+                title=task_def.get("title", f"Task {idx + 1}"),
+                description=task_def.get("description", ""),
+                task_type=task_def.get("task_type", "llm"),
+                order_index=idx,
+                dependencies=task_def.get("dependencies", []),
+                assigned_model=None,
+                status=MissionTaskStatus.PENDING,
+                retry_count=0,
+                max_retries=3,
+                tokens_used=0,
+                cost=0.0,
+            )
+            self.db.add(task)
+            persisted.append(task)
+        await self.db.flush()  # populate task IDs for mission_to_workflow
+        return persisted
 
     # ── Learning brief helpers ────────────────────────────────────────
 

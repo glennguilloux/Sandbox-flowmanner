@@ -779,6 +779,50 @@ def get_budget_enforcer() -> BudgetEnforcer:
     return _budget_enforcer
 
 
+def enforce_budget_before_llm(
+    budget: Budget | None,
+    *,
+    model_id: str,
+    estimated_prompt_tokens: int = 0,
+    estimated_completion_tokens: int = 0,
+) -> Budget:
+    """Pre-call budget gate for LLM generation paths that do not route through
+    :meth:`BudgetEnforcer.call` (e.g. the streaming chat client).
+
+    Comment 4: planning, chat, title generation, reviewer verification, and
+    program consolidation must all enforce the budget BEFORE the provider call.
+    Streaming/chat paths keep their own provider client but must still raise
+    ``BudgetExhausted`` here, never after the call. ``budget`` is REQUIRED — a
+    ``None`` budget is rejected so a call site cannot silently skip the gate.
+
+    Args:
+        budget: Explicit Budget for this call (required; never inferred).
+        model_id: Model that will be used, for cost estimation.
+        estimated_prompt_tokens / estimated_completion_tokens: optional estimate
+            to check projected cost against remaining budget.
+
+    Returns:
+        The same ``budget`` so callers can thread it through.
+
+    Raises:
+        BudgetExhausted: If the budget is ``None`` or the call would exceed it.
+    """
+    if budget is None:
+        raise BudgetExhausted("explicit budget required for LLM generation", Budget())
+    enforcer = get_budget_enforcer()
+    is_exhausted, reason = budget.is_exhausted()
+    if is_exhausted:
+        raise BudgetExhausted(reason, budget)
+    if estimated_prompt_tokens or estimated_completion_tokens:
+        try:
+            estimated = enforcer.pricing.estimate(model_id, estimated_prompt_tokens, estimated_completion_tokens)
+        except Exception:
+            estimated = Decimal("0")
+        if not enforcer.check_budget(budget, estimated):
+            raise BudgetExhausted(f"estimated cost ${estimated} exceeds remaining budget for {model_id}", budget)
+    return budget
+
+
 def reset_budget_enforcer() -> None:
     """Reset the singleton (for testing)."""
     global _budget_enforcer

@@ -348,6 +348,14 @@ class Settings(BaseSettings):
     # is observed on real traffic.
     REVIEWER_GUARD_DRAIN_ENABLED: bool = False
 
+    # Comment 9: wire the Q6-B cross-family SecondPassVerifier into the
+    # production inbox drain. Off by default: the drain stays lexical-only
+    # ($0 token cost) until this is explicitly enabled AND a different-family
+    # verifier model is available in the catalog. When ON but no verifier
+    # model can be resolved, the drain degrades to lexical-only and records
+    # that degradation in the HITL context + metrics (never silent).
+    REVIEWER_GUARD_SECOND_PASS_ENABLED: bool = False
+
     # Strategy gating — experimental strategies (swarm, pipeline, meta, langgraph)
     # Set to True to enable strategies that require complex workflow structures.
     # Per strategy profiling 2026-07-04, these failed validation with simple workflows.
@@ -394,6 +402,19 @@ class Settings(BaseSettings):
     BUDGET_AWARE_PLAN_SELECTION: Literal["off", "on", "auto"] = "auto"
     PLAN_SELECTION_K: int = 3
     PLAN_SELECTION_MIN_QUALITY: float = 0.6
+
+    # ── Native Anthropic / Opus support (Comment 6) ──────────────────────
+    # Opus (and other native Anthropic models) require a real Anthropic API key
+    # or an approved OpenRouter Anthropic route. They are DISABLED unless the
+    # catalog marks them enabled AND this flag is true, so a misconfigured deploy
+    # can never silently route Opus through the OpenAI-compatible path.
+    ENABLE_NATIVE_ANTHROPIC: bool = False
+    # Allow routing Anthropic models via OpenRouter's OpenAI-compatible proxy
+    # (requires OPENROUTER_API_KEY and an approved Anthropic route on OpenRouter).
+    ALLOW_ANTHROPIC_VIA_OPENROUTER: bool = False
+    # Hard gate for premium models (e.g. claude-3-opus). Even when the catalog
+    # enables a premium model, this must be on for it to be selectable.
+    ENABLE_PREMIUM_MODELS: bool = False
 
     @property
     def cors_origins_list(self) -> list[str]:

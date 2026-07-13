@@ -72,10 +72,8 @@ class PipelineStrategy(ExecutionStrategy):
         context: dict[str, Any],
         executor: UnifiedExecutor,
         db: AsyncSession,
+        run_id: str,
     ) -> StrategyResult:
-        run_id = workflow.metadata.get("substrate_run_id", str(uuid4()))
-
-        total_tokens = 0
         total_cost = 0.0
         completed: list[str] = []
         review_feedback = None

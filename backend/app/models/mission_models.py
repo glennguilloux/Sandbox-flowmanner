@@ -287,6 +287,29 @@ class MissionLog(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
 
 
+class MissionExecutionOutbox(Base):
+    """Durable outbox for async mission execution dispatch (Comment 8).
+
+    When the Celery broker is unavailable at dispatch time, we persist an
+    outbox row in the same transaction that marked the mission QUEUED, then
+    fail closed with a retryable error. A worker/sweeper can later pick up the
+    row and dispatch, instead of silently falling back to an orphaned
+    asyncio.create_task that dies with the request.
+    """
+
+    __tablename__ = "mission_execution_outbox"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
+    mission_id: Mapped[str] = mapped_column(UUID(as_uuid=True), ForeignKey("missions.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    run_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    selected_plan_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    picked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class MissionImprovement(Base, TimestampMixin):
     __tablename__ = "mission_improvements"
 

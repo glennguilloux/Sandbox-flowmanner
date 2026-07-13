@@ -467,7 +467,7 @@ class UnifiedExecutor:
             if self._lease_manager is not None and self._lease_manager.lease_lost:
                 raise LeaseLostError("Lease lost before strategy execution")
 
-            result = await strategy.execute(workflow, exec_context, self, db)  # type: ignore[arg-type]
+            result = await strategy.execute(workflow, exec_context, self, db, run_id)  # type: ignore[arg-type]
         except BudgetExhausted as e:
             logger.warning("Budget exhausted for run %s: %s", run_id, e)
             await self._record_budget_exhausted(db, run_id, workflow, str(e))

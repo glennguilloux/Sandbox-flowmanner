@@ -67,6 +67,20 @@ class EvalRun(Base, TimestampMixin):
     aggregate_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     scores_by_category: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     per_case_scores: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+
+    # Comment 10: cost-per-correct-answer tracking for model rollout (Opus).
+    # total_cost_usd is the summed cost of every model generation call in the
+    # run (judge calls excluded unless judge_model is the same); total_latency_ms
+    # is the summed generation latency; routed_provider is the dominant provider
+    # observed across cases.
+    total_cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
+    total_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    routed_provider: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    judge_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Pass/correct rate derived from the rubric threshold (Comment 10).
+    pass_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
+    correct_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     langfuse_trace_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
