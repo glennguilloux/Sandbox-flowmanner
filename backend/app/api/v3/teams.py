@@ -82,10 +82,12 @@ async def create_team(
         select(WorkspaceMember).where(
             WorkspaceMember.workspace_id == payload.workspace_id,
             WorkspaceMember.user_id == user.id,
-            WorkspaceMember.role.in_(["admin", "owner"]),
         )
     )
-    if not membership.scalar_one_or_none():
+    member = membership.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    if member.role not in ("admin", "owner"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role")
 
     team = Team(
@@ -126,10 +128,12 @@ async def delete_team(
         select(WorkspaceMember).where(
             WorkspaceMember.workspace_id == team.workspace_id,
             WorkspaceMember.user_id == user.id,
-            WorkspaceMember.role.in_(["admin", "owner"]),
         )
     )
-    if not membership.scalar_one_or_none():
+    member = membership.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
+    if member.role not in ("admin", "owner"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role")
 
     await db.delete(team)
