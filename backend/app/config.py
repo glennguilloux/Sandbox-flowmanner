@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     LLAMACPP_LIGHT_URL: str = "http://10.0.4.1:11435"
     LITELLM_ENDPOINT: str = "http://localhost:4000"
 
+    # Comma-separated CIDR/IP list of PROXY hops we trust to provide a truthful
+    # X-Forwarded-For client IP. Only when the immediate TCP peer is in this
+    # set do we honor XFF for rate-limit client-IP resolution. Covers the
+    # homelab topology: VPS Nginx (public) -> WireGuard (10.99.0.0/16) ->
+    # homelab backend, plus localhost / Docker bridge / link-local.
+    RATE_LIMIT_TRUSTED_PROXIES: str = "127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16"
+
     QDRANT_URL: str = "http://localhost:6333"
     QDRANT_COLLECTION_NAME: str = "workflows_docs"
 
