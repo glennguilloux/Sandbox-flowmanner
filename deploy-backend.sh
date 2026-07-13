@@ -574,7 +574,7 @@ run_precheck() {
     exit 1
   fi
   log_info "Running precheck: $PRECHECK_SCRIPT"
-  if ! bash "$PRECHECK_SCRIPT"; then
+  if ! PRECHECK_SCOPE=backend bash "$PRECHECK_SCRIPT"; then
     log_error "precheck FAILED — aborting deploy"
     exit 1
   fi

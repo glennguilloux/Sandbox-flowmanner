@@ -310,14 +310,24 @@ check_model_path() {
 # --- Check 7 (F-3, P3): frontend lint + typecheck gate ----------------
 # The frontend lives in a SEPARATE repo (/home/glenn/FlowmannerV2-frontend).
 # This check runs THAT repo's own lint/typecheck when present so a broken
-# but compiling frontend cannot ship. It is SKIPPABLE via
-# FRONTEND_CHECK=skip (audit-logged) for operator escape hatches.
-# We deliberately do NOT run `npm run build` here — the deploy script
-# does the docker build on the VPS. Lint + tsc --noEmit catch the
-# "compiles but is broken" class the audit called out.
+# but compiling frontend cannot ship.
+#
+# SCOPE: this gate is scope-aware via PRECHECK_SCOPE (set by the caller):
+#   - frontend  -> FAIL-CLOSED (blocks a frontend deploy on lint/tsc errors)
+#   - backend   -> INFO-ONLY   (never blocks a backend deploy on unrelated
+#                                frontend lint debt in a separate repo)
+#   - all       -> FAIL-CLOSED (default)
+# Rationale: a backend P0 security fix must NOT be blocked because the
+# frontend repo has pre-existing lint errors it does not own.
+#
+# It is also SKIPPABLE via FRONTEND_CHECK=skip (audit-logged) for operator
+# escape hatches. We deliberately do NOT run `npm run build` here — the
+# deploy script does the docker build on the VPS. Lint + tsc --noEmit catch
+# the "compiles but is broken" class the audit called out.
 FRONTEND_DIR="${FRONTEND_DIR:-/home/glenn/FlowmannerV2-frontend}"
+PRECHECK_SCOPE="${PRECHECK_SCOPE:-all}"
 check_frontend_quality() {
-  log_step "Check 7/7: frontend lint + typecheck (F-3)"
+  log_step "Check 7/7: frontend lint + typecheck (F-3) [scope=$PRECHECK_SCOPE]"
   if [[ "${FRONTEND_CHECK:-}" == "skip" ]]; then
     log_warn "AUDIT: FRONTEND_CHECK=skip bypass invoked"
     record_skip "frontend_quality" "FRONTEND_CHECK=skip (audit-logged)"
@@ -335,11 +345,19 @@ check_frontend_quality() {
   local rc=0
   ( cd "$FRONTEND_DIR" && npm run lint --silent ) || rc=1
   if [[ $rc -ne 0 ]]; then
+    if [[ "$PRECHECK_SCOPE" == "backend" ]]; then
+      record_info "frontend_quality" "npm run lint FAILED in $FRONTEND_DIR — INFO-ONLY (backend scope, does not block backend deploy)"
+      return 0
+    fi
     record_fail "frontend_quality" "npm run lint FAILED in $FRONTEND_DIR — fix before deploy"
     return 0
   fi
   ( cd "$FRONTEND_DIR" && npx tsc --noEmit --skipLibCheck ) || rc=1
   if [[ $rc -ne 0 ]]; then
+    if [[ "$PRECHECK_SCOPE" == "backend" ]]; then
+      record_info "frontend_quality" "tsc --noEmit FAILED in $FRONTEND_DIR — INFO-ONLY (backend scope, does not block backend deploy)"
+      return 0
+    fi
     record_fail "frontend_quality" "tsc --noEmit FAILED in $FRONTEND_DIR — fix before deploy"
     return 0
   fi
