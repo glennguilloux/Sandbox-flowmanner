@@ -81,7 +81,6 @@ class TeamResponse(BaseModel):
     workspace_id: str
     name: str
     description: str
-    member_count: int = 0
     created_at: datetime
 
 

@@ -20,6 +20,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 WS_ID = "ws-1"
+WS_UUID = "11111111-1111-1111-1111-111111111111"  # 36-char, satisfies TeamCreateRequest.workspace_id
 TEAM_ID = "team-1"
 ADMIN_USER_ID = 1
 MEMBER_USER_ID = 2
@@ -60,6 +61,16 @@ def _member(user_id: int) -> MagicMock:
     m.role = "member"
     m.joined_at = "2026-01-02T00:00:00Z"
     return m
+
+
+def _team_obj() -> MagicMock:
+    t = MagicMock()
+    t.id = TEAM_ID
+    t.workspace_id = WS_ID
+    t.name = "Design Guild"
+    t.description = "Original description"
+    t.created_at = "2026-01-01T00:00:00Z"
+    return t
 
 
 def _user(user_id: int) -> MagicMock:
@@ -253,3 +264,73 @@ class TestUpdateTeam:
         data = resp.json()["data"]
         assert data["name"] == "Design Guild"
         assert data["description"] == "New description"
+
+
+# ── POST /teams (create_team authz: 404 before 403) ─────────────────────────
+
+
+class TestCreateTeamAuthz:
+    def test_nonmember_returns_404(self, v3_client, mock_db_session):
+        # membership lookup returns None → must be 404 (never 403, never leak existence)
+        _set_side_effects(mock_db_session, [_flag(True), _result(None)])
+        resp = v3_client.post(
+            "/api/v3/teams",
+            json={"name": "New Team", "workspace_id": WS_UUID},
+        )
+        assert resp.status_code == 404
+
+    def test_member_role_returns_403(self, v3_client, mock_db_session):
+        # workspace member with role != admin/owner → 403 (they know it exists)
+        _set_side_effects(
+            mock_db_session,
+            [_flag(True), _membership("member")],
+        )
+        resp = v3_client.post(
+            "/api/v3/teams",
+            json={"name": "New Team", "workspace_id": WS_UUID},
+        )
+        assert resp.status_code == 403
+
+
+# ── DELETE /teams/{id} (delete_team authz: 404 before 403) ──────────────────
+
+
+class TestDeleteTeamAuthz:
+    def test_nonmember_returns_404(self, v3_client, mock_db_session):
+        # team exists (404 not triggered), but membership lookup returns None → 404
+        _set_side_effects(
+            mock_db_session,
+            [_flag(True), _result(_team_obj()), _result(None)],
+        )
+        resp = v3_client.delete(f"/api/v3/teams/{TEAM_ID}")
+        assert resp.status_code == 404
+
+
+# ── TeamResponse.member_count removed (dead/misleading field) ───────────────
+
+
+class TestMemberCountField:
+    def test_field_absent_from_create_response(self, v3_client, mock_db_session):
+        async def _refresh(t):
+            t.created_at = "2026-01-01T00:00:00Z"
+
+        mock_db_session.refresh.side_effect = _refresh
+        _set_side_effects(
+            mock_db_session,
+            [_flag(True), _membership("admin")],
+        )
+        resp = v3_client.post(
+            "/api/v3/teams",
+            json={"name": "New Team", "workspace_id": WS_UUID},
+        )
+        assert resp.status_code == 201
+        assert "member_count" not in resp.json()["data"]
+
+    def test_field_absent_from_update_response(self, v3_client, mock_db_session):
+        _set_side_effects(
+            mock_db_session,
+            [_flag(True), _team(), _membership("admin")],
+        )
+        resp = v3_client.patch(f"/api/v3/teams/{TEAM_ID}", json={"name": "Renamed Guild"})
+        assert resp.status_code == 200
+        assert "member_count" not in resp.json()["data"]
