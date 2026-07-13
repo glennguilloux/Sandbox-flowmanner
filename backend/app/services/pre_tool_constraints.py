@@ -12,18 +12,15 @@ hard stop or a human-approval escalation at tool dispatch.
 
 Design invariants:
 
-* **Fail-open.** If the memory lookup raises (DB down, cycle, missing
-  table), we log and ALLOW the tool call. Constraints are an
-  additive safety net, never a hard dependency of the execution path —
-  a constraint store outage must never brick tool dispatch.
+* **Fail-closed on store outage.** If the memory lookup raises (DB down,
+  cycle, missing table), we log and DENY sensitive/destructive tools
+  (escalate them for human approval) rather than allow them. A constraint
+  store that can't be consulted must never widen permissions to allow-all.
+  Non-sensitive tools are allowed when the store is unreachable — a
+  low-blast-radius read/search proceeding is the safer failure mode than
+  halting unrelated work. (This is the inverse of the original fail-open
+  behavior, which let a store partition silently authorize every tool.)
 
-* **DESIGN DECISION: the gate is FAIL-OPEN.** If the constraint store is
-  unavailable, ALL tool calls are ALLOWED — including payment/send
-  categories. This is deliberate: bricking tool dispatch on a store blip
-  is worse than a brief allow-all window. The threat-model implication
-  (a constraint-store DoS/partition widens permissions to allow-all) is
-  accepted. A memory-store-independent static deny-list for payment/send
-  tools is a *future* hardening and is NOT implemented here.
 * **Workspace-scoped.** Constraints are loaded by
   ``(user_id, workspace_id)``; the service never crosses a workspace
   boundary. The substrate ``Workflow.user_id`` is a UUID *string* while
@@ -32,7 +29,10 @@ Design invariants:
 * **Deterministic verdict.** ``evaluate(tool_name)`` returns a
   ``ConstraintVerdict`` with one of three decisions: ``allow``,
   ``block`` (hard stop), or ``escalate`` (raise a HITL approval
-  interrupt). The caller decides what to do with it.
+  interrupt). The caller decides what to do with it — for a tool node the
+  ``escalate`` verdict raises ``HITLPaused`` so the run pauses and a human
+  must approve before the tool proceeds (see
+  ``NodeExecutor._handle_tool``).
 """
 
 from __future__ import annotations
@@ -55,6 +55,89 @@ logger = logging.getLogger(__name__)
 # is to ESCALATE to a human rather than silently forbidding the call.
 DEFAULT_CONSTRAINT_ACTION = "escalate"
 
+# Tools that can cause irreversible / high-blast-radius harm if they run
+# without a human at the wheel (payments, external sends, destructive
+# infra, credential/secret access, and the shell/code exec paths).
+#
+# Reliability contract (G-9): the constraint store is a *guardrail*. When
+# the store itself is unavailable (DB down, lookup exception), we FAIL
+# CLOSED for these tools — we never widen permissions to allow-all just
+# because the store we consult for an *allow* decision is unreachable.
+# This is the inverse of the old fail-open behavior, which let a
+# constraint-store partition silently authorize every tool.
+SENSITIVE_TOOLS: frozenset[str] = frozenset(
+    {
+        # Payments / money movement
+        "payment",
+        "pay",
+        "stripe",
+        "paypal",
+        "refund",
+        "transfer",
+        "send_payment",
+        # External sends / side effects with third parties
+        "send_email",
+        "send_sms",
+        "send_message",
+        "notify",
+        "webhook",
+        "publish",
+        "deploy",
+        # Destructive / infra
+        "shell",
+        "bash",
+        "terminal",
+        "code_executor",
+        "exec",
+        "run_command",
+        "delete",
+        "drop",
+        "drop_table",
+        "truncate",
+        "rm",
+        "rmrf",
+        # Credential / secret access
+        "get_secret",
+        "read_secret",
+        "rotate_key",
+        "access_token",
+        "oauth",
+    }
+)
+
+# Substrings that, if present in a tool name, classify it as sensitive
+# (covers common naming variants without enumerating every permutation).
+SENSITIVE_TOOL_SUBSTRINGS: tuple[str, ...] = (
+    "payment",
+    "pay_",
+    "refund",
+    "transfer",
+    "send_",
+    "deploy",
+    "shell",
+    "bash",
+    "exec",
+    "secret",
+    "drop",
+    "truncate",
+    "delete",
+    "rmrf",
+    "oauth",
+    "webhook",
+)
+
+
+def is_sensitive_tool(tool_name: str) -> bool:
+    """Best-effort classification of a tool as sensitive/destructive.
+
+    Used by the fail-closed fallback: when the constraint store cannot be
+    consulted, sensitive tools are DENIED rather than allowed.
+    """
+    t = tool_name.lower()
+    if t in SENSITIVE_TOOLS:
+        return True
+    return any(sub in t for sub in SENSITIVE_TOOL_SUBSTRINGS)
+
 # Verdict decision values.
 ALLOW = "allow"
 BLOCK = "block"
@@ -71,6 +154,9 @@ class ConstraintVerdict:
     triggered_claim_id: str | None = None
     # Human-readable subject of the triggered constraint (for the interrupt).
     constraint_subject: str | None = None
+    # True when the constraint store was unreachable and we fell back to a
+    # fail-closed deny. Surfaced so callers/tests can assert fail-closed.
+    lookup_failed: bool = False
 
     @property
     def blocked(self) -> bool:
@@ -122,35 +208,31 @@ class PreToolConstraints:
     async def _load(self, user_id: int | None, workspace_id: str) -> list[_Constraint]:
         """Load + parse the user's active ``constraint`` claims.
 
-        Fail-open: any exception returns an empty list (no constraints →
-        everything allowed). The DB query is scoped to
-        ``(user_id, workspace_id)`` when we have an int user_id; when we
-        only have a workspace, we still scope by workspace (a workspace-
-        level standing constraint applies to every run in that workspace).
+        Returns the parsed constraints. Raises on any store/lookup error so
+        the caller (``evaluate``) can FAIL CLOSED for sensitive tools
+        rather than silently authorizing every call. An empty list means
+        the store was reachable and returned no matching constraints — NOT
+        that the store is down.
+
+        The DB query is scoped to ``(user_id, workspace_id)`` when we have
+        an int user_id; when we only have a workspace, we still scope by
+        workspace (a workspace-level standing constraint applies to every
+        run in that workspace).
         """
         if self._cache is not None:
             return self._cache
-        try:
-            stmt = select(PersonalMemoryClaim).where(
-                PersonalMemoryClaim.claim_type == "constraint",
-                PersonalMemoryClaim.workspace_id == workspace_id,
-                PersonalMemoryClaim.deleted_at.is_(None),
-            )
-            if user_id is not None:
-                stmt = stmt.where(PersonalMemoryClaim.user_id == user_id)
-            result = await self._db.execute(stmt)
-            rows = result.scalars().all()
-            parsed: list[_Constraint] = [self._parse(row) for row in rows]
-            self._cache = parsed
-            return parsed
-        except Exception as exc:  # fail-open by design
-            logger.warning(
-                "PreToolConstraints: constraint load failed (fail-open), allowing tool call. workspace=%s error=%s",
-                workspace_id,
-                exc,
-            )
-            self._cache = []
-            return self._cache
+        stmt = select(PersonalMemoryClaim).where(
+            PersonalMemoryClaim.claim_type == "constraint",
+            PersonalMemoryClaim.workspace_id == workspace_id,
+            PersonalMemoryClaim.deleted_at.is_(None),
+        )
+        if user_id is not None:
+            stmt = stmt.where(PersonalMemoryClaim.user_id == user_id)
+        result = await self._db.execute(stmt)
+        rows = result.scalars().all()
+        parsed: list[_Constraint] = [self._parse(row) for row in rows]
+        self._cache = parsed
+        return parsed
 
     @staticmethod
     def _parse(row: PersonalMemoryClaim) -> _Constraint:
@@ -200,12 +282,48 @@ class PreToolConstraints:
 
         Returns:
             ``ConstraintVerdict`` — ``allow`` unless a constraint matches.
+
+        Reliability contract (G-9): the constraint store is a guardrail, so
+        on a *store lookup failure* we FAIL CLOSED. A sensitive/destructive
+        tool is DENIED (escalated to a human) instead of silently allowed;
+        a non-sensitive tool is allowed (the guardrail degraded, but a
+        low-blast-radius tool proceeding is the safer of the two failure
+        modes). An empty/clean result from a reachable store means no
+        constraint matches → ``allow`` for every tool.
         """
         if not workspace_id:
             # No workspace to scope by — cannot enforce; fail-open.
             return ConstraintVerdict(ALLOW, "no workspace_id; fail-open")
 
-        constraints = await self._load(user_id, workspace_id)
+        try:
+            constraints = await self._load(user_id, workspace_id)
+        except Exception as exc:
+            # Store unreachable → FAIL CLOSED. Don't trust an empty list to
+            # mean "no constraints"; it could mean "lookup blew up".
+            logger.error(
+                "PreToolConstraints: constraint load FAILED — failing closed. "
+                "workspace=%s tool=%s error=%s",
+                workspace_id,
+                tool_name,
+                exc,
+            )
+            if is_sensitive_tool(tool_name):
+                return ConstraintVerdict(
+                    decision=ESCALATE,
+                    reason=(
+                        f"Constraint store lookup failed; denying sensitive tool "
+                        f"'{tool_name}' by fail-closed policy (constraint store outage)."
+                    ),
+                    lookup_failed=True,
+                )
+            # Non-sensitive tool: the guardrail degraded but letting a
+            # low-risk read/search tool proceed is the safer failure mode.
+            return ConstraintVerdict(
+                ALLOW,
+                reason=f"constraint store unreachable; allow non-sensitive tool '{tool_name}'",
+                lookup_failed=True,
+            )
+
         if not constraints:
             return ConstraintVerdict(ALLOW, "no active constraints")
 
