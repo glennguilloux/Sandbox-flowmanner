@@ -19,6 +19,8 @@ from app.api.v2.cursor_pagination import CursorParams, cursor_paginated
 from app.api.v2.idempotency import idempotency
 from app.api.v2.rate_limit import rate_limit
 from app.database import get_db
+import structlog
+logger = structlog.get_logger(__name__)
 from app.schemas.mission import (
     MissionCreate,
     MissionExecuteRequest,
@@ -510,6 +512,23 @@ async def approve_task(
         mission_obj.status = MissionStatus.QUEUED
     await db.commit()
 
+    # G-10 (P1): mirror the v1 HITL inbox wiring — resolving the
+    # interrupt must actually signal the executor to resume the paused run.
+    # v2 previously only flipped DB flags, so approved tasks never
+    # re-entered execution. Reuse the same durable Celery resume task.
+    run_id = (matching[0].get("run_id") if isinstance(matching[0], dict) else None)
+    try:
+        from app.tasks.hitl_resume import dispatch_hitl_resume
+
+        dispatch_hitl_resume(
+            mission_id=str(mission_id),
+            run_id=str(run_id) if run_id else "",
+            inbox_item_id=str(interrupt_id),
+            resolution="approved",
+        )
+    except Exception as exc:  # noqa: BLE001 — resume signal must not fail the HTTP 200
+        logger.warning("hitl resume signal failed for %s: %s", mission_id, exc)
+
     return ok(
         {
             "status": "approved",
@@ -568,6 +587,22 @@ async def reject_task(
         mission_obj.status = MissionStatus.FAILED
         mission_obj.error_message = f"Task '{task_obj.title if task_obj else task_id}' rejected by user"
         await db.commit()
+
+    # G-10 (P1): mirror the v1 HITL inbox wiring — rejecting the
+    # interrupt must signal the executor so the paused run fails cleanly
+    # (and does not hang in PAUSED waiting on a resolution that never comes).
+    run_id = (matching[0].get("run_id") if isinstance(matching[0], dict) else None)
+    try:
+        from app.tasks.hitl_resume import dispatch_hitl_resume
+
+        dispatch_hitl_resume(
+            mission_id=str(mission_id),
+            run_id=str(run_id) if run_id else "",
+            inbox_item_id=str(interrupt_id),
+            resolution="rejected",
+        )
+    except Exception as exc:  # noqa: BLE001 — resume signal must not fail the HTTP 200
+        logger.warning("hitl reject signal failed for %s: %s", mission_id, exc)
 
     return ok(
         {
