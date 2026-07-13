@@ -46,19 +46,23 @@ def execute_swarm_task(self, task_id: str, agent_id: str, payload: dict[str, Any
         db = SessionLocal()
 
         try:
-            # Get task record
-            task = asyncio.run(db.run_sync(lambda s: s.query(SwarmTask).filter(SwarmTask.id == task_id).first()))
+            # Fetch the task + agent in a SINGLE sync scope (one event loop,
+            # not one asyncio.run() per query). run_sync hands the lambda a
+            # sync-capable session that supports the legacy .query() API.
+            task, agent = asyncio.run(
+                db.run_sync(
+                    lambda s: (
+                        s.query(SwarmTask).filter(SwarmTask.id == task_id).first(),
+                        s.query(SwarmAgent).filter(SwarmAgent.agent_instance_id == agent_id).first(),
+                    )
+                )
+            )
             if not task:
                 raise ValueError(f"Task {task_id} not found")
 
             # Update task status to processing
             task.status = "processing"
             db.commit()
-
-            # Get agent info
-            agent = asyncio.run(
-                db.run_sync(lambda s: s.query(SwarmAgent).filter(SwarmAgent.agent_instance_id == agent_id).first())
-            )
 
             # Initialize services
             model_router = get_agent_model_router_service()
