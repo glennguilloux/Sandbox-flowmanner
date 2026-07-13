@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from dataclasses import asdict, dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 from app.models.substrate_models import SubstrateEvent, SubstrateEventType
@@ -64,7 +64,7 @@ class BaselineVersion:
         return asdict(self)
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     FAILURE = "failure"
     WARNING = "warning"
     INFO = "info"

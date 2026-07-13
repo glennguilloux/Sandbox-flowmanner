@@ -148,8 +148,7 @@ class GraphStrategy(ExecutionStrategy):
             if current in result:
                 continue
             result.add(current)
-            for edge in workflow.dependency_map.get(current, []):
-                queue.append(edge.target)
+            queue.extend(edge.target for edge in workflow.dependency_map.get(current, []))
         return result
 
     def _evaluate_condition(self, edge, node_outputs: dict[str, Any]) -> bool:

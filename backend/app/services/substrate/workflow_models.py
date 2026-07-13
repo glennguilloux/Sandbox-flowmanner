@@ -23,10 +23,10 @@ from app.models.capability_models import Budget
 __all__ = [
     "EffectClass",
     "NodeType",
+    "ReasoningProfile",
     "StrategyResult",
     "Workflow",
     "WorkflowEdge",
-    "ReasoningProfile",
     "WorkflowNode",
     "WorkflowType",
 ]

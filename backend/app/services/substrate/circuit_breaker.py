@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 # ── Enums & dataclasses ─────────────────────────────────────────────
 
 
-class CircuitBreakerState(str, enum.Enum):
+class CircuitBreakerState(enum.StrEnum):
     """Circuit breaker states."""
 
     CLOSED = "closed"
