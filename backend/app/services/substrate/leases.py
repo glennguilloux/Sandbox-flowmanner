@@ -20,12 +20,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import text
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
