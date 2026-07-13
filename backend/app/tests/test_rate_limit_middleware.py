@@ -30,6 +30,13 @@ import jwt
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+# Force the full SQLAlchemy model graph to register BEFORE the middleware
+# lazily imports app.services.auth_service inside _resolve_principal. In
+# production the app loads app.models at startup, so the auth_service <->
+# app.models circular edge (RefreshToken) is already resolved before any
+# request reaches the middleware. In an isolated test process the Bearer-token
+# path would otherwise be the FIRST importer and hit a partial-init ImportError.
+import app.models  # noqa: F401  (import-order side effect, mirrors app startup)
 from app.api.middleware.rate_limit import GlobalRateLimitMiddleware
 from app.config import settings
 
