@@ -389,6 +389,25 @@ class ControlFlowAgent:
     ) -> dict[str, Any]:
         """Record a human approval decision and resume the flow.
 
+        .. warning::
+            STATUS — UN-WIRED SCAFFOLDING.
+
+            This is the *correct* approval-callback implementation (it explicitly
+            flips tool status, clears ``awaiting_approval``/``current_approval_request``,
+            and resumes the graph from the same checkpointer thread). However, as of
+            2026-07-13 NO production caller reaches it:
+
+            - ``app/api/v1/governance.py`` exposes an endpoint that calls this method,
+              but that route has no live client (the real human-in-the-loop path is the
+              HITL inbox, which does not yet invoke ``resolve_approval``).
+            - The graph dead-ends at ``_check_approval_result`` returning "pending"
+              (routing to END), so without an external decision recorded here the flow
+              stalls. Until the HITL inbox is wired to call this method, approvals are
+              effectively unresolvable in production.
+
+            Do NOT treat a green import/test of this method as proof the approval path
+            works end-to-end.
+
         This is the ACTUAL approval callback path — the missing link that the
         earlier defensive re-derivation was masking. The graph dead-ends at
         ``_check_approval_result`` returning "pending" (which routes to END),

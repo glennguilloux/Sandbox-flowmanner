@@ -153,7 +153,10 @@ if _sio_available:
                 logger.debug("WebSocket authenticated: user %d (sid=%s)", user_id, sid)
             else:
                 logger.debug("WebSocket connect: no valid JWT (sid=%s)", sid)
-                # Don't reject — allow anonymous for mission/graph subscriptions
+                # Allow anonymous socket establishment, but all data subscriptions
+                # below (subscribe_mission / subscribe_graph / workspace_subscribe)
+                # reject anonymous sockets and require a tenant/membership check,
+                # so an unauthenticated socket can join no data rooms.
         except Exception as e:
             logger.warning("WebSocket connect auth error (sid=%s): %s", sid, e)
 
