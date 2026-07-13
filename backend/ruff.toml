@@ -135,3 +135,9 @@ ignore = [
 # runtime-needed, not deferrable to TYPE_CHECKING (same precedent as
 # schemas/personal_memory.py).
 "app/schemas/mission.py" = ["TCH001", "TCH003"]
+# workspace_v3.py: TeamResponse.created_at / TeamMemberResponse.joined_at use
+# datetime as Pydantic model fields; with `from __future__ import annotations`
+# these must resolve at runtime, so datetime stays a top-level import (cannot
+# defer to TYPE_CHECKING). TCH001 is a false positive here — same precedent as
+# schemas/mission.py.
+"**/workspace_v3.py" = ["TCH001", "TCH003"]

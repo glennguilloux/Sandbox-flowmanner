@@ -85,6 +85,22 @@ class TeamResponse(BaseModel):
     created_at: datetime
 
 
+class TeamMemberResponse(BaseModel):
+    user_id: int
+    role: str
+    joined_at: datetime
+
+
+class TeamMemberCreateRequest(BaseModel):
+    user_id: int
+    role: str = "member"
+
+
+class TeamUpdateRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+
+
 class AuditLogEntry(BaseModel):
     id: str
     actor_id: int | None = None
