@@ -241,3 +241,43 @@ async def _fetch_source(
     count_stmt = select(func.count()).select_from(model).where(base)
     total = int((await db.execute(count_stmt)).scalar_one() or 0)
     return rows, total
+
+
+# ── ControlFlowAgent HITL approval resume ───────────────────────────────────
+# The ControlFlowAgent graph dead-ends at _check_approval_result returning
+# "pending" (routes to END). The decision can ONLY arrive through this explicit
+# callback, which flips the tool status and clears awaiting_approval, then
+# re-invokes the graph to continue. See app/governance/controlflow/agent.py.
+from pydantic import BaseModel
+
+from app.governance.controlflow.agent import get_agent
+
+
+class ApprovalDecision(BaseModel):
+    decision: str  # "approved" | "rejected"
+    tool_index: int | None = None  # optional; omit to decide all approval-required tools
+
+
+@router.post("/agents/{session_id}/approval", summary="Resolve a ControlFlowAgent approval request")
+async def resolve_agent_approval(
+    session_id: str,
+    body: ApprovalDecision,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Record a human approval/rejection for a paused ControlFlowAgent session.
+
+    Body: {"decision": "approved"|"rejected", "tool_index"?: int}
+    Auth: any authenticated user (the decision is audited via approved_by=user.id).
+    """
+    agent = get_agent()
+    try:
+        result = await agent.resolve_approval(
+            session_id=session_id,
+            decision=body.decision,
+            approved_by=user.id,
+            tool_index=body.tool_index,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return result

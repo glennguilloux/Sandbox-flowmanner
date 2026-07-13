@@ -362,22 +362,16 @@ class ControlFlowAgent:
         return state
 
     def _check_approval_result(self, state: AgentState) -> str:
-        """Check approval result"""
+        """Check approval result.
+
+        Returns "pending" while awaiting a human decision. The decision is
+        recorded by the explicit approval callback (``resolve_approval``), which
+        flips the tool status and clears ``awaiting_approval``. Until that
+        callback runs, we MUST stay in "pending" — we never infer resolution
+        here, because doing so would mask a missing human-in-the-loop decision.
+        """
         if state["awaiting_approval"]:
-            # The human/approval path records its decision by setting each
-            # tool's status (approved/rejected). There is no separate flag
-            # reset on that path, so re-derive whether we are still waiting.
-            # Keep waiting only if a tool still needs a decision.
-            unresolved = [
-                t
-                for t in state["pending_tools"]
-                if t["requires_approval"] and t["status"] not in ("approved", "rejected")
-            ]
-            if unresolved:
-                return "pending"
-            # All approval-required tools have a definitive status.
-            state["awaiting_approval"] = False
-            state["current_approval_request"] = None
+            return "pending"
 
         # Check if tools were approved or rejected
         for tool in state["pending_tools"]:
@@ -385,6 +379,77 @@ class ControlFlowAgent:
                 return "rejected"
 
         return "approved"
+
+    async def resolve_approval(
+        self,
+        session_id: str,
+        decision: str,
+        approved_by: int | None = None,
+        tool_index: int | None = None,
+    ) -> dict[str, Any]:
+        """Record a human approval decision and resume the flow.
+
+        This is the ACTUAL approval callback path — the missing link that the
+        earlier defensive re-derivation was masking. The graph dead-ends at
+        ``_check_approval_result`` returning "pending" (which routes to END),
+        so the only way to progress is an external decision recorded here:
+
+          1. Load the session state.
+          2. Flip the relevant tool(s) to "approved"/"rejected" via
+             ``update_tool_execution`` (records approved_at / approved_by).
+          3. Clear ``awaiting_approval`` + ``current_approval_request`` — this is
+             the explicit flag reset the old code inferred defensively.
+          4. Re-invoke the graph with the SAME checkpointer thread_id so it
+             continues past the pending->END dead-end (executes approved tools
+             or generates a rejection response).
+
+        Args:
+            session_id: The agent session/thread id.
+            decision: "approved" or "rejected".
+            approved_by: User id of the human decision-maker (for audit).
+            tool_index: Optional index into pending_tools. If omitted, all
+                approval-required tools are set to the same decision.
+        """
+        if decision not in ("approved", "rejected"):
+            raise ValueError(f"decision must be 'approved' or 'rejected', got {decision!r}")
+
+        state = self._load_state(session_id)
+        if not state:
+            raise ValueError(f"No agent session found for session_id={session_id}")
+        if not state["awaiting_approval"]:
+            raise ValueError(f"Session {session_id} is not currently awaiting approval")
+
+        targets = [state["pending_tools"][tool_index]] if tool_index is not None else state["pending_tools"]
+        for tool in targets:
+            if tool["requires_approval"]:
+                tool = update_tool_execution(tool, status=decision, approved_by=approved_by)
+
+        # Explicit flag reset — this is the real callback, not inference.
+        state["awaiting_approval"] = False
+        state["current_approval_request"] = None
+        self._save_state(state)
+
+        # Resume the graph from the same checkpointer thread so it continues
+        # past the pending->END dead-end.
+        try:
+            result = await self.graph.ainvoke(
+                state,
+                config={"configurable": {"thread_id": session_id}},
+            )
+            state = result
+        except Exception as e:
+            logger.error("Error resuming graph after approval: %s", e)
+            state = add_message_to_state(state, "assistant", f"I encountered an error resuming: {e!s}")
+
+        self._save_state(state)
+        return {
+            "success": True,
+            "session_id": session_id,
+            "decision": decision,
+            "awaiting_approval": state["awaiting_approval"],
+            "approval_request": state["current_approval_request"],
+            "state": state_to_dict(state),
+        }
 
     async def _execute_tools_node(self, state: AgentState) -> AgentState:
         """Execute approved tools"""
