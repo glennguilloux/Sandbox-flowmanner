@@ -40,6 +40,11 @@ logger = logging.getLogger(__name__)
 
 _LOCAL_MODEL_PREFIXES = ("llamacpp/", "local/", "ollama/")
 
+# Heuristic chars-per-token used only as a fallback for pre-call cost
+# estimation when tiktoken is unavailable. Matches token_counter.py's
+# _CHARS_PER_TOKEN so the estimate is consistent with actual billing.
+_CHARS_PER_TOKEN_FALLBACK = 4.0
+
 
 def _is_local_model(model_id: str | None) -> bool:
     """Return True if a model id clearly denotes a local/self-hosted model."""
@@ -224,6 +229,57 @@ class BudgetEnforcer:
         # Check iterations
         return not budget.iterations_used >= budget.max_iterations
 
+    def estimate_call_cost(
+        self,
+        model_id: str,
+        messages: list[dict[str, Any]],
+        max_tokens: int | None = None,
+    ) -> Decimal:
+        """Conservatively estimate the cost of a single LLM call BEFORE it is made.
+
+        The estimate is intentionally pessimistic so ``max_cost_usd`` remains a
+        true ceiling (Substrate invariant I.14: no LLM call if it would exceed
+        budget). It prices every prompt token at the model's input rate and the
+        *expected* completion at the output rate, then rounds UP.
+
+        Args:
+            model_id: The model that will actually be served (post-circuit-breaker
+                resolution). Estimation uses this so the projection matches the call.
+            messages: Chat messages; prompt tokens are counted (tiktoken if available,
+                else a chars/4 heuristic) and rounded up.
+            max_tokens: Expected max completion tokens; falls back to the
+                default request size (2000) so a call that hits its cap cannot slip
+                under the budget.
+
+        Returns:
+            Estimated cost in USD as a Decimal (rounded up to 1e-8).
+        """
+        import math
+
+        # ── Prompt token estimate (round up) ──
+        def _count(text: str) -> int:
+            try:
+                from app.tools.token_counter import TokenCounterTool
+
+                tc = TokenCounterTool()
+                n = tc._count_tokens(text, model_id, False)[0]
+                if n > 0:
+                    return n
+            except Exception:
+                pass
+            # Heuristic fallback: chars/4, rounded up, min 1.
+            return max(1, math.ceil(len(text) / _CHARS_PER_TOKEN_FALLBACK)) if text else 1
+
+        prompt_text = "\n".join(
+            str(m.get("content", "")) for m in messages if isinstance(m, dict)
+        )
+        prompt_tokens = _count(prompt_text)
+
+        # ── Completion estimate: use the real ceiling, not a best guess ──
+        completion_tokens = int(max_tokens) if max_tokens else 2000
+
+        return self.pricing.estimate(model_id, prompt_tokens, completion_tokens)
+
     async def call(
         self,
         *,
@@ -286,6 +342,16 @@ class BudgetEnforcer:
         budget.iterations_used += 1
         start_time = time.monotonic()
 
+        # R-5 (I.14): PRE-ESTIMATE the cost of THIS call before the provider
+        # round-trip. The post-call reconciliation (below) can only detect an
+        # overshoot after it has already happened; it must not be the only
+        # guard. Estimate against the model that will actually be served
+        # (resolved after circuit-breaker selection below), so the projection
+        # matches the call. The estimate is conservative (prompt + full
+        # max_tokens ceiling), so max_cost_usd stays a true ceiling.
+        if max_tokens is None:
+            max_tokens = 2000
+
         # Item #6: Track the originally requested model for provenance.
         requested_model = model_id
 
@@ -305,15 +371,45 @@ class BudgetEnforcer:
 
         if cb_enabled and db_session and workspace_id:
             try:
-                from app.services.substrate.provider_fallback import resolve_provider
+                from app.services.substrate.provider_fallback import (
+                    AllProvidersOpen,
+                    resolve_provider,
+                )
 
                 prov = await resolve_provider(db_session, workspace_id, model_id, check_circuit_breaker=True)
                 actual_provider = prov.served_provider
                 provenance = prov
+            except AllProvidersOpen:
+                # R-11 (fail closed): every provider's breaker is OPEN. The
+                # caller picked a model it cannot safely serve — do NOT silently
+                # fall back to the intended model (that would run a provider we
+                # already decided was unsafe). Propagate so the call is denied.
+                raise
             except Exception as cb_err:
-                # CB check failure must never block LLM calls — log and continue
-                logger.debug("Provider resolution skipped: %s", cb_err)
+                # Genuinely transient resolution errors (DB blip, serialization)
+                # fall back to the intended model, but at ERROR level so the
+                # skip is observable rather than hidden at debug.
+                logger.error(
+                    "Provider resolution skipped (transient error, using intended model): %s",
+                    cb_err,
+                )
                 actual_provider = model_id
+
+        # R-5 (I.14): PRE-ESTIMATE this call's cost against the model that will
+        # actually be served (actual_provider, post-circuit-breaker resolution)
+        # and RAISE before any provider/network round-trip if it would push
+        # spend past max_cost_usd. This is the real cap; the post-call
+        # reconciliation below is only a safety net for mis-priced estimates.
+        estimated_cost = self.estimate_call_cost(actual_provider, messages, max_tokens)
+        remaining = budget.max_cost_usd - budget.spent_usd
+        if estimated_cost > remaining:
+            reason = (
+                f"Estimated cost ${estimated_cost:.4f} for {actual_provider} "
+                f"exceeds remaining budget ${remaining:.4f}/${budget.max_cost_usd:.2f}"
+            )
+            logger.warning("Budget pre-estimate blocked LLM call: %s", reason)
+            await self._record_budget_event(run_id, mission_id, task_id, reason, budget)
+            raise BudgetExhausted(reason, budget)
 
         try:
             # Route through ModelRouter (primary path)

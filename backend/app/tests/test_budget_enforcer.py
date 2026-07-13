@@ -22,7 +22,7 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
 from decimal import Decimal
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -212,3 +212,71 @@ class TestSubstitutionTagging:
         # Item #6: provenance fields in event log
         assert captured.get("requested_model") == "openai/gpt-4o"
         assert captured.get("degraded") is True
+
+
+class TestPreEstimateBudgetCap:
+    async def test_overshoot_estimate_raises_before_provider_call(self):
+        """R-5 (I.14): a call whose estimated cost exceeds the remaining budget
+        must raise BudgetExhausted BEFORE any provider/model round-trip.
+
+        We use a tiny budget and a pricey model with a large prompt so the
+        conservative pre-estimate blows the cap. The ModelRouter is patched
+        with a beacon that fails the test if it is ever reached.
+        """
+        router_hit = {"called": False}
+
+        class _BeaconRouter:
+            def __init__(self, *a, **k):
+                pass
+
+            async def route_request(self, *a, **k):
+                router_hit["called"] = True
+                raise AssertionError("router must NOT be called when estimate exceeds budget")
+
+        # $0.05 cap; gpt-4o input $5/M, output $15/M, 2000 completion ceiling.
+        # A 2000-char prompt alone prices ~ (2000/4=500 tokens)*$5/1e6 = $0.0025
+        # plus 2000 completion tokens * $15/1e6 = $0.03 -> ~$0.0325 > $0.05? No.
+        # Make the cap tiny so it is guaranteed over: cap = $0.005.
+        budget = Budget(max_cost_usd=Decimal("0.005"))
+        enforcer = BudgetEnforcer()
+
+        with patch("app.services.llm_router.ModelRouter", new=_BeaconRouter):
+            with pytest.raises(Exception) as excinfo:
+                await enforcer.call(
+                    budget=budget,
+                    model_id="gpt-4o",
+                    messages=[
+                        {"role": "user", "content": "x" * 4000},
+                        {"role": "system", "content": "y" * 4000},
+                    ],
+                    max_tokens=4000,
+                )
+
+        # The raised error must be the budget guard, and the router must be
+        # untouched (no LLM/httpx call happened).
+        assert router_hit["called"] is False
+        assert "Budget" in type(excinfo.value).__name__
+
+    async def test_under_cap_proceeds_and_records(self):
+        """Sanity: a call well within budget still proceeds through the router
+        and records spend (pre-estimate gate does not block valid calls)."""
+        enforcer = BudgetEnforcer()
+        captured = {}
+
+        async def fake_record_llm_event(**kwargs):
+            captured.update(kwargs)
+
+        # Reset shared router state so this test does not depend on order.
+        _FakeRouter.route_error = None
+        with (
+            patch("app.services.llm_router.ModelRouter", new=_FakeRouter),
+            patch.object(enforcer, "_record_llm_event", new=fake_record_llm_event),
+        ):
+            result = await enforcer.call(
+                budget=Budget(max_cost_usd=Decimal("10.00")),
+                model_id="deepseek-chat",
+                messages=[{"role": "user", "content": "hi"}],
+            )
+
+        assert result["success"] is True
+        assert captured.get("cost_usd") is not None

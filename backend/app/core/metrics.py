@@ -188,6 +188,25 @@ def record_model_fallback(success: bool, provider: str = "unknown") -> None:
         model_fallback_success.labels(provider=provider).inc()
 
 
+# --- Circuit Breaker guardrail failures (R-4 fix) ---------------------------
+
+circuit_breaker_guard_failed_total = Counter(
+    "flowmanner_circuit_breaker_guard_failed_total",
+    "Circuit breaker guardrail check/record failures (fail-closed or swallowed)",
+    ["stage"],  # "check" (CB check error) or "record" (CB record error)
+)
+
+
+def record_circuit_breaker_guard_failure(stage: str) -> None:
+    """Record that the per-mission circuit breaker guardrail failed.
+
+    Used when check_circuit_breaker / record_circuit_breaker_call hit an
+    exception so the failure is observable rather than silently swallowed
+    (R-4). ``stage`` is ``"check"`` or ``"record"``.
+    """
+    circuit_breaker_guard_failed_total.labels(stage=stage).inc()
+
+
 # ─── Memory Extraction Metrics ─────────────────────────────────────
 
 memory_extraction_total = Counter(
