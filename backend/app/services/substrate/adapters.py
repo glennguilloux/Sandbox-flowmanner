@@ -76,6 +76,7 @@ _TASK_TYPE_MAP: dict[str, NodeType] = {
     "browser_screenshot": NodeType.BROWSER_SCREENSHOT,
     "browser_close": NodeType.BROWSER_CLOSE,
     "approval": NodeType.APPROVAL,
+    "parallel": NodeType.FAN_OUT,
 }
 
 
