@@ -1,12 +1,10 @@
 # FlowManner Mission Templates
-
-A curated library of **35 built-in mission templates** shipped via
+A curated library of **47 built-in mission templates** shipped via
 `backend/seed_templates.py`. Each template is a ready-to-run workflow DAG you
 can instantiate from the canvas — they are the starting point for a new
 mission, not the finished product, so treat them as scaffolds to customize.
 
 ## How templates become workflows
-
 - `seed_templates.py` registers each template as a `MissionTemplate`
   (`is_builtin=True`). Seeding is **idempotent**: if built-in templates
   already exist it skips, so a re-run won't duplicate them.
@@ -16,20 +14,17 @@ mission, not the finished product, so treat them as scaffolds to customize.
   strategy executes it.
 
 ## Node types used
-
-Templates are authored exclusively with these canvas node types:
-
 | Type | Role |
 |------|------|
 | `start` | Entry point |
 | `task` | LLM / tool execution step |
-| `transform` | Data reshape (`jq` / `text`) between steps |
+| `transform` | Data reshape (jq / text) between steps |
 | `condition` | Branch on an expression — divergent path |
 | `approval` | Human-in-the-loop gate |
 | `log` | Record a step / audit entry |
-| `loop` | Recurring cadence (e.g. `while`, daily/weekly) |
+| `loop` | Recurring cadence (e.g. while, daily/weekly) |
 | `webhook` | External trigger / inbound event |
-| `parallel` | Fan-out to concurrent branches → `NodeType.FAN_OUT` |
+| `parallel` | Fan-out to concurrent branches → NodeType.FAN_OUT |
 | `rag_query` | Retrieval-augmented lookup against a collection |
 | `end` | Terminal node |
 
@@ -38,84 +33,85 @@ Templates are authored exclusively with these canvas node types:
 > node joins on in-degree — no explicit `FAN_IN` node is required.
 
 ## Categories
-
-The library spans 6 categories: `automation` (10), `data_pipeline` (7),
-`integration` (6), `Research & Analysis` (4), `Software Engineering` (4),
-`approval` (4).
+The library spans 6 categories: `Research & Analysis` (5), `Software Engineering` (6), `approval` (6), `automation` (13), `data_pipeline` (9), `integration` (8).
 
 ---
 
 ## Catalog
-
-### automation (10)
-
+### Research & Analysis (5)
 | Template | Icon | Priority | Nodes | Node types |
 |----------|------|----------|-------|------------|
-| API Health Monitor & Alert | Activity | high | 7 | loop, task, condition, log, start, end |
-| Customer Support Ticket Triage | Headphones | high | 9 | webhook, task, condition, log, start, end |
-| Social Post Generator & Scheduler | Megaphone | medium | 7 | task, transform, approval, start, end |
-| Weekly Competitor Pulse | Radar | medium | 7 | loop, task, transform, approval, start, end |
-| Incident Response Runbook | Siren | high | 9 | webhook, task, condition, approval, start, end |
-| Meeting Notes → Action Items | CalendarCheck | medium | 8 | webhook, task, approval, start, end |
-| Customer Feedback Tagger | MessageSquareHeart | medium | 8 | webhook, task, condition, log, start, end |
-| Anomalous Login Responder | ShieldAlert | high | 8 | webhook, task, condition, approval, log, start, end |
-| Cloud Cost Spike Investigator | DollarSign | high | 10 | webhook, task, transform, condition, approval, log, start, end |
-| Stale PR Auto-Nagger | MessageCircle | low | 8 | loop, task, transform, condition, log, start, end |
+| Research Report | BookOpen | high | 7 | approval, end, start, task |
+| Stale Documentation Detector | BookCopy | low | 9 | approval, condition, end, log, loop, start, task, transform |
+| Churn Risk Auto-Intervention | UserMinus | high | 9 | condition, end, log, rag_query, start, task, transform, webhook |
+| Feature Request De-duplicator | Layers | medium | 9 | condition, end, log, rag_query, start, task, webhook |
+| Market Research Synthesis | Sparkles | medium | 11 | end, parallel, rag_query, start, task, transform, webhook |
 
-### data_pipeline (7)
-
+### Software Engineering (6)
 | Template | Icon | Priority | Nodes | Node types |
 |----------|------|----------|-------|------------|
-| Data Pipeline — Extract, Transform, Load | Database | medium | 5 | task, transform, start, end |
-| Multi-Step Parallel Processing | GitBranch | medium | 8 | parallel, task, start, end |
-| Scheduled DB Backup & Integrity Check | Database | medium | 8 | loop, task, condition, log, start, end |
-| Data Quality Monitor | Gauge | medium | 7 | loop, task, condition, log, start, end |
-| Top Performer Content Booster | Megaphone | medium | 10 | loop, task, transform, condition, approval, log, start, end |
-| API Ingestion & Deduplication | Database | medium | 8 | loop, task, transform, condition, log, start, end |
-| A/B Test Auto-Evaluator | GitBranch | medium | 7 | loop, task, condition, log, start, end |
+| Code Review Agent | GitPullRequest | high | 6 | approval, end, start, task |
+| CI/CD Deploy Gate | Rocket | high | 10 | approval, condition, end, log, start, task, webhook |
+| P0 Bug Triage Router | Bug | high | 8 | condition, end, log, start, task, webhook |
+| Dependency Vulnerability Patch Pipeline | ShieldCheck | high | 8 | approval, condition, end, log, loop, start, task |
+| Code Review & Auto-Remediation | Bug | medium | 10 | approval, condition, end, log, rag_query, start, task, transform, webhook |
+| Vulnerability Patch Orchestration | ShieldCheck | high | 13 | approval, condition, end, parallel, rag_query, start, task, transform, webhook |
 
-### integration (6)
-
+### approval (6)
 | Template | Icon | Priority | Nodes | Node types |
 |----------|------|----------|-------|------------|
-| Webhook API Integration | Link | high | 8 | webhook, task, condition, start, end |
-| Inbound Lead Enrichment | UserPlus | medium | 8 | webhook, task, condition, log, start, end |
-| New Hire Onboarding Orchestrator | UserCheck | high | 11 | webhook, task, parallel, condition, approval, log, start, end |
-| Tier-1 Knowledge Base Auto-Reply | LifeBuoy | medium | 9 | webhook, task, transform, rag_query, condition, log, start, end |
-| Renewal Risk Synthesizer | CalendarClock | high | 9 | loop, task, rag_query, transform, condition, log, start, end |
-| Multi-Channel Content Syndicator | Share2 | medium | 9 | webhook, transform, parallel, task, log, start, end |
+| Content Review & Approval Pipeline | FileText | medium | 7 | approval, end, start, task |
+| Invoice Processing & Approval | Receipt | high | 9 | approval, condition, end, log, start, task, webhook |
+| Non-Standard Contract Flagging | FileSignature | high | 8 | approval, condition, end, log, start, task, webhook |
+| GDPR Data Erasure Processor | Eraser | high | 11 | approval, condition, end, log, parallel, start, task, webhook |
+| Financial Wire Transfer Approval | Scale | high | 10 | approval, condition, end, log, rag_query, start, task, transform, webhook |
+| Contract Compliance Review | Receipt | high | 11 | approval, condition, end, rag_query, start, task, transform, webhook |
 
-### Research & Analysis (4)
-
+### automation (13)
 | Template | Icon | Priority | Nodes | Node types |
 |----------|------|----------|-------|------------|
-| Research Report | BookOpen | high | 7 | task, approval, start, end |
-| Stale Documentation Detector | BookCopy | low | 9 | loop, task, transform, condition, approval, log, start, end |
-| Churn Risk Auto-Intervention | UserMinus | high | 9 | webhook, task, rag_query, transform, condition, log, start, end |
-| Feature Request De-duplicator | Layers | medium | 9 | webhook, task, rag_query, condition, log, start, end |
+| API Health Monitor & Alert | Activity | high | 7 | condition, end, log, loop, start, task |
+| Customer Support Ticket Triage | Headphones | high | 9 | condition, end, log, start, task, webhook |
+| Social Post Generator & Scheduler | Megaphone | medium | 7 | approval, end, start, task, transform |
+| Weekly Competitor Pulse | Radar | medium | 7 | approval, end, loop, start, task, transform |
+| Incident Response Runbook | Siren | high | 9 | approval, condition, end, start, task, webhook |
+| Meeting Notes → Action Items | CalendarCheck | medium | 8 | approval, end, start, task, webhook |
+| Customer Feedback Tagger | MessageSquareHeart | medium | 8 | condition, end, log, start, task, webhook |
+| Anomalous Login Responder | ShieldAlert | high | 8 | approval, condition, end, log, start, task, webhook |
+| Cloud Cost Spike Investigator | DollarSign | high | 10 | approval, condition, end, log, start, task, transform, webhook |
+| Stale PR Auto-Nagger | MessageCircle | low | 8 | condition, end, log, loop, start, task, transform |
+| Security Incident Response | ShieldCheck | high | 12 | condition, end, log, parallel, rag_query, start, task, transform, webhook |
+| SaaS Provisioning & Access Control | KeyRound | medium | 11 | condition, end, parallel, start, task, transform, webhook |
+| Critical Infrastructure Breach Response | Network | high | 17 | approval, condition, end, log, loop, parallel, rag_query, start, task, transform, webhook |
 
-### Software Engineering (4)
-
+### data_pipeline (9)
 | Template | Icon | Priority | Nodes | Node types |
 |----------|------|----------|-------|------------|
-| Code Review Agent | GitPullRequest | high | 6 | task, approval, start, end |
-| CI/CD Deploy Gate | Rocket | high | 10 | webhook, task, condition, approval, log, start, end |
-| P0 Bug Triage Router | Bug | high | 8 | webhook, task, condition, log, start, end |
-| Dependency Vulnerability Patch Pipeline | ShieldCheck | high | 8 | loop, task, condition, approval, log, start, end |
+| Data Pipeline — Extract, Transform, Load | Database | medium | 5 | end, start, task, transform |
+| Multi-Step Parallel Processing | GitBranch | medium | 8 | end, parallel, start, task |
+| Scheduled DB Backup & Integrity Check | Database | medium | 8 | condition, end, log, loop, start, task |
+| Data Quality Monitor | Gauge | medium | 7 | condition, end, log, loop, start, task |
+| Top Performer Content Booster | Megaphone | medium | 10 | approval, condition, end, log, loop, start, task, transform |
+| API Ingestion & Deduplication | Database | medium | 8 | condition, end, log, loop, start, task, transform |
+| A/B Test Auto-Evaluator | GitBranch | medium | 7 | condition, end, log, loop, start, task |
+| Customer Onboarding KYC | Users | high | 12 | approval, condition, end, parallel, start, task, transform, webhook |
+| AI Model Drift Retraining | Gauge | medium | 11 | approval, condition, end, log, loop, rag_query, start, task |
 
-### approval (4)
-
+### integration (8)
 | Template | Icon | Priority | Nodes | Node types |
 |----------|------|----------|-------|------------|
-| Content Review & Approval Pipeline | FileText | medium | 7 | task, approval, start, end |
-| Invoice Processing & Approval | Receipt | high | 9 | webhook, task, condition, approval, log, start, end |
-| Non-Standard Contract Flagging | FileSignature | high | 8 | webhook, task, condition, approval, log, start, end |
-| GDPR Data Erasure Processor | Eraser | high | 11 | webhook, task, condition, parallel, approval, log, start, end |
+| Webhook API Integration | Link | high | 8 | condition, end, start, task, webhook |
+| Inbound Lead Enrichment | UserPlus | medium | 8 | condition, end, log, start, task, webhook |
+| New Hire Onboarding Orchestrator | UserCheck | high | 11 | approval, condition, end, log, parallel, start, task, webhook |
+| Tier-1 Knowledge Base Auto-Reply | LifeBuoy | medium | 9 | condition, end, log, rag_query, start, task, transform, webhook |
+| Renewal Risk Synthesizer | CalendarClock | high | 9 | condition, end, log, loop, rag_query, start, task, transform |
+| Multi-Channel Content Syndicator | Share2 | medium | 9 | end, log, parallel, start, task, transform, webhook |
+| Multi-Source Data Sync | Share2 | medium | 11 | condition, end, log, loop, parallel, start, task, transform |
+| Daily Compliance Control Check | Clock | medium | 11 | condition, end, log, loop, parallel, start, task, transform |
 
 ---
 
 ## Adding a template
-
 Append a `make_template(...)` call to `TEMPLATES` in `backend/seed_templates.py`.
 Each node needs a unique `id`, a `type`, a `position` (for the canvas), a
 `data` dict with `label` + `nodeType`, and `edges_out` (a list of
@@ -123,7 +119,6 @@ Each node needs a unique `id`, a `type`, a `position` (for the canvas), a
 above and reuse an existing `category` so the gallery groups them correctly.
 
 Validate locally before committing:
-
 ```bash
 python3 -c "import ast; ast.parse(open('seed_templates.py').read())"
 ```
