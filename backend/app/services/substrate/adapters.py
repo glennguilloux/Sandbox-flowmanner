@@ -322,24 +322,48 @@ def blueprint_to_workflow(
     # adapter must too: skip pure `start`/`end` sentinels and map any other
     # unknown nodeType through the existing task-type map (defaulting to
     # LLM_CALL) instead of crashing the whole blueprint load.
+    #
+    # Additionally, the frontend frequently labels multi-node mission graphs as
+    # `blueprint_type: "solo"` even though they contain several real task nodes
+    # and edges (start -> task -> ... -> end). SoloStrategy enforces a strict
+    # "exactly 1 node, no edges" contract, so such a graph would fail validation
+    # ("Solo workflow must have exactly 1 node"). Rather than silently dropping
+    # the user's work, derive the real WorkflowType from the *topology*: a
+    # "solo" blueprint that actually has >1 real node or any real edge is a DAG.
     _SENTINEL_NODE_TYPES = frozenset({"start", "end"})
 
     workflow_nodes: list[WorkflowNode] = []
+    sentinel_ids: set[str] = set()
     for n in snapshot.get("nodes", []):
         raw_type = n.get("type") or (n.get("data", {}) or {}).get("nodeType") or "task"
         if raw_type in _SENTINEL_NODE_TYPES:
+            sentinel_ids.add(n.get("id"))
             continue
         mapped = _TASK_TYPE_MAP.get(raw_type, NodeType.LLM_CALL)
         n = {**n, "type": mapped.value}
         workflow_nodes.append(WorkflowNode(**n))
 
+    # Drop edges that reference skipped sentinel nodes (e.g. start->task,
+    # task->end) so the surviving graph only connects real nodes.
+    workflow_edges: list[WorkflowEdge] = [
+        WorkflowEdge(**e)
+        for e in snapshot.get("edges", [])
+        if e.get("source") not in sentinel_ids and e.get("target") not in sentinel_ids
+    ]
+
+    # Derive the effective workflow type from topology (see note above).
+    declared_type = snapshot.get("blueprint_type", "solo")
+    effective_type = declared_type
+    if declared_type == WorkflowType.SOLO.value and (len(workflow_nodes) != 1 or workflow_edges):
+        effective_type = WorkflowType.DAG.value
+
     return Workflow(
         id=blueprint_id,
-        type=WorkflowType(snapshot.get("blueprint_type", "solo")),
+        type=WorkflowType(effective_type),
         title=snapshot.get("title", ""),
         description=snapshot.get("description"),
         nodes=workflow_nodes,
-        edges=[WorkflowEdge(**e) for e in snapshot.get("edges", [])],
+        edges=workflow_edges,
         budget=budget,
         user_id=user_id,
         workspace_id=snapshot.get("workspace_id"),
