@@ -164,7 +164,8 @@ class GraphStrategy(ExecutionStrategy):
                 return resolved.strip().lower() in ("true", "success", "completed")
             return bool(resolved)
         except Exception:
-            return True
+            logger.warning("Edge condition evaluation failed, closing edge", exc_info=True)
+            return False
 
     def _resolve_interpolation(self, template: str, outputs: dict[str, Any]) -> Any:
         if not isinstance(template, str) or "{{" not in template:
