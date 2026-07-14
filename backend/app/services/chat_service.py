@@ -218,6 +218,15 @@ _SSE_KEEPALIVE_INTERVAL = 15  # seconds
 # On timeout we surface a clean error event so the client terminates cleanly.
 _STREAM_READ_TIMEOUT = 90  # seconds without a chunk before we give up
 
+# Hard ceiling on a SINGLE tool-call's total wall-clock time. A tool that
+# blocks (e.g. browser_sandbox container launch stalling on an image pull, or
+# a sandboxd call wedged on a network fault) must not hang the chat stream
+# forever — the SSE keepalive pings would otherwise keep the connection alive
+# and the client watchdog would never fire, leaving the tab "still running".
+# On timeout we return a clean error ToolResult so the agent loop sees a
+# definitive failure and the stream terminates normally with [DONE].
+_HARD_TOOL_CALL_CAP_S = 120.0
+
 # SSE comment line. `: ` prefix makes it a comment the browser EventSource ignores.
 _SSE_KEEPALIVE_PING = ": ping\n\n"
 
@@ -2465,7 +2474,22 @@ async def _execute_tool_call(
                 )
 
         args = json.loads(arguments_json) if arguments_json else {}
-        result = await tool.execute(args)
+        try:
+            result = await asyncio.wait_for(tool.execute(args), timeout=_HARD_TOOL_CALL_CAP_S)
+        except TimeoutError:
+            logger.error(
+                "Tool %s exceeded hard cap of %.0fs — returning clean error so the stream does not hang",
+                tool_name,
+                _HARD_TOOL_CALL_CAP_S,
+            )
+            return json.dumps(
+                {
+                    "error": (
+                        f"Tool '{tool_name}' timed out after {int(_HARD_TOOL_CALL_CAP_S)}s "
+                        f"and was cancelled. The model may retry with a simpler request."
+                    )
+                }
+            )
         if result.success:
             return json.dumps(result.result)
         return json.dumps({"error": result.error})
