@@ -78,88 +78,92 @@ class SandboxdPreviewTool(BaseTool):
         except Exception as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
-        try:
-            client = self._get_client()
+        # Hard wall-clock cap: a wedged sandboxd must never freeze the chat
+        # turn. The wrapper converts a timeout into a clean error_result so the
+        # agent loop does not retry an unhandled exception forever.
+        from app.tools._sandbox_timeout import run_sandbox_tool
 
-            # Resolve sandbox_id: explicit arg > context > auto-create
-            raw_id = validated.sandbox_id
-            # Some LLMs (DeepSeek) pass the literal string "NEW" instead of
-            # omitting the field.  Treat it as empty so auto-create fires.
-            if raw_id and raw_id.strip().upper() in ("NEW", "NONE", "NULL"):
-                raw_id = None
-            sandbox_id = raw_id or self._resolve_sandbox_id()
+        return await run_sandbox_tool(self.tool_id, self._run(validated))
 
+    async def _run(self, validated: SandboxdPreviewInput) -> ToolResult:
+        client = self._get_client()
+
+        # Resolve sandbox_id: explicit arg > context > auto-create
+        raw_id = validated.sandbox_id
+        # Some LLMs (DeepSeek) pass the literal string "NEW" instead of
+        # omitting the field.  Treat it as empty so auto-create fires.
+        if raw_id and raw_id.strip().upper() in ("NEW", "NONE", "NULL"):
+            raw_id = None
+        sandbox_id = raw_id or self._resolve_sandbox_id()
+
+        if not sandbox_id:
+            # Auto-create a sandbox for standalone chat sessions
+            sandbox_id = await self._auto_create_sandbox(client)
             if not sandbox_id:
-                # Auto-create a sandbox for standalone chat sessions
-                sandbox_id = await self._auto_create_sandbox(client)
-                if not sandbox_id:
+                return ToolResult.error_result(
+                    tool_id=self.tool_id,
+                    error=("Failed to auto-create a sandbox. sandboxd may be unavailable — check service health."),
+                )
+            # Store in context so subsequent tool calls reuse it
+            self._set_sandbox_id(sandbox_id)
+            logger.info("sandboxd_preview: auto-created sandbox %s", sandbox_id)
+
+        # Fast-fail: check if container is dead before polling.
+        # The v1 API reports status: "running" even when the Docker
+        # container has exited.  The internal API exposes live_state
+        # which reflects the actual Docker container status.
+        info = await client.get(sandbox_id)
+        preview = info.get("preview", {})
+        preview_status = preview.get("status", "")
+
+        if preview_status not in ("ready", ""):
+            try:
+                internal = await client.get_internal(sandbox_id)
+                live_state = internal.get("live_state", {})
+                container_status = live_state.get("State", {}).get("Status", "")
+                if container_status == "exited":
                     return ToolResult.error_result(
                         tool_id=self.tool_id,
-                        error=("Failed to auto-create a sandbox. sandboxd may be unavailable — check service health."),
+                        error=(
+                            f"Sandbox container exited unexpectedly (sandbox={sandbox_id}). "
+                            "The sandbox template may be invalid or missing an entrypoint. "
+                            "Create a new sandbox or check sandboxd templates."
+                        ),
                     )
-                # Store in context so subsequent tool calls reuse it
-                self._set_sandbox_id(sandbox_id)
-                logger.info("sandboxd_preview: auto-created sandbox %s", sandbox_id)
+            except Exception:
+                logger.debug(
+                    "sandboxd_preview: internal API check failed, falling through to polling",
+                    exc_info=True,
+                )
 
-            # Fast-fail: check if container is dead before polling.
-            # The v1 API reports status: "running" even when the Docker
-            # container has exited.  The internal API exposes live_state
-            # which reflects the actual Docker container status.
-            info = await client.get(sandbox_id)
-            preview = info.get("preview", {})
-            preview_status = preview.get("status", "")
-
-            if preview_status not in ("ready", ""):
+            # Poll for preview readiness (up to 15s)
+            for _attempt in range(30):  # 30 × 500ms = 15s max
+                await asyncio.sleep(0.5)
                 try:
-                    internal = await client.get_internal(sandbox_id)
-                    live_state = internal.get("live_state", {})
-                    container_status = live_state.get("State", {}).get("Status", "")
-                    if container_status == "exited":
-                        return ToolResult.error_result(
-                            tool_id=self.tool_id,
-                            error=(
-                                f"Sandbox container exited unexpectedly (sandbox={sandbox_id}). "
-                                "The sandbox template may be invalid or missing an entrypoint. "
-                                "Create a new sandbox or check sandboxd templates."
-                            ),
-                        )
+                    info = await client.get(sandbox_id)
+                    preview = info.get("preview", {})
+                    preview_status = preview.get("status", "")
+                    if preview_status in ("ready", "error", ""):
+                        break
                 except Exception:
                     logger.debug(
-                        "sandboxd_preview: internal API check failed, falling through to polling",
+                        "sandboxd_preview: poll attempt failed (sandbox may be starting)",
                         exc_info=True,
                     )
 
-                # Poll for preview readiness (up to 15s)
-                for _attempt in range(30):  # 30 × 500ms = 15s max
-                    await asyncio.sleep(0.5)
-                    try:
-                        info = await client.get(sandbox_id)
-                        preview = info.get("preview", {})
-                        preview_status = preview.get("status", "")
-                        if preview_status in ("ready", "error", ""):
-                            break
-                    except Exception:
-                        logger.debug(
-                            "sandboxd_preview: poll attempt failed (sandbox may be starting)",
-                            exc_info=True,
-                        )
+        # NOTE: Deliberately do NOT return the sandbox runtime preview_url.
+        # The runtime URL (port 3000) shows an empty directory listing —
+        # it is NOT the user's app.  sandboxd_serve is the ONLY tool that
+        # returns the correct app preview URL (port 8081).
 
-            # NOTE: Deliberately do NOT return the sandbox runtime preview_url.
-            # The runtime URL (port 3000) shows an empty directory listing —
-            # it is NOT the user's app.  sandboxd_serve is the ONLY tool that
-            # returns the correct app preview URL (port 8081).
-
-            return ToolResult.success_result(
-                tool_id=self.tool_id,
-                result={
-                    "sandbox_id": sandbox_id,
-                    "status": info.get("status"),
-                    "preview_status": preview_status,
-                },
-            )
-        except Exception as e:
-            logger.exception("sandboxd_preview failed")
-            return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
+        return ToolResult.success_result(
+            tool_id=self.tool_id,
+            result={
+                "sandbox_id": sandbox_id,
+                "status": info.get("status"),
+                "preview_status": preview_status,
+            },
+        )
 
     # ── Helpers ────────────────────────────────────────────────────────
 

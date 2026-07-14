@@ -99,80 +99,83 @@ class SandboxdServeTool(BaseTool):
         except Exception as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
-        try:
-            sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
-            if not sandbox_id:
+        # Hard wall-clock cap: a wedged sandboxd must never freeze the chat
+        # turn. Timeout is surfaced as a clean error_result (see _sandbox_timeout).
+        from app.tools._sandbox_timeout import run_sandbox_tool
+
+        return await run_sandbox_tool(self.tool_id, self._run(validated))
+
+    async def _run(self, validated: SandboxdServeInput) -> ToolResult:
+        sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
+        if not sandbox_id:
+            return ToolResult.error_result(
+                tool_id=self.tool_id,
+                error=("No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`."),
+            )
+
+        client = self._get_client()
+        port = validated.port
+
+        # ── Step 1: Check if port is already serving ──────────────
+        ready = await is_port_serving(client, sandbox_id, port)
+
+        if not ready:
+            # ── Step 2: Start a fallback server ───────────────────
+            serve_dir = validated.directory or DEFAULT_SANDBOX_WORKSPACE
+            server_pid, start_error = await start_static_http_server(client, sandbox_id, port, serve_dir)
+
+            if start_error:
                 return ToolResult.error_result(
                     tool_id=self.tool_id,
-                    error=("No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`."),
+                    error=(f"Failed to start server in sandbox {sandbox_id}: {start_error}"),
                 )
 
-            client = self._get_client()
-            port = validated.port
+            # Poll until the server is accepting connections (up to 10s)
+            for _attempt in range(_SERVE_POLL_ATTEMPTS):
+                await asyncio.sleep(_SERVE_POLL_INTERVAL)
+                ready = await is_port_serving(client, sandbox_id, port)
+                if ready:
+                    break
+        else:
+            server_pid = 0  # Already running — we don't know the PID
 
-            # ── Step 1: Check if port is already serving ──────────────
-            ready = await is_port_serving(client, sandbox_id, port)
-
-            if not ready:
-                # ── Step 2: Start a fallback server ───────────────────
-                serve_dir = validated.directory or DEFAULT_SANDBOX_WORKSPACE
-                server_pid, start_error = await start_static_http_server(client, sandbox_id, port, serve_dir)
-
-                if start_error:
-                    return ToolResult.error_result(
-                        tool_id=self.tool_id,
-                        error=(f"Failed to start server in sandbox {sandbox_id}: {start_error}"),
-                    )
-
-                # Poll until the server is accepting connections (up to 10s)
-                for _attempt in range(_SERVE_POLL_ATTEMPTS):
-                    await asyncio.sleep(_SERVE_POLL_INTERVAL)
-                    ready = await is_port_serving(client, sandbox_id, port)
-                    if ready:
-                        break
-            else:
-                server_pid = 0  # Already running — we don't know the PID
-
-            if not ready:
-                logger.warning(
-                    "sandboxd_serve: server not accepting connections after 10s polling (sandbox=%s, port=%s).",
-                    sandbox_id,
-                    port,
-                )
-                return ToolResult.error_result(
-                    tool_id=self.tool_id,
-                    error=(
-                        f"Server on port {port} is not accepting connections in sandbox "
-                        f"{sandbox_id}. The server may have crashed or failed to start. "
-                        f"Check that the files are valid and try again."
-                    ),
-                )
-
-            raw_preview_url = f"http://s-{sandbox_id}-{port}.preview.localhost"
-            preview_url = rewrite_sandboxd_url(raw_preview_url)
-
-            # ── Debug: trace tool-side URL construction ─────────────
-            logger.debug(
-                "sandboxd_serve: sandbox=%s port=%s raw_url=%r → preview_url=%r",
+        if not ready:
+            logger.warning(
+                "sandboxd_serve: server not accepting connections after 10s polling (sandbox=%s, port=%s).",
                 sandbox_id,
                 port,
-                raw_preview_url,
-                preview_url,
+            )
+            return ToolResult.error_result(
+                tool_id=self.tool_id,
+                error=(
+                    f"Server on port {port} is not accepting connections in sandbox "
+                    f"{sandbox_id}. The server may have crashed or failed to start. "
+                    f"Check that the files are valid and try again."
+                ),
             )
 
-            return ToolResult.success_result(
-                tool_id=self.tool_id,
-                result={
-                    "sandbox_id": sandbox_id,
-                    "port": port,
-                    "preview_url": preview_url,
-                    "server_pid": server_pid,
-                    "status": "ready",
-                },
-            )
-        except Exception as e:
-            logger.exception("sandboxd_serve failed")
-            return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
+        raw_preview_url = f"http://s-{sandbox_id}-{port}.preview.localhost"
+        preview_url = rewrite_sandboxd_url(raw_preview_url)
+
+        # ── Debug: trace tool-side URL construction ─────────────
+        logger.debug(
+            "sandboxd_serve: sandbox=%s port=%s raw_url=%r → preview_url=%r",
+            sandbox_id,
+            port,
+            raw_preview_url,
+            preview_url,
+        )
+
+        return ToolResult.success_result(
+            tool_id=self.tool_id,
+            result={
+                "sandbox_id": sandbox_id,
+                "port": port,
+                "preview_url": preview_url,
+                "server_pid": server_pid,
+                "status": "ready",
+            },
+        )
 
     # ── Helpers ────────────────────────────────────────────────────────
 

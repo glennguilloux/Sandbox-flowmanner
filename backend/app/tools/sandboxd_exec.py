@@ -122,54 +122,60 @@ class SandboxdExecTool(BaseTool):
                 error=f"Unsupported language '{lang}'. Supported: {', '.join(_LANG_CMDS)}",
             )
 
-        try:
-            sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
-            if not sandbox_id:
-                return ToolResult.error_result(
-                    tool_id=self.tool_id,
-                    error=(
-                        "No sandbox available. Call sandboxd_preview first to create one, "
-                        "or pass `sandbox_id` explicitly."
-                    ),
-                )
+        # Hard wall-clock cap: a wedged sandboxd must never freeze the chat
+        # turn. For exec we allow the user's own timeout plus a small margin
+        # (the in-container command is bounded by sandboxd_exec's own timeout).
+        from app.tools._sandbox_timeout import run_sandbox_tool
 
-            client = self._get_client()
+        hard_cap = float(validated.timeout_seconds) + 15.0
+        return await run_sandbox_tool(self.tool_id, self._run(validated), hard_cap=hard_cap)
 
-            # Build command array — `command` takes precedence over `code`
-            if validated.command:
-                cmd = validated.command
-            elif lang == "go":
-                # Go requires a file — use base64 to avoid shell-escaping issues
-                b64 = base64.b64encode(validated.code.encode()).decode()
-                cmd = [
-                    "bash",
-                    "-c",
-                    f"echo {b64} | base64 -d > /tmp/main.go && go run /tmp/main.go",
-                ]
-            else:
-                cmd = [*(_LANG_CMDS[lang]), validated.code]
-
-            result = await client.exec_command(sandbox_id, cmd, timeout=float(validated.timeout_seconds))
-
-            exit_code = result.get("exit_code", 0)
-            stderr = result.get("stderr", "")
-            stdout = result.get("stdout", "")
-
-            # Always return success=True with structured result — the LLM
-            # needs to see stdout/stderr/exit_code to understand what happened.
-            # Only return error_result for tool-level failures (no sandbox,
-            # invalid input, transport errors).
-            return ToolResult.success_result(
+    async def _run(self, validated: SandboxdExecInput) -> ToolResult:
+        sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
+        if not sandbox_id:
+            return ToolResult.error_result(
                 tool_id=self.tool_id,
-                result={
-                    "stdout": stdout,
-                    "stderr": stderr,
-                    "exit_code": exit_code,
-                },
+                error=(
+                    "No sandbox available. Call sandboxd_preview first to create one, "
+                    "or pass `sandbox_id` explicitly."
+                ),
             )
-        except Exception as e:
-            logger.exception("sandboxd_exec failed")
-            return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
+
+        lang = validated.language.lower()
+        client = self._get_client()
+
+        # Build command array — `command` takes precedence over `code`
+        if validated.command:
+            cmd = validated.command
+        elif lang == "go":
+            # Go requires a file — use base64 to avoid shell-escaping issues
+            b64 = base64.b64encode(validated.code.encode()).decode()
+            cmd = [
+                "bash",
+                "-c",
+                f"echo {b64} | base64 -d > /tmp/main.go && go run /tmp/main.go",
+            ]
+        else:
+            cmd = [*(_LANG_CMDS[lang]), validated.code]
+
+        result = await client.exec_command(sandbox_id, cmd, timeout=float(validated.timeout_seconds))
+
+        exit_code = result.get("exit_code", 0)
+        stderr = result.get("stderr", "")
+        stdout = result.get("stdout", "")
+
+        # Always return success=True with structured result — the LLM
+        # needs to see stdout/stderr/exit_code to understand what happened.
+        # Only return error_result for tool-level failures (no sandbox,
+        # invalid input, transport errors).
+        return ToolResult.success_result(
+            tool_id=self.tool_id,
+            result={
+                "stdout": stdout,
+                "stderr": stderr,
+                "exit_code": exit_code,
+            },
+        )
 
     # ── Helpers ────────────────────────────────────────────────────────
 
