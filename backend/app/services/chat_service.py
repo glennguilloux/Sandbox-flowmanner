@@ -820,7 +820,6 @@ async def _stream_message_to_llm_body(
 
         # Session was closed before LLM call to prevent idle-in-transaction timeout.
         # Always use fresh session for saving.
-        import asyncio
 
         assistant_msg: ChatMessage | None = None
         # Save with retry (3 attempts, exponential backoff)
@@ -1667,8 +1666,6 @@ async def _maybe_extract_memory_claims(
     if not settings.FLOWMANNER_CROSS_MISSION_MEMORY:
         return
 
-    import asyncio
-
     try:
         from app.database import fresh_session
 
@@ -2018,10 +2015,8 @@ def _record_tool_cost_fire_and_forget(
     """Fire-and-forget: record tool call cost using a fresh DB session.
 
     Opens its own ``AsyncSessionLocal`` so the recording is independent of the
-    caller's (already-closed) request session.  Errors are swallowed — cost
     tracking must never break the chat.
     """
-    import asyncio
 
     async def _run() -> None:
         try:
