@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING, cast
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
+    from starlette.requests import Request
+
 from decimal import Decimal
 
 from openai import AsyncOpenAI
@@ -234,6 +236,12 @@ _STREAM_READ_TIMEOUT = 90  # seconds without a chunk before we give up
 # definitive failure and the stream terminates normally with [DONE].
 _HARD_TOOL_CALL_CAP_S = 120.0
 
+# Hard ceiling on a single chat streaming turn. The per-chunk guard
+# (_STREAM_READ_TIMEOUT) only fires after 90s of TOTAL SILENCE, so a model that
+# drips tokens / keepalive pings forever (or a provider that accepts-then-stalls)
+# never trips it. This bounds the whole turn so the SSE stream always terminates.
+TURN_HARD_CAP_S = 180.0
+
 # SSE comment line. `: ` prefix makes it a comment the browser EventSource ignores.
 _SSE_KEEPALIVE_PING = ": ping\n\n"
 
@@ -336,6 +344,7 @@ async def stream_message_to_llm(
     model_id: str | None = None,
     attachments: list | None = None,
     web_search: bool | None = None,
+    request: Request | None = None,
 ) -> AsyncGenerator[str, None]:
     """Send a message to the LLM and stream the response via SSE.
 
@@ -353,27 +362,43 @@ async def stream_message_to_llm(
     _keepalive_queue: asyncio.Queue = asyncio.Queue()
     _keepalive_stop = asyncio.Event()
     _keepalive_task = _sse_keepalive_spawn(_keepalive_queue, _keepalive_stop)
+    raw_model = model_id or model_preference or _LLM_MODEL
     try:
-        async for event in _sse_keepalive_merge(
-            cast(
-                "AsyncGenerator[str, None]",
-                _stream_message_to_llm_body(
-                    db,
-                    thread_id,
-                    content,
-                    user_id,
-                    model_preference,
-                    user_api_key,
-                    user_base_url,
-                    model_id,
-                    attachments,
-                    web_search,
-                ),
-            ),
-            _keepalive_queue,
-            _keepalive_stop,
-        ):
-            yield event
+        try:
+            async with asyncio.timeout(TURN_HARD_CAP_S):
+                async for event in _sse_keepalive_merge(
+                    cast(
+                        "AsyncGenerator[str, None]",
+                        _stream_message_to_llm_body(
+                            db,
+                            thread_id,
+                            content,
+                            user_id,
+                            model_preference,
+                            user_api_key,
+                            user_base_url,
+                            model_id,
+                            attachments,
+                            web_search,
+                            request,
+                        ),
+                    ),
+                    _keepalive_queue,
+                    _keepalive_stop,
+                ):
+                    yield event
+        except TimeoutError:
+            logger.warning(
+                "stream_message_to_llm: turn exceeded TURN_HARD_CAP_S=%.0fs for %s",
+                TURN_HARD_CAP_S,
+                raw_model,
+            )
+            yield json.dumps(
+                {
+                    "type": "error",
+                    "error": "Response timed out. The model took too long to respond; please try again or pick a faster model.",
+                }
+            )
     finally:
         _keepalive_stop.set()
         _keepalive_task.cancel()
@@ -392,6 +417,7 @@ async def _stream_message_to_llm_body(
     model_id: str | None = None,
     attachments: list | None = None,
     web_search: bool | None = None,
+    request: Request | None = None,
 ):
     """Send a message to the LLM and stream the response via SSE.
 
@@ -588,6 +614,9 @@ async def _stream_message_to_llm_body(
 
             # ── Tool-calling loop ───────────────────────────────────
             for _round in range(_MAX_TOOL_ROUNDS):
+                if request is not None and await request.is_disconnected():
+                    yield json.dumps({"type": "error", "error": "Client disconnected"})
+                    break
                 create_kwargs: dict = {
                     "model": model,
                     "messages": messages_for_llm,
@@ -595,6 +624,12 @@ async def _stream_message_to_llm_body(
                 }
                 if openai_tools:
                     create_kwargs["tools"] = openai_tools
+
+                # Bound a single LLM turn so weak BYOK models (e.g. tencent-hy3)
+                # cannot emit unbounded verbose prose when they narrate a tool
+                # call instead of calling it. CHAT_MAX_TOKENS is not defined in
+                # settings, so we fall back to 2000.
+                create_kwargs["max_tokens"] = getattr(settings, "CHAT_MAX_TOKENS", 2000) or 2000
 
                 # Comment 4: enforce the budget BEFORE the provider call so chat
                 # generation cannot blow past the budget silently.
@@ -610,18 +645,22 @@ async def _stream_message_to_llm_body(
                 )
                 try:
                     response = await client.chat.completions.create(**create_kwargs)
+                    try:
+                        # Accumulate streaming chunks — we need to detect both
+                        # content tokens AND tool_call deltas in the same stream.
+                        round_content_chunks: list[str] = []
+                        # tool_calls_by_index tracks partial tool call arguments
+                        tool_calls_by_index: dict[int, dict] = {}
 
-                    # Accumulate streaming chunks — we need to detect both
-                    # content tokens AND tool_call deltas in the same stream.
-                    round_content_chunks: list[str] = []
-                    # tool_calls_by_index tracks partial tool call arguments
-                    tool_calls_by_index: dict[int, dict] = {}
+                        async with _stream_timeout(_STREAM_READ_TIMEOUT):
+                            async for chunk in response:
+                                if request is not None and await request.is_disconnected():
+                                    yield json.dumps({"type": "error", "error": "Client disconnected"})
+                                    break
 
-                    async with _stream_timeout(_STREAM_READ_TIMEOUT):
-                        async for chunk in response:
-                            choice = chunk.choices[0] if chunk.choices else None
-                            if not choice:
-                                continue
+                                choice = chunk.choices[0] if chunk.choices else None
+                                if not choice:
+                                    continue
 
                             delta = choice.delta
 
@@ -658,6 +697,12 @@ async def _stream_message_to_llm_body(
                             # Detect finish_reason
                             if choice.finish_reason == "tool_calls":
                                 break
+                    finally:
+                        # Release the provider httpx connection on every exit
+                        # (normal finish, disconnect, timeout, error) so the
+                        # socket is not leaked.
+                        with contextlib.suppress(Exception):
+                            await response.aclose()
                 except TimeoutError:
                     # Provider went silent mid-stream. Surface a clean error so the
                     # client terminates (emits [DONE] via _sse_stream) instead of
@@ -797,8 +842,17 @@ async def _stream_message_to_llm_body(
                     }
                     if openai_tools:
                         non_stream_kwargs["tools"] = openai_tools
-                    non_stream_response = await client.chat.completions.create(**non_stream_kwargs)
-                    if non_stream_response.choices:
+                    try:
+                        async with _stream_timeout(_STREAM_READ_TIMEOUT):
+                            non_stream_response = await client.chat.completions.create(**non_stream_kwargs)
+                    except Exception as e:
+                        logger.error(
+                            "stream_message_to_llm: non-streaming fallback timed out for %s: %s",
+                            raw_model,
+                            e,
+                        )
+                        non_stream_response = None
+                    if non_stream_response and non_stream_response.choices:
                         full_response = non_stream_response.choices[0].message.content or ""
                     # Second fallback: retry without tools if still empty
                     # (some models don't support function calling)
@@ -808,8 +862,17 @@ async def _stream_message_to_llm_body(
                             raw_model,
                         )
                         non_stream_kwargs.pop("tools", None)
-                        no_tools_response = await client.chat.completions.create(**non_stream_kwargs)
-                        if no_tools_response.choices:
+                        try:
+                            async with _stream_timeout(_STREAM_READ_TIMEOUT):
+                                no_tools_response = await client.chat.completions.create(**non_stream_kwargs)
+                        except Exception as e:
+                            logger.error(
+                                "stream_message_to_llm: non-streaming no-tools fallback timed out for %s: %s",
+                                raw_model,
+                                e,
+                            )
+                            no_tools_response = None
+                        if no_tools_response and no_tools_response.choices:
                             full_response = no_tools_response.choices[0].message.content or ""
                     if full_response:
                         yield json.dumps({"type": "token", "content": full_response})
@@ -818,6 +881,12 @@ async def _stream_message_to_llm_body(
                         "stream_message_to_llm: non-streaming retry also failed for %s: %s",
                         raw_model,
                         retry_err,
+                    )
+                # Both fallbacks exhausted with no content — emit a clean error
+                # event so _sse_stream still terminates with [DONE].
+                if not full_response.strip():
+                    yield json.dumps(
+                        {"type": "error", "error": "The model returned no content and the fallback request timed out."}
                     )
 
         # Use actual token counts if available from streaming, else estimate
