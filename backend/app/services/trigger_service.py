@@ -16,6 +16,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.trigger_models import MissionTrigger, TriggerLog
+from app.services.mission_service import get_mission_tasks
 
 logger = logging.getLogger(__name__)
 
@@ -242,7 +243,7 @@ async def _execute_mission_background(mission_id: str, log_id: str, trigger_id: 
     budget enforcement, and capability tokens.
     """
     from app.database import AsyncSessionLocal
-    from app.models.mission_models import Mission
+    from app.models.mission_models import Mission, MissionStatus
     from app.services.substrate.adapters import mission_to_workflow
     from app.services.substrate.executor import get_unified_executor
 
@@ -254,11 +255,19 @@ async def _execute_mission_background(mission_id: str, log_id: str, trigger_id: 
             if not mission:
                 raise ValueError(f"Mission {mission_id} not found")
 
-            # Convert to unified Workflow and execute through substrate
-            workflow = mission_to_workflow(mission, tasks=[])
+            # Mark the mission running before substrate execution (mirrors Celery path)
+            mission.status = MissionStatus.RUNNING
+
+            # Load the mission's real tasks and convert to a unified Workflow
+            tasks = await get_mission_tasks(db, mission_id)
+            workflow = mission_to_workflow(mission, tasks=tasks)
             executor = get_unified_executor()
             result = await executor.execute(db, workflow)
             duration_ms = int((time.monotonic() - start_time) * 1000)
+
+            # Set terminal status from the execution result
+            mission.status = MissionStatus.COMPLETED if getattr(result, "success", False) else MissionStatus.FAILED
+            mission.completed_at = datetime.now(UTC)
 
             # Update log
             log = await db.get(TriggerLog, log_id)
