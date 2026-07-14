@@ -46,7 +46,9 @@ class GraphStrategy(ExecutionStrategy):
 
         for edge in workflow.edges:
             if edge.source not in node_ids:
-                errors.append(f"Edge source '{edge.source}' not found")  # noqa: PERF401
+                errors.append(f"Edge source '{edge.source}' not found")
+            if edge.target not in node_ids:
+                errors.append(f"Edge target '{edge.target}' not found")
 
         return errors
 
@@ -105,7 +107,7 @@ class GraphStrategy(ExecutionStrategy):
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             for nid, result in zip(executable, results, strict=False):
-                if isinstance(result, Exception):
+                if isinstance(result, BaseException):
                     failed_nodes.append(nid)
                     node_outputs[nid] = {"error": str(result)}
                 elif result.get("success"):

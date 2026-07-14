@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from app.services.substrate.executor import UnifiedExecutor
     from app.services.substrate.workflow_models import (
         StrategyResult,
         Workflow,
@@ -87,14 +88,6 @@ class ExecutionStrategy(ABC):
     def can_handle(self, workflow_type: WorkflowType) -> bool:
         """Check if this strategy handles the given workflow type."""
         ...
-
-
-# Forward reference to UnifiedExecutor for type hints.
-# The actual class is in substrate/executor.py
-class UnifiedExecutor:  # pragma: no cover (forward ref)
-    """Forward reference for type hints.  Real class is in substrate/executor.py."""
-
-    pass
 
 
 class WorkflowWSManager:

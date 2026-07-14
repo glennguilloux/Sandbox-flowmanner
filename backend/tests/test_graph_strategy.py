@@ -110,15 +110,15 @@ class TestGraphValidate:
         assert any("missing" in e.lower() for e in errors)
 
     @pytest.mark.asyncio
-    async def test_missing_edge_target_still_validates(self):
-        """Only source is validated; target missing is not caught by validate()."""
+    async def test_missing_edge_target_rejected(self):
+        """F3b: a dangling target edge must fail validation (not silently drop)."""
         s = GraphStrategy()
         wf = _make_graph_workflow(
             nodes=[WorkflowNode(id="n1", type="llm_call", title="N1")],
             edges=[WorkflowEdge(source="n1", target="missing")],
         )
         errors = await s.validate(wf)
-        assert errors == []
+        assert any("missing" in e.lower() for e in errors)
 
     @pytest.mark.asyncio
     async def test_validates_with_multiple_edges(self):
