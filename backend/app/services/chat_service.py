@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import time
+from asyncio import timeout as _stream_timeout
 from collections import deque
 from collections.abc import AsyncGenerator
 from datetime import UTC
@@ -207,6 +208,15 @@ from app.services.sse_protocol import _CANVAS_UPDATE_TOOLS, _build_canvas_update
 # tool round can block the generator for >15s with no yield — a yield-gated
 # ping would never fire and nginx would drop the idle connection.
 _SSE_KEEPALIVE_INTERVAL = 15  # seconds
+
+# Hard ceiling on how long we wait for the *provider* to emit the next stream
+# chunk. Without this, a provider that accepts the request but never streams
+# (e.g. a 403 "plan does not include this model" that hangs instead of failing
+# fast) would keep the SSE connection open forever — the frontend's reader never
+# sees [DONE], finalizeRunningEvents() never runs, and an unresolved "running"
+# tool/sandbox step spins the browser's render loop (frozen tab, pegged CPU).
+# On timeout we surface a clean error event so the client terminates cleanly.
+_STREAM_READ_TIMEOUT = 90  # seconds without a chunk before we give up
 
 # SSE comment line. `: ` prefix makes it a comment the browser EventSource ignores.
 _SSE_KEEPALIVE_PING = ": ping\n\n"
@@ -582,54 +592,81 @@ async def _stream_message_to_llm_body(
                     if hasattr(settings, "CHAT_MAX_TOKENS")
                     else 2000,
                 )
-                response = await client.chat.completions.create(**create_kwargs)
+                try:
+                    response = await client.chat.completions.create(**create_kwargs)
 
-                # Accumulate streaming chunks — we need to detect both
-                # content tokens AND tool_call deltas in the same stream.
-                round_content_chunks: list[str] = []
-                # tool_calls_by_index tracks partial tool call arguments
-                tool_calls_by_index: dict[int, dict] = {}
+                    # Accumulate streaming chunks — we need to detect both
+                    # content tokens AND tool_call deltas in the same stream.
+                    round_content_chunks: list[str] = []
+                    # tool_calls_by_index tracks partial tool call arguments
+                    tool_calls_by_index: dict[int, dict] = {}
 
-                async for chunk in response:
-                    choice = chunk.choices[0] if chunk.choices else None
-                    if not choice:
-                        continue
+                    async with _stream_timeout(_STREAM_READ_TIMEOUT):
+                        async for chunk in response:
+                            choice = chunk.choices[0] if chunk.choices else None
+                            if not choice:
+                                continue
 
-                    delta = choice.delta
+                            delta = choice.delta
 
-                    # Stream text content to the frontend
-                    if delta.content:
-                        round_content_chunks.append(delta.content)
-                        collected_chunks.append(delta.content)
-                        yield json.dumps({"type": "token", "content": delta.content})
+                            # Stream text content to the frontend
+                            if delta.content:
+                                round_content_chunks.append(delta.content)
+                                collected_chunks.append(delta.content)
+                                yield json.dumps({"type": "token", "content": delta.content})
 
-                    # Accumulate tool calls from streaming deltas
-                    if delta.tool_calls:
-                        for tc_delta in delta.tool_calls:
-                            idx = tc_delta.index
-                            if idx not in tool_calls_by_index:
-                                tool_calls_by_index[idx] = {
-                                    "id": "",
-                                    "function": {"name": "", "arguments": ""},
-                                }
-                            tc = tool_calls_by_index[idx]
-                            if tc_delta.id:
-                                tc["id"] = tc_delta.id
-                            if tc_delta.function:
-                                if tc_delta.function.name:
-                                    tc["function"]["name"] = tc_delta.function.name
-                                if tc_delta.function.arguments:
-                                    tc["function"]["arguments"] += tc_delta.function.arguments
+                            # Accumulate tool calls from streaming deltas
+                            if delta.tool_calls:
+                                for tc_delta in delta.tool_calls:
+                                    idx = tc_delta.index
+                                    if idx not in tool_calls_by_index:
+                                        tool_calls_by_index[idx] = {
+                                            "id": "",
+                                            "function": {"name": "", "arguments": ""},
+                                        }
+                                    tc = tool_calls_by_index[idx]
+                                    if tc_delta.id:
+                                        tc["id"] = tc_delta.id
+                                    if tc_delta.function:
+                                        if tc_delta.function.name:
+                                            tc["function"]["name"] = tc_delta.function.name
+                                        if tc_delta.function.arguments:
+                                            tc["function"]["arguments"] += tc_delta.function.arguments
 
-                    # Capture usage from streaming chunks (if provider includes it)
-                    chunk_usage = getattr(chunk, "usage", None)
-                    if chunk_usage and isinstance(getattr(chunk_usage, "prompt_tokens", None), int):
-                        accumulated_prompt_tokens += chunk_usage.prompt_tokens or 0
-                        accumulated_completion_tokens += chunk_usage.completion_tokens or 0
+                            # Capture usage from streaming chunks (if provider includes it)
+                            chunk_usage = getattr(chunk, "usage", None)
+                            if chunk_usage and isinstance(getattr(chunk_usage, "prompt_tokens", None), int):
+                                accumulated_prompt_tokens += chunk_usage.prompt_tokens or 0
+                                accumulated_completion_tokens += chunk_usage.completion_tokens or 0
 
-                    # Detect finish_reason
-                    if choice.finish_reason == "tool_calls":
-                        break
+                            # Detect finish_reason
+                            if choice.finish_reason == "tool_calls":
+                                break
+                except TimeoutError:
+                    # Provider went silent mid-stream. Surface a clean error so the
+                    # client terminates (emits [DONE] via _sse_stream) instead of
+                    # hanging on an open connection with an unresolved running step.
+                    yield json.dumps(
+                        {
+                            "type": "error",
+                            "error": "The model provider stopped responding mid-response. Please try again.",
+                        }
+                    )
+                    break
+                except Exception as _prov_err:  # provider auth/quota/transport failures
+                    # A hard provider error (e.g. 401/403 "plan does not include
+                    # this model", 429 quota) must become a clean error event + [DONE],
+                    # never an unhandled generator crash that leaves the SSE open.
+                    _msg = getattr(_prov_err, "message", None) or str(_prov_err)
+                    if not isinstance(_msg, str):
+                        _msg = str(_prov_err)
+                    yield json.dumps(
+                        {
+                            "type": "error",
+                            "error": f"Model provider error: {_msg[:400]}",
+                        }
+                    )
+                    break
 
                 # ── Process tool calls ──────────────────────────────
                 if tool_calls_by_index:
