@@ -2495,7 +2495,12 @@ async def generate_thread_title(
         # Comment 4: enforce the budget BEFORE the provider call.
         from app.services.budget_enforcer import enforce_budget_before_llm
 
-        enforce_budget_before_llm(budget, model_id=model_name, estimated_completion_tokens=20)
+        # Title generation is a cheap, internal, read-only call. When no
+        # explicit budget is supplied (the common case — the chat auto-title
+        # path), fall back to a default Budget rather than crashing
+        # (enforce_budget_before_llm rejects a None budget by design, so a
+        # missing budget must not 500 the title endpoint).
+        enforce_budget_before_llm(budget or Budget(), model_id=model_name, estimated_completion_tokens=20)
         response = await _client.chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": title_prompt}],
