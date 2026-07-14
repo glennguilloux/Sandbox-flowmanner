@@ -313,12 +313,32 @@ def blueprint_to_workflow(
         max_depth=budget_data.get("max_depth", 5),
     )
 
+    # The frontend mission builder emits `start`/`end` sentinel nodes
+    # (nodeType "start"/"end") that are bookkeeping, not executable steps.
+    # The canonical WorkflowNode.NodeType enum has no such member, so passing
+    # them verbatim raises `ValidationError: 1 validation error for
+    # WorkflowNode / type / Input should be 'llm_call', ...`. The old mission
+    # builder already tolerates these sentinels (templates use them), so the
+    # adapter must too: skip pure `start`/`end` sentinels and map any other
+    # unknown nodeType through the existing task-type map (defaulting to
+    # LLM_CALL) instead of crashing the whole blueprint load.
+    _SENTINEL_NODE_TYPES = frozenset({"start", "end"})
+
+    workflow_nodes: list[WorkflowNode] = []
+    for n in snapshot.get("nodes", []):
+        raw_type = n.get("type") or (n.get("data", {}) or {}).get("nodeType") or "task"
+        if raw_type in _SENTINEL_NODE_TYPES:
+            continue
+        mapped = _TASK_TYPE_MAP.get(raw_type, NodeType.LLM_CALL)
+        n = {**n, "type": mapped.value}
+        workflow_nodes.append(WorkflowNode(**n))
+
     return Workflow(
         id=blueprint_id,
         type=WorkflowType(snapshot.get("blueprint_type", "solo")),
         title=snapshot.get("title", ""),
         description=snapshot.get("description"),
-        nodes=[WorkflowNode(**n) for n in snapshot.get("nodes", [])],
+        nodes=workflow_nodes,
         edges=[WorkflowEdge(**e) for e in snapshot.get("edges", [])],
         budget=budget,
         user_id=user_id,

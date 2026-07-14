@@ -16,10 +16,12 @@ from typing import TYPE_CHECKING, cast
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
+from decimal import Decimal
+
 from openai import AsyncOpenAI
 from sqlalchemy import func, select
 
-from app.models.capability_models import BudgetExhausted
+from app.models.capability_models import Budget, BudgetExhausted
 from app.models.chat import ChatBranch, ChatFile, ChatMessage, ChatThread
 from app.models.phase4_models import UserFile
 
@@ -395,6 +397,18 @@ async def _stream_message_to_llm_body(
 
     if raw_model and raw_model.startswith("llamacpp/"):
         effective_user_key = None
+
+    # Comment 4: chat generation requires an explicit budget. The
+    # `enforce_budget_before_llm` gate (below) rejects a `None` budget, so we
+    # must declare one here rather than pass an undefined/`None` name. Chat is a
+    # local, single-call generation path — a generous per-message budget is
+    # appropriate; multi-minute/offline mission runs have their own budgets.
+    budget = Budget(
+        max_cost_usd=Decimal("2.00"),
+        max_wall_time_seconds=300,
+        max_iterations=5,
+        max_depth=1,
+    )
 
     if effective_user_key:
         effective_base = effective_base_url or base_url
@@ -2006,7 +2020,7 @@ async def send_message_to_llm(
     attachments: list | None = None,
     web_search: bool | None = None,
     # Comment 4: explicit budget policy required for the chat generation path.
-    budget: Any | None = None,
+    budget: Budget | None = None,
 ) -> dict:
     """Send a message to the LLM and get a non-streaming response.
 
@@ -2045,6 +2059,16 @@ async def send_message_to_llm(
 
     if raw_model and raw_model.startswith("llamacpp/"):
         effective_user_key = None
+
+    # Comment 4: chat generation requires an explicit budget. See the
+    # `_stream_message_to_llm_body` twin above for rationale — `enforce_budget_before_llm`
+    # rejects a `None` budget, so we declare a per-message budget here.
+    budget = Budget(
+        max_cost_usd=Decimal("2.00"),
+        max_wall_time_seconds=300,
+        max_iterations=5,
+        max_depth=1,
+    )
 
     if effective_user_key:
         effective_base = effective_base_url or base_url
@@ -2424,7 +2448,7 @@ async def generate_thread_title(
     db: AsyncSession,
     thread_id: int,
     # Comment 4: explicit budget policy required for title generation.
-    budget: Any | None = None,
+    budget: Budget | None = None,
 ) -> str | None:
     """Generate a 3-5 word title for a thread based on its first exchange.
 
