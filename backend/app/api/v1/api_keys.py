@@ -4,7 +4,7 @@ import ipaddress
 import logging
 import socket
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 from urllib.parse import urlparse
 
 import httpx
@@ -118,16 +118,20 @@ def _is_safe_outbound_url(url: str) -> tuple[bool, str | None]:
     if not infos:
         return False, f"base_url host '{hostname}' resolved to no addresses"
 
-    for family, _type, _proto, _canon, sockaddr in infos:
+    for _family, _type, _proto, _canon, sockaddr in infos:
         ip_str = sockaddr[0]
         try:
             resolved = ipaddress.ip_address(ip_str)
         except ValueError:
             return False, f"base_url host '{hostname}' resolved to an invalid address '{ip_str}'"
-        if not resolved.is_global or resolved.is_loopback or resolved.is_link_local or resolved.is_reserved or resolved.is_multicast:
-            return False, (
-                f"base_url host '{hostname}' resolves to a non-public address '{ip_str}'"
-            )
+        if (
+            not resolved.is_global
+            or resolved.is_loopback
+            or resolved.is_link_local
+            or resolved.is_reserved
+            or resolved.is_multicast
+        ):
+            return False, (f"base_url host '{hostname}' resolves to a non-public address '{ip_str}'")
     return True, None
 
 
@@ -177,6 +181,106 @@ _NON_CHAT_KEYWORDS = ("embedding", "whisper", "dall-e", "tts", "moderation")
 def _is_chat_model(model_id: str) -> bool:
     lower_id = model_id.lower()
     return not any(kw in lower_id for kw in _NON_CHAT_KEYWORDS)
+
+
+class ProviderModelsResult(NamedTuple):
+    """Outcome of a live ``/v1/models`` fetch against a provider.
+
+    ``kind`` is one of: ``ok`` (models populated), ``invalid_key`` (401/403),
+    ``unsafe`` (SSRF rule rejected the base_url), ``http_error`` (non-2xx),
+    ``network_error`` (timeout / connection / parse). ``models`` holds the
+    chat-capable model ids; ``error`` is a human message for the non-ok kinds.
+    """
+
+    kind: str
+    models: list[str]
+    error: str | None
+
+
+async def fetch_provider_models(
+    *,
+    provider: str,
+    api_key: str,
+    base_url: str | None = None,
+) -> ProviderModelsResult:
+    """Fetch the provider's live ``/models`` list, SSRF-safe.
+
+    Single source of truth for "what models can this key actually use". Resolves
+    the effective base URL (custom ``base_url`` or the provider default),
+    re-validates it against the SSRF rules, pins the resolved public IP to defeat
+    DNS-rebinding, and never follows redirects (so a rebind can't leak the
+    Authorization header). Returns chat-capable model ids only.
+
+    Never raises — every failure path is mapped to a :class:`ProviderModelsResult`
+    so callers can degrade gracefully (e.g. fall back to stored models).
+    """
+    requested_base_url = _get_base_url(provider, base_url)
+
+    ok, err = _is_safe_outbound_url(requested_base_url)
+    if not ok:
+        logger.warning("fetch_provider_models: unsafe base_url provider=%s err=%s", provider, err)
+        return ProviderModelsResult("unsafe", [], err)
+
+    parsed = urlparse(requested_base_url)
+    # Re-resolve + re-check the resolved IP right before the request (fail-closed
+    # against DNS-rebinding), then pin it for the connection.
+    target_ip: str | None = None
+    try:
+        infos = socket.getaddrinfo(parsed.hostname, None)
+        for _family, _type, _proto, _canon, sockaddr in infos:
+            try:
+                resolved = ipaddress.ip_address(sockaddr[0])
+            except ValueError:
+                continue
+            if (
+                not resolved.is_global
+                or resolved.is_loopback
+                or resolved.is_link_local
+                or resolved.is_reserved
+                or resolved.is_multicast
+            ):
+                logger.warning(
+                    "fetch_provider_models: base_url %s resolved to non-public %s",
+                    requested_base_url,
+                    sockaddr[0],
+                )
+                return ProviderModelsResult("unsafe", [], f"base_url resolves to a non-public address {sockaddr[0]}")
+        target_ip = str(infos[0][4][0]) if infos else None
+    except (socket.gaierror, UnicodeError, OSError, IndexError):
+        # If we can't resolve, fall back to the scheme/host checks already done.
+        target_ip = None
+
+    try:
+        client = httpx.AsyncClient(timeout=10.0, follow_redirects=False)
+        if target_ip:
+            client._transport._pool._network_backend = _PinnedNetworkBackend(  # type: ignore[attr-defined]
+                client._transport._pool._network_backend,
+                target_ip,  # type: ignore[attr-defined]
+            )
+        async with client:
+            resp = await client.get(
+                f"{requested_base_url.rstrip('/')}/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+    except httpx.TimeoutException:
+        return ProviderModelsResult("network_error", [], "Request timed out while fetching models")
+    except httpx.RequestError as exc:
+        logger.warning("fetch_provider_models: request error provider=%s: %s", provider, exc)
+        return ProviderModelsResult("network_error", [], f"Network error: {exc}")
+
+    if resp.status_code in (401, 403):
+        return ProviderModelsResult("invalid_key", [], "Invalid API key")
+    if not resp.is_success:
+        return ProviderModelsResult("http_error", [], f"Provider returned HTTP {resp.status_code}")
+
+    try:
+        data = resp.json()
+        model_ids = [m["id"] for m in data.get("data", []) if m.get("id") and _is_chat_model(m["id"])]
+    except Exception as exc:
+        logger.warning("fetch_provider_models: parse failed provider=%s: %s", provider, exc)
+        return ProviderModelsResult("network_error", [], "Failed to parse provider response")
+
+    return ProviderModelsResult("ok", model_ids, None)
 
 
 def _get_base_url(provider: str, base_url: str | None = None) -> str:
@@ -452,9 +556,7 @@ async def add_key(
             raise HTTPException(status_code=400, detail=f"Invalid base_url: {err}")
 
     # Enforce per-user API-key quota (consistent with byok.py's constraints).
-    existing = await db.execute(
-        select(func.count()).select_from(UserAPIKey).where(UserAPIKey.user_id == user.id)
-    )
+    existing = await db.execute(select(func.count()).select_from(UserAPIKey).where(UserAPIKey.user_id == user.id))
     if (existing.scalar_one() or 0) >= MAX_USER_API_KEYS:
         logger.warning("api_keys add_key: quota exceeded user=%s", user.id)
         raise HTTPException(
@@ -522,93 +624,39 @@ async def test_key(
     key = result.scalar_one_or_none()
     if not key:
         raise HTTPException(status_code=404, detail="Key not found")
-    # Test the key by calling the provider's models endpoint.
-    # Guard against stored SSRF: a custom base_url must have passed write-time
-    # validation, but re-validate defensively and never follow redirects into
-    # private ranges. We resolve + pin the target IP so a DNS-rebinding response
-    # cannot redirect the credented request to an internal host.
+    # Test the key by calling the provider's models endpoint. All SSRF guarding
+    # (resolve + pin target IP, no redirects, re-validate base_url) lives in
+    # ``fetch_provider_models`` so the test path and the model-picker path share
+    # one implementation.
     api_key = key.get_api_key()
-    requested_base_url = key.base_url or _PROVIDER_BASE_URLS.get(key.provider.lower(), _PROVIDER_BASE_URLS["openai"])
-    ok, err = _is_safe_outbound_url(requested_base_url)
-    if not ok:
-        logger.warning("api_keys test_key: unsafe stored base_url user=%s key=%s err=%s", user.id, key_id, err)
+    result = await fetch_provider_models(provider=key.provider, api_key=api_key, base_url=key.base_url)
+    if result.kind == "ok":
+        return {
+            "provider": key.provider,
+            "key_name": key.key_label,
+            "valid": True,
+            "message": "Key is valid",
+        }
+    if result.kind == "invalid_key":
         return {
             "provider": key.provider,
             "key_name": key.key_label,
             "valid": False,
-            "message": f"Refusing to test: {err}",
+            "message": "Invalid API key",
         }
-
-    parsed = urlparse(requested_base_url)
-    # Re-resolve and re-check the resolved IP right before the request. This
-    # limits DNS-rebinding: even if the stored value was safe at write time, a
-    # rebind to a non-public address here is refused (fail-closed).
-    target_ip: str | None = None
-    try:
-        infos = socket.getaddrinfo(parsed.hostname, None)
-        for _family, _type, _proto, _canon, sockaddr in infos:
-            try:
-                resolved = ipaddress.ip_address(sockaddr[0])
-            except ValueError:
-                continue
-            if not resolved.is_global or resolved.is_loopback or resolved.is_link_local or resolved.is_reserved or resolved.is_multicast:
-                logger.warning("api_keys test_key: base_url %s resolved to non-public %s", requested_base_url, sockaddr[0])
-                return {
-                    "provider": key.provider,
-                    "key_name": key.key_label,
-                    "valid": False,
-                    "message": f"Refusing to test: base_url resolves to a non-public address {sockaddr[0]}",
-                }
-        target_ip = infos[0][4][0] if infos else None
-    except (socket.gaierror, UnicodeError, OSError, IndexError):
-        # If we can't resolve, fall back to the scheme/host checks already done.
-        target_ip = None
-
-    try:
-        # follow_redirects=False => a redirect to a private/loopback host cannot
-        # leak the user's Authorization header. Combined with the write-time and
-        # pre-request IP checks above, this closes the stored-SSRF + credential-
-        # exfiltration vector (R-8).
-        client = httpx.AsyncClient(timeout=10.0, follow_redirects=False)
-        # Pin the resolved IP so a second (rebind) DNS lookup at connect time
-        # cannot re-point the credentialed request at an internal host. The
-        # connection still uses the URL's hostname for TLS SNI / Host header.
-        if target_ip:
-            client._transport._pool._network_backend = _PinnedNetworkBackend(
-                client._transport._pool._network_backend, target_ip
-            )
-        async with client:
-            resp = await client.get(
-                f"{requested_base_url.rstrip('/')}/models",
-                headers={"Authorization": f"Bearer {api_key}"},
-            )
-        if resp.status_code in (401, 403):
-            return {
-                "provider": key.provider,
-                "key_name": key.key_label,
-                "valid": False,
-                "message": "Invalid API key",
-            }
-        if resp.is_success:
-            return {
-                "provider": key.provider,
-                "key_name": key.key_label,
-                "valid": True,
-                "message": "Key is valid",
-            }
+    if result.kind == "unsafe":
         return {
             "provider": key.provider,
             "key_name": key.key_label,
             "valid": False,
-            "message": f"HTTP {resp.status_code}",
+            "message": f"Refusing to test: {result.error}",
         }
-    except Exception as e:
-        return {
-            "provider": key.provider,
-            "key_name": key.key_label,
-            "valid": False,
-            "message": str(e),
-        }
+    return {
+        "provider": key.provider,
+        "key_name": key.key_label,
+        "valid": False,
+        "message": result.error or f"HTTP error ({result.kind})",
+    }
 
 
 @user_keys_router.get("")

@@ -140,8 +140,8 @@ async def list_api_keys(
             }
             for k in keys
         ]
-    except Exception as e:
-        logger.error("BYOK list failed: user=%s error=%s", user.id, e, exc_info=True)
+    except Exception:
+        logger.exception("BYOK list failed: user=%s", user.id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to list API keys",
@@ -172,14 +172,8 @@ async def delete_api_key(
         return None
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(
-            "BYOK delete failed: user=%s key_id=%s error=%s",
-            user.id,
-            key_id,
-            e,
-            exc_info=True,
-        )
+    except Exception:
+        logger.exception("BYOK delete failed: user=%s key_id=%s", user.id, key_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete API key",
@@ -194,25 +188,52 @@ async def list_available_models(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List available models from user active BYOK keys."""
+    """List models actually usable by the user's active BYOK keys.
+
+    This is the single source of truth for the chat model picker. For each
+    active key we fetch the provider's LIVE ``/v1/models`` (SSRF-safe, cached 5
+    min) and return only the chat-capable models. If a live fetch fails we fall
+    back to the models stored on the key at creation time so the picker still
+    works offline / on auth errors.
+    """
     from sqlalchemy import select
 
+    from app.api.v1.api_keys import fetch_provider_models
     from app.models.byok_models import UserAPIKey
 
     result = await db.execute(select(UserAPIKey).where(UserAPIKey.user_id == user.id, UserAPIKey.is_active == True))
     keys = result.scalars().all()
 
-    models = []
+    models: list[dict] = []
+    seen: set[str] = set()
+
     for k in keys:
-        model_list = k.get_models_list()
-        for m in model_list:
+        provider = k.provider
+        api_key = k.get_api_key()
+        live = await fetch_provider_models(provider=provider, api_key=api_key, base_url=k.base_url)
+
+        if live.kind == "ok" and live.models:
+            model_ids = live.models
+            source = "live"
+        else:
+            # Graceful degradation: surface stored models + the reason the live
+            # fetch failed so the UI can warn without breaking the dropdown.
+            model_ids = k.get_models_list()
+            source = live.kind
+
+        for m in model_ids:
+            if m in seen:
+                continue
+            seen.add(m)
             models.append(
                 {
                     "id": m,
                     "name": m,
-                    "provider": k.provider,
+                    "provider": provider,
+                    "provider_label": f"{provider} (BYOK)",
                     "key_id": k.id,
-                    "key_label": k.key_label or f"{k.provider} key #{k.id}",
+                    "key_label": k.key_label or f"{provider} key #{k.id}",
+                    "source": source,
                 }
             )
 
