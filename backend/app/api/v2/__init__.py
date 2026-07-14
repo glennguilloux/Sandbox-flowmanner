@@ -109,6 +109,12 @@ from app.api.v2.eval_runs import router as eval_runs_router
 
 api_v2_router.include_router(eval_runs_router)
 
+# Resilience helper (Batch 6) — withResilience over REST: preview the
+# escalation subgraph for a template, or persist a wrapped user variant.
+from app.api.v2.resilience import router as resilience_router
+
+api_v2_router.include_router(resilience_router)
+
 # Contact form — public endpoint for submitting inquiries
 from app.api.v2.contact import router as contact_router
 
