@@ -162,12 +162,19 @@ _SANDBOXD_SYSTEM_GUIDANCE = """
 
 ## Live Preview Tools (sandboxd)
 
+You have tool-calling (function-calling) capabilities available. **When you
+want to use one of these tools, you MUST emit an actual tool/function call —
+do NOT describe the call in prose or write it as if it were text.** Narrating
+"I will call sandboxd_preview" without emitting the function call does nothing
+and stalls the conversation. Always prefer calling a tool over talking about
+calling it.
+
 When the user asks you to build something visual (landing page, dashboard,
 chart, tool, app, or any HTML/CSS/JS project), use the sandboxd tools to
 create a live preview. Follow this workflow **exactly**:
 
-1. **sandboxd_preview** — call with `{}` (no arguments) to create a new sandbox.
-   Save the returned `sandbox_id` for ALL subsequent calls.
+1. **sandboxd_preview** — emit a tool call with `{}` (no arguments) to create a
+   new sandbox. Save the returned `sandbox_id` for ALL subsequent calls.
    ⚠️  CRITICAL: sandboxd_preview returns sandbox metadata ONLY (id, status).
    It does NOT return a usable app preview URL.  The sandbox runtime URL (port 3000)
    is empty — do NOT show it to the user.  The preview URL comes from sandboxd_serve.
