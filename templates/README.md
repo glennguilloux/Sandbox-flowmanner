@@ -1,5 +1,5 @@
 # FlowManner Mission Templates
-A curated library of **47 built-in mission templates** shipped via
+A curated library of **59 built-in mission templates** shipped via
 `backend/seed_templates.py`. Each template is a ready-to-run workflow DAG you
 can instantiate from the canvas — they are the starting point for a new
 mission, not the finished product, so treat them as scaffolds to customize.
@@ -33,7 +33,14 @@ mission, not the finished product, so treat them as scaffolds to customize.
 > node joins on in-degree — no explicit `FAN_IN` node is required.
 
 ## Categories
-The library spans 6 categories: `Research & Analysis` (5), `Software Engineering` (6), `approval` (6), `automation` (13), `data_pipeline` (9), `integration` (8).
+The library spans 6 categories: `Research & Analysis` (5), `Software Engineering` (6), `approval` (6), `automation` (17), `data_pipeline` (13), `integration` (12).
+
+> **Added 2026-07-15 (12 templates):** authored by 3 persona-injected
+> Kanban workers (`marketing-social-media-strategist`, `engineering-frontend-developer`,
+> `engineering-ai-data-remediation-engineer`), merged on
+> `agent/2026-07-15-synth-blueprints`. Gaps filled: social/listening growth
+> loops, product-led funnel/publisher blueprints, and self-optimizing /
+> competitive-intel / drift-monitoring blueprints.
 
 ---
 
@@ -66,6 +73,7 @@ The library spans 6 categories: `Research & Analysis` (5), `Software Engineering
 | GDPR Data Erasure Processor | Eraser | high | 11 | approval, condition, end, log, parallel, start, task, webhook |
 | Financial Wire Transfer Approval | Scale | high | 10 | approval, condition, end, log, rag_query, start, task, transform, webhook |
 | Contract Compliance Review | Receipt | high | 11 | approval, condition, end, rag_query, start, task, transform, webhook |
+| UGC Rights-Clearance Flow | ShieldCheck | medium | 7 | approval, condition, end, start, task, webhook |
 
 ### automation (13)
 | Template | Icon | Priority | Nodes | Node types |
@@ -83,8 +91,11 @@ The library spans 6 categories: `Research & Analysis` (5), `Software Engineering
 | Security Incident Response | ShieldCheck | high | 12 | condition, end, log, parallel, rag_query, start, task, transform, webhook |
 | SaaS Provisioning & Access Control | KeyRound | medium | 11 | condition, end, parallel, start, task, transform, webhook |
 | Critical Infrastructure Breach Response | Network | high | 17 | approval, condition, end, log, loop, parallel, rag_query, start, task, transform, webhook |
+| Multi-Platform Content Calendar Publisher | Megaphone | high | 9 | approval, end, loop, parallel, start, transform, webhook |
+| Template Gallery A/B Variant Publisher | Megaphone | medium | 8 | approval, end, loop, parallel, start, task, webhook |
+| Signup to Onboarding Funnel Nurture | Users | medium | 9 | condition, end, log, parallel, start, task, webhook |
 
-### data_pipeline (9)
+### data_pipeline (13)
 | Template | Icon | Priority | Nodes | Node types |
 |----------|------|----------|-------|------------|
 | Data Pipeline — Extract, Transform, Load | Database | medium | 5 | end, start, task, transform |
@@ -96,6 +107,11 @@ The library spans 6 categories: `Research & Analysis` (5), `Software Engineering
 | A/B Test Auto-Evaluator | GitBranch | medium | 7 | condition, end, log, loop, start, task |
 | Customer Onboarding KYC | Users | high | 12 | approval, condition, end, parallel, start, task, transform, webhook |
 | AI Model Drift Retraining | Gauge | medium | 11 | approval, condition, end, log, loop, rag_query, start, task |
+| Landing Page Heatmap Insight Loop | BarChart3 | medium | 7 | end, loop, rag_query, start, task, transform, webhook |
+| Pricing Page Experiment Evaluator | LineChart | medium | 7 | approval, condition, end, log, loop, start, webhook |
+| Self-Healing Template-Usage Anomaly Fixer | ShieldCheck | high | 8 | approval, condition, end, log, loop, rag_query, start, task |
+| Dead Template Auto-Retire | Trash2 | low | 7 | approval, condition, end, loop, rag_query, start, webhook |
+| Gallery-vs-Backend NodeType Drift Monitor | Radar | high | 6 | condition, end, log, loop, start, task |
 
 ### integration (8)
 | Template | Icon | Priority | Nodes | Node types |
@@ -108,6 +124,9 @@ The library spans 6 categories: `Research & Analysis` (5), `Software Engineering
 | Multi-Channel Content Syndicator | Share2 | medium | 9 | end, log, parallel, start, task, transform, webhook |
 | Multi-Source Data Sync | Share2 | medium | 11 | condition, end, log, loop, parallel, start, task, transform |
 | Daily Compliance Control Check | Clock | medium | 11 | condition, end, log, loop, parallel, start, task, transform |
+| Social Listening → Insight Brief | Radar | high | 7 | approval, end, rag_query, start, task, transform, webhook |
+| Competitor Social Move Tracker | GitCompare | medium | 6 | end, rag_query, start, task, transform, webhook |
+| Competitor Blueprint Scrape → Diff | GitCompare | medium | 6 | end, rag_query, start, task, transform, webhook |
 
 ---
 
