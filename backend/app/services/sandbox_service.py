@@ -30,30 +30,37 @@ class SandboxService:
 
     async def ensure_sandbox_for_mission(
         self,
-        mission_id: str,
+        mission_id: str | None,
         user_id: str,
         *,
         db,
         template: str | None = None,
+        run_id: str | None = None,
     ) -> str:
         """Get or create sandbox. Returns sandbox_id.
 
-        Idempotent: if sandbox already exists for this mission, returns it.
-        Stores mapping in mission_sandboxes table.
+        Idempotent: if a sandbox already exists for this mission/run, returns it.
+        Stores mapping in mission_sandboxes table. For blueprint/substrate runs
+        (which have no ``missions`` row) pass ``run_id`` and leave ``mission_id``
+        NULL — the FK to missions(id) would otherwise reject the insert.
         """
         # 1. Check for existing mapping
-        existing = await self.get_sandbox_for_mission(mission_id, db=db)
+        existing = await self.get_sandbox_for_mission(mission_id, db=db, run_id=run_id)
         if existing:
-            logger.info("Sandbox %s already exists for mission %s", existing, mission_id)
+            logger.info(
+                "Sandbox %s already exists for %s",
+                existing,
+                run_id or mission_id,
+            )
             return existing
 
         # 2. Create sandbox via sandboxd
-        project_id = f"mission_{mission_id}"
+        project_id = f"run_{run_id}" if run_id else f"mission_{mission_id}"
         tmpl = template or settings.SANDBOXD_DEFAULT_TEMPLATE
 
         logger.info(
-            "Creating sandbox for mission %s (project=%s, template=%s)",
-            mission_id,
+            "Creating sandbox for %s (project=%s, template=%s)",
+            run_id or mission_id,
             project_id,
             tmpl,
         )
@@ -65,9 +72,10 @@ class SandboxService:
         )
         sandbox_id = resp["id"]
 
-        # 3. Store mapping
+        # 3. Store mapping (mission_id or run_id — not both required)
         row = MissionSandbox(
             mission_id=mission_id,
+            run_id=run_id,
             sandbox_id=sandbox_id,
             project_id=project_id,
             status=resp.get("status", "creating"),
@@ -75,17 +83,18 @@ class SandboxService:
         db.add(row)
         await db.commit()
 
-        logger.info("Sandbox %s created for mission %s", sandbox_id, mission_id)
+        logger.info("Sandbox %s created for %s", sandbox_id, run_id or mission_id)
         return sandbox_id
 
-    async def reap_sandbox(self, mission_id: str, *, db) -> None:
+    async def reap_sandbox(self, mission_id: str | None = None, *, db, run_id: str | None = None) -> None:
         """Soft-stop sandbox (preserve workspace for potential reuse).
 
         Called on mission terminal transition (completed/failed/aborted).
+        For blueprint runs, pass run_id and omit mission_id.
         """
-        sandbox_id = await self.get_sandbox_for_mission(mission_id, db=db)
+        sandbox_id = await self.get_sandbox_for_mission(mission_id, db=db, run_id=run_id)
         if not sandbox_id:
-            logger.debug("No sandbox for mission %s — noop", mission_id)
+            logger.debug("No sandbox for %s — noop", run_id or mission_id)
             return
 
         try:
@@ -101,22 +110,23 @@ class SandboxService:
                 row.stopped_at = datetime.now(UTC)
                 await db.commit()
 
-            logger.info("Sandbox %s stopped for mission %s", sandbox_id, mission_id)
+            logger.info("Sandbox %s stopped for %s", sandbox_id, run_id or mission_id)
         except Exception:
             logger.exception(
-                "Failed to stop sandbox %s for mission %s",
+                "Failed to stop sandbox %s for %s",
                 sandbox_id,
-                mission_id,
+                run_id or mission_id,
             )
 
-    async def purge_sandbox(self, mission_id: str, *, db) -> None:
+    async def purge_sandbox(self, mission_id: str | None = None, *, db, run_id: str | None = None) -> None:
         """Full destroy (DELETE /v1/sandboxes/{id}).
 
         Called on explicit cleanup or after a TTL expires.
+        For blueprint runs, pass run_id and omit mission_id.
         """
-        sandbox_id = await self.get_sandbox_for_mission(mission_id, db=db)
+        sandbox_id = await self.get_sandbox_for_mission(mission_id, db=db, run_id=run_id)
         if not sandbox_id:
-            logger.debug("No sandbox for mission %s — noop", mission_id)
+            logger.debug("No sandbox for %s — noop", run_id or mission_id)
             return
 
         try:
@@ -131,40 +141,70 @@ class SandboxService:
                 row.purged_at = datetime.now(UTC)
                 await db.commit()
 
-            logger.info("Sandbox %s purged for mission %s", sandbox_id, mission_id)
+            logger.info("Sandbox %s purged for %s", sandbox_id, run_id or mission_id)
         except Exception:
             logger.exception(
-                "Failed to purge sandbox %s for mission %s",
+                "Failed to purge sandbox %s for %s",
                 sandbox_id,
-                mission_id,
+                run_id or mission_id,
             )
 
     # ── Lookup ─────────────────────────────────────────────────────────
 
-    async def get_sandbox_for_mission(self, mission_id: str, *, db) -> str | None:
-        """Look up sandbox_id from mission_sandboxes table."""
-        stmt = select(MissionSandbox).where(
-            MissionSandbox.mission_id == mission_id,
-            MissionSandbox.status.notin_(["purged"]),
-        )
+    async def get_sandbox_for_mission(
+        self,
+        mission_id: str | None,
+        *,
+        db,
+        run_id: str | None = None,
+    ) -> str | None:
+        """Look up sandbox_id from mission_sandboxes table.
+
+        Matches on run_id first (blueprint/substrate runs), then mission_id
+        (legacy Mission path). Returns None if no live (non-purged) mapping.
+        """
+        if run_id:
+            stmt = select(MissionSandbox).where(
+                MissionSandbox.run_id == run_id,
+                MissionSandbox.status.notin_(["purged"]),
+            )
+        else:
+            stmt = select(MissionSandbox).where(
+                MissionSandbox.mission_id == mission_id,
+                MissionSandbox.status.notin_(["purged"]),
+            )
         result = await db.execute(stmt)
         row = result.scalars().first()
         return row.sandbox_id if row else None
 
     # ── Snapshots ──────────────────────────────────────────────────────
 
-    async def create_snapshot(self, mission_id: str, name: str = "", *, db) -> dict[str, Any]:
+    async def create_snapshot(
+        self,
+        mission_id: str | None,
+        name: str = "",
+        *,
+        db,
+        run_id: str | None = None,
+    ) -> dict[str, Any]:
         """Create a snapshot of the sandbox workspace."""
-        sandbox_id = await self.get_sandbox_for_mission(mission_id, db=db)
+        sandbox_id = await self.get_sandbox_for_mission(mission_id, db=db, run_id=run_id)
         if not sandbox_id:
-            raise ValueError(f"No sandbox for mission {mission_id}")
+            raise ValueError(f"No sandbox for {run_id or mission_id}")
         return await self._client.create_snapshot(sandbox_id, name)
 
-    async def restore_snapshot(self, mission_id: str, snapshot_id: str, *, db) -> None:
+    async def restore_snapshot(
+        self,
+        mission_id: str | None,
+        snapshot_id: str,
+        *,
+        db,
+        run_id: str | None = None,
+    ) -> None:
         """Restore sandbox to a previous snapshot."""
-        sandbox_id = await self.get_sandbox_for_mission(mission_id, db=db)
+        sandbox_id = await self.get_sandbox_for_mission(mission_id, db=db, run_id=run_id)
         if not sandbox_id:
-            raise ValueError(f"No sandbox for mission {mission_id}")
+            raise ValueError(f"No sandbox for {run_id or mission_id}")
         await self._client.restore_snapshot(sandbox_id, snapshot_id)
 
     # ── Workspace-scoped sandboxes (Phase 4) ─────────────────────────

@@ -18,12 +18,20 @@ class MissionSandbox(Base, TimestampMixin):
     __tablename__ = "mission_sandboxes"
 
     id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
-    mission_id: Mapped[str] = mapped_column(
+    mission_id: Mapped[str | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("missions.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         unique=True,
         index=True,
+        comment="legacy Mission path; NULL for blueprint/substrate runs (keyed by run_id)",
+    )
+    run_id: Mapped[str | None] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=True,
+        unique=True,
+        index=True,
+        comment="blueprint/substrate run id; runs have no missions row",
     )
     sandbox_id: Mapped[str] = mapped_column(
         String(64),

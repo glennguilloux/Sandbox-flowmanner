@@ -1516,18 +1516,22 @@ class NodeExecutor:
         sandbox_id = None
         try:
             # 1 — Create or reuse sandbox
-            if shared_workspace and mission_id:
-                sandbox_id = await self._sandbox_service.get_sandbox_for_mission(mission_id, db=db)
+            # Blueprint/substrate runs have a run_id but no missions row, so key
+            # the sandbox mapping on run_id (mission_id stays NULL → no FK break).
+            # Legacy Mission runs keep mission_id.
+            if shared_workspace and (mission_id or run_id):
+                sandbox_id = await self._sandbox_service.get_sandbox_for_mission(mission_id, db=db, run_id=run_id)
             if not sandbox_id:
-                if mission_id:
+                if mission_id or run_id:
                     sandbox_id = await self._sandbox_service.ensure_sandbox_for_mission(
                         mission_id=mission_id,
                         user_id=user_id,
                         db=db,
                         template=template,
+                        run_id=run_id,
                     )
                 else:
-                    # No mission context — create ephemeral sandbox
+                    # No mission/run context — create ephemeral sandbox
                     resp = await self._sandbox_client.create(
                         project_id=f"node_{node.id}",
                         user_id=user_id,
