@@ -7,11 +7,11 @@ not a duplicate RUN_FAILED event.
 
 Requires a live PostgreSQL. The test owns its own engine built from
 SUBSTRATE_IDEM_TEST_DB_URL (NOT stripped by the test env-guard, so it runs
-on the host too). Defaults to a throwaway flowmapper DB on localhost.
+on the host too). Defaults to a throwaway flowmanner DB on localhost.
 In CI/container, point the var at the reachable Postgres (e.g. workflow-postgres)
 and run the substrate + S2 migrations there first.
 
-    SUBSTRATE_IDEM_TEST_DB_URL='postgresql+asyncpg://flowmanner:***@localhost:5432/flowmapper' \
+    SUBSTRATE_IDEM_TEST_DB_URL='postgresql+asyncpg://flowmanner:***@localhost:5432/flowmanner' \
         .venv/bin/python -m pytest tests/test_substrate_idempotency_unique.py -v
 
 (Skips automatically when no DB is reachable.)
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 _TEST_DB_URL = os.environ.get(
     "SUBSTRATE_IDEM_TEST_DB_URL",
-    "postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@localhost:5432/flowmapper",
+    "postgresql+asyncpg://flowmanner:5f206ab26d543ba5424385cb10200efc@localhost:5432/flowmanner",
 )
 
 try:
