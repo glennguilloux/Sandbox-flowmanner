@@ -65,6 +65,7 @@ _TASK_TYPE_MAP: dict[str, NodeType] = {
     "web_search": NodeType.WEB_SEARCH,
     "code": NodeType.CODE_EXECUTION,
     "code_execution": NodeType.CODE_EXECUTION,
+    "sandbox": NodeType.SANDBOX,
     "file_operation": NodeType.FILE_OPERATION,
     "review": NodeType.HUMAN_REVIEW,
     "human_review": NodeType.HUMAN_REVIEW,
