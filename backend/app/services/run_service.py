@@ -133,11 +133,13 @@ class RunService:
 
         # Execute through unified executor
         executor = get_unified_executor()
+        context = {"inputs": run.input_data or {}}
         result = await executor.execute(
             db=self.db,
             workflow=workflow,
             run_id=str(run.id),
             blueprint_id=str(run.blueprint_id) if run.blueprint_id else None,
+            context=context,
         )
 
         # Update run from result
