@@ -2258,6 +2258,7 @@
         "mission_id": "UUID",
         "project_id": "VARCHAR(128)",
         "purged_at": "DATETIME",
+        "run_id": "UUID",
         "sandbox_id": "VARCHAR(64)",
         "status": "VARCHAR(20)",
         "stopped_at": "DATETIME",
@@ -2271,6 +2272,7 @@
       ],
       "indexes": [
         "ix_mission_sandboxes_mission_id",
+        "ix_mission_sandboxes_run_id",
         "ix_mission_sandboxes_sandbox_id",
         "ix_mission_sandboxes_status"
       ],
