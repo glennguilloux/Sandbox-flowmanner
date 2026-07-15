@@ -1492,7 +1492,7 @@ class NodeExecutor:
         """Execute a sandbox node: create container → push files → submit task → stream SSE.
 
         Config keys:
-            template: sandboxd template name (default "python-img")
+            template: sandboxd template name (default "python")
             task_prompt: coding task prompt for sandboxd's AI agent
             shared_workspace: reuse existing sandbox for this mission
             input_files: dict of path→content to write before task
@@ -1503,7 +1503,7 @@ class NodeExecutor:
         if not task_prompt:
             return {"success": False, "error": "No task_prompt provided"}
 
-        template = config.get("template", "python-img")
+        template = config.get("template", "python")
         shared_workspace = config.get("shared_workspace", False)
         input_files = config.get("input_files", {})
         snapshot_before = config.get("snapshot_before", False)
