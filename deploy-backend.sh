@@ -504,6 +504,18 @@ run_migrations() {
 build_and_deploy() {
   log_step "Building backend image"
 
+  # Stage the built-in template seed into the build context so the
+  # Dockerfile can BAKE it into the image (A2: entrypoint reconciles
+  # the live gallery from it on every boot). Without this copy the
+  # build FAILS (seed lives at repo root, outside backend/ context).
+  # Idempotent: always reflects the current root seed_templates.py.
+  if [ -f "$COMPOSE_DIR/seed_templates.py" ]; then
+    cp -f "$COMPOSE_DIR/seed_templates.py" "$BACKEND_SOURCE/seed_templates.py"
+    log_info "Staged seed_templates.py ($(grep -cE '^[[:space:]]*make_template\(' "$BACKEND_SOURCE/seed_templates.py") templates) into build context"
+  else
+    log_warn "seed_templates.py not found at $COMPOSE_DIR — image will bake NO seed (entrypoint reload will no-op)"
+  fi
+
   if [ "$DRY_RUN" = true ]; then
     echo -e "${YELLOW}[DRY-RUN]${NC} docker build --target runtime -t ${BACKEND_IMAGE} ${BACKEND_SOURCE}"
     echo -e "${YELLOW}[DRY-RUN]${NC} cd ${COMPOSE_DIR} && docker compose up -d --no-deps --force-recreate ${BACKEND_CONTAINER} ${CELERY_SERVICES[*]}"
@@ -539,6 +551,37 @@ build_and_deploy() {
   check_health "$HEALTH_URL" "Backend (post-recreate readiness)" "$HEALTH_CHECK_RETRIES" "$HEALTH_CHECK_DELAY"
 
   log_success "Backend + celery containers recreated"
+}
+
+# ---------------------------------------------------------------------------
+# Built-in Template Reload (anti-drift)
+# ---------------------------------------------------------------------------
+# The built-in mission-template gallery MUST match seed_templates.py after a
+# deploy. The seed file is NOT in the image by default and seed() is
+# idempotent (skips if any built-in exists), so a plain deploy silently
+# leaves the live gallery stale (observed: DB had 10 built-ins vs 47 in
+# the file). This step reconciles the live gallery to the CURRENT repo's
+# seed file on every deploy — and works on the existing image too, because
+# it copies both the seed file and the reload script into the container.
+# (The image-baked version lives in the entrypoint via the same script;
+# this deploy step is the retroactive safety net.)
+seed_templates_reload() {
+  if [ "$DRY_RUN" = true ]; then
+    echo -e "${YELLOW}[DRY-RUN]${NC} docker compose cp seed_templates.py + reload_builtin_templates.py -> backend; run reload"
+    return 0
+  fi
+  log_step "Reconciling built-in templates to seed_templates.py"
+  docker compose cp "$COMPOSE_DIR/seed_templates.py" backend:/app/seed_templates.py >/dev/null 2>&1 || {
+    log_warn "seed_templates.py not found at $COMPOSE_DIR — skipping reload"
+    return 0
+  }
+  docker compose cp "$BACKEND_SOURCE/scripts/reload_builtin_templates.py" backend:/app/scripts/reload_builtin_templates.py >/dev/null 2>&1 || true
+  if docker compose exec -e PYTHONPATH=/app -T backend \
+        python3 /app/scripts/reload_builtin_templates.py 2>&1 | tail -3; then
+    log_success "Built-in templates reconciled to seed file"
+  else
+    log_warn "Built-in template reload reported an error (non-fatal — gallery may be stale until next boot)"
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -625,6 +668,11 @@ main() {
   # container has the latest migration files baked into its image. See
   # run_migrations() for the full explanation.
   build_and_deploy
+
+  # Reconcile built-in templates to the seed file (anti-drift).
+  # Runs after recreate + health gate so the live gallery matches
+  # seed_templates.py without a manual re-seed.
+  seed_templates_reload
 
   if [ "$MIGRATE" = true ]; then
     if ! run_validation; then

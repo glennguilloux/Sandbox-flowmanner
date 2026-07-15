@@ -81,8 +81,13 @@ COPY pyproject.toml /app/pyproject.toml
 COPY mcp_gateway/ /app/mcp_gateway/
 COPY agent_definitions/ /app/agent_definitions/
 COPY scripts/ /app/scripts/
-COPY tests/ /app/tests/
 COPY integrations/ /app/integrations/
+COPY schemas/ /app/schemas/
+COPY tests/ /app/tests/
+# Bake the built-in mission-template seed file into the image so the
+# entrypoint can reconcile the live gallery on every boot (self-healing:
+# the canvas always matches the image's seed, no manual re-seed needed).
+COPY seed_templates.py /app/seed_templates.py
 COPY schemas/ /app/schemas/
 
 # Ensure no stray __pycache__ or .pyc from the host leak in
