@@ -1205,9 +1205,7 @@ class NodeExecutor:
                 # NOTE: this must NOT simply return a failure dict — that
                 # would be a silent hard block, not HITL. The run genuinely
                 # pauses here.
-                return await self._escalate_constraint_to_hitl(
-                    db, node, run_id, workflow, verdict
-                )
+                return await self._escalate_constraint_to_hitl(db, node, run_id, workflow, verdict)
 
         # Route to tool handler
         handlers = {
@@ -1591,6 +1589,15 @@ class NodeExecutor:
                 )
 
             # 4 — Submit task to sandboxd
+            # Render {{ inputs.<key> }} from the run's input values. Use re.sub,
+            # not str.format: the sandbox wrapper carries literal {} braces.
+            inputs = context.get("inputs") or {}
+            if inputs:
+                task_prompt = re.sub(
+                    r"\{\{\s*inputs\.(\w+)\s*\}\}",
+                    lambda m: str(inputs.get(m.group(1), m.group(0))),
+                    task_prompt,
+                )
             task = await self._sandbox_client.submit_task(
                 sandbox_id=sandbox_id,
                 prompt=task_prompt,
