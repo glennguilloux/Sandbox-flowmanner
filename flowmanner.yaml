@@ -30,7 +30,7 @@ blueprint_type: solo
 inputs:
   repo_url:
     type: string
-    default: "https://github.com/guillouxglenn4-coder/flowmanner.git"
+    default: "https://github.com/glennguilloux/flowmanner.git"
   prior_clues_url:
     type: string
     default: ""
@@ -57,8 +57,8 @@ definition:
           code block (no prose outside the block).
 
           STEP 1 — Clone
-            repo_url="{{ inputs.repo_url }}"
-            workdir="{{ inputs.workdir }}"
+            repo_url="${repo_url:-https://github.com/glennguilloux/flowmanner.git}"
+            workdir="${workdir:-/workspace/repo}"
             rm -rf "$workdir" && git clone --depth 1 "$repo_url" "$workdir"
             cd "$workdir"
 
@@ -77,7 +77,7 @@ definition:
                  backend/Docs/ AGENTS.md 2>/dev/null | head
 
           STEP 3 — Optional prior-state reconciliation
-            prior_clues_url="{{ inputs.prior_clues_url }}"
+            prior_clues_url="${prior_clues_url:-}"
             If prior_clues_url is non-empty, curl -fsSL "$prior_clues_url" and
             read the previous clues; for each new clue set status from comparison.
             Otherwise all statuses are "open".
