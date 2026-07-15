@@ -1,21 +1,29 @@
 """V2 middleware and exception handlers.
 
-Catches HTTPException and unhandled errors, converts them to the v2 error envelope.
-Streaming responses are left untouched.
+The generic ``HTTPException`` / ``Exception`` handlers that used to live here
+(now duplicate path-guarded ``app.exception_handler`` registrations) have
+been consolidated into a single path-aware dispatcher in
+``app/api/_shared_errors.py`` and are registered once in
+``app/main_fastapi.py``. That removes the fragile, implicit registration-order
+dependency between the v2 and v3 tiers.
+
+This module keeps the **mission-specific** handlers (separate exception
+classes, so they are unaffected by the consolidation) and exposes
+``register_v2_exception_handlers(app)`` for backward compatibility (delegates
+to the shared dispatcher so a v2-only app still gets the v2 envelope).
 """
 
 from __future__ import annotations
 
 import structlog
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from app.api.v2.base import ErrorDetail, ResponseMeta
+from app.api._shared_errors import register_unified_exception_handlers
 
 logger = structlog.get_logger()
 
-
-# HTTP status code to v2 error code mapping
+# HTTP status code to mission error-code mapping (mission-specific only).
 _MISSION_ERROR_STATUS_MAP = {
     "MissionNotFoundError": (404, "MISSION_NOT_FOUND"),
     "MissionForbiddenError": (403, "MISSION_FORBIDDEN"),
@@ -28,28 +36,18 @@ def _is_streaming_response(response) -> bool:
     return isinstance(response, StreamingResponse)
 
 
-def _make_error_response(
-    status_code: int,
-    code: str,
-    message: str,
-    details: dict | None = None,
-    request_id: str | None = None,
-) -> JSONResponse:
-    error = ErrorDetail(code=code, message=message, details=details)
-    meta = ResponseMeta()
-    if request_id:
-        meta.request_id = request_id
-    body = {"data": None, "meta": meta.model_dump(), "error": error.model_dump()}
-    return JSONResponse(status_code=status_code, content=body)
-
-
 def register_v2_exception_handlers(app: FastAPI) -> None:
-    """Register exception handlers that produce v2 error envelopes.
+    """Register v2 error handling (delegates to the unified dispatcher).
 
-    Only active for routes under /api/v2/.
+    Kept for backward compatibility / v2-only apps. The dispatcher is
+    path-aware, so ``/api/v2/*`` paths still produce the v2 envelope.
     """
+    register_unified_exception_handlers(app)
 
-    # ── Mission-specific exception handlers ───────────────────────────────
+    # ── Mission-specific exception handlers ──────────────────────────────
+    # These are distinct exception classes (not HTTPException/Exception), so
+    # they are keyed separately in FastAPI's handler dict and never collide
+    # with the unified dispatcher above.
     try:
         from app.services.mission_errors import (
             MissionForbiddenError,
@@ -60,100 +58,42 @@ def register_v2_exception_handlers(app: FastAPI) -> None:
 
         @app.exception_handler(MissionNotFoundError)
         async def mission_not_found_handler(request: Request, exc: MissionNotFoundError):
-            if not request.url.path.startswith("/api/v2"):
-                return JSONResponse(status_code=404, content={"detail": str(exc) or "Mission not found"})
-            return _make_error_response(
-                status_code=404,
-                code="MISSION_NOT_FOUND",
-                message=str(exc) or "Mission not found",
-                request_id=request.headers.get("X-Request-ID"),
+            return _mission_error(
+                request, status=404, code="MISSION_NOT_FOUND", message=str(exc) or "Mission not found"
             )
 
         @app.exception_handler(MissionForbiddenError)
         async def mission_forbidden_handler(request: Request, exc: MissionForbiddenError):
-            if not request.url.path.startswith("/api/v2"):
-                return JSONResponse(status_code=403, content={"detail": str(exc) or "Access denied"})
-            return _make_error_response(
-                status_code=403,
-                code="MISSION_FORBIDDEN",
-                message=str(exc) or "Access denied",
-                request_id=request.headers.get("X-Request-ID"),
-            )
+            return _mission_error(request, status=403, code="MISSION_FORBIDDEN", message=str(exc) or "Access denied")
 
         @app.exception_handler(MissionTransitionConflictError)
         async def mission_conflict_handler(request: Request, exc: MissionTransitionConflictError):
-            if not request.url.path.startswith("/api/v2"):
-                return JSONResponse(
-                    status_code=409,
-                    content={"detail": str(exc) or "Invalid status transition"},
-                )
-            return _make_error_response(
-                status_code=409,
-                code="MISSION_TRANSITION_CONFLICT",
-                message=str(exc) or "Invalid status transition",
-                request_id=request.headers.get("X-Request-ID"),
+            return _mission_error(
+                request, status=409, code="MISSION_TRANSITION_CONFLICT", message=str(exc) or "Invalid status transition"
             )
 
         @app.exception_handler(MissionValidationError)
         async def mission_validation_handler(request: Request, exc: MissionValidationError):
-            if not request.url.path.startswith("/api/v2"):
-                return JSONResponse(status_code=400, content={"detail": str(exc) or "Validation error"})
-            return _make_error_response(
-                status_code=400,
-                code="MISSION_VALIDATION_ERROR",
-                message=str(exc) or "Validation error",
-                request_id=request.headers.get("X-Request-ID"),
+            return _mission_error(
+                request, status=400, code="MISSION_VALIDATION_ERROR", message=str(exc) or "Validation error"
             )
 
     except ImportError:
         pass
 
-    # ── Generic HTTP exception handler ────────────────────────────────────
-    @app.exception_handler(HTTPException)
-    async def v2_http_exception_handler(request: Request, exc: HTTPException):
-        if not request.url.path.startswith("/api/v2"):
-            return JSONResponse(
-                status_code=exc.status_code,
-                content={"detail": exc.detail},
-            )
 
-        code = _status_to_code(exc.status_code)
-        return _make_error_response(
-            status_code=exc.status_code,
-            code=code,
-            message=str(exc.detail),
-            request_id=request.headers.get("X-Request-ID"),
-        )
+def _mission_error(request: Request, *, status: int, code: str, message: str):
+    """Render a mission error as the v2 envelope (overrides the generic dispatcher).
 
-    @app.exception_handler(Exception)
-    async def v2_general_exception_handler(request: Request, exc: Exception):
-        if not request.url.path.startswith("/api/v2"):
-            return JSONResponse(
-                status_code=500,
-                content={"detail": "An error occurred. Please try again later."},
-            )
+    Mission errors are always v2-shaped (they only originate from v2 routes),
+    so we build the v2 envelope directly regardless of path.
+    """
+    from app.api.v2.base import ErrorDetail, ResponseMeta
 
-        logger.error("Unhandled v2 exception", error=str(exc), exc_info=True)
-        return _make_error_response(
-            status_code=500,
-            code="INTERNAL_ERROR",
-            message="An error occurred. Please try again later.",
-            request_id=request.headers.get("X-Request-ID"),
-        )
-
-
-_STATUS_CODE_MAP = {
-    400: "BAD_REQUEST",
-    401: "UNAUTHORIZED",
-    403: "FORBIDDEN",
-    404: "NOT_FOUND",
-    409: "CONFLICT",
-    422: "VALIDATION_ERROR",
-    429: "RATE_LIMITED",
-    500: "INTERNAL_ERROR",
-    502: "BAD_GATEWAY",
-}
-
-
-def _status_to_code(status_code: int) -> str:
-    return _STATUS_CODE_MAP.get(status_code, f"HTTP_{status_code}")
+    request_id = request.headers.get("X-Request-ID")
+    error = ErrorDetail(code=code, message=message)
+    meta = ResponseMeta()
+    if request_id:
+        meta.request_id = request_id
+    body = {"data": None, "meta": meta.model_dump(), "error": error.model_dump()}
+    return JSONResponse(status_code=status, content=body)

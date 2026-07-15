@@ -292,10 +292,10 @@ async def general_error_handler(request: Request, exc: Exception):
     except Exception as notify_err:  # pragma: no cover — defensive
         structlog.get_logger().warning("Failed to enqueue 5xx ntfy alert", error=str(notify_err))
 
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "An error occurred. Please try again later."},
-    )
+    # Path-aware envelope (v2 / v3 / flat) — single shared serializer.
+    from app.api._shared_errors import make_unhandled_response
+
+    return make_unhandled_response(request, message="An error occurred. Please try again later.")
 
 
 # ---------------------------------------------------------------------------
@@ -406,13 +406,17 @@ app.include_router(health_router)
 app.include_router(health_router, prefix="/api")
 app.include_router(api_v1_router)
 
+# Single path-aware dispatcher for HTTPException + Exception (v2 + v3 + unversioned).
+# Previously this was three separate path-guarded registrations whose correctness
+# depended on load order; now it is one serializer reused by one handler per class.
+from app.api._shared_errors import register_unified_exception_handlers
 from app.api.v2 import api_v2_router
 from app.api.v2.idempotency import IdempotencyFinalizationMiddleware
 from app.api.v2.middleware import register_v2_exception_handlers
 from app.api.v2.rate_limit_headers import RateLimitHeadersMiddleware
 from app.api.v2.validation_middleware import register_strict_validation
 
-register_v2_exception_handlers(app)
+register_unified_exception_handlers(app)
 register_strict_validation(app)
 # Rate limit headers: injects X-RateLimit-* into every v2 response
 app.add_middleware(RateLimitHeadersMiddleware)
@@ -426,6 +430,8 @@ app.include_router(api_v2_router)
 from app.api.v3 import api_v3_router
 from app.api.v3.middleware import register_v3_exception_handlers
 
+# Delegates to the same unified dispatcher (kept for the v3-only test fixture);
+# not strictly required here since we already registered it above.
 register_v3_exception_handlers(app)
 app.include_router(api_v3_router)
 
