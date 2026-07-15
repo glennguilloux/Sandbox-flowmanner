@@ -59,6 +59,9 @@ sdk-python/flowmanner-api-client/dist/
 # ── uv lockfiles (project uses requirements.txt, not uv) ────────
 uv.lock
 
+# ── CLI local state (holds auth token — must never be tracked) ──
+.flowmanner/
+
 # ── Claude / AI context ─────────────────────────────────────────
 .claude/
 .hermes/
