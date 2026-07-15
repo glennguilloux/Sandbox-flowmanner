@@ -280,3 +280,40 @@ class TestPreEstimateBudgetCap:
 
         assert result["success"] is True
         assert captured.get("cost_usd") is not None
+
+
+class TestReasoningParam:
+    async def test_call_accepts_reasoning_kwarg(self):
+        """RC (t_c4678988): node_executor calls call(..., reasoning=...) — the
+        signature must accept it (and forward it to the router) without
+        raising TypeError. Regression guard for the 'unexpected keyword
+        argument reasoning' crash that blocked all blueprint runs."""
+        captured = {}
+
+        class _CaptureRouter:
+            def __init__(self, *a, **k):
+                pass
+
+            async def route_request(self, *a, **k):
+                captured.update(kwargs={})
+                captured["kwargs"] = {"reasoning" if kk == "reasoning" else kk: vv for kk, vv in k.items()}
+                return {
+                    "success": True,
+                    "response": "ok",
+                    "model": "x",
+                    "provider": "deepseek",
+                    "cost": {"input_tokens": 1, "output_tokens": 1},
+                }
+
+        enforcer = BudgetEnforcer()
+        fake_reasoning = {"effort": "high"}
+        with patch("app.services.llm_router.ModelRouter", new=_CaptureRouter):
+            result = await enforcer.call(
+                budget=Budget(max_cost_usd=Decimal("10.00")),
+                model_id="deepseek-chat",
+                messages=[{"role": "user", "content": "hi"}],
+                reasoning=fake_reasoning,
+            )
+
+        assert result["success"] is True
+        assert captured["kwargs"].get("reasoning") is fake_reasoning

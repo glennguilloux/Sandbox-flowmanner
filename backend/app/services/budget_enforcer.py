@@ -270,9 +270,7 @@ class BudgetEnforcer:
             # Heuristic fallback: chars/4, rounded up, min 1.
             return max(1, math.ceil(len(text) / _CHARS_PER_TOKEN_FALLBACK)) if text else 1
 
-        prompt_text = "\n".join(
-            str(m.get("content", "")) for m in messages if isinstance(m, dict)
-        )
+        prompt_text = "\n".join(str(m.get("content", "")) for m in messages if isinstance(m, dict))
         prompt_tokens = _count(prompt_text)
 
         # ── Completion estimate: use the real ceiling, not a best guess ──
@@ -303,6 +301,7 @@ class BudgetEnforcer:
         task_id: str | None = None,
         workspace_id: str | None = None,
         agent_id: str | None = None,
+        reasoning: Any = None,
     ) -> dict[str, Any]:
         """Make an LLM call through the budget enforcer.
 
@@ -425,6 +424,7 @@ class BudgetEnforcer:
                     model_preference=model_preference or actual_provider,
                     temperature=temperature or 0.7,
                     max_tokens=max_tokens or 2000,
+                    reasoning=reasoning,
                 )
 
                 actual_model = response.get("model", actual_provider)
