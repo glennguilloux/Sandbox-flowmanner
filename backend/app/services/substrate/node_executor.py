@@ -1507,6 +1507,7 @@ class NodeExecutor:
         shared_workspace = config.get("shared_workspace", False)
         input_files = config.get("input_files", {})
         snapshot_before = config.get("snapshot_before", False)
+        model = config.get("model")
 
         mission_id = workflow.id if workflow else None
         user_id = workflow.user_id if workflow else "system"
@@ -1602,6 +1603,7 @@ class NodeExecutor:
                 sandbox_id=sandbox_id,
                 prompt=task_prompt,
                 agent="opencode",
+                model=model,
             )
             task_id = task["id"]
 

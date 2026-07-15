@@ -51,6 +51,8 @@ definition:
         template: python-img
         shared_workspace: false
         snapshot_before: false
+        agent: opencode
+        model: deepseek-v4-flash
         task_prompt: |
           You are analyzing the Flowmanner codebase (a workflow platform).
           Execute these steps with shell commands, then output ONLY a JSON

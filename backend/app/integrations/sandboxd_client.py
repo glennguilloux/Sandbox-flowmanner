@@ -253,15 +253,19 @@ class SandboxdClient:
         sandbox_id: str,
         prompt: str,
         agent: str = "opencode",
+        model: str | None = None,
     ) -> dict[str, Any]:
         """POST /v1/sandboxes/{id}/tasks — start coding agent (202 Accepted).
 
         Auto-wakes stopped sandbox first.
         """
         client = await self._get_client()
+        body: dict[str, Any] = {"prompt": prompt, "agent": agent}
+        if model is not None:
+            body["model"] = model
         resp = await client.post(
             f"/v1/sandboxes/{sandbox_id}/tasks",
-            json={"prompt": prompt, "agent": agent},
+            json=body,
         )
         resp.raise_for_status()
         return resp.json()
