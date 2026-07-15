@@ -85,30 +85,35 @@ Rules:
 - **`frequency` = Timeline entries** for signals/observations (mirrors AI-BC `signal` kind).
 - **Detail stays in artifacts; the Timeline is the index.** One terse dated line per change.
 
-### Motivating example — `plans/frontend-wiring-roadmap.md` (current → proposed)
+### Motivating example — `plans/frontend-wiring-roadmap.md` (APPLIED, see note)
 
-Current header bakes the contradiction into a single mutable stamp:
-
-```
-**Status:** ✅ COMPLETE — all three Tier-1 features shipped and verified
-**Last verified:** 2026-07-08
-```
-
-Proposed (the stamp can't lie anymore — the Timeline shows the correction):
+This is the real version now live in that file. Before: a single mutable stamp that lied
+(the header said `✅ COMPLETE` while the body said "Frontend: Nothing" per feature). After:
 
 ```
-**Status:** 🟡 IN-PROGRESS — Tier-1 UI built; backend-shape alignment partial (see Timeline)
+**Status:** 🟡 IN-PROGRESS — Tier-1 backend APIs verified + UI pages built (2026-07-08);
+            backend-shape alignment + HITL wiring partial (see `## Timeline` and `GOLD-LEDGER.md`)
 **Created:** 2026-07-01
 **Last verified:** 2026-07-08
+**Workstream:** frontend-wiring
 
 ## Timeline
 
-2026-07-01 | hermes — created from MoA backend-vs-frontend gap audit
-2026-07-08 | hermes — stamped COMPLETE after 5 feature commits landed
-2026-07-11 | glenn — body self-contradicts ("Frontend: Nothing"); downgraded to IN-PROGRESS
+2026-07-01 | hermes — created from MoA backend-vs-frontend gap audit (~70 endpoint modules have zero frontend)
+2026-07-08 | hermes — stamped COMPLETE after 5 feature commits landed (reliability, tool-routing, plugin manager)
+2026-07-11 | glenn — GOLD-LEDGER cross-validation flags self-contradiction: header says COMPLETE, body says
+            "Frontend: Nothing" per feature; downgraded to IN-PROGRESS. Source: gold-audit/GOLD-LEDGER.md (line 13)
+2026-07-15 | hermes — adopted .sisyphus/SCHEMA.md Timeline convention; corrected status here to match body
 ```
 
 The point: a reader in 2026-09 sees *why* the status is what it is without spelunking git.
+
+> **Note on portability (why this example lives here, not only in the file):** `plans/` and
+> `gold-audit/` are gitignored (`.gitignore` lines 79–80 — "agent session artifacts, not deploy
+> source"), so the applied Timelines on those files are **local-only** and do NOT travel with a
+> clone or this branch. That's intentional. This `SCHEMA.md` lives at the `.sisyphus/` root (not
+> ignored), so the canonical, clone-safe example is the block above. Treat the file-level
+> backfills as a local demonstration, not the source of truth.
 
 ---
 
