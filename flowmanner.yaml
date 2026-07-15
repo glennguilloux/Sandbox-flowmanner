@@ -48,7 +48,7 @@ definition:
         Egress-capable sandbox (sandboxd) agent that performs the whole
         self-audit in one task and prints a single JSON block.
       config:
-        template: python-img
+        template: python
         shared_workspace: false
         snapshot_before: false
         agent: opencode
