@@ -87,6 +87,10 @@ class UnifiedExecutor:
         self._strategies_loaded = False
         # Q1-A: Lease manager (lazily initialized per execute() call)
         self._lease_manager: Any = None  # LeaseManager | None
+        # Active blueprint id for the in-flight run (None for legacy
+        # mission runs). Read by node handlers (e.g. _handle_sandbox_node)
+        # to distinguish blueprint runs (no missions row) from mission runs.
+        self._active_blueprint_id: str | None = None
 
     def _load_strategies(self) -> None:
         """Lazy-load all strategy classes on first use."""
@@ -419,6 +423,28 @@ class UnifiedExecutor:
         span: Any,
     ) -> StrategyResult:
         """Core execution logic (extracted so lease context wraps it)."""
+        # Expose the source blueprint id on the executor so node handlers
+        # (e.g. _handle_sandbox_node) can tell a blueprint run from a legacy
+        # mission run without it being threaded through every strategy signature.
+        # Blueprint runs have no missions row, so the sandbox mapping must key
+        # on run_id (mission_id stays NULL) to satisfy the FK.
+        self._active_blueprint_id = blueprint_id
+        try:
+            return await self._execute_inner_run(db, workflow, run_id, blueprint_id, start_node_id, context, span)
+        finally:
+            self._active_blueprint_id = None
+
+    async def _execute_inner_run(
+        self,
+        db: AsyncSession,
+        workflow: Workflow,
+        run_id: str,
+        blueprint_id: str | None,
+        start_node_id: str | None,
+        context: dict[str, Any] | None,
+        span: Any,
+    ) -> StrategyResult:
+        """Body of _execute_inner (split so blueprint_id can be scoped)."""
         # Record mission.started event
         await self.event_log.append(
             db,
@@ -880,14 +906,10 @@ class UnifiedExecutor:
             except Exception:
                 pass
             if fail_closed:
-                logger.error(
-                    "Circuit breaker check FAILED (denying call, fail-closed): %s", e
-                )
+                logger.error("Circuit breaker check FAILED (denying call, fail-closed): %s", e)
                 return False, "circuit breaker check failed"
             # Deliberate, documented fail-open escape hatch (not recommended).
-            logger.error(
-                "Circuit breaker check FAILED (fail-open per config, ALLOWING call): %s", e
-            )
+            logger.error("Circuit breaker check FAILED (fail-open per config, ALLOWING call): %s", e)
             return True, ""
 
     async def record_circuit_breaker_call(

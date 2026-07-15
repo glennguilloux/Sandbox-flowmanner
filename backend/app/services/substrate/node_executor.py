@@ -1509,7 +1509,13 @@ class NodeExecutor:
         snapshot_before = config.get("snapshot_before", False)
         model = config.get("model")
 
-        mission_id = workflow.id if workflow else None
+        # Blueprint/substrate runs have a run_id but no missions row
+        # (Workflow.id == blueprint_id, not a mission id). Keying the
+        # sandbox mapping on mission_id would violate the FK to missions(id),
+        # so for blueprint-sourced runs we leave mission_id NULL and let
+        # run_id carry the link. Legacy Mission runs keep mission_id.
+        blueprint_id = getattr(self.executor, "_active_blueprint_id", None)
+        mission_id = None if blueprint_id else (workflow.id if workflow else None)
         user_id = workflow.user_id if workflow else "system"
         event_log = get_event_log()
 
