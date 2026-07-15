@@ -407,12 +407,13 @@ app.include_router(health_router, prefix="/api")
 app.include_router(api_v1_router)
 
 # Single path-aware dispatcher for HTTPException + Exception (v2 + v3 + unversioned).
-# Previously this was three separate path-guarded registrations whose correctness
-# depended on load order; now it is one serializer reused by one handler per class.
+# Consolidated in app/api/_shared_errors.py: exactly one handler per exception
+# class, branching on request path. Registered once below — do NOT re-register
+# from the v2/v3 middleware modules here (their register_* functions remain as
+# conftest shims for the v3 test app, but are NOT invoked at app startup).
 from app.api._shared_errors import register_unified_exception_handlers
 from app.api.v2 import api_v2_router
 from app.api.v2.idempotency import IdempotencyFinalizationMiddleware
-from app.api.v2.middleware import register_v2_exception_handlers
 from app.api.v2.rate_limit_headers import RateLimitHeadersMiddleware
 from app.api.v2.validation_middleware import register_strict_validation
 
@@ -425,14 +426,12 @@ app.add_middleware(IdempotencyFinalizationMiddleware)
 app.include_router(api_v2_router)
 
 # ---------------------------------------------------------------------------
-# Auth v3 — register v3 routers, exception handlers, and cookie middleware
+# Auth v3 — register v3 routers. Exception handlers are already registered
+# above by the unified dispatcher; the v3 middleware register_* shim is only
+# for the test conftest, not for live startup.
 # ---------------------------------------------------------------------------
 from app.api.v3 import api_v3_router
-from app.api.v3.middleware import register_v3_exception_handlers
 
-# Delegates to the same unified dispatcher (kept for the v3-only test fixture);
-# not strictly required here since we already registered it above.
-register_v3_exception_handlers(app)
 app.include_router(api_v3_router)
 
 try:
