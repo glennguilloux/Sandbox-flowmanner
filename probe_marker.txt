@@ -1,0 +1,3 @@
+BRANCH: wt/t_0f9036f9
+PWD: /opt/flowmanner/.worktrees/t_0f9036f9
+WORKSPACE: /opt/flowmanner/.worktrees/t_0f9036f9
