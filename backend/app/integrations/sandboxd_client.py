@@ -11,6 +11,7 @@ Phase 1 code execution via ``SandboxdClient.exec_command``.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from collections.abc import AsyncIterator
@@ -282,32 +283,125 @@ class SandboxdClient:
         sandbox_id: str,
         task_id: str,
         since: int = 0,
+        _max_reconnects: int = 5,
     ) -> AsyncIterator[dict[str, Any]]:
-        """GET /v1/sandboxes/{id}/tasks/{taskId}/events — SSE stream.
+        """GET /v1/sandboxes/{id}/tasks/{taskId}/events — task event stream.
 
-        Yields ``{id, type, data}`` events. Supports ``Last-Event-ID``
-        for reconnect.
+        The live ``sandboxd-control-plane`` build emits **SSE** on the wire
+        (``event: <type>`` / ``data: <json>`` / ``id: <n>`` lines, blank
+        line-terminated). The persisted ``events.jsonl`` log is NDJSON, so a
+        finished-task replay may arrive as one-JSON-per-line instead. This
+        parser accepts **both** shapes and normalises each to
+        ``{id, type, data}``.
+
+        Event ``type`` values: ``status`` / ``message`` / ``tool`` / ``build``
+        (informational) and the terminal ``done`` (carries the ``TaskResult``
+        in ``data``). ``data`` is coerced to a dict when it is itself a
+        JSON object/string.
+
+        Reconnect: on a dropped connection we reopen the stream with the
+        ``Last-Event-ID`` header set to the last ``id`` consumed, so no
+        events are missed and the terminal ``done`` event is always observed.
         """
         client = await self._get_client()
         url = f"/v1/sandboxes/{sandbox_id}/tasks/{task_id}/events"
-        headers = {}
-        if since:
-            headers["Last-Event-ID"] = str(since)
+        last_id: str = str(max(since - 1, -1))
+        reconnects = 0
 
-        async with client.stream("GET", url, headers=headers) as resp:
-            resp.raise_for_status()
-            current_event: dict[str, Any] = {}
-            async for line in resp.aiter_lines():
-                line = line.strip()
-                if line.startswith("id:"):
-                    current_event["id"] = line[3:].strip()
-                elif line.startswith("event:"):
-                    current_event["type"] = line[6:].strip()
-                elif line.startswith("data:"):
-                    current_event["data"] = line[5:].strip()
-                elif line == "" and current_event:
-                    yield current_event
-                    current_event = {}
+        while True:
+            headers: dict[str, str] = {}
+            if last_id not in ("-1", ""):
+                headers["Last-Event-ID"] = last_id
+
+            try:
+                async with client.stream("GET", url, headers=headers) as resp:
+                    resp.raise_for_status()
+                    # SSE accumulator (used when the wire is event:/data:/id:)
+                    cur: dict[str, Any] = {}
+                    async for raw in resp.aiter_lines():
+                        line = raw.strip()
+                        if not line:
+                            # Blank line terminates an SSE event block.
+                            if cur:
+                                ev = cur
+                                cur = {}
+                                yielded = self._normalize_event(ev, last_id)
+                                if yielded is not None:
+                                    last_id = yielded["id"]
+                                    yield yielded
+                                    if yielded["type"] == "done":
+                                        return
+                            continue
+                        if line.startswith("event:"):
+                            cur["type"] = line[6:].strip()
+                        elif line.startswith("data:"):
+                            cur["data"] = line[5:].strip()
+                        elif line.startswith("id:"):
+                            cur["id"] = line[3:].strip()
+                        elif line.startswith(":"):
+                            # SSE comment / keep-alive — ignore.
+                            continue
+                        else:
+                            # NDJSON fallback: a bare JSON object per line.
+                            try:
+                                obj = json.loads(line)
+                            except json.JSONDecodeError:
+                                logger.warning(
+                                    "task_events: skipping unparseable line: %r",
+                                    line[:200],
+                                )
+                                continue
+                            if not isinstance(obj, dict):
+                                continue
+                            yielded = self._normalize_event(obj, last_id)
+                            if yielded is not None:
+                                last_id = yielded["id"]
+                                yield yielded
+                                if yielded["type"] == "done":
+                                    return
+                    # Stream closed cleanly (live task finished / replay ended).
+                    if cur:
+                        yielded = self._normalize_event(cur, last_id)
+                        if yielded is not None:
+                            last_id = yielded["id"]
+                            yield yielded
+                    return
+            except (httpx.HTTPError, json.JSONDecodeError) as exc:
+                # Stream dropped mid-run. Reconnect honoring Last-Event-ID.
+                reconnects += 1
+                if reconnects > _max_reconnects:
+                    logger.error(
+                        "task_events: giving up after %d reconnects (%s)",
+                        _max_reconnects,
+                        exc,
+                    )
+                    return
+                logger.warning(
+                    "task_events: stream dropped (%s); reconnecting Last-Event-ID=%s",
+                    exc,
+                    last_id,
+                )
+                continue
+
+    @staticmethod
+    def _normalize_event(ev: dict[str, Any], fallback_id: str) -> dict[str, Any] | None:
+        """Coerce a raw SSE/NDJSON event dict into {id, type, data}."""
+        raw_id = ev.get("id")
+        ev_id = str(raw_id) if raw_id is not None else fallback_id
+
+        data = ev.get("data", {})
+        if isinstance(data, str):
+            try:
+                data = json.loads(data) if data else {}
+            except json.JSONDecodeError:
+                data = {"raw": data}
+        elif not isinstance(data, dict):
+            data = {"value": data}
+
+        ev_type = ev.get("type", "")
+        if not ev_type and isinstance(data, dict):
+            ev_type = data.get("type", "")
+        return {"id": ev_id, "type": ev_type, "data": data}
 
     async def cancel_task(self, sandbox_id: str, task_id: str) -> dict[str, Any]:
         """POST /v1/sandboxes/{id}/tasks/{taskId}/cancel."""

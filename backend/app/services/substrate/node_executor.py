@@ -1631,15 +1631,21 @@ class NodeExecutor:
                 ],
             )
 
-            # 5 — Stream SSE events, recording progress
-            async for sse in self._sandbox_client.task_events(sandbox_id, task_id):
+            # 5 — Stream task events, recording progress.
+            # sandboxd emits NDJSON. The terminal event is type=="done" (carries
+            # the TaskResult in `data`); informational types are status/
+            # message/tool/build. "progress"/"complete"/"error" are kept for
+            # test compatibility (mocked events).
+            async for sse in self._sandbox_client.task_events(
+                sandbox_id, task_id, since=0
+            ):
                 ev_type = sse.get("type", "")
-                ev_data_str = sse.get("data", "{}")
-
-                try:
-                    ev_data = json.loads(ev_data_str) if isinstance(ev_data_str, str) else ev_data_str
-                except (json.JSONDecodeError, TypeError):
-                    ev_data = {"raw": ev_data_str}
+                ev_data = sse.get("data", {})
+                if not isinstance(ev_data, dict):
+                    try:
+                        ev_data = json.loads(ev_data) if isinstance(ev_data, str) else {}
+                    except (json.JSONDecodeError, TypeError):
+                        ev_data = {"raw": ev_data}
 
                 if ev_type == "progress":
                     await event_log.append(
@@ -1670,7 +1676,27 @@ class NodeExecutor:
                             },
                         )
 
-                elif ev_type == "complete":
+                elif ev_type in ("complete", "done"):
+                    # "done" is sandboxd's real terminal event; "complete"
+                    # is retained for test mocks. The TaskResult payload
+                    # lands in `data` for "done" (status, error_message,
+                    # agent_message_final, files_changed, tokens).
+                    task_status = str(ev_data.get("status", "")).lower()
+                    # For "done" events, success = sandboxd task status succeeded;
+                    # for test-mock "complete" shape, success = exit_code == 0.
+                    succeeded = (
+                        task_status == "succeeded"
+                        if ev_type == "done"
+                        else ev_data.get("exit_code", 0) == 0
+                    )
+
+                    agent_output = (
+                        ev_data.get("agent_message_final")
+                        or ev_data.get("stdout")
+                        or ""
+                    )
+                    agent_output = str(agent_output)
+
                     await event_log.append(
                         db,
                         run_id,
@@ -1679,8 +1705,8 @@ class NodeExecutor:
                                 "type": SubstrateEventType.SANDBOX_TASK_COMPLETED,
                                 "payload": {
                                     "task_id": task_id,
-                                    "exit_code": ev_data.get("exit_code", 0),
-                                    "stdout": str(ev_data.get("stdout", ""))[:50000],
+                                    "status": task_status or ev_data.get("exit_code", 0),
+                                    "output": agent_output[:50000],
                                 },
                                 "actor": "node_executor",
                                 "mission_id": mission_id,
@@ -1689,18 +1715,23 @@ class NodeExecutor:
                         ],
                     )
                     return {
-                        "success": ev_data.get("exit_code", 0) == 0,
+                        "success": succeeded,
                         "output": {
                             "sandbox_id": sandbox_id,
                             "task_id": task_id,
-                            "stdout": ev_data.get("stdout", ""),
+                            "status": task_status or "succeeded",
+                            "agent_output": agent_output,
+                            "stdout": ev_data.get("stdout", agent_output),
                             "exit_code": ev_data.get("exit_code", 0),
+                            "error_message": ev_data.get("error_message", ""),
+                            "files_changed": ev_data.get("files_changed", []),
+                            "tokens": ev_data.get("tokens", {}),
                         },
                         "tokens": 0,
                         "cost": 0.0,
                     }
 
-                elif ev_type == "error":
+                elif ev_type in ("error", "failed"):
                     await event_log.append(
                         db,
                         run_id,
@@ -1709,7 +1740,7 @@ class NodeExecutor:
                                 "type": SubstrateEventType.SANDBOX_TASK_FAILED,
                                 "payload": {
                                     "task_id": task_id,
-                                    "error": ev_data.get("error", "Unknown sandbox task error"),
+                                    "error": ev_data.get("error", ev_data.get("error_message", "Unknown sandbox task error")),
                                 },
                                 "actor": "node_executor",
                                 "mission_id": mission_id,
@@ -1719,7 +1750,7 @@ class NodeExecutor:
                     )
                     return {
                         "success": False,
-                        "error": ev_data.get("error", "Sandbox task failed"),
+                        "error": ev_data.get("error", ev_data.get("error_message", "Sandbox task failed")),
                         "tokens": 0,
                     }
 
