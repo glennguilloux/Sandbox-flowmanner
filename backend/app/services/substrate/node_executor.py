@@ -1205,7 +1205,16 @@ class NodeExecutor:
                 # NOTE: this must NOT simply return a failure dict — that
                 # would be a silent hard block, not HITL. The run genuinely
                 # pauses here.
-                return await self._escalate_constraint_to_hitl(db, node, run_id, workflow, verdict)
+                # `_escalate_constraint_to_hitl` raises HITLPaused for the
+                # pause cases; on approval it returns None so the tool
+                # actually runs below; on rejection it returns a failure dict.
+                proceed_result = await self._escalate_constraint_to_hitl(db, node, run_id, workflow, verdict)
+                if proceed_result is not None:
+                    # HITLPaused is raised for pause cases (propagates as an
+                    # exception, never reaches here). Only a rejected decision
+                    # returns a failure dict.
+                    return proceed_result
+                # proceed_result is None → human approved; let the tool run below.
 
         # Route to tool handler
         handlers = {
@@ -1636,9 +1645,7 @@ class NodeExecutor:
             # the TaskResult in `data`); informational types are status/
             # message/tool/build. "progress"/"complete"/"error" are kept for
             # test compatibility (mocked events).
-            async for sse in self._sandbox_client.task_events(
-                sandbox_id, task_id, since=0
-            ):
+            async for sse in self._sandbox_client.task_events(sandbox_id, task_id, since=0):
                 ev_type = sse.get("type", "")
                 ev_data = sse.get("data", {})
                 if not isinstance(ev_data, dict):
@@ -1684,17 +1691,9 @@ class NodeExecutor:
                     task_status = str(ev_data.get("status", "")).lower()
                     # For "done" events, success = sandboxd task status succeeded;
                     # for test-mock "complete" shape, success = exit_code == 0.
-                    succeeded = (
-                        task_status == "succeeded"
-                        if ev_type == "done"
-                        else ev_data.get("exit_code", 0) == 0
-                    )
+                    succeeded = task_status == "succeeded" if ev_type == "done" else ev_data.get("exit_code", 0) == 0
 
-                    agent_output = (
-                        ev_data.get("agent_message_final")
-                        or ev_data.get("stdout")
-                        or ""
-                    )
+                    agent_output = ev_data.get("agent_message_final") or ev_data.get("stdout") or ""
                     agent_output = str(agent_output)
 
                     await event_log.append(
@@ -1740,7 +1739,9 @@ class NodeExecutor:
                                 "type": SubstrateEventType.SANDBOX_TASK_FAILED,
                                 "payload": {
                                     "task_id": task_id,
-                                    "error": ev_data.get("error", ev_data.get("error_message", "Unknown sandbox task error")),
+                                    "error": ev_data.get(
+                                        "error", ev_data.get("error_message", "Unknown sandbox task error")
+                                    ),
                                 },
                                 "actor": "node_executor",
                                 "mission_id": mission_id,
@@ -1945,6 +1946,164 @@ class NodeExecutor:
             "cost": 0.0,
         }
 
+    async def _escalate_constraint_to_hitl(
+        self,
+        db: AsyncSession,
+        node: WorkflowNode,
+        run_id: str,
+        workflow: Workflow | None,
+        verdict: Any,
+    ) -> dict[str, Any] | None:
+        """Pause a tool node for human sign-off on a standing constraint (escalate).
+
+        A standing ``constraint`` claim with action ``escalate`` means the tool
+        may only run after a human approves it. This creates an inbox item and
+        raises ``HITLPaused`` so the run genuinely pauses (it is NOT a silent
+        block). On resume the executor re-enters this tool node:
+
+        - pending  → raise HITLPaused again (still awaiting human)
+        - approved → return None so ``_handle_tool`` actually runs the tool
+        - rejected/expired/cancelled → return a failure dict (node fails)
+
+        The resume guard reuses the existing inbox item for this node+run so we
+        never create duplicates or loop forever.
+        """
+        from sqlalchemy import select
+
+        from app.models.hitl_models import HumanInterruptType, InboxItem
+        from app.services.hitl_service import HITLService
+        from app.services.substrate.event_log import get_event_log
+        from app.services.substrate.hitl_pause import HITLPaused, check_hitl_resolution
+
+        event_log = get_event_log()
+        mission_id = workflow.id if workflow else None
+        workspace_id = getattr(workflow, "workspace_id", None) if workflow else None
+
+        # workflow.user_id is a UUID *string*; inbox_items.user_id is an int.
+        resolved_uid_int = 0
+        if workflow and workflow.user_id:
+            _raw = workflow.user_id
+            resolved_uid_int = int(_raw) if isinstance(_raw, int) else (int(_raw) if str(_raw).isdigit() else 0)
+        # A UUID-string workflow.user_id (substrate contract) can't be coerced
+        # to an int, leaving resolved_uid_int == 0, which violates the
+        # inbox_items.user_id FK. Fall back to the workspace owner, who is a
+        # real user and the sensible notify target for a constraint escalation.
+        if resolved_uid_int == 0 and workspace_id:
+            from sqlalchemy import select
+
+            from app.models.workspace_models import Workspace
+
+            _ws = await db.execute(select(Workspace.owner_id).where(Workspace.id == str(workspace_id)))
+            _owner = _ws.scalar_one_or_none()
+            if _owner:
+                resolved_uid_int = _owner
+
+        tool_name = node.config.get("tool_name") or node.config.get("tool_id")
+
+        # ── Resume guard: reuse the existing inbox item for this node+run ──
+        result = await db.execute(
+            select(InboxItem)
+            .where(InboxItem.run_id == run_id, InboxItem.node_id == node.id)
+            .order_by(InboxItem.created_at.desc())
+            .limit(1)
+        )
+        existing = result.scalar_one_or_none()
+        if existing is not None:
+            resolution = await check_hitl_resolution(db, existing.id)
+            if not resolution.resolved:
+                # Still awaiting the human — pause again.
+                raise HITLPaused(
+                    inbox_item_id=existing.id,
+                    run_id=run_id,
+                    node_id=node.id,
+                    mission_id=mission_id,
+                    interrupt_type="escalation",
+                    title=existing.title,
+                    context={"current_context": {}},
+                )
+            if resolution.status in ("approved", "clarified"):
+                return None
+            return {
+                "success": False,
+                "error": f"Standing constraint escalation {resolution.status}: "
+                f"{resolution.resolution_note or 'no details'}",
+                "tokens": 0,
+                "cost": 0.0,
+                "constraint_escalation_rejected": True,
+            }
+
+        # ── First escalation: create inbox item and pause the run ──
+        constraint_subject = verdict.constraint_subject or "standing constraint"
+        title = f"Approval required: {constraint_subject}"
+        description = f"Tool '{tool_name}' is gated by standing constraint " f"'{constraint_subject}'. {verdict.reason}"
+        proposed_action = {
+            "node_id": node.id,
+            "node_title": node.title,
+            "node_type": node.type.value,
+            "tool_name": tool_name,
+            "constraint_claim_id": verdict.triggered_claim_id,
+        }
+
+        from decimal import Decimal
+
+        depth_decision = HITLService.build_depth_decision(
+            risk="medium",
+            uncertainty=0.5,
+            budget_remaining_usd=Decimal("10.0"),
+            prior_failures=0,
+            tool_requires_approval=True,
+            retry_count=0,
+            policy_override=False,
+        )
+        service = HITLService(db)
+        item = await service.create_interrupt(
+            mission_id=mission_id or None,
+            user_id=resolved_uid_int,
+            interrupt_type=HumanInterruptType.ESCALATION,
+            title=title,
+            description=description,
+            proposed_action=proposed_action,
+            context={"verdict": {"decision": verdict.decision, "reason": verdict.reason}},
+            depth_decision=depth_decision,
+            task_id=node.id,
+            node_id=node.id,
+            run_id=run_id,
+            workspace_id=workspace_id,
+        )
+        await event_log.append(
+            db,
+            run_id,
+            [
+                {
+                    "type": SubstrateEventType.HUMAN_INTERRUPT_RAISED,
+                    "payload": {
+                        "inbox_item_id": item.id,
+                        "interrupt_type": "escalation",
+                        "title": title,
+                        "node_id": node.id,
+                        "constraint_claim_id": verdict.triggered_claim_id,
+                    },
+                    "actor": "node_executor",
+                    "mission_id": mission_id,
+                    "task_id": node.id,
+                }
+            ],
+        )
+        logger.info(
+            "Constraint escalation → HITL pause: node=%s inbox_item=%s",
+            node.id,
+            item.id,
+        )
+        raise HITLPaused(
+            inbox_item_id=item.id,
+            run_id=run_id,
+            node_id=node.id,
+            mission_id=mission_id,
+            interrupt_type="escalation",
+            title=title,
+            context={"current_context": {}},
+        )
+
     # ── HITL interrupt handler (Phase 6.2) ──────────────────────────
 
     async def _handle_hitl_interrupt(
@@ -2040,7 +2199,7 @@ class NodeExecutor:
                 policy_override=False,
             )
             item = await service.create_interrupt(
-                mission_id=mission_id or "unknown",
+                mission_id=mission_id or None,
                 user_id=user_id,
                 interrupt_type=hitl_type,
                 title=title,
