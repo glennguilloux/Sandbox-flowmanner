@@ -162,10 +162,13 @@ def test_byok_key_never_in_span_attributes(byok_settings):
 
 def test_scrubber_redacts_known_key_value():
     """The shared scrubber must redact a raw secret value under an innocent key."""
+    # A value that starts with a known provider-key prefix (sk-) exercises the
+    # value-based heuristic even when the field name is innocent ("value").
+    sk_like = "sk-FAKESECRETVALUE0123456789abcdef"  # gitleaks:allow
     dirty = {
         "request_id": "abc",
         "config": {"apiKey": KNOWN_KEY},
-        "value": KNOWN_KEY,  # innocent key, secret value
+        "value": sk_like,  # innocent key, secret value (caught by prefix heuristic)
         "nested": [{"token": KNOWN_KEY}],
     }
     clean = scrub_dict(dirty)
@@ -175,6 +178,7 @@ def test_scrubber_redacts_known_key_value():
     assert clean["nested"][0]["token"] == "[REDACTED]"
     # None of the cleaned output contains the raw key.
     assert KNOWN_KEY not in str(clean)
+    assert sk_like not in str(clean)
 
 
 def test_kek_not_derived_from_jwt_secret(byok_settings):
