@@ -75,3 +75,13 @@ class GraphStateResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# Resolve forward references eagerly. Without this, pydantic fails at
+# serialization time with ``TypeAdapter[ForwardRef('uuid.UUID')] is not fully
+# defined`` when these response models are built during FastAPI request
+# handling (e.g. the POST /graphs/{id}/execute route).
+GraphWorkflowResponse.model_rebuild()
+GraphExecutionResponse.model_rebuild()
+GraphExecutionDetailResponse.model_rebuild()
+GraphStateResponse.model_rebuild()

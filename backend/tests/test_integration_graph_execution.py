@@ -17,6 +17,9 @@ Usage:
 """
 
 import asyncio
+import os
+import re
+import socket
 import time
 import uuid
 
@@ -35,9 +38,27 @@ from app.models.user import User
 
 pytestmark = pytest.mark.integration
 
-# ── Override DATABASE_URL to use localhost ─────────────────────────────────
 
-_TEST_DATABASE_URL = settings.DATABASE_URL.replace("workflow-postgres", "localhost")
+# ── Database URL resolution (host-agnostic, env-overridable) ────────────────
+# Inside Docker, PostgreSQL is at the ``.env`` host (``postgres`` or
+# ``workflow-postgres``) — use ``settings.DATABASE_URL`` directly.
+# On the host, port 5432 is mapped to localhost, so swap the hostname.
+# Honour ``FLOWMANNER_TEST_DB_URL`` (never stripped by the test env-guard)
+# so a host-shell run can point at the live DB without editing code.
+def _resolve_test_db_url() -> str:
+    override = os.environ.get("FLOWMANNER_TEST_DB_URL")
+    if override:
+        return override
+    try:
+        socket.create_connection(("workflow-postgres", 5432), timeout=2).close()
+        return settings.DATABASE_URL  # inside Docker
+    except (OSError, TimeoutError):
+        # Host-agnostic: replace whatever Docker hostname is in the URL with
+        # localhost (catches both ``postgres`` and ``workflow-postgres``).
+        return re.sub(r"@[^/:]+(:\d+)", r"@localhost\1", settings.DATABASE_URL)
+
+
+_TEST_DATABASE_URL = _resolve_test_db_url()
 
 _test_engine = create_async_engine(_TEST_DATABASE_URL, echo=False, poolclass=NullPool)
 TestSessionLocal = sessionmaker(_test_engine, class_=AsyncSession, expire_on_commit=False)
@@ -129,18 +150,18 @@ async def test_user_and_session():
     async with TestSessionLocal() as cleanup_session:
         await cleanup_session.execute(
             text(
-                "DELETE FROM graph_states WHERE execution_id IN (SELECT id FROM graph_executions WHERE workflow_id IN (SELECT id FROM graph_workflows WHERE user_id = :uid))"
+                "DELETE FROM workflow_states WHERE execution_id IN (SELECT id FROM workflow_executions WHERE workflow_id IN (SELECT id FROM workflows WHERE user_id = :uid))"
             ),
             {"uid": user_id},
         )
         await cleanup_session.execute(
             text(
-                "DELETE FROM graph_executions WHERE workflow_id IN (SELECT id FROM graph_workflows WHERE user_id = :uid)"
+                "DELETE FROM workflow_executions WHERE workflow_id IN (SELECT id FROM workflows WHERE user_id = :uid)"
             ),
             {"uid": user_id},
         )
         await cleanup_session.execute(
-            text("DELETE FROM graph_workflows WHERE user_id = :uid"),
+            text("DELETE FROM workflows WHERE user_id = :uid"),
             {"uid": user_id},
         )
         await cleanup_session.execute(

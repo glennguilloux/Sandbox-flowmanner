@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import uuid  # noqa: TCH003 -- must be runtime-imported: with `from __future__ import annotations`
 
-if TYPE_CHECKING:
-    import uuid
+# the `uuid.UUID` path-param annotations become string forward-refs that pydantic
+# cannot resolve at request time, raising `ForwardRef('uuid.UUID') is not fully
+# defined`. Importing at runtime resolves them.
+from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 

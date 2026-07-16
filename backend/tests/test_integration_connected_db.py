@@ -40,15 +40,29 @@ from app.services.integration_bridge import (
 pytestmark = pytest.mark.integration
 
 # ── Database URL resolution ────────────────────────────────────────────────
-# Inside Docker, PostgreSQL is at workflow-postgres:5432 — use settings directly.
+# Inside Docker, PostgreSQL is at the ``.env`` host (``postgres`` or
+# ``workflow-postgres``) — use settings directly.
 # On the host, port 5432 is mapped to localhost — swap the hostname.
+# Honour ``FLOWMANNER_TEST_DB_URL`` (never stripped by the test env-guard).
+import os
+import re
 import socket as _socket
 
-try:
-    _socket.create_connection(("workflow-postgres", 5432), timeout=2).close()
-    _TEST_DATABASE_URL = settings.DATABASE_URL
-except (OSError, TimeoutError):
-    _TEST_DATABASE_URL = settings.DATABASE_URL.replace("workflow-postgres", "localhost")
+
+def _resolve_test_db_url() -> str:
+    override = os.environ.get("FLOWMANNER_TEST_DB_URL")
+    if override:
+        return override
+    try:
+        _socket.create_connection(("workflow-postgres", 5432), timeout=2).close()
+        return settings.DATABASE_URL
+    except (OSError, TimeoutError):
+        # Host-agnostic: replace whatever Docker hostname is in the URL with
+        # localhost (catches both ``postgres`` and ``workflow-postgres``).
+        return re.sub(r"@[^/:]+(:\d+)", r"@localhost\1", settings.DATABASE_URL)
+
+
+_TEST_DATABASE_URL = _resolve_test_db_url()
 
 # NullPool: each async session gets a fresh connection, avoiding asyncpg
 # "another operation is in progress" errors from connection reuse across tests.
