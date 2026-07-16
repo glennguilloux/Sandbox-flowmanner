@@ -8,6 +8,7 @@ stable_diffusion_pipeline → Generate images via Stable Diffusion with multi-pr
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -453,7 +454,7 @@ class StableDiffusionPipelineTool(BaseTool):
         headers = {"Authorization": f"Bearer {token}"}
         url = f"https://api-inference.huggingface.co/models/{validated.model}"
 
-        body = {
+        body: dict[str, Any] = {
             "inputs": validated.prompt,
             "parameters": {
                 "negative_prompt": validated.negative_prompt or "",
@@ -466,7 +467,8 @@ class StableDiffusionPipelineTool(BaseTool):
         }
 
         if validated.seed is not None:
-            body["parameters"]["seed"] = validated.seed
+            params = body["parameters"]
+            params["seed"] = validated.seed
 
         async with httpx.AsyncClient(timeout=SD_TIMEOUT) as client:
             resp = await client.post(url, headers=headers, json=body)
