@@ -5,6 +5,19 @@ Replaces: dag_executor.py (179 lines → ~80 lines of strategy code).
 Uses Kahn's algorithm for topological sort, executing nodes in
 parallel within each layer.  Layer 0 runs first, layer N only after
 all nodes in layers 0..N-1 complete.
+
+Scope B additions (Finding 3 / Feature variant):
+- CONDITION nodes evaluate their boolean expression via the shared
+  ``_safe_eval`` helper (node_executor) and the strategy gates the
+  branch: a downstream edge originating at a CONDITION node is taken
+  only when its ``edge.condition`` ("true"/"false") matches the
+  evaluated boolean. validate() stays satisfied because every branch
+  edge references a real node id.
+- LOOP nodes drive bounded iteration at the strategy level: the configured
+  loop body (node.config["body"]) is re-executed up to
+  max_iterations times, checking node.config["stop_condition"] each pass.
+  A hard cap guards against runaway loops and a per-iteration substrate
+  event is emitted (the event log is the source of truth).
 """
 
 from __future__ import annotations
@@ -14,6 +27,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+from app.services.substrate.node_executor import _safe_eval
 from app.services.substrate.strategies.base import ExecutionStrategy
 from app.services.substrate.workflow_models import (
     StrategyResult,
@@ -27,6 +41,10 @@ if TYPE_CHECKING:
     from app.services.substrate.executor import UnifiedExecutor
 
 logger = logging.getLogger(__name__)
+
+# Edge.condition values that gate a branch off a CONDITION node.
+_BRANCH_TRUE = "true"
+_BRANCH_FALSE = "false"
 
 
 class DAGStrategy(ExecutionStrategy):
@@ -68,6 +86,9 @@ class DAGStrategy(ExecutionStrategy):
         total_tokens = 0
         total_cost = 0.0
         node_outputs: dict[str, Any] = {}
+        # Nodes already executed (incl. loop-body nodes driven by a LOOP node)
+        # are skipped during normal layering to avoid double execution.
+        executed: set[str] = set()
 
         for layer in layers:
             # Check abort signal between layers
@@ -82,6 +103,14 @@ class DAGStrategy(ExecutionStrategy):
                     total_cost_usd=total_cost,
                 )
 
+            # Determine which nodes in this layer are executable given
+            # CONDITION branch gating on their incoming edges.
+            executable = [
+                nid
+                for nid in layer
+                if nid not in executed and self._incoming_branch_passed(workflow, nid, node_outputs)
+            ]
+
             tasks = [
                 executor.execute_node(
                     db=db,
@@ -91,14 +120,14 @@ class DAGStrategy(ExecutionStrategy):
                     run_id=run_id,
                     workflow=workflow,
                 )
-                for nid in layer
+                for nid in executable
             ]
 
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+            results: Any = await asyncio.gather(*tasks, return_exceptions=True)
 
             from app.services.substrate.hitl_pause import HITLPaused
 
-            for nid, result in zip(layer, results, strict=False):
+            for nid, result in zip(executable, results, strict=False):
                 if isinstance(result, Exception):
                     # Q1-B chunk 1: Propagate HITLPaused — don't treat as failure
                     if isinstance(result, HITLPaused):
@@ -107,9 +136,26 @@ class DAGStrategy(ExecutionStrategy):
                     node_outputs[nid] = {"error": str(result)}
                 elif result.get("success"):
                     completed_nodes.append(nid)
+                    executed.add(nid)
                     total_tokens += result.get("tokens", 0)
                     total_cost += result.get("cost", 0.0)
                     node_outputs[nid] = result.get("output", {})
+
+                    # Scope B: a LOOP marker node drives bounded iteration
+                    # of its configured body at the strategy level.
+                    if workflow.node_map[nid].type.value == "loop":
+                        await self._run_loop_body(
+                            workflow,
+                            nid,
+                            context,
+                            executor,
+                            db,
+                            run_id,
+                            node_outputs,
+                            executed,
+                            completed_nodes,
+                            failed_nodes,
+                        )
                 else:
                     failed_nodes.append(nid)
                     node_outputs[nid] = {"error": result.get("error")}
@@ -125,10 +171,147 @@ class DAGStrategy(ExecutionStrategy):
             total_cost_usd=total_cost,
         )
 
+    # ── CONDITION branch gating ──────────────────────────────────────
+
+    def _incoming_branch_passed(self, workflow: Workflow, nid: str, node_outputs: dict[str, Any]) -> bool:
+        """True if all incoming edges from CONDITION nodes permit execution.
+
+        An edge from a CONDITION node carries edge.condition == "true" or
+        "false". The edge is taken only when the condition's evaluated
+        boolean matches. Edges without a condition (or not from a condition
+        node) don't gate.
+        """
+        # Build incoming edges for this node (validate() guarantees the
+        # edge endpoints reference real node ids).
+        incoming = [e for e in workflow.edges if e.target == nid]
+        for edge in incoming:
+            src = workflow.node_map.get(edge.source)
+            if src is None or src.type.value != "condition":
+                continue
+            if not edge.condition:
+                continue
+            cond_out = node_outputs.get(edge.source, {})
+            cond_value = bool(cond_out.get("value")) if isinstance(cond_out, dict) else bool(cond_out)
+            branch = edge.condition.strip().lower()
+            if branch == _BRANCH_TRUE and not cond_value:
+                return False
+            if branch == _BRANCH_FALSE and cond_value:
+                return False
+        return True
+
+    # ── LOOP bounded iteration ───────────────────────────────────────
+
+    async def _run_loop_body(
+        self,
+        workflow: Workflow,
+        loop_node_id: str,
+        context: dict[str, Any],
+        executor: UnifiedExecutor,
+        db: AsyncSession,
+        run_id: str,
+        node_outputs: dict[str, Any],
+        executed: set[str],
+        completed_nodes: list[str],
+        failed_nodes: list[str],
+    ) -> None:
+        """Drive bounded iteration of a LOOP node's body.
+
+        Config (node.config):
+            body: list[str] of node ids forming the loop body, in
+                   execution order (the caller is responsible for it being
+                   a valid topo order within the body).
+            max_iterations: hard cap (default 10, clamped to 1000).
+            stop_condition: optional boolean expression evaluated (via the
+                   shared safe evaluator) against node_outputs each pass;
+                   the loop breaks when it evaluates truthy.
+
+        Each iteration re-executes the body nodes; a per-iteration substrate
+        event is emitted so the event log captures the loop history. A hard
+        cap prevents infinite loops even if stop_condition never holds.
+        """
+        loop_node = workflow.node_map[loop_node_id]
+        body = loop_node.config.get("body") or []
+        if not isinstance(body, list) or not body:
+            return
+
+        max_iterations = int(loop_node.config.get("max_iterations", 10))
+        max_iterations = max(1, min(max_iterations, 1000))
+        stop_condition = loop_node.config.get("stop_condition")
+
+        for iteration in range(max_iterations):
+            # Hard-cap guard: emit an event and bail if we exceed the cap.
+            if iteration >= max_iterations:
+                break
+
+            # Re-run each body node in order. Body nodes are skipped during
+            # normal layering (they're already in ``executed``), so this is
+            # the single place they run.
+            body_failed = False
+            for body_nid in body:
+                body_node = workflow.node_map.get(body_nid)
+                if body_node is None:
+                    continue
+                result = await executor.execute_node(
+                    db=db,
+                    node=body_node,
+                    context={**context, "previous_outputs": node_outputs},
+                    budget=workflow.budget,
+                    run_id=run_id,
+                    workflow=workflow,
+                )
+                if result.get("success"):
+                    executed.add(body_nid)
+                    if body_nid not in completed_nodes:
+                        completed_nodes.append(body_nid)
+                    node_outputs[body_nid] = result.get("output", {})
+                else:
+                    body_failed = True
+                    if body_nid not in failed_nodes:
+                        failed_nodes.append(body_nid)
+                    node_outputs[body_nid] = {"error": result.get("error")}
+
+            # Emit a per-iteration event (event log is source of truth).
+            try:
+                from app.services.substrate.event_log import get_event_log
+
+                event_log = get_event_log()
+                await event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": "node.loop.iteration",
+                            "payload": {
+                                "node_id": loop_node_id,
+                                "iteration": iteration + 1,
+                                "max_iterations": max_iterations,
+                                "body_failed": body_failed,
+                            },
+                            "actor": "dag_strategy",
+                            "task_id": loop_node_id,
+                        }
+                    ],
+                )
+            except Exception as e:
+                logger.debug("Loop iteration event skipped: %s", e)
+
+            if body_failed:
+                break
+
+            # Evaluate stop_condition against the latest outputs.
+            if stop_condition:
+                try:
+                    if _safe_eval(stop_condition, node_outputs):
+                        break
+                except Exception as e:
+                    logger.debug("Loop stop_condition eval failed: %s", e)
+                    break
+
+    # ── Topological sort (Kahn) ───────────────────────────────────
+
     def _topological_sort(self, workflow: Workflow) -> list[list[str]]:
         """Kahn's algorithm: return execution layers."""
         in_deg = workflow.get_in_degree()
-
         queue = [nid for nid, deg in in_deg.items() if deg == 0]
         layers: list[list[str]] = []
         visited = 0

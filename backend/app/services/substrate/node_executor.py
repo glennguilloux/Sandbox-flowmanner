@@ -17,6 +17,7 @@ All tool calls go through CapabilityEngine.verify().
 
 from __future__ import annotations
 
+import ast
 import json
 import logging
 import re
@@ -41,6 +42,370 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
+
+# ── Scope B helpers: safe evaluators for transform / condition nodes ──
+# These nodes MUST NOT run arbitrary code. They use ast.parse to compile the
+# user expression and allow ONLY a whitelisted node set (literals, names
+# resolved from the provided context, comparisons, boolean ops, comprehensions
+# over dict/list, subscript, attribute on allowlisted containers, calls to a
+# small set of pure builtins). Anything else (imports, lambdas, attribute
+# chains into arbitrary objects, attribute access that escapes the sandbox)
+# is rejected before eval. This is the same trust-boundary discipline the
+# code-sandbox applies — never eval untrusted input with bare eval().
+
+_SAFE_BUILTINS: dict[str, Any] = {
+    "len": len,
+    "min": min,
+    "max": max,
+    "sum": sum,
+    "abs": abs,
+    "round": round,
+    "sorted": sorted,
+    "list": list,
+    "dict": dict,
+    "set": set,
+    "tuple": tuple,
+    "bool": bool,
+    "int": int,
+    "float": float,
+    "str": str,
+    "any": any,
+    "all": all,
+    "enumerate": enumerate,
+    "range": range,
+    "zip": zip,
+    "map": map,
+    "filter": filter,
+    "isinstance": isinstance,
+    "get": dict.get,
+}
+
+
+def _safe_eval(expression: str, context: dict[str, Any]) -> Any:
+    """Safely evaluate a boolean/arithmetic expression against ``context``.
+
+    Raises ValueError if the expression uses any disallowed construct.
+    """
+    import ast
+
+    tree = ast.parse(expression, mode="eval")
+    return _safe_eval_node(tree.body, context or {})
+
+
+# Node types whitelisted for transform/condition expressions. Anything else
+# (imports, lambdas, comprehensions that escape the sandbox, attribute
+# chains into arbitrary objects) is rejected before evaluation.
+_ALLOWED_NODES = (
+    ast.Expression,
+    ast.BoolOp,
+    ast.BinOp,
+    ast.UnaryOp,
+    ast.Compare,
+    ast.IfExp,
+    ast.Call,
+    ast.Name,
+    ast.Constant,
+    ast.List,
+    ast.Tuple,
+    ast.Set,
+    ast.Dict,
+    ast.Subscript,
+    ast.Slice,
+    ast.comprehension,
+    ast.ListComp,
+    ast.SetComp,
+    ast.DictComp,
+    ast.GeneratorExp,
+    ast.Attribute,
+    ast.keyword,
+)
+# Operators that are pure / side-effect free.
+_ALLOWED_OPS = (
+    ast.And,
+    ast.Or,
+    ast.Not,
+    ast.USub,
+    ast.UAdd,
+    ast.Invert,
+    ast.Add,
+    ast.Sub,
+    ast.Mult,
+    ast.Div,
+    ast.FloorDiv,
+    ast.Mod,
+    ast.Pow,
+    ast.LShift,
+    ast.RShift,
+    ast.BitAnd,
+    ast.BitOr,
+    ast.BitXor,
+    ast.Eq,
+    ast.NotEq,
+    ast.Lt,
+    ast.LtE,
+    ast.Gt,
+    ast.GtE,
+    ast.Is,
+    ast.IsNot,
+    ast.In,
+    ast.NotIn,
+)
+
+
+def _safe_eval_node(node: Any, ctx: dict[str, Any]) -> Any:
+    """Recursively evaluate ``node`` against ``ctx`` (whitelist-restricted)."""
+    if not isinstance(node, _ALLOWED_NODES):
+        raise ValueError(f"Disallowed expression construct: {type(node).__name__}")
+
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.Name):
+        if node.id in ctx:
+            return ctx[node.id]
+        if node.id in _SAFE_BUILTINS:
+            return _SAFE_BUILTINS[node.id]
+        raise ValueError(f"Unknown name in expression: {node.id}")
+    if isinstance(node, ast.BoolOp):
+        vals = [_safe_eval_node(v, ctx) for v in node.values]
+        if isinstance(node.op, ast.And):
+            return all(vals)
+        return any(vals)
+    if isinstance(node, ast.UnaryOp):
+        val = _safe_eval_node(node.operand, ctx)
+        if isinstance(node.op, ast.Not):
+            return not val
+        if isinstance(node.op, ast.USub):
+            return -val
+        if isinstance(node.op, ast.UAdd):
+            return +val
+        if isinstance(node.op, ast.Invert):
+            return ~val
+        raise ValueError("Disallowed unary operator")
+    if isinstance(node, ast.BinOp):
+        left = _safe_eval_node(node.left, ctx)
+        right = _safe_eval_node(node.right, ctx)
+        return _apply_binop(node.op, left, right)
+    if isinstance(node, ast.Compare):
+        left = _safe_eval_node(node.left, ctx)
+        for op, comparator in zip(node.ops, node.comparators, strict=False):
+            right = _safe_eval_node(comparator, ctx)
+            if not _apply_cmpop(op, left, right):
+                return False
+            left = right
+        return True
+    if isinstance(node, ast.IfExp):
+        if _safe_eval_node(node.test, ctx):
+            return _safe_eval_node(node.body, ctx)
+        return _safe_eval_node(node.orelse, ctx)
+    if isinstance(node, ast.Call):
+        if not isinstance(node.func, ast.Name):
+            raise ValueError("Only direct builtin calls allowed (no chained calls)")
+        func = _safe_eval_node(node.func, ctx)
+        if func not in _SAFE_BUILTINS.values():
+            raise ValueError("Only whitelisted builtins may be called")
+        args = [_safe_eval_node(a, ctx) for a in node.args]
+        kwargs = {kw.arg: _safe_eval_node(kw.value, ctx) for kw in node.keywords}
+        return func(*args, **kwargs)
+    if isinstance(node, ast.Subscript):
+        value = _safe_eval_node(node.value, ctx)
+        if not isinstance(value, dict | list | str | tuple | set | bytes):
+            raise ValueError("Subscript on non-container type blocked")
+        key = _safe_eval_node(node.slice, ctx)
+        container: Any = value
+        return container[key]
+    if isinstance(node, ast.Attribute):
+        # Only allow attribute access on containers we already resolved
+        # from context (dict/list/str/etc.) — never on arbitrary objects.
+        # This blocks escapes like __class__, __globals__, etc.
+        value = _safe_eval_node(node.value, ctx)
+        if isinstance(value, dict | list | str | tuple | set | bytes):
+            if isinstance(value, dict):
+                # dict.attr access is not supported; use subscript.
+                raise ValueError(f"dict attribute access not allowed: .{node.attr}")
+            return getattr(value, node.attr, None)
+        raise ValueError(f"Attribute access on non-container type blocked: .{node.attr}")
+    if isinstance(node, ast.ListComp | ast.SetComp | ast.GeneratorExp):
+        return _eval_comp(node, ctx)
+    if isinstance(node, ast.DictComp):
+        return _eval_dictcomp(node, ctx)
+    raise ValueError(f"Unsupported expression node: {type(node).__name__}")
+
+
+def _apply_binop(op: Any, left: Any, right: Any) -> Any:
+    if isinstance(op, ast.Add):
+        return left + right
+    if isinstance(op, ast.Sub):
+        return left - right
+    if isinstance(op, ast.Mult):
+        return left * right
+    if isinstance(op, ast.Div):
+        return left / right
+    if isinstance(op, ast.FloorDiv):
+        return left // right
+    if isinstance(op, ast.Mod):
+        return left % right
+    if isinstance(op, ast.Pow):
+        return left**right
+    if isinstance(op, ast.LShift):
+        return left << right
+    if isinstance(op, ast.RShift):
+        return left >> right
+    if isinstance(op, ast.BitAnd):
+        return left & right
+    if isinstance(op, ast.BitOr):
+        return left | right
+    if isinstance(op, ast.BitXor):
+        return left ^ right
+    raise ValueError("Disallowed binary operator")
+
+
+def _apply_cmpop(op: Any, left: Any, right: Any) -> bool:
+    if isinstance(op, ast.Eq):
+        return left == right
+    if isinstance(op, ast.NotEq):
+        return left != right
+    if isinstance(op, ast.Lt):
+        return left < right
+    if isinstance(op, ast.LtE):
+        return left <= right
+    if isinstance(op, ast.Gt):
+        return left > right
+    if isinstance(op, ast.GtE):
+        return left >= right
+    if isinstance(op, ast.Is):
+        return left is right
+    if isinstance(op, ast.IsNot):
+        return left is not right
+    if isinstance(op, ast.In):
+        return left in right
+    if isinstance(op, ast.NotIn):
+        return left not in right
+    raise ValueError("Disallowed comparison operator")
+
+
+def _eval_comp(node: Any, ctx: dict[str, Any]) -> Any:
+    """Evaluate a list/set/generator comprehension (single generator)."""
+    gen = node.generators[0]
+    iterable = _safe_eval_node(gen.iter, ctx)
+    result = []
+    for item in iterable:
+        local = {**ctx}
+        _unpack(gen.target, item, local)
+        if all(_safe_eval_node(iff, local) for iff in gen.ifs):
+            result.append(_safe_eval_node(node.elt, local))
+    if isinstance(node, ast.SetComp):
+        return set(result)
+    return result
+
+
+def _eval_dictcomp(node: Any, ctx: dict[str, Any]) -> dict:
+    gen = node.generators[0]
+    iterable = _safe_eval_node(gen.iter, ctx)
+    out: dict = {}
+    for item in iterable:
+        local = {**ctx}
+        _unpack(gen.target, item, local)
+        if all(_safe_eval_node(iff, local) for iff in gen.ifs):
+            k = _safe_eval_node(node.key, local)
+            v = _safe_eval_node(node.value, local)
+            out[k] = v
+    return out
+
+
+def _unpack(target: Any, value: Any, ctx: dict[str, Any]) -> None:
+    """Bind a comprehension target (Name or Tuple) into ``ctx``."""
+    if isinstance(target, ast.Name):
+        ctx[target.id] = value
+    elif isinstance(target, ast.Tuple):
+        for t, v in zip(target.elts, value, strict=False):
+            _unpack(t, v, ctx)
+    else:
+        raise ValueError("Unsupported comprehension target")
+
+
+def _safe_transform(
+    transform_type: str,
+    expression: str,
+    data: Any,
+    context: dict[str, Any],
+) -> Any:
+    """Apply a restricted transform to ``data``.
+
+    transform_type "map"/"filter": ``expression`` is applied to each element
+    via a comprehension over the (resolved) element name ``x``. The
+    element name is injected into the evaluation context.
+    transform_type "expression": the bare expression is evaluated with both
+    ``data`` and the full context available.
+    """
+    if transform_type in ("map", "filter"):
+        if not isinstance(data, list | tuple | set):
+            # Allow mapping a single value as a 1-element list for convenience.
+            data = [data]
+        results = []
+        for x in data:
+            local_ctx = {**context, "x": x, "data": data}
+            value = _safe_eval(expression, local_ctx)
+            if transform_type == "filter":
+                if value:
+                    results.append(x)
+            else:
+                results.append(value)
+        return results
+    if transform_type == "expression":
+        local_ctx = {**context, "data": data}
+        return _safe_eval(expression, local_ctx)
+    raise ValueError(f"Unknown transformType: {transform_type}")
+
+
+def _is_safe_url(url: str) -> bool:
+    """SSRF guard for outbound webhook URLs.
+
+    Rejects non-http(s) schemes and any host that resolves to a
+    private / loopback / link-local address. Mirrors the SSRF guard
+    used by the sandboxd-egress allowlist work (B19).
+    """
+    import socket
+    from urllib.parse import urlparse
+
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False
+    if parsed.scheme not in ("http", "https"):
+        return False
+    host = parsed.hostname
+    if not host:
+        return False
+    # Reject literal IPs / hostnames in private ranges. DNS resolution is
+    # attempted but every resolved address must be public.
+    candidates: list[str] = []
+    if host.replace(".", "").isdigit() or ":" in host:
+        candidates.append(host)  # IPv4/IPv6 literal
+    else:
+        try:
+            infos = socket.getaddrinfo(host, None)
+            candidates = [info[4][0] for info in infos]
+        except Exception:
+            return False
+    for addr in candidates:
+        try:
+            import ipaddress
+
+            ip = ipaddress.ip_address(addr)
+        except ValueError:
+            # Unparsable resolved address — treat as unsafe.
+            return False
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            return False
+    return True
+
 
 # ── Code execution wrapper (written to temp file to avoid quote issues) ──
 
@@ -764,6 +1129,21 @@ class NodeExecutor:
                 return {"success": True, "output": context, "tokens": 0}
             case NodeType.SANDBOX:
                 return await self._handle_sandbox_node(db, node, context, budget, run_id, workflow)
+            case NodeType.TRANSFORM:
+                return await self._handle_transform(node, context)
+            case NodeType.CONDITION:
+                # Handler only evaluates the expression + reports the branch.
+                # Actual branch *taking* is strategy-level (see DAGStrategy).
+                return await self._handle_condition(node, context)
+            case NodeType.LOG:
+                return await self._handle_log(db, node, context, run_id, workflow)
+            case NodeType.LOOP:
+                # Marker node: the bounded iteration loop is driven by the
+                # strategy (see DAGStrategy). The handler just reports the
+                # configured bounds so the strategy can honor them.
+                return await self._handle_loop(node, context)
+            case NodeType.WEBHOOK:
+                return await self._handle_webhook(db, node, context, run_id, workflow)
             case _:
                 return {"success": False, "error": f"Unknown node type: {node.type}"}
 
@@ -1486,6 +1866,248 @@ class NodeExecutor:
             return {"success": False, "error": result.error}
         except Exception as e:
             return {"success": False, "error": f"Browser tool failed: {e}"}
+
+    # ── Transform (pure data transform, no LLM / no tool) ──────────
+    async def _handle_transform(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
+        """Apply a non-LLM transform to the node input / context.
+
+        Config keys:
+            transformType: "map" | "filter" | "expression" (default "map")
+            transformExpression: the transform body (string)
+            input: optional explicit input (defaults to node input / context)
+
+        The transform runs in a restricted scope supporting only dict/list
+        comprehensions + the safe builtins already whitelisted for
+        ``_execute_code_sandboxed``-style use. No network, no import,
+        no arbitrary attribute access (ast-compiled + guarded eval).
+        """
+        transform_type = node.config.get("transformType", "map")
+        expression = node.config.get("transformExpression")
+        if not expression:
+            return {"success": False, "error": "No transformExpression provided"}
+
+        # Resolve the input: explicit config beats the in-flight node input/context.
+        data = node.config["input"] if "input" in node.config else context.get("input", context)
+
+        try:
+            result = _safe_transform(transform_type, expression, data, context)
+        except Exception as e:
+            return {"success": False, "error": f"Transform failed: {e}"}
+
+        return {"success": True, "output": result, "tokens": 0, "cost": 0.0}
+
+    # ── Condition (evaluate a boolean expression) ─────────────────
+    async def _handle_condition(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
+        """Evaluate node.config['expression'] against the context.
+
+        The handler ONLY evaluates + reports the boolean / selected branch.
+        The actual branch *taking* (skipping the non-taken branch) is the
+        strategy's job (see DAGStrategy.execute). This mirrors GraphStrategy,
+        where edges carry the condition and the strategy decides executability.
+
+        Config keys:
+            expression: a boolean expression (e.g. "{{n1.output.score}} > 0.5")
+                        or a bare Python boolean expression over context vars.
+
+        Returns {"success", "output": {"value": bool, "branch": ...}}.
+        """
+        expression = node.config.get("expression")
+        if not expression:
+            return {"success": False, "error": "No condition expression provided"}
+
+        try:
+            value = _safe_eval(expression, context)
+        except Exception as e:
+            return {"success": False, "error": f"Condition evaluation failed: {e}"}
+
+        if isinstance(value, bool):
+            result = value
+        else:
+            # Truthy coercion (string "true"/"false", 0/1, etc.)
+            result = str(value).strip().lower() in ("true", "1", "yes", "success", "completed") or bool(value)
+        return {
+            "success": True,
+            "output": {"value": result, "expression": expression},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    # ── Log (read-only substrate event append) ─────────────────────
+    async def _handle_log(
+        self,
+        db: AsyncSession | None,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        run_id: str,
+        workflow: Workflow | None = None,
+    ) -> dict[str, Any]:
+        """Append a substrate log event. Read-only, REVERSIBLE.
+
+        Config keys:
+            message: optional explicit message (str)
+            level: "info" | "warn" | "error" (default "info")
+
+        The message may reference context via {{node_id.output.field}} — the
+        message is rendered through the same interpolation used by GraphStrategy
+        edges. If no message is given, a default is logged.
+        """
+        level = node.config.get("level", "info")
+        raw_message = node.config.get("message") or node.title or node.description or (f"LOG node {node.id}")
+        try:
+            from app.services.substrate.strategies.graph import GraphStrategy
+
+            message = GraphStrategy()._resolve_interpolation(raw_message, context)
+        except Exception:
+            message = raw_message
+
+        event_type = "node.log"
+        try:
+            if db and run_id:
+                event_log = get_event_log()
+                await event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": event_type,
+                            "payload": {
+                                "node_id": node.id,
+                                "level": level,
+                                "message": str(message)[:2000],
+                            },
+                            "actor": "node_executor",
+                            "mission_id": workflow.id if workflow else None,
+                            "task_id": node.id,
+                        }
+                    ],
+                )
+        except Exception as e:
+            # Read-only node: a logging failure must NOT fail the workflow.
+            logger.debug("Log node %s event write skipped: %s", node.id, e)
+
+        return {
+            "success": True,
+            "output": {"level": level, "message": str(message)[:2000]},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    # ── Loop (strategy-level bounded iteration marker) ──────────────
+    async def _handle_loop(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
+        """Report the configured loop bounds.
+
+        The actual bounded iteration over the loop body is driven by the
+        strategy (see DAGStrategy). The handler is a pure marker that
+        surfaces the configured parameters so the strategy can honor them and
+        emit a per-iteration event.
+
+        Config keys:
+            max_iterations: hard cap on iterations (default 10)
+            stop_condition: optional boolean expression evaluated each iteration
+            loop_var: name bound to the current iteration index in body context
+
+        Returns the resolved bounds for the strategy to consume.
+        """
+        max_iterations = int(node.config.get("max_iterations", 10))
+        stop_condition = node.config.get("stop_condition")
+        loop_var = node.config.get("loop_var", "i")
+        # Guard the hard cap so a runaway loop cannot exhaust resources.
+        max_iterations = max(1, min(max_iterations, 1000))
+        return {
+            "success": True,
+            "output": {
+                "max_iterations": max_iterations,
+                "stop_condition": stop_condition,
+                "loop_var": loop_var,
+            },
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    # ── Webhook (outbound HTTP POST — IRREVERSIBLE side effect) ───
+    async def _handle_webhook(
+        self,
+        db: AsyncSession | None,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        run_id: str,
+        workflow: Workflow | None = None,
+    ) -> dict[str, Any]:
+        """Emit an outbound HTTP POST to node.config['url'] with a payload.
+
+        IRREVERSIBLE — fires an external side effect. The two-phase
+        STAGE→CONFIRM dispatch in execute() guarantees the effect only
+        fires after the orchestrator's fallback/skip/escalate decision, and
+        dedupes across retries via the side_effect_confirmed idempotency key.
+
+        Config keys:
+            url: target URL (REQUIRED)
+            payload: optional explicit payload (dict); defaults to the node
+                     input / context
+            method: optional (default "POST")
+            headers: optional dict
+
+        The URL is SSRF-guarded: only http/https schemes are allowed and
+        the host is rejected if it resolves to a private/loopback address.
+        """
+        url = node.config.get("url")
+        if not url:
+            return {"success": False, "error": "No webhook url provided"}
+
+        if not _is_safe_url(url):
+            return {
+                "success": False,
+                "error": f"Webhook URL rejected by SSRF guard: {url}",
+            }
+
+        method = (node.config.get("method") or "POST").upper()
+        payload = node.config["payload"] if "payload" in node.config else context.get("input", context)
+
+        headers = {"Content-Type": "application/json"}
+        headers.update(node.config.get("headers") or {})
+
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.request(method, url, json=payload, headers=headers)
+            status = resp.status_code
+            try:
+                body = resp.json()
+            except Exception:
+                body = resp.text[:2000]
+            # Best-effort cost-less event log (fire-and-forget).
+            try:
+                if db and run_id:
+                    event_log = get_event_log()
+                    await event_log.append(
+                        db,
+                        run_id,
+                        [
+                            {
+                                "type": "node.webhook.sent",
+                                "payload": {
+                                    "node_id": node.id,
+                                    "url": url,
+                                    "method": method,
+                                    "status_code": status,
+                                },
+                                "actor": "node_executor",
+                                "mission_id": workflow.id if workflow else None,
+                                "task_id": node.id,
+                            }
+                        ],
+                    )
+            except Exception as e:
+                logger.debug("Webhook sent event write skipped: %s", e)
+            return {
+                "success": 200 <= status < 300,
+                "output": {"status_code": status, "body": body},
+                "tokens": 0,
+                "cost": 0.0,
+            }
+        except Exception as e:
+            return {"success": False, "error": f"Webhook request failed: {e}"}
 
     # ── Sandbox node (Phase 3) ───────────────────────────────────────
 
