@@ -1,6 +1,7 @@
 import logging
+from http import HTTPStatus
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user
@@ -8,6 +9,14 @@ from app.models.user import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/browser", tags=["browser"])
+
+# Browser automation runs against an upstream headless-browser subsystem
+# (Playwright/CDP). When an operation fails, the failure originates in that
+# upstream dependency, so the correct HTTP status is 502 Bad Gateway — not a
+# 200 with {"success": false} (the "200-success-false" anti-pattern that breaks
+# standard clients, monitoring, and retries). The response *body* is preserved
+# unchanged (all fields clients rely on remain); only the HTTP status changes.
+_BROWSER_UPSTREAM_FAILURE = HTTPStatus.BAD_GATEWAY  # 502
 
 
 class PingRequest(BaseModel):
@@ -63,6 +72,7 @@ class NavigateResponse(BaseModel):
 @router.post("/navigate", response_model=NavigateResponse)
 async def navigate(
     request: NavigateRequest,
+    response: Response,
     current_user: User = Depends(get_current_user),
 ):
     from app.services.browser_service import get_browser_service
@@ -78,6 +88,7 @@ async def navigate(
             status=result.get("status"),
         )
     else:
+        response.status_code = _BROWSER_UPSTREAM_FAILURE
         return NavigateResponse(
             success=False,
             error=result.get("error"),
@@ -94,6 +105,7 @@ class ScreenshotResponse(BaseModel):
 
 @router.get("/screenshot", response_model=ScreenshotResponse)
 async def screenshot(
+    response: Response,
     current_user: User = Depends(get_current_user),
 ):
     from app.services.browser_service import get_browser_service
@@ -108,6 +120,7 @@ async def screenshot(
             url=result.get("url"),
             title=result.get("title"),
         )
+    response.status_code = _BROWSER_UPSTREAM_FAILURE
     return ScreenshotResponse(success=False, error=result.get("error"))
 
 
@@ -164,6 +177,7 @@ class SnapshotResponse(BaseModel):
 
 @router.post("/snapshot", response_model=SnapshotResponse)
 async def snapshot(
+    response: Response,
     current_user: User = Depends(get_current_user),
 ):
     from app.services.browser_service import get_browser_service
@@ -180,6 +194,7 @@ async def snapshot(
             title=result.get("title"),
         )
     else:
+        response.status_code = _BROWSER_UPSTREAM_FAILURE
         return SnapshotResponse(
             success=False,
             error=result.get("error"),
@@ -203,6 +218,7 @@ class ClickResponse(BaseModel):
 @router.post("/click", response_model=ClickResponse)
 async def click(
     request: ClickRequest,
+    response: Response,
     current_user: User = Depends(get_current_user),
 ):
     from app.services.browser_service import get_browser_service
@@ -219,6 +235,7 @@ async def click(
             clicked_at=result.get("clicked_at"),
         )
     else:
+        response.status_code = _BROWSER_UPSTREAM_FAILURE
         return ClickResponse(
             success=False,
             error=result.get("error"),
@@ -245,6 +262,7 @@ class TypeResponse(BaseModel):
 @router.post("/type", response_model=TypeResponse)
 async def type_text(
     request: TypeRequest,
+    response: Response,
     current_user: User = Depends(get_current_user),
 ):
     from app.services.browser_service import get_browser_service
@@ -265,6 +283,7 @@ async def type_text(
             healed=result.get("healed"),
         )
     else:
+        response.status_code = _BROWSER_UPSTREAM_FAILURE
         return TypeResponse(
             success=False,
             error=result.get("error"),
@@ -286,6 +305,7 @@ class ScrollResponse(BaseModel):
 @router.post("/scroll", response_model=ScrollResponse)
 async def scroll(
     request: ScrollRequest,
+    response: Response,
     current_user: User = Depends(get_current_user),
 ):
     from app.services.browser_service import get_browser_service
@@ -296,6 +316,7 @@ async def scroll(
     if result.get("success"):
         return ScrollResponse(success=True)
     else:
+        response.status_code = _BROWSER_UPSTREAM_FAILURE
         return ScrollResponse(success=False, error=result.get("error"))
 
 
@@ -317,6 +338,7 @@ class ViewportResponse(BaseModel):
 @router.post("/viewport", response_model=ViewportResponse)
 async def resize_viewport(
     request: ViewportRequest,
+    response: Response,
     current_user: User = Depends(get_current_user),
 ):
     from app.services.browser_service import get_browser_service
@@ -325,6 +347,7 @@ async def resize_viewport(
     result = await service.resize_viewport(str(current_user.id), request.width, request.height)
     if result.get("success"):
         return ViewportResponse(success=True, width=result["width"], height=result["height"])
+    response.status_code = _BROWSER_UPSTREAM_FAILURE
     return ViewportResponse(success=False, error=result.get("error"))
 
 
@@ -342,12 +365,15 @@ class ConsoleLogsResponse(BaseModel):
 
 @router.get("/console", response_model=ConsoleLogsResponse)
 async def get_console_logs(
+    response: Response,
     current_user: User = Depends(get_current_user),
 ):
     from app.services.browser_service import get_browser_service
 
     service = get_browser_service()
     result = await service.get_console_logs(str(current_user.id))
+    if not result.get("success"):
+        response.status_code = _BROWSER_UPSTREAM_FAILURE
     return ConsoleLogsResponse(
         success=result["success"],
         logs=result.get("logs", []),
@@ -365,6 +391,7 @@ class FullScreenshotResponse(BaseModel):
 
 @router.get("/screenshot/full", response_model=FullScreenshotResponse)
 async def screenshot_full_page(
+    response: Response,
     current_user: User = Depends(get_current_user),
 ):
     from app.services.browser_service import get_browser_service
@@ -378,6 +405,7 @@ async def screenshot_full_page(
             url=result.get("url"),
             title=result.get("title"),
         )
+    response.status_code = _BROWSER_UPSTREAM_FAILURE
     return FullScreenshotResponse(success=False, error=result.get("error"))
 
 
@@ -394,6 +422,7 @@ class AdBlockResponse(BaseModel):
 @router.post("/adblock", response_model=AdBlockResponse)
 async def toggle_ad_blocking(
     request: AdBlockRequest,
+    response: Response,
     current_user: User = Depends(get_current_user),
 ):
     from app.services.browser_service import get_browser_service
@@ -402,6 +431,7 @@ async def toggle_ad_blocking(
     result = await service.toggle_ad_blocking(str(current_user.id), request.enabled)
     if result.get("success"):
         return AdBlockResponse(success=True, ad_blocking=result["ad_blocking"])
+    response.status_code = _BROWSER_UPSTREAM_FAILURE
     return AdBlockResponse(success=False, error=result.get("error"))
 
 
@@ -419,12 +449,15 @@ class NavHistoryResponse(BaseModel):
 
 @router.get("/history", response_model=NavHistoryResponse)
 async def get_navigation_history(
+    response: Response,
     current_user: User = Depends(get_current_user),
 ):
     from app.services.browser_service import get_browser_service
 
     service = get_browser_service()
     result = await service.get_navigation_history(str(current_user.id))
+    if not result.get("success"):
+        response.status_code = _BROWSER_UPSTREAM_FAILURE
     return NavHistoryResponse(
         success=result["success"],
         history=result.get("history", []),
@@ -441,6 +474,7 @@ class ShareResponse(BaseModel):
 
 @router.get("/share", response_model=ShareResponse)
 async def get_share_url(
+    response: Response,
     current_user: User = Depends(get_current_user),
 ):
     from app.services.browser_service import get_browser_service
@@ -453,6 +487,7 @@ async def get_share_url(
             session_token=result["session_token"],
             share_url=result["share_url"],
         )
+    response.status_code = _BROWSER_UPSTREAM_FAILURE
     return ShareResponse(success=False, error=result.get("error"))
 
 
@@ -482,6 +517,7 @@ class BrowserChatResponse(BaseModel):
 @router.post("/chat", response_model=BrowserChatResponse)
 async def browser_agent_chat(
     request: BrowserChatRequest,
+    response: Response,
     current_user: User = Depends(get_current_user),
 ):
     """LLM-powered browser agent chat endpoint."""
@@ -531,16 +567,20 @@ async def browser_agent_chat(
             result.get("response", "")[:100],
         )
 
+        agent_success = result.get("success", True)
+        if not agent_success:
+            response.status_code = _BROWSER_UPSTREAM_FAILURE
         return BrowserChatResponse(
             response=result.get("response", "Task completed."),
             actions=actions,
             final_url=final_url,
             screenshot=screenshot,
-            success=result.get("success", True),
+            success=agent_success,
         )
 
     except Exception as e:
-        logger.error("Browser agent error for user %s: %s", user_id, e, exc_info=True)
+        logger.exception("Browser agent error for user %s", user_id)
+        response.status_code = HTTPStatus.INTERNAL_SERVER_ERROR  # 500
         return BrowserChatResponse(
             response=f"Agent error: {e!s}",
             actions=[],

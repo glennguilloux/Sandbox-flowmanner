@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -437,6 +437,7 @@ async def uninstall_plugin(
 async def execute_plugin(
     plugin_id: str,
     payload: PluginExecuteRequest,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -493,8 +494,11 @@ async def execute_plugin(
         )
         await db.commit()
 
+        handler_success = handler_result.get("success", False)
+        if not handler_success:
+            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return PluginExecuteResponse(
-            success=handler_result.get("success", False),
+            success=handler_success,
             output=handler_result.get("output"),
             error=handler_result.get("error"),
             elapsed_ms=handler_result.get("elapsed_ms", 0),
@@ -503,6 +507,7 @@ async def execute_plugin(
     except Exception as e:
         await runtime.record_execution(db, plugin.name, success=False, error=str(e), elapsed_ms=0.0)
         await db.commit()
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return PluginExecuteResponse(
             success=False,
             error=str(e),
