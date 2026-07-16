@@ -23,6 +23,7 @@ from app.core.telemetry import setup_telemetry
 from app.lifespan import lifespan
 from app.middleware.auth_cookie import AuthCookieMiddleware
 from app.middleware.scope_validator import ScopeValidationMiddleware
+from app.utils.scrubber import structlog_scrub_processor
 from app.websocket.mission_ws import ws_app
 
 structlog.configure(
@@ -32,6 +33,9 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.dev.set_exc_info,
         structlog.processors.TimeStamper(fmt="iso"),
+        # Scrub BYOK secrets/keys from every log line before rendering.
+        # Must run before the renderer so the redacted value is what gets emitted.
+        structlog_scrub_processor,
         (structlog.processors.JSONRenderer() if settings.APP_ENV != "development" else structlog.dev.ConsoleRenderer()),
     ],
     wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),

@@ -33,6 +33,13 @@ class Settings(BaseSettings):
 
     AES_ENCRYPTION_KEY: str = "change-me-in-production"
 
+    # Dedicated master secret for BYOK API-key envelope encryption (the
+    # key-encryption key, KEK). This is the secret that wraps every per-record
+    # data-encryption key. It MUST be set in production — encryption.py falls
+    # back to AES_ENCRYPTION_KEY/SECRET_KEY only for local dev/tests. Never
+    # commit a value; provide it via .env / the secret manager.
+    BYOK_KEK_SECRET: str | None = None
+
     # When True (default), decrypt_api_key can still decrypt the legacy v1
     # format (hardcoded-salt) keys for backward compatibility. Operators who
     # have finished migrating ALL encrypted stores (user_api_keys,
@@ -466,6 +473,11 @@ class Settings(BaseSettings):
         if self.AES_ENCRYPTION_KEY in PLACEHOLDER_SECRETS or len(self.AES_ENCRYPTION_KEY) < 32:
             bad.append(
                 "AES_ENCRYPTION_KEY must be set to a random string of at least 32 characters (used for API key encryption)"
+            )
+        if not self.BYOK_KEK_SECRET or len(self.BYOK_KEK_SECRET) < 32:
+            bad.append(
+                "BYOK_KEK_SECRET must be set to a random string of at least 32 characters "
+                "(KEK for BYOK envelope encryption — keep it separate from SECRET_KEY/AES_ENCRYPTION_KEY)"
             )
         if not self.AUTH_V3_COOKIE_SECURE:
             bad.append("AUTH_V3_COOKIE_SECURE must be true in production (HTTPS-only cookies)")
