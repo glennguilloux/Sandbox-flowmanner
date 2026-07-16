@@ -61,6 +61,18 @@ def decrypt_api_key(encrypted_key: str) -> str:
         return fernet.decrypt(token.encode()).decode()
 
     # v1: legacy hardcoded salt (base64-encoded Fernet token)
+    # The legacy salt is static, so PBKDF2 derivation for any still-v1 data is
+    # weaker than the v2 per-key-salt path. The salt and derivation MUST NOT be
+    # changed (that would break decryption of existing v1-format data). Instead
+    # the v1 path is kept as an opt-out backward-compat fallback: operators who
+    # have migrated every encrypted store to v2 can disable it via
+    # ENCRYPTION_ALLOW_LEGACY_DECRYPT=False.
+    if not getattr(settings, "ENCRYPTION_ALLOW_LEGACY_DECRYPT", True):
+        raise ValueError(
+            "Encrypted value uses the legacy v1 format, which is disabled "
+            "(ENCRYPTION_ALLOW_LEGACY_DECRYPT=False). Re-encrypt it with the "
+            "v2 per-key-salt format before disabling legacy decryption."
+        )
     try:
         fernet = Fernet(_derive_fernet_key(_LEGACY_SALT))
         return fernet.decrypt(base64.urlsafe_b64decode(encrypted_key)).decode()

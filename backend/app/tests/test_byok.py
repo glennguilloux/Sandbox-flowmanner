@@ -212,6 +212,59 @@ def test_re_encrypt_api_key():
         assert enc_module.decrypt_api_key(v2_encrypted) == plaintext
 
 
+def test_legacy_v1_decrypt_disabled_by_flag():
+    """ENCRYPTION_ALLOW_LEGACY_DECRYPT=False must hard-reject v1 keys.
+
+    Verifies the non-breaking hardening: with the flag off, the weakened
+    legacy hardcoded-salt path is disabled and decryption of v1 data raises
+    instead of silently using the static salt.
+    """
+    import base64
+
+    from cryptography.fernet import Fernet
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+    from app.utils import encryption as enc_module
+
+    secret = "test-secret-key-for-byok"
+    legacy_salt = b"flowmanner-salt-"
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=legacy_salt, iterations=100_000)
+    legacy_key = base64.urlsafe_b64encode(kdf.derive(secret.encode()))
+    fernet = Fernet(legacy_key)
+    plaintext = "«redacted:sk-…»"
+    v1_encrypted = base64.urlsafe_b64encode(fernet.encrypt(plaintext.encode())).decode()
+
+    # Default (True) still decrypts v1 — backward-compatible.
+    mock_settings_default = type(
+        "S",
+        (),
+        {
+            "ENCRYPTION_KEY": secret,
+            "SECRET_KEY": secret,
+            "ENCRYPTION_ALLOW_LEGACY_DECRYPT": True,
+        },
+    )()
+    with patch.object(enc_module, "settings", mock_settings_default):
+        assert enc_module.decrypt_api_key(v1_encrypted) == plaintext
+
+    # Flag off: v1 must raise, not use the legacy salt.
+    mock_settings_off = type(
+        "S",
+        (),
+        {
+            "ENCRYPTION_KEY": secret,
+            "SECRET_KEY": secret,
+            "ENCRYPTION_ALLOW_LEGACY_DECRYPT": False,
+        },
+    )()
+    with (
+        patch.object(enc_module, "settings", mock_settings_off),
+        pytest.raises(ValueError, match="legacy v1 format"),
+    ):
+        enc_module.decrypt_api_key(v1_encrypted)
+
+
 def test_validate_provider():
     """Test provider validation."""
     from app.utils.encryption import validate_provider
