@@ -12,6 +12,8 @@ import logging
 from decimal import Decimal
 from typing import Any
 
+from pydantic import ValidationError
+
 from app.models.capability_models import Budget
 from app.services.substrate.workflow_models import (
     EffectClass,
@@ -346,16 +348,45 @@ def blueprint_to_workflow(
 
     # Drop edges that reference skipped sentinel nodes (e.g. start->task,
     # task->end) so the surviving graph only connects real nodes.
-    workflow_edges: list[WorkflowEdge] = [
-        WorkflowEdge(**e)
-        for e in snapshot.get("edges", [])
-        if e.get("source") not in sentinel_ids and e.get("target") not in sentinel_ids
-    ]
+    #
+    # A single malformed edge (missing `source`/`target`, or otherwise not
+    # constructible as a WorkflowEdge) must NOT abort the entire blueprint
+    # conversion. Drop the offending edge and log a warning instead of letting
+    # the pydantic ValidationError propagate.
+    workflow_edges: list[WorkflowEdge] = []
+    for e in snapshot.get("edges", []):
+        # Keep the existing sentinel-drop filter.
+        if e.get("source") in sentinel_ids or e.get("target") in sentinel_ids:
+            continue
+        # Skip edges that lack both `source` and `target` outright.
+        if e.get("source") is None and e.get("target") is None:
+            logger.warning(
+                "blueprint_to_workflow(%s): dropping edge missing both source and target: %r",
+                blueprint_id,
+                e,
+            )
+            continue
+        # Drop any other non-constructible edge (e.g. missing source OR target)
+        # rather than crashing the whole conversion.
+        try:
+            workflow_edges.append(WorkflowEdge(**e))
+        except (ValidationError, TypeError) as exc:
+            logger.warning(
+                "blueprint_to_workflow(%s): dropping malformed edge %r: %s",
+                blueprint_id,
+                e,
+                exc,
+            )
+            continue
 
     # Derive the effective workflow type from topology (see note above).
+    # Only apply the solo->dag flip when there are real nodes: an empty
+    # ({}) snapshot declared "solo" stays SOLO (restores the empty-snapshot
+    # contract), while a "solo" blueprint with >1 real node or any real edge
+    # is treated as a DAG.
     declared_type = snapshot.get("blueprint_type", "solo")
     effective_type = declared_type
-    if declared_type == WorkflowType.SOLO.value and (len(workflow_nodes) != 1 or workflow_edges):
+    if declared_type == WorkflowType.SOLO.value and workflow_nodes and (len(workflow_nodes) != 1 or workflow_edges):
         effective_type = WorkflowType.DAG.value
 
     return Workflow(

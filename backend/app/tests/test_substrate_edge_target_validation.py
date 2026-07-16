@@ -16,8 +16,8 @@ B. edge whose source/target points to a node id that does NOT exist in the
    snapshot is PASSED THROUGH (no crash, no validation)  [documented, see report]
 C. self-loop (source == target) is PASSED THROUGH (no crash, no validation)
 D. duplicate edges (same source+target) are PASSED THROUGH (not deduplicated)
-E. edge missing ``source`` or ``target`` RAISES (pydantic ValidationError at the
-   WorkflowEdge construction site)  [BUG — see report: adapters.py:349-353]
+E. edge missing ``source`` or ``target`` is DROPPED (logged warning) instead of
+   crashing the whole conversion  [FIXED, see report: adapters.py edge loop]
 F. topology-derived solo->dag flip correctness (exactly-1-node solo stays solo;
    solo with >1 real node OR any edge becomes DAG; declared dag stays dag)
 G. NodeType mapping for every template nodeType value
@@ -29,7 +29,6 @@ Nothing here mutates production source. The adapter is exercised read-only.
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
 
 from app.services.substrate.adapters import blueprint_to_workflow
 from app.services.substrate.workflow_models import NodeType, WorkflowType
@@ -157,15 +156,16 @@ class TestMalformedEdges:
         ],
         ids=["missing-target", "missing-source", "missing-both"],
     )
-    def test_edge_missing_endpoint_raises_validation_error(self, bad_edge):
-        """BUG (reported, source unchanged): an edge with no ``source`` or no
-        ``target`` raises pydantic ValidationError at adapters.py:349-353
-        (WorkflowEdge(**e)). This aborts the WHOLE blueprint conversion, not
-        just the bad edge. Asserted here as the CURRENT behavior so the bug is
-        locked and a fix can be verified against it.
+    def test_edge_missing_endpoint_is_dropped_not_raised(self, bad_edge):
+        """FIXED (FIX 1): an edge with no ``source`` or no ``target`` no longer
+        raises pydantic ValidationError and aborts the WHOLE blueprint
+        conversion. The offending edge is dropped (with a logged warning) and
+        the surrounding valid graph converts normally.
 
-        Desired behavior (parked for human review): drop the malformed edge and
-        log a warning, instead of crashing the entire run.
+        Previously (baseline 24b1895e) this asserted ``pytest.raises(
+        ValidationError)`` to lock the bug in place; the source fix in
+        adapters.py wraps ``WorkflowEdge(**e)`` so a single malformed edge is
+        skipped instead of crashing the run.
         """
         snapshot = {
             "blueprint_type": "solo",
@@ -173,28 +173,31 @@ class TestMalformedEdges:
             "nodes": [_node("a", "task"), _node("b", "task")],
             "edges": [bad_edge],
         }
-        with pytest.raises(ValidationError):
-            _convert(snapshot)
+        # No crash: the malformed edge is silently dropped.
+        wf = _convert(snapshot)
+        # Both real nodes survive; the single bad edge produced zero edges.
+        assert len(wf.nodes) == 2
+        assert wf.edges == []
 
 
 # ── F. Topology-derived solo -> dag flip ─────────────────────────────────────
 
 
 class TestTopologyTypeDerivation:
-    def test_empty_snapshot_becomes_dag(self):
-        """DOCUMENTED BEHAVIOR (and a behavior FLIP vs pre-HEAD): an empty
-        snapshot (no nodes/edges) declared 'solo' now resolves to DAG, not SOLO.
+    def test_empty_snapshot_stays_solo(self):
+        """FIXED (FIX 2): an empty snapshot (no nodes/edges) declared 'solo'
+        stays SOLO, restoring the previously-documented empty-snapshot contract
+        (see tests/test_adapters.py::test_blueprint_with_empty_snapshot).
 
-        Pre-HEAD the adapter returned SOLO for ``{}`` (see the now-failing
-        tests/test_adapters.py::test_blueprint_with_empty_snapshot). The
+        Baseline 24b1895e locked in the regression (empty -> DAG) because the
         topology rule ``declared=='solo' and (len(real_nodes)!=1 or edges)``
-        evaluates ``0 != 1`` -> True -> DAG. This is a real regression of the
-        previously-documented empty-snapshot contract and is PARKED FOR REVIEW
-        (see report): a truly empty blueprint should arguably stay SOLO (or the
-        old test should be updated deliberately, not silently broken).
+        evaluated ``0 != 1`` -> True -> DAG. The source fix guards the
+        solo->dag flip on ``workflow_nodes`` being non-empty, so an empty
+        blueprint keeps its declared SOLO type. The flip still fires for
+        non-empty blueprints (covered by the sibling tests below).
         """
         wf = _convert({})
-        assert wf.type == WorkflowType.DAG
+        assert wf.type == WorkflowType.SOLO
 
     def test_solo_exactly_one_node_no_edges_stays_solo(self):
         wf = _convert(
