@@ -16,7 +16,10 @@ import re
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from app.services.substrate.strategies.base import ExecutionStrategy
+from app.services.substrate.strategies.base import (
+    ExecutionStrategy,
+    _validate_edge_endpoints,
+)
 from app.services.substrate.workflow_models import (
     StrategyResult,
     Workflow,
@@ -44,11 +47,7 @@ class GraphStrategy(ExecutionStrategy):
         if not workflow.nodes:
             errors.append("Graph workflow must have at least 1 node")
 
-        for edge in workflow.edges:
-            if edge.source not in node_ids:
-                errors.append(f"Edge source '{edge.source}' not found")
-            if edge.target not in node_ids:
-                errors.append(f"Edge target '{edge.target}' not found")
+        errors.extend(_validate_edge_endpoints(workflow))
 
         return errors
 
