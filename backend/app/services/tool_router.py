@@ -221,12 +221,20 @@ class ToolRouter:
         default_k: int = 8,
         min_confidence: float = 0.3,
         audit_log: EventLog | None = None,
+        *,
+        deny_by_default: bool = False,
     ):
         self._registry = registry
         self._memory_service = memory_service
         self._default_k = default_k
         self._min_confidence = min_confidence
         self._audit_log = audit_log
+        # Hardening gate (SELF-AUDIT-HIGH-04): when an explicit workspace
+        # allowlist is configured, only listed tools are permitted.  When NO
+        # allowlist exists, the historical behavior (allow-all) is preserved
+        # UNLESS ``deny_by_default`` is explicitly enabled.  The default never
+        # flips to deny-all — that would break every tool call.
+        self._deny_by_default = deny_by_default
 
     # ── Public API ─────────────────────────────────────────────────
 
@@ -274,7 +282,7 @@ class ToolRouter:
         # Score every tool
         scores: list[ToolScore] = []
         for tool in all_tools:
-            score = await self._score_tool(tool, task_text, workspace_id, user_id)
+            score = await self._score_tool(tool, task_text, workspace_id, user_id, db=db)
             scores.append(score)
 
         # Sort by score descending
@@ -352,6 +360,7 @@ class ToolRouter:
         task_text: str,
         workspace_id: UUID,
         user_id: int,
+        db: Any = None,
     ) -> ToolScore:
         """Compute weighted score for a single tool.
 
@@ -384,7 +393,7 @@ class ToolRouter:
             reasons.append(f"memory hint: prior {outcome}")
 
         # 4. Permission check
-        perm_ok = self._permission_ok(tool, workspace_id, user_id)
+        perm_ok = await self._permission_ok(tool, workspace_id, user_id, db=db)
         components["permission_ok"] = perm_ok
         if perm_ok == 0.0:
             reasons.append("permission denied")
@@ -465,20 +474,64 @@ class ToolRouter:
 
         return 0.0
 
-    def _permission_ok(
+    async def _permission_ok(
         self,
         tool: ToolDefinition,
         workspace_id: UUID,
         user_id: int,
+        *,
+        db: Any = None,
     ) -> float:
-        """Check if user has access to the tool.
+        """Check if the user/workspace has access to the tool.
 
         Returns 1.0 if allowed, 0.0 if denied.
-        Currently all tools are global (no per-workspace deny-list),
-        so this always returns 1.0. A TODO for follow-up permission integration.
+
+        Resolves SELF-AUDIT-HIGH-04: the previous implementation hardcoded
+        allow-all (every tool accessible to every user).  We now consult the
+        existing workspace permission infra instead of inventing a new authz
+        model:
+
+          * When NO workspace allowlist is configured
+            (``get_workspace_tool_allowlist`` returns ``None``), the historical
+            allow-all behavior is preserved — this keeps existing deployments
+            working and is the safe default.
+          * When an explicit allowlist IS configured, only tools whose
+            ``name`` or ``tool_id`` appear in the set are permitted; everything
+            else is denied (an implicit deny-list derived from the allowlist).
+          * When no DB session is available (``db is None``), we cannot query
+            the allowlist, so we fall back to allow-all rather than risk
+            breaking the call path.
+          * ``deny_by_default=True`` (opt-in constructor flag only) flips the
+            no-allowlist case to deny-all.  This is NEVER the default — flipping
+            the global default to deny-all would break every tool call.
+
+        The workspace allowlist is the canonical, already-shipped permission
+        infrastructure (see ``app/models/workspace_models.py``:
+        ``WorkspaceToolAllowlist`` / ``get_workspace_tool_allowlist``).
         """
-        # TODO: integrate with workspace/user permission deny-list when available
-        return 1.0
+        # Without a DB session we cannot resolve the allowlist; preserve the
+        # historical allow-all behavior rather than risk a false denial.
+        if db is None:
+            return 1.0
+
+        try:
+            from app.models.workspace_models import get_workspace_tool_allowlist
+
+            allowed = await get_workspace_tool_allowlist(db, str(workspace_id))
+        except Exception as exc:  # never let a permission lookup break routing
+            logger.debug("Allowlist lookup failed for ws=%s: %s", workspace_id, exc)
+            return 1.0
+
+        # No allowlist configured → allow-all (backwards compatible default).
+        if allowed is None:
+            if self._deny_by_default:
+                return 0.0
+            return 1.0
+
+        # Explicit allowlist present → only listed tools are permitted.
+        if tool.name in allowed or tool.tool_id in allowed:
+            return 1.0
+        return 0.0
 
     def _always_include_tools(self) -> list[str]:
         """Tool IDs that MUST be in the candidate set regardless of score.
