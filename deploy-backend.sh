@@ -516,6 +516,16 @@ build_and_deploy() {
     log_warn "seed_templates.py not found at $COMPOSE_DIR — image will bake NO seed (entrypoint reload will no-op)"
   fi
 
+  # Stage the repo-root AGPLv3 LICENSE into the build context so the
+  # Dockerfile can COPY it into the image (compliance: published artifact
+  # must carry the license). Idempotent: reflects current root LICENSE.
+  if [ -f "$COMPOSE_DIR/LICENSE" ]; then
+    cp -f "$COMPOSE_DIR/LICENSE" "$BACKEND_SOURCE/LICENSE"
+    log_info "Staged LICENSE ($(wc -c < "$BACKEND_SOURCE/LICENSE") bytes) into build context"
+  else
+    log_warn "LICENSE not found at $COMPOSE_DIR — image will bake NO license file"
+  fi
+
   if [ "$DRY_RUN" = true ]; then
     echo -e "${YELLOW}[DRY-RUN]${NC} docker build --target runtime -t ${BACKEND_IMAGE} ${BACKEND_SOURCE}"
     echo -e "${YELLOW}[DRY-RUN]${NC} cd ${COMPOSE_DIR} && docker compose up -d --no-deps --force-recreate ${BACKEND_CONTAINER} ${CELERY_SERVICES[*]}"
