@@ -13,8 +13,10 @@ Edge-target failure modes covered
 ---------------------------------
 A. sentinel source/target (start/end) is dropped from the edge set
 B. edge whose source/target points to a node id that does NOT exist in the
-   snapshot is DROPPED (logged warning)  [FINDING 4: normalized, see report]
-C. self-loop (source == target) is DROPPED (logged warning)
+   snapshot RAISES InvalidBlueprintGraphError (fail-loud, NOT silently
+   dropped) [FIX: data-loss prevention]
+C. self-loop (source == target) RAISES InvalidBlueprintGraphError
+   (fail-loud, NOT silently dropped)
 D. duplicate edges (same source+target) are DEDUPLICATED (first kept, rest dropped)
 E. edge missing ``source`` or ``target`` is DROPPED (logged warning) instead of
    crashing the whole conversion  [FIXED, see report: adapters.py edge loop]
@@ -30,7 +32,10 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.substrate.adapters import blueprint_to_workflow
+from app.services.substrate.adapters import (
+    InvalidBlueprintGraphError,
+    blueprint_to_workflow,
+)
 from app.services.substrate.workflow_models import NodeType, WorkflowType
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -110,9 +115,12 @@ class TestSentinelDrop:
 
 class TestMalformedEdges:
     def test_orphan_edge_to_missing_node_is_dropped(self):
-        """FINDING 4 (normalized): an edge whose endpoint is NOT in the
-        surviving real-node set is DROPPED (logged warning) instead of passed
-        straight through. The valid sibling edge survives.
+        """A dangling edge whose endpoint names a node id that does
+        NOT exist in the snapshot must FAIL LOUD — raise
+        ``InvalidBlueprintGraphError`` naming the missing id — instead
+        of being silently dropped (silent data loss). The valid
+        sibling edge would have survived before the change; now
+        the whole conversion refuses so the user sees the error.
         """
         snapshot = {
             "blueprint_type": "solo",
@@ -120,23 +128,24 @@ class TestMalformedEdges:
             "nodes": [_node("a", "task"), _node("b", "task")],
             "edges": [_edge("a", "ghost"), _edge("a", "b")],
         }
-        wf = _convert(snapshot)
-        assert len(wf.nodes) == 2
-        pairs = {(e.source, e.target) for e in wf.edges}
-        assert pairs == {("a", "b")}, pairs
+        with pytest.raises(InvalidBlueprintGraphError) as excinfo:
+            _convert(snapshot)
+        assert "ghost" in str(excinfo.value)
 
     def test_self_loop_is_dropped(self):
-        """FINDING 4 (normalized): a self-loop (source == target) is DROPPED
-        (logged warning) as a modeling error in the DAG substrate."""
+        """A self-loop (source == target) must FAIL LOUD — raise
+        ``InvalidBlueprintGraphError`` — instead of being silently
+        dropped as a benign modeling error.
+        """
         snapshot = {
             "blueprint_type": "solo",
             "title": "self",
             "nodes": [_node("x", "task")],
             "edges": [_edge("x", "x")],
         }
-        wf = _convert(snapshot)
-        assert len(wf.nodes) == 1
-        assert wf.edges == []
+        with pytest.raises(InvalidBlueprintGraphError) as excinfo:
+            _convert(snapshot)
+        assert "x" in str(excinfo.value)
 
     def test_duplicate_edges_are_deduplicated(self):
         """FINDING 4 (normalized): same (source, target) twice is DEDUPLICATED
@@ -163,12 +172,10 @@ class TestMalformedEdges:
         """FIXED (FIX 1): an edge with no ``source`` or no ``target`` no longer
         raises pydantic ValidationError and aborts the WHOLE blueprint
         conversion. The offending edge is dropped (with a logged warning) and
-        the surrounding valid graph converts normally.
-
-        Previously (baseline 24b1895e) this asserted ``pytest.raises(
-        ValidationError)`` to lock the bug in place; the source fix in
-        adapters.py wraps ``WorkflowEdge(**e)`` so a single malformed edge is
-        skipped instead of crashing the run.
+        the surrounding valid graph converts normally. This is the one
+        malformed-input path that stays a silent drop — the edge cannot
+        even be constructed into a WorkflowEdge, so there is nothing
+        meaningful to validate against.
         """
         snapshot = {
             "blueprint_type": "solo",
@@ -180,6 +187,7 @@ class TestMalformedEdges:
         wf = _convert(snapshot)
         # Both real nodes survive; the single bad edge produced zero edges.
         assert len(wf.nodes) == 2
+        assert wf.edges == []
         assert wf.edges == []
 
 
@@ -337,43 +345,54 @@ class TestNodeTypeMapping:
 
 class TestEdgeNormalizationCounts:
     def test_orphan_edge_count(self):
-        """Orphan edge (target missing) is dropped; the 1 valid edge survives."""
+        """Orphan edge (target missing) RAISES InvalidBlueprintGraphError
+        — it is no longer silently dropped. The dangling edge
+        names a node id ('ghost') that does not exist.
+        """
         snapshot = {
             "blueprint_type": "solo",
             "title": "orphan-count",
             "nodes": [_node("a", "task"), _node("b", "task")],
             "edges": [_edge("a", "ghost"), _edge("b", "ghost"), _edge("a", "b")],
         }
-        wf = _convert(snapshot)
-        assert len(wf.edges) == 1, [e.model_dump() for e in wf.edges]
-        assert (wf.edges[0].source, wf.edges[0].target) == ("a", "b")
+        with pytest.raises(InvalidBlueprintGraphError) as excinfo:
+            _convert(snapshot)
+        assert "ghost" in str(excinfo.value)
 
     def test_self_loop_count(self):
-        """Self-loop on a single node is dropped; zero edges survive."""
+        """Self-loop on a single node RAISES InvalidBlueprintGraphError
+        — no longer silently dropped.
+        """
         snapshot = {
             "blueprint_type": "solo",
             "title": "self-count",
             "nodes": [_node("a", "task")],
             "edges": [_edge("a", "a")],
         }
-        wf = _convert(snapshot)
-        assert wf.edges == []
+        with pytest.raises(InvalidBlueprintGraphError) as excinfo:
+            _convert(snapshot)
+        assert "a" in str(excinfo.value)
 
     def test_mixed_loops_and_orphans_count(self):
-        """Self-loop and orphan both dropped; only real<->real edges survive."""
+        """Self-loop and orphan BOTH raise InvalidBlueprintGraphError
+        — the conversion refuses rather than silently dropping them.
+        The orphan edge (a->ghost) is listed first so the
+        raised message names 'ghost' deterministically.
+        """
         snapshot = {
             "blueprint_type": "solo",
             "title": "mixed",
             "nodes": [_node("a", "task"), _node("b", "task")],
             "edges": [
-                _edge("a", "a"),  # self-loop -> drop
-                _edge("a", "ghost"),  # orphan -> drop
-                _edge("a", "b"),  # keep
-                _edge("b", "b"),  # self-loop -> drop
+                _edge("a", "ghost"),  # orphan -> raise (encountered first)
+                _edge("a", "a"),  # self-loop -> raise
+                _edge("a", "b"),  # keep (would survive)
+                _edge("b", "b"),  # self-loop -> raise
             ],
         }
-        wf = _convert(snapshot)
-        assert [(e.source, e.target) for e in wf.edges] == [("a", "b")]
+        with pytest.raises(InvalidBlueprintGraphError) as excinfo:
+            _convert(snapshot)
+        assert "ghost" in str(excinfo.value)
 
     def test_duplicate_triplet_deduplicated_to_one(self):
         """Three identical (a,b) edges collapse to a single surviving edge."""
@@ -405,3 +424,43 @@ class TestEdgeNormalizationCounts:
             ("b", "c"),
             ("c", "a"),
         }, [e.model_dump() for e in wf.edges]
+
+
+# ── NEW (fail-loud contract). A dangling edge to a named missing
+# node raises InvalidBlueprintGraphError with the missing id in the
+# message. This is the regression guard for the silent-data-loss fix.
+
+
+class TestDanglingEdgeRaises:
+    def test_dangling_edge_to_named_missing_node_raises(self):
+        """nodes [a, b]; edge a -> ghost must raise
+        InvalidBlueprintGraphError and the message must name
+        the missing node id 'ghost'.
+        """
+        snapshot = {
+            "blueprint_type": "solo",
+            "title": "dangling",
+            "nodes": [_node("a", "task"), _node("b", "task")],
+            "edges": [_edge("a", "ghost")],
+        }
+        with pytest.raises(InvalidBlueprintGraphError) as excinfo:
+            _convert(snapshot)
+        msg = str(excinfo.value)
+        assert "ghost" in msg, msg
+        assert "a" in msg, msg
+
+    def test_dangling_edge_with_missing_source_raises(self):
+        """Edge ghost -> b (missing source) also raises and names
+        the missing node id.
+        """
+        snapshot = {
+            "blueprint_type": "solo",
+            "title": "dangling-src",
+            "nodes": [_node("a", "task"), _node("b", "task")],
+            "edges": [_edge("ghost", "b")],
+        }
+        with pytest.raises(InvalidBlueprintGraphError) as excinfo:
+            _convert(snapshot)
+        msg = str(excinfo.value)
+        assert "ghost" in msg, msg
+        assert "b" in msg, msg

@@ -24,6 +24,22 @@ from app.services.substrate.workflow_models import (
     WorkflowType,
 )
 
+
+class InvalidBlueprintGraphError(Exception):
+    """Raised when a Blueprint snapshot's graph is internally inconsistent.
+
+    Covers cases the trivial adapter used to SILENTLY drop (data loss):
+    an edge endpoint that names a node id absent from the surviving real-node
+    set (orphan/dangling edge), or a self-loop (source == target). Both are
+    model errors in the DAG substrate that must FAIL LOUD — the adapter
+    raises this instead of discarding the edge, so the caller (RunService)
+    can surface a clear validation error rather than running a silently
+    truncated graph.
+    """
+
+    pass
+
+
 # Per-NodeType default side-effect classification (side-effect-safety skill).
 # Read-only / internal-passthrough node types are REVERSIBLE so they keep normal
 # retry semantics. TOOL_CALL, BROWSER_*, SUB_WORKFLOW, SANDBOX default to
@@ -364,16 +380,17 @@ def blueprint_to_workflow(
     # conversion. Drop the offending edge and log a warning instead of letting
     # the pydantic ValidationError propagate.
     #
-    # Edge normalization policy (Finding 4) — applied AFTER sentinel/malformed
+    # Edge normalization policy (Finding 4) — applied AFATER sentinel/malformed
     # dropping so downstream strategies receive a clean graph:
     #   1. Orphan edge (source or target NOT in the surviving real-node set,
-    #      i.e. excluding the already-dropped start/end sentinels): DROP with
-    #      logger.warning. This makes conversion consistent with
-    #      DAGStrategy.validate()'s orphan-edge error (which still fires for
-    #      other callers) without crashing the whole load.
-    #   2. Self-loop (source == target): DROP with logger.warning. A self-loop
-    #      is almost always a modeling error in this DAG substrate; revisit if
-    #      a real use case appears.
+    #      i.e. excluding the already-dropped start/end sentinels) and
+    #      NEITHER endpoint is a sentinel: RAISE InvalidBlueprintGraphError.
+    #      A dangling edge is silent data loss — the named node id is simply
+    #      absent, so the run would be truncated with no signal. Fail loud
+    #      instead, naming the offending edge + the missing node id.
+    #   2. Self-loop (source == target) and NEITHER endpoint is a sentinel:
+    #      RAISE InvalidBlueprintGraphError. A self-loop is a modeling
+    #      error in this DAG substrate; revisit if a real use case appears.
     #   3. Duplicate edge (same (source, target) appearing >1 time): KEEP the
     #      first occurrence, DROP later duplicates with logger.info (default =
     #      dedupe; if a strategy ever needs parallel duplicate edges, document
@@ -405,23 +422,25 @@ def blueprint_to_workflow(
                 exc,
             )
             continue
-
-        # 1. Orphan edge: an endpoint is not in the surviving real-node set.
+        # 1. Orphan edge: an endpoint is not in the surviving real-node set
+        #    AND neither endpoint is a sentinel (sentinels were already
+        #    dropped above). This is silent data loss — a node id the
+        #    edge refers to simply does not exist. Fail loud instead of
+        #    truncating the graph.
         if edge.source not in real_node_ids or edge.target not in real_node_ids:
-            logger.warning(
-                "blueprint_to_workflow(%s): dropping orphan edge %r " "(endpoint not in node set)",
-                blueprint_id,
-                e,
+            missing = edge.source if edge.source not in real_node_ids else edge.target
+            raise InvalidBlueprintGraphError(
+                f"Invalid blueprint {blueprint_id}: edge "
+                f"'{edge.source}'->'{edge.target}' references missing "
+                f"node '{missing}' (not in nodes)"
             )
-            continue
-        # 2. Self-loop: source == target is dropped as a modeling error.
+        # 2. Self-loop: source == target is a modeling error in this
+        #    DAG substrate. Neither endpoint is a sentinel (sentinels
+        #    already dropped). Fail loud.
         if edge.source == edge.target:
-            logger.warning(
-                "blueprint_to_workflow(%s): dropping self-loop edge %r (source == target)",
-                blueprint_id,
-                e,
+            raise InvalidBlueprintGraphError(
+                f"Invalid blueprint {blueprint_id}: self-loop edge " f"'{edge.source}'->'{edge.target}' is not allowed"
             )
-            continue
         # 3. Duplicate edge: keep the first, drop later duplicates.
         _pair = (edge.source, edge.target)
         if _pair in _seen_edge_pairs:
