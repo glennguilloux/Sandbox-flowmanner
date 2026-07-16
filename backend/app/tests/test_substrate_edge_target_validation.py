@@ -13,9 +13,9 @@ Edge-target failure modes covered
 ---------------------------------
 A. sentinel source/target (start/end) is dropped from the edge set
 B. edge whose source/target points to a node id that does NOT exist in the
-   snapshot is PASSED THROUGH (no crash, no validation)  [documented, see report]
-C. self-loop (source == target) is PASSED THROUGH (no crash, no validation)
-D. duplicate edges (same source+target) are PASSED THROUGH (not deduplicated)
+   snapshot is DROPPED (logged warning)  [FINDING 4: normalized, see report]
+C. self-loop (source == target) is DROPPED (logged warning)
+D. duplicate edges (same source+target) are DEDUPLICATED (first kept, rest dropped)
 E. edge missing ``source`` or ``target`` is DROPPED (logged warning) instead of
    crashing the whole conversion  [FIXED, see report: adapters.py edge loop]
 F. topology-derived solo->dag flip correctness (exactly-1-node solo stays solo;
@@ -109,10 +109,11 @@ class TestSentinelDrop:
 
 
 class TestMalformedEdges:
-    def test_orphan_edge_to_missing_node_is_passed_through(self):
-        """DOCUMENTED BEHAVIOR: the adapter does NOT validate that an edge's
-        endpoint exists in the node set. An edge pointing at a non-existent
-        node id is passed straight through (no crash)."""
+    def test_orphan_edge_to_missing_node_is_dropped(self):
+        """FINDING 4 (normalized): an edge whose endpoint is NOT in the
+        surviving real-node set is DROPPED (logged warning) instead of passed
+        straight through. The valid sibling edge survives.
+        """
         snapshot = {
             "blueprint_type": "solo",
             "title": "orphan",
@@ -122,10 +123,11 @@ class TestMalformedEdges:
         wf = _convert(snapshot)
         assert len(wf.nodes) == 2
         pairs = {(e.source, e.target) for e in wf.edges}
-        assert pairs == {("a", "ghost"), ("a", "b")}, pairs
+        assert pairs == {("a", "b")}, pairs
 
-    def test_self_loop_is_passed_through(self):
-        """DOCUMENTED BEHAVIOR: source == target is not rejected."""
+    def test_self_loop_is_dropped(self):
+        """FINDING 4 (normalized): a self-loop (source == target) is DROPPED
+        (logged warning) as a modeling error in the DAG substrate."""
         snapshot = {
             "blueprint_type": "solo",
             "title": "self",
@@ -134,10 +136,11 @@ class TestMalformedEdges:
         }
         wf = _convert(snapshot)
         assert len(wf.nodes) == 1
-        assert [(e.source, e.target) for e in wf.edges] == [("x", "x")]
+        assert wf.edges == []
 
-    def test_duplicate_edges_are_not_deduplicated(self):
-        """DOCUMENTED BEHAVIOR: same (source, target) twice is kept twice."""
+    def test_duplicate_edges_are_deduplicated(self):
+        """FINDING 4 (normalized): same (source, target) twice is DEDUPLICATED
+        to a single edge (first kept, duplicate dropped via logger.info)."""
         snapshot = {
             "blueprint_type": "solo",
             "title": "dup",
@@ -145,7 +148,7 @@ class TestMalformedEdges:
             "edges": [_edge("a", "b"), _edge("a", "b")],
         }
         wf = _convert(snapshot)
-        assert len(wf.edges) == 2, [e.model_dump() for e in wf.edges]
+        assert [(e.source, e.target) for e in wf.edges] == [("a", "b")], [e.model_dump() for e in wf.edges]
 
     @pytest.mark.parametrize(
         "bad_edge",
@@ -238,14 +241,16 @@ class TestTopologyTypeDerivation:
         assert wf.type == WorkflowType.SOLO
 
     def test_solo_real_edge_forces_dag(self):
-        """A 'solo' blueprint with 1 real node but a real->real self edge yields
-        DAG (an edge now exists after sentinel dropping)."""
+        """A 'solo' blueprint with 2 real nodes and a real->real edge yields DAG
+        (an edge now exists after sentinel dropping). Self-loops are dropped by
+        the FINDING 4 normalization, so a single-node self-loop would NOT force
+        DAG — only a real edge between distinct nodes does."""
         wf = _convert(
             {
                 "blueprint_type": "solo",
-                "title": "self",
-                "nodes": [_node("a", "task")],
-                "edges": [_edge("a", "a")],
+                "title": "real-edge",
+                "nodes": [_node("a", "task"), _node("b", "task")],
+                "edges": [_edge("a", "b")],
             }
         )
         assert wf.type == WorkflowType.DAG
@@ -317,3 +322,80 @@ class TestNodeTypeMapping:
         types = {n.id: n.type for n in wf.nodes}
         assert types["x"] == NodeType.LLM_CALL
         assert types["y"] == NodeType.TOOL_CALL
+
+
+# ── FINDING 4 (new). Focused normalization-count assertions ───────────────────
+# Each of the three normalizations (orphan drop, self-loop drop, duplicate
+# dedup) is asserted explicitly with an exact surviving-edge count.
+
+
+class TestEdgeNormalizationCounts:
+    def test_orphan_edge_count(self):
+        """Orphan edge (target missing) is dropped; the 1 valid edge survives."""
+        snapshot = {
+            "blueprint_type": "solo",
+            "title": "orphan-count",
+            "nodes": [_node("a", "task"), _node("b", "task")],
+            "edges": [_edge("a", "ghost"), _edge("b", "ghost"), _edge("a", "b")],
+        }
+        wf = _convert(snapshot)
+        assert len(wf.edges) == 1, [e.model_dump() for e in wf.edges]
+        assert (wf.edges[0].source, wf.edges[0].target) == ("a", "b")
+
+    def test_self_loop_count(self):
+        """Self-loop on a single node is dropped; zero edges survive."""
+        snapshot = {
+            "blueprint_type": "solo",
+            "title": "self-count",
+            "nodes": [_node("a", "task")],
+            "edges": [_edge("a", "a")],
+        }
+        wf = _convert(snapshot)
+        assert wf.edges == []
+
+    def test_mixed_loops_and_orphans_count(self):
+        """Self-loop and orphan both dropped; only real<->real edges survive."""
+        snapshot = {
+            "blueprint_type": "solo",
+            "title": "mixed",
+            "nodes": [_node("a", "task"), _node("b", "task")],
+            "edges": [
+                _edge("a", "a"),  # self-loop -> drop
+                _edge("a", "ghost"),  # orphan -> drop
+                _edge("a", "b"),  # keep
+                _edge("b", "b"),  # self-loop -> drop
+            ],
+        }
+        wf = _convert(snapshot)
+        assert [(e.source, e.target) for e in wf.edges] == [("a", "b")]
+
+    def test_duplicate_triplet_deduplicated_to_one(self):
+        """Three identical (a,b) edges collapse to a single surviving edge."""
+        snapshot = {
+            "blueprint_type": "solo",
+            "title": "dup-count",
+            "nodes": [_node("a", "task"), _node("b", "task")],
+            "edges": [_edge("a", "b"), _edge("a", "b"), _edge("a", "b")],
+        }
+        wf = _convert(snapshot)
+        assert len(wf.edges) == 1, [e.model_dump() for e in wf.edges]
+
+    def test_distinct_pairs_keep_all(self):
+        """Distinct (source,target) pairs are NOT merged; only exact duplicates drop."""
+        snapshot = {
+            "blueprint_type": "solo",
+            "title": "distinct",
+            "nodes": [_node("a", "task"), _node("b", "task"), _node("c", "task")],
+            "edges": [
+                _edge("a", "b"),
+                _edge("a", "b"),  # exact dup -> drop
+                _edge("b", "c"),  # distinct -> keep
+                _edge("c", "a"),  # distinct (reverse) -> keep
+            ],
+        }
+        wf = _convert(snapshot)
+        assert {(e.source, e.target) for e in wf.edges} == {
+            ("a", "b"),
+            ("b", "c"),
+            ("c", "a"),
+        }, [e.model_dump() for e in wf.edges]

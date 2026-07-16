@@ -353,7 +353,24 @@ def blueprint_to_workflow(
     # constructible as a WorkflowEdge) must NOT abort the entire blueprint
     # conversion. Drop the offending edge and log a warning instead of letting
     # the pydantic ValidationError propagate.
+    #
+    # Edge normalization policy (Finding 4) — applied AFTER sentinel/malformed
+    # dropping so downstream strategies receive a clean graph:
+    #   1. Orphan edge (source or target NOT in the surviving real-node set,
+    #      i.e. excluding the already-dropped start/end sentinels): DROP with
+    #      logger.warning. This makes conversion consistent with
+    #      DAGStrategy.validate()'s orphan-edge error (which still fires for
+    #      other callers) without crashing the whole load.
+    #   2. Self-loop (source == target): DROP with logger.warning. A self-loop
+    #      is almost always a modeling error in this DAG substrate; revisit if
+    #      a real use case appears.
+    #   3. Duplicate edge (same (source, target) appearing >1 time): KEEP the
+    #      first occurrence, DROP later duplicates with logger.info (default =
+    #      dedupe; if a strategy ever needs parallel duplicate edges, document
+    #      WHY and skip this dedup).
+    real_node_ids: set[str] = {n.id for n in workflow_nodes}
     workflow_edges: list[WorkflowEdge] = []
+    _seen_edge_pairs: set[tuple[str, str]] = set()
     for e in snapshot.get("edges", []):
         # Keep the existing sentinel-drop filter.
         if e.get("source") in sentinel_ids or e.get("target") in sentinel_ids:
@@ -366,10 +383,10 @@ def blueprint_to_workflow(
                 e,
             )
             continue
-        # Drop any other non-constructible edge (e.g. missing source OR target)
-        # rather than crashing the whole conversion.
+        # Drop any other non-constructible edge (FIX 1: e.g. missing source OR
+        # target) rather than crashing the whole conversion.
         try:
-            workflow_edges.append(WorkflowEdge(**e))
+            edge = WorkflowEdge(**e)
         except (ValidationError, TypeError) as exc:
             logger.warning(
                 "blueprint_to_workflow(%s): dropping malformed edge %r: %s",
@@ -378,6 +395,34 @@ def blueprint_to_workflow(
                 exc,
             )
             continue
+
+        # 1. Orphan edge: an endpoint is not in the surviving real-node set.
+        if edge.source not in real_node_ids or edge.target not in real_node_ids:
+            logger.warning(
+                "blueprint_to_workflow(%s): dropping orphan edge %r " "(endpoint not in node set)",
+                blueprint_id,
+                e,
+            )
+            continue
+        # 2. Self-loop: source == target is dropped as a modeling error.
+        if edge.source == edge.target:
+            logger.warning(
+                "blueprint_to_workflow(%s): dropping self-loop edge %r (source == target)",
+                blueprint_id,
+                e,
+            )
+            continue
+        # 3. Duplicate edge: keep the first, drop later duplicates.
+        _pair = (edge.source, edge.target)
+        if _pair in _seen_edge_pairs:
+            logger.info(
+                "blueprint_to_workflow(%s): dropping duplicate edge %r",
+                blueprint_id,
+                e,
+            )
+            continue
+        _seen_edge_pairs.add(_pair)
+        workflow_edges.append(edge)
 
     # Derive the effective workflow type from topology (see note above).
     # Only apply the solo->dag flip when there are real nodes: an empty
