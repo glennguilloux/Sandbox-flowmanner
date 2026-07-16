@@ -42,7 +42,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 MODEL_CHOICES = (
     "llamacpp-qwen3.6-27b",
     "glennguilloux-demo-llm",
@@ -53,6 +52,12 @@ MODEL_CHOICES = (
     "claude-3-5-sonnet",
     "openrouter-gemini-2.0-flash",
 )
+# NOTE: MODEL_CHOICES is the feature-vector VOCABULARY only (feature_vector /
+# _model_index use it for distance + acquisition). mutate() selects from the
+# candidate's routing.catalog instead, because the catalog carries the exact
+# runtime model ids (slash form for llamacpp) that app.services.llm_providers
+# resolves. A mutated id not in MODEL_CHOICES yields the out-of-range sentinel
+# in _model_index and never crashes the loop.
 
 SYSTEM_PROMPT_VARIANTS = (
     """You are a senior research analyst. Use retrieved context as the primary
@@ -90,7 +95,7 @@ class Metrics:
     safety_pass: bool
 
     @classmethod
-    def from_json(cls, raw: dict[str, Any]) -> "Metrics":
+    def from_json(cls, raw: dict[str, Any]) -> Metrics:
         required = ("accuracy", "cost_usd", "latency_ms", "safety_pass")
         missing = [key for key in required if key not in raw]
         if missing:
@@ -121,8 +126,7 @@ def load_config(path: Path) -> dict[str, Any]:
         import yaml  # type: ignore
     except ImportError as error:
         raise SystemExit(
-            "YAML configuration requires PyYAML. Install it with "
-            "`pip install pyyaml`, or provide JSON input."
+            "YAML configuration requires PyYAML. Install it with `pip install pyyaml`, or provide JSON input."
         ) from error
 
     document = yaml.safe_load(text)
@@ -174,9 +178,10 @@ def verify_candidate(config: dict[str, Any]) -> list[str]:
 
     for edge in edges:
         source, target = edge.get("source"), edge.get("target")
-        if edge_rules.get("reject_dangling_edges", True):
-            if source not in node_ids or target not in node_ids:
-                errors.append(f"Dangling workflow edge: {source!r} -> {target!r}.")
+        if edge_rules.get("reject_dangling_edges", True) and (
+            source not in node_ids or target not in node_ids
+        ):
+            errors.append(f"Dangling workflow edge: {source!r} -> {target!r}.")
         if edge_rules.get("reject_self_loops", True) and source == target:
             errors.append(f"Self-loop is forbidden: {source!r} -> {target!r}.")
 
@@ -191,8 +196,7 @@ def verify_candidate(config: dict[str, Any]) -> list[str]:
         prohibited = configured_tools & forbidden
         if prohibited:
             errors.append(
-                f"Node {node.get('id')!r} enables forbidden tool(s): "
-                f"{sorted(prohibited)}."
+                f"Node {node.get('id')!r} enables forbidden tool(s): {sorted(prohibited)}."
             )
 
     valid_actions = {"block", "escalate", "allow"}
@@ -237,11 +241,17 @@ def mutate(base: dict[str, Any], rng: random.Random) -> dict[str, Any]:
     answer["config"]["temperature"] = rng.choice((0.0, 0.1, 0.2, 0.3))
     answer["config"]["system_prompt"] = rng.choice(SYSTEM_PROMPT_VARIANTS)
 
+    # Prefer the CATALOG's exact model ids over MODEL_CHOICES. The catalog uses
+    # the runtime model id form (e.g. slash-form ``llamacpp/Qwen3.6-27B``) that
+    # app.services.llm_providers._get_provider_for_model actually resolves, while
+    # MODEL_CHOICES uses hyphen tokens (``llamacpp-qwen3.6-27b``) that would fall
+    # through to the default cloud key env. Selecting from the catalog keeps the
+    # mutated candidate consistent with verify_candidate AND runnable at runtime
+    # (including the keyless local llamacpp model). MODEL_CHOICES is retained
+    # only as the feature-vector vocabulary in feature_vector()/_model_index().
     enabled_models = [
-        model_id
-        for model_id in MODEL_CHOICES
-        if model_id in catalog and catalog[model_id].get("enabled", True)
-    ]
+        model_id for model_id, spec in catalog.items() if spec.get("enabled", True)
+    ] or list(catalog.keys())
     answer["assigned_model"] = rng.choice(enabled_models)
 
     # Experimental metadata: it remains inert until semantic caching exists in
@@ -334,7 +344,7 @@ def _variant_index(text: str) -> int:
 
 def distance(left: dict[str, Any], right: dict[str, Any]) -> float:
     a, b = feature_vector(left), feature_vector(right)
-    return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
+    return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b, strict=False)))
 
 
 def acquisition(
