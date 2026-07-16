@@ -1,0 +1,1157 @@
+{
+  "evaluations": 40,
+  "pareto_front": [
+    {
+      "metrics": {
+        "accuracy": 0.62,
+        "cost_usd": 0.003008,
+        "latency_ms": 810.0,
+        "safety_pass": true
+      },
+      "config": {
+        "workflow": {
+          "nodes": [
+            {
+              "id": "retrieve",
+              "type": "rag_query",
+              "config": {
+                "label": "Find Similar Churn Patterns",
+                "description": "Retrieve historical churn cases matching this behavior.",
+                "query": "historical churn patterns similar to current usage drop",
+                "collection": "churn_history"
+              },
+              "assigned_model": null,
+              "reasoning_profile": "normal",
+              "effect_class": "reversible"
+            },
+            {
+              "id": "answer",
+              "type": "llm",
+              "config": {
+                "system_prompt": "You are a senior research analyst. Use retrieved context as the primary\nknowledge source. Cite the source node id for every factual claim. If retrieval\nis empty or insufficient, explicitly say so. Return only the requested JSON.",
+                "prompt": "Synthesize the retrieved churn cases into a risk assessment for the current account. Return JSON: {risk_level, basis, recommended_action}.",
+                "tool_ids": [
+                  "web_search"
+                ],
+                "temperature": 0.1
+              },
+              "assigned_model": "deepseek-v4-flash",
+              "reasoning_profile": "normal",
+              "effect_class": "reversible"
+            }
+          ],
+          "edges": [
+            {
+              "source": "retrieve",
+              "target": "answer"
+            }
+          ]
+        },
+        "tools": [
+          {
+            "id": "web_search",
+            "description": "Search the live web (SearXNG) for recent, attributable public information.\nUse only when required facts are absent from retrieved workspace context. Never use\nfor internal, confidential, or PII data. Returns ranked snippets with source URLs.",
+            "parameters": {
+              "query": {
+                "description": "A concise search query. Prefer 3-6 specific keywords over a question."
+              }
+            }
+          },
+          {
+            "id": "retrieve",
+            "description": "Retrieve evidence from the workspace collection. Best for historical churn\ncases, internal documents, and source-grounded answers. Returns ranked chunks and\nsource node ids. Prefer this tool over web_search for information that may exist\nin the workspace.",
+            "parameters": {
+              "query": {
+                "description": "Natural-language query describing what to retrieve."
+              }
+            }
+          }
+        ],
+        "memory": {
+          "chunk_size": 800,
+          "chunk_overlap": 240,
+          "top_k": 3,
+          "similarity_threshold": 0.75,
+          "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+          "reranker": false,
+          "decay_ttl_days": 90,
+          "decay_rate_per_day": 0.003,
+          "decay_min_importance": 0.0
+        },
+        "routing": {
+          "default_model": "deepseek-v4-flash",
+          "semantic_cache_threshold": 0.89,
+          "catalog": [
+            {
+              "id": "llamacpp-qwen3.6-27b",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "llamacpp-qwen2.5-14b",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "llamacpp-qwen3.6-latest",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "glennguilloux-demo-llm",
+              "tier": "free_cloud",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "deepseek-v4-flash",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "deepseek-chat",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "deepseek-reasoner",
+              "tier": "paid_cloud",
+              "in": 0.55,
+              "out": 2.19
+            },
+            {
+              "id": "claude-3-5-sonnet",
+              "tier": "paid_cloud",
+              "in": 3.0,
+              "out": 15.0
+            },
+            {
+              "id": "claude-3-haiku",
+              "tier": "paid_cloud",
+              "in": 0.25,
+              "out": 1.25
+            },
+            {
+              "id": "gpt-4o",
+              "tier": "paid_cloud",
+              "in": 5.0,
+              "out": 15.0
+            },
+            {
+              "id": "openrouter-gemini-2.0-flash",
+              "tier": "paid_cloud",
+              "in": 0.15,
+              "out": 0.6
+            },
+            {
+              "id": "openrouter-deepseek-coder",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "claude-3-opus",
+              "tier": "premium",
+              "in": 15.0,
+              "out": 75.0,
+              "enabled": false
+            }
+          ]
+        },
+        "verification": {
+          "required_edges": [
+            [
+              "retrieve",
+              "answer"
+            ]
+          ],
+          "forbidden_tools": [
+            "delete_data",
+            "send_email"
+          ],
+          "personal_memory_claim_constraints": [
+            {
+              "claim_type": "constraint",
+              "object": {
+                "action": "block",
+                "resource": "production_database"
+              },
+              "sensitivity": "restricted",
+              "scope": "workspace",
+              "confidence": 0.95
+            }
+          ],
+          "edge_target_validation": {
+            "reject_dangling_edges": true,
+            "reject_self_loops": true
+          }
+        }
+      }
+    },
+    {
+      "metrics": {
+        "accuracy": 0.93,
+        "cost_usd": 0.01022,
+        "latency_ms": 1700.0,
+        "safety_pass": true
+      },
+      "config": {
+        "workflow": {
+          "nodes": [
+            {
+              "id": "retrieve",
+              "type": "rag_query",
+              "config": {
+                "label": "Find Similar Churn Patterns",
+                "description": "Retrieve historical churn cases matching this behavior.",
+                "query": "historical churn patterns similar to current usage drop",
+                "collection": "churn_history"
+              },
+              "assigned_model": null,
+              "reasoning_profile": "normal",
+              "effect_class": "reversible"
+            },
+            {
+              "id": "answer",
+              "type": "llm",
+              "config": {
+                "system_prompt": "You are a senior research analyst. Use retrieved context as the primary\nknowledge source. Cite the source node id for every factual claim. If retrieval\nis empty or insufficient, explicitly say so. Return only the requested JSON.",
+                "prompt": "Synthesize the retrieved churn cases into a risk assessment for the current account. Return JSON: {risk_level, basis, recommended_action}.",
+                "tool_ids": [
+                  "web_search"
+                ],
+                "temperature": 0.0
+              },
+              "assigned_model": "deepseek-reasoner",
+              "reasoning_profile": "normal",
+              "effect_class": "reversible"
+            }
+          ],
+          "edges": [
+            {
+              "source": "retrieve",
+              "target": "answer"
+            }
+          ]
+        },
+        "tools": [
+          {
+            "id": "web_search",
+            "description": "Search the live web (SearXNG) for recent, attributable public information.\nUse only when required facts are absent from retrieved workspace context. Never use\nfor internal, confidential, or PII data. Returns ranked snippets with source URLs.",
+            "parameters": {
+              "query": {
+                "description": "A concise search query. Prefer 3-6 specific keywords over a question."
+              }
+            }
+          },
+          {
+            "id": "retrieve",
+            "description": "Semantic retrieval over the workspace collection. Use this as the primary\nknowledge source for workspace facts. Returns ranked chunks with source node ids.\nUse before web_search when the question concerns internal history or prior cases.",
+            "parameters": {
+              "query": {
+                "description": "Natural-language query describing what to retrieve."
+              }
+            }
+          }
+        ],
+        "memory": {
+          "chunk_size": 600,
+          "chunk_overlap": 200,
+          "top_k": 5,
+          "similarity_threshold": 0.6,
+          "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+          "reranker": true,
+          "decay_ttl_days": 90,
+          "decay_rate_per_day": 0.015,
+          "decay_min_importance": 0.0
+        },
+        "routing": {
+          "default_model": "deepseek-v4-flash",
+          "semantic_cache_threshold": 0.86,
+          "catalog": [
+            {
+              "id": "llamacpp-qwen3.6-27b",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "llamacpp-qwen2.5-14b",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "llamacpp-qwen3.6-latest",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "glennguilloux-demo-llm",
+              "tier": "free_cloud",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "deepseek-v4-flash",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "deepseek-chat",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "deepseek-reasoner",
+              "tier": "paid_cloud",
+              "in": 0.55,
+              "out": 2.19
+            },
+            {
+              "id": "claude-3-5-sonnet",
+              "tier": "paid_cloud",
+              "in": 3.0,
+              "out": 15.0
+            },
+            {
+              "id": "claude-3-haiku",
+              "tier": "paid_cloud",
+              "in": 0.25,
+              "out": 1.25
+            },
+            {
+              "id": "gpt-4o",
+              "tier": "paid_cloud",
+              "in": 5.0,
+              "out": 15.0
+            },
+            {
+              "id": "openrouter-gemini-2.0-flash",
+              "tier": "paid_cloud",
+              "in": 0.15,
+              "out": 0.6
+            },
+            {
+              "id": "openrouter-deepseek-coder",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "claude-3-opus",
+              "tier": "premium",
+              "in": 15.0,
+              "out": 75.0,
+              "enabled": false
+            }
+          ]
+        },
+        "verification": {
+          "required_edges": [
+            [
+              "retrieve",
+              "answer"
+            ]
+          ],
+          "forbidden_tools": [
+            "delete_data",
+            "send_email"
+          ],
+          "personal_memory_claim_constraints": [
+            {
+              "claim_type": "constraint",
+              "object": {
+                "action": "block",
+                "resource": "production_database"
+              },
+              "sensitivity": "restricted",
+              "scope": "workspace",
+              "confidence": 0.95
+            }
+          ],
+          "edge_target_validation": {
+            "reject_dangling_edges": true,
+            "reject_self_loops": true
+          }
+        }
+      }
+    },
+    {
+      "metrics": {
+        "accuracy": 0.73,
+        "cost_usd": 0.074,
+        "latency_ms": 1180.0,
+        "safety_pass": true
+      },
+      "config": {
+        "workflow": {
+          "nodes": [
+            {
+              "id": "retrieve",
+              "type": "rag_query",
+              "config": {
+                "label": "Find Similar Churn Patterns",
+                "description": "Retrieve historical churn cases matching this behavior.",
+                "query": "historical churn patterns similar to current usage drop",
+                "collection": "churn_history"
+              },
+              "assigned_model": null,
+              "reasoning_profile": "normal",
+              "effect_class": "reversible"
+            },
+            {
+              "id": "answer",
+              "type": "llm",
+              "config": {
+                "system_prompt": "Analyze the account using the retrieved churn cases. Prefer concise,\nverifiable claims and identify the source node id supporting each claim. If the\nretrieved set cannot support a conclusion, set risk_level to \"unknown\". Return\nonly JSON: {risk_level, basis, recommended_action}.",
+                "prompt": "Synthesize the retrieved churn cases into a risk assessment for the current account. Return JSON: {risk_level, basis, recommended_action}.",
+                "tool_ids": [
+                  "web_search"
+                ],
+                "temperature": 0.2
+              },
+              "assigned_model": "claude-3-5-sonnet",
+              "reasoning_profile": "normal",
+              "effect_class": "reversible"
+            }
+          ],
+          "edges": [
+            {
+              "source": "retrieve",
+              "target": "answer"
+            }
+          ]
+        },
+        "tools": [
+          {
+            "id": "web_search",
+            "description": "Search the live web (SearXNG) for recent, attributable public information.\nUse only when required facts are absent from retrieved workspace context. Never use\nfor internal, confidential, or PII data. Returns ranked snippets with source URLs.",
+            "parameters": {
+              "query": {
+                "description": "A concise search query. Prefer 3-6 specific keywords over a question."
+              }
+            }
+          },
+          {
+            "id": "retrieve",
+            "description": "Retrieve evidence from the workspace collection. Best for historical churn\ncases, internal documents, and source-grounded answers. Returns ranked chunks and\nsource node ids. Prefer this tool over web_search for information that may exist\nin the workspace.",
+            "parameters": {
+              "query": {
+                "description": "Natural-language query describing what to retrieve."
+              }
+            }
+          }
+        ],
+        "memory": {
+          "chunk_size": 1000,
+          "chunk_overlap": 120,
+          "top_k": 4,
+          "similarity_threshold": 0.75,
+          "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+          "reranker": false,
+          "decay_ttl_days": 90,
+          "decay_rate_per_day": 0.003,
+          "decay_min_importance": 0.0
+        },
+        "routing": {
+          "default_model": "deepseek-v4-flash",
+          "semantic_cache_threshold": 0.89,
+          "catalog": [
+            {
+              "id": "llamacpp-qwen3.6-27b",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "llamacpp-qwen2.5-14b",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "llamacpp-qwen3.6-latest",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "glennguilloux-demo-llm",
+              "tier": "free_cloud",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "deepseek-v4-flash",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "deepseek-chat",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "deepseek-reasoner",
+              "tier": "paid_cloud",
+              "in": 0.55,
+              "out": 2.19
+            },
+            {
+              "id": "claude-3-5-sonnet",
+              "tier": "paid_cloud",
+              "in": 3.0,
+              "out": 15.0
+            },
+            {
+              "id": "claude-3-haiku",
+              "tier": "paid_cloud",
+              "in": 0.25,
+              "out": 1.25
+            },
+            {
+              "id": "gpt-4o",
+              "tier": "paid_cloud",
+              "in": 5.0,
+              "out": 15.0
+            },
+            {
+              "id": "openrouter-gemini-2.0-flash",
+              "tier": "paid_cloud",
+              "in": 0.15,
+              "out": 0.6
+            },
+            {
+              "id": "openrouter-deepseek-coder",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "claude-3-opus",
+              "tier": "premium",
+              "in": 15.0,
+              "out": 75.0,
+              "enabled": false
+            }
+          ]
+        },
+        "verification": {
+          "required_edges": [
+            [
+              "retrieve",
+              "answer"
+            ]
+          ],
+          "forbidden_tools": [
+            "delete_data",
+            "send_email"
+          ],
+          "personal_memory_claim_constraints": [
+            {
+              "claim_type": "constraint",
+              "object": {
+                "action": "block",
+                "resource": "production_database"
+              },
+              "sensitivity": "restricted",
+              "scope": "workspace",
+              "confidence": 0.95
+            }
+          ],
+          "edge_target_validation": {
+            "reject_dangling_edges": true,
+            "reject_self_loops": true
+          }
+        }
+      }
+    },
+    {
+      "metrics": {
+        "accuracy": 0.9,
+        "cost_usd": 0.002,
+        "latency_ms": 1330.0,
+        "safety_pass": true
+      },
+      "config": {
+        "workflow": {
+          "nodes": [
+            {
+              "id": "retrieve",
+              "type": "rag_query",
+              "config": {
+                "label": "Find Similar Churn Patterns",
+                "description": "Retrieve historical churn cases matching this behavior.",
+                "query": "historical churn patterns similar to current usage drop",
+                "collection": "churn_history"
+              },
+              "assigned_model": null,
+              "reasoning_profile": "normal",
+              "effect_class": "reversible"
+            },
+            {
+              "id": "answer",
+              "type": "llm",
+              "config": {
+                "system_prompt": "You are a senior research analyst. Use retrieved context as the primary\nknowledge source. Cite the source node id for every factual claim. If retrieval\nis empty or insufficient, explicitly say so. Return only the requested JSON.",
+                "prompt": "Synthesize the retrieved churn cases into a risk assessment for the current account. Return JSON: {risk_level, basis, recommended_action}.",
+                "tool_ids": [
+                  "web_search"
+                ],
+                "temperature": 0.0
+              },
+              "assigned_model": "glennguilloux-demo-llm",
+              "reasoning_profile": "normal",
+              "effect_class": "reversible"
+            }
+          ],
+          "edges": [
+            {
+              "source": "retrieve",
+              "target": "answer"
+            }
+          ]
+        },
+        "tools": [
+          {
+            "id": "web_search",
+            "description": "Search the live web (SearXNG) for recent, attributable public information.\nUse only when required facts are absent from retrieved workspace context. Never use\nfor internal, confidential, or PII data. Returns ranked snippets with source URLs.",
+            "parameters": {
+              "query": {
+                "description": "A concise search query. Prefer 3-6 specific keywords over a question."
+              }
+            }
+          },
+          {
+            "id": "retrieve",
+            "description": "Retrieve evidence from the workspace collection. Best for historical churn\ncases, internal documents, and source-grounded answers. Returns ranked chunks and\nsource node ids. Prefer this tool over web_search for information that may exist\nin the workspace.",
+            "parameters": {
+              "query": {
+                "description": "Natural-language query describing what to retrieve."
+              }
+            }
+          }
+        ],
+        "memory": {
+          "chunk_size": 1200,
+          "chunk_overlap": 80,
+          "top_k": 4,
+          "similarity_threshold": 0.6,
+          "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+          "reranker": true,
+          "decay_ttl_days": 90,
+          "decay_rate_per_day": 0.003,
+          "decay_min_importance": 0.0
+        },
+        "routing": {
+          "default_model": "deepseek-v4-flash",
+          "semantic_cache_threshold": 0.97,
+          "catalog": [
+            {
+              "id": "llamacpp-qwen3.6-27b",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "llamacpp-qwen2.5-14b",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "llamacpp-qwen3.6-latest",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "glennguilloux-demo-llm",
+              "tier": "free_cloud",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "deepseek-v4-flash",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "deepseek-chat",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "deepseek-reasoner",
+              "tier": "paid_cloud",
+              "in": 0.55,
+              "out": 2.19
+            },
+            {
+              "id": "claude-3-5-sonnet",
+              "tier": "paid_cloud",
+              "in": 3.0,
+              "out": 15.0
+            },
+            {
+              "id": "claude-3-haiku",
+              "tier": "paid_cloud",
+              "in": 0.25,
+              "out": 1.25
+            },
+            {
+              "id": "gpt-4o",
+              "tier": "paid_cloud",
+              "in": 5.0,
+              "out": 15.0
+            },
+            {
+              "id": "openrouter-gemini-2.0-flash",
+              "tier": "paid_cloud",
+              "in": 0.15,
+              "out": 0.6
+            },
+            {
+              "id": "openrouter-deepseek-coder",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "claude-3-opus",
+              "tier": "premium",
+              "in": 15.0,
+              "out": 75.0,
+              "enabled": false
+            }
+          ]
+        },
+        "verification": {
+          "required_edges": [
+            [
+              "retrieve",
+              "answer"
+            ]
+          ],
+          "forbidden_tools": [
+            "delete_data",
+            "send_email"
+          ],
+          "personal_memory_claim_constraints": [
+            {
+              "claim_type": "constraint",
+              "object": {
+                "action": "block",
+                "resource": "production_database"
+              },
+              "sensitivity": "restricted",
+              "scope": "workspace",
+              "confidence": 0.95
+            }
+          ],
+          "edge_target_validation": {
+            "reject_dangling_edges": true,
+            "reject_self_loops": true
+          }
+        }
+      }
+    },
+    {
+      "metrics": {
+        "accuracy": 0.82,
+        "cost_usd": 0.002,
+        "latency_ms": 1210.0,
+        "safety_pass": true
+      },
+      "config": {
+        "workflow": {
+          "nodes": [
+            {
+              "id": "retrieve",
+              "type": "rag_query",
+              "config": {
+                "label": "Find Similar Churn Patterns",
+                "description": "Retrieve historical churn cases matching this behavior.",
+                "query": "historical churn patterns similar to current usage drop",
+                "collection": "churn_history"
+              },
+              "assigned_model": null,
+              "reasoning_profile": "normal",
+              "effect_class": "reversible"
+            },
+            {
+              "id": "answer",
+              "type": "llm",
+              "config": {
+                "system_prompt": "Analyze the account using the retrieved churn cases. Prefer concise,\nverifiable claims and identify the source node id supporting each claim. If the\nretrieved set cannot support a conclusion, set risk_level to \"unknown\". Return\nonly JSON: {risk_level, basis, recommended_action}.",
+                "prompt": "Synthesize the retrieved churn cases into a risk assessment for the current account. Return JSON: {risk_level, basis, recommended_action}.",
+                "tool_ids": [
+                  "web_search"
+                ],
+                "temperature": 0.1
+              },
+              "assigned_model": "llamacpp-qwen3.6-27b",
+              "reasoning_profile": "normal",
+              "effect_class": "reversible"
+            }
+          ],
+          "edges": [
+            {
+              "source": "retrieve",
+              "target": "answer"
+            }
+          ]
+        },
+        "tools": [
+          {
+            "id": "web_search",
+            "description": "Search the live web (SearXNG) for recent, attributable public information.\nUse only when required facts are absent from retrieved workspace context. Never use\nfor internal, confidential, or PII data. Returns ranked snippets with source URLs.",
+            "parameters": {
+              "query": {
+                "description": "A concise search query. Prefer 3-6 specific keywords over a question."
+              }
+            }
+          },
+          {
+            "id": "retrieve",
+            "description": "Semantic retrieval over the workspace collection. Use this as the primary\nknowledge source for workspace facts. Returns ranked chunks with source node ids.\nUse before web_search when the question concerns internal history or prior cases.",
+            "parameters": {
+              "query": {
+                "description": "Natural-language query describing what to retrieve."
+              }
+            }
+          }
+        ],
+        "memory": {
+          "chunk_size": 600,
+          "chunk_overlap": 200,
+          "top_k": 3,
+          "similarity_threshold": 0.6,
+          "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+          "reranker": true,
+          "decay_ttl_days": 90,
+          "decay_rate_per_day": 0.015,
+          "decay_min_importance": 0.0
+        },
+        "routing": {
+          "default_model": "deepseek-v4-flash",
+          "semantic_cache_threshold": 0.82,
+          "catalog": [
+            {
+              "id": "llamacpp-qwen3.6-27b",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "llamacpp-qwen2.5-14b",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "llamacpp-qwen3.6-latest",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "glennguilloux-demo-llm",
+              "tier": "free_cloud",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "deepseek-v4-flash",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "deepseek-chat",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "deepseek-reasoner",
+              "tier": "paid_cloud",
+              "in": 0.55,
+              "out": 2.19
+            },
+            {
+              "id": "claude-3-5-sonnet",
+              "tier": "paid_cloud",
+              "in": 3.0,
+              "out": 15.0
+            },
+            {
+              "id": "claude-3-haiku",
+              "tier": "paid_cloud",
+              "in": 0.25,
+              "out": 1.25
+            },
+            {
+              "id": "gpt-4o",
+              "tier": "paid_cloud",
+              "in": 5.0,
+              "out": 15.0
+            },
+            {
+              "id": "openrouter-gemini-2.0-flash",
+              "tier": "paid_cloud",
+              "in": 0.15,
+              "out": 0.6
+            },
+            {
+              "id": "openrouter-deepseek-coder",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "claude-3-opus",
+              "tier": "premium",
+              "in": 15.0,
+              "out": 75.0,
+              "enabled": false
+            }
+          ]
+        },
+        "verification": {
+          "required_edges": [
+            [
+              "retrieve",
+              "answer"
+            ]
+          ],
+          "forbidden_tools": [
+            "delete_data",
+            "send_email"
+          ],
+          "personal_memory_claim_constraints": [
+            {
+              "claim_type": "constraint",
+              "object": {
+                "action": "block",
+                "resource": "production_database"
+              },
+              "sensitivity": "restricted",
+              "scope": "workspace",
+              "confidence": 0.95
+            }
+          ],
+          "edge_target_validation": {
+            "reject_dangling_edges": true,
+            "reject_self_loops": true
+          }
+        }
+      }
+    },
+    {
+      "metrics": {
+        "accuracy": 0.9,
+        "cost_usd": 0.002,
+        "latency_ms": 1330.0,
+        "safety_pass": true
+      },
+      "config": {
+        "workflow": {
+          "nodes": [
+            {
+              "id": "retrieve",
+              "type": "rag_query",
+              "config": {
+                "label": "Find Similar Churn Patterns",
+                "description": "Retrieve historical churn cases matching this behavior.",
+                "query": "historical churn patterns similar to current usage drop",
+                "collection": "churn_history"
+              },
+              "assigned_model": null,
+              "reasoning_profile": "normal",
+              "effect_class": "reversible"
+            },
+            {
+              "id": "answer",
+              "type": "llm",
+              "config": {
+                "system_prompt": "You are a senior research analyst. Use retrieved context as the primary\nknowledge source. Cite the source node id for every factual claim. If retrieval\nis empty or insufficient, explicitly say so. Return only the requested JSON.",
+                "prompt": "Synthesize the retrieved churn cases into a risk assessment for the current account. Return JSON: {risk_level, basis, recommended_action}.",
+                "tool_ids": [
+                  "web_search"
+                ],
+                "temperature": 0.1
+              },
+              "assigned_model": "glennguilloux-demo-llm",
+              "reasoning_profile": "normal",
+              "effect_class": "reversible"
+            }
+          ],
+          "edges": [
+            {
+              "source": "retrieve",
+              "target": "answer"
+            }
+          ]
+        },
+        "tools": [
+          {
+            "id": "web_search",
+            "description": "Search the live web (SearXNG) for recent, attributable public information.\nUse only when required facts are absent from retrieved workspace context. Never use\nfor internal, confidential, or PII data. Returns ranked snippets with source URLs.",
+            "parameters": {
+              "query": {
+                "description": "A concise search query. Prefer 3-6 specific keywords over a question."
+              }
+            }
+          },
+          {
+            "id": "retrieve",
+            "description": "Retrieve evidence from the workspace collection. Best for historical churn\ncases, internal documents, and source-grounded answers. Returns ranked chunks and\nsource node ids. Prefer this tool over web_search for information that may exist\nin the workspace.",
+            "parameters": {
+              "query": {
+                "description": "Natural-language query describing what to retrieve."
+              }
+            }
+          }
+        ],
+        "memory": {
+          "chunk_size": 1000,
+          "chunk_overlap": 80,
+          "top_k": 4,
+          "similarity_threshold": 0.7,
+          "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+          "reranker": true,
+          "decay_ttl_days": 90,
+          "decay_rate_per_day": 0.015,
+          "decay_min_importance": 0.0
+        },
+        "routing": {
+          "default_model": "deepseek-v4-flash",
+          "semantic_cache_threshold": 0.82,
+          "catalog": [
+            {
+              "id": "llamacpp-qwen3.6-27b",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "llamacpp-qwen2.5-14b",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "llamacpp-qwen3.6-latest",
+              "tier": "local",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "glennguilloux-demo-llm",
+              "tier": "free_cloud",
+              "in": 0.0,
+              "out": 0.0
+            },
+            {
+              "id": "deepseek-v4-flash",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "deepseek-chat",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "deepseek-reasoner",
+              "tier": "paid_cloud",
+              "in": 0.55,
+              "out": 2.19
+            },
+            {
+              "id": "claude-3-5-sonnet",
+              "tier": "paid_cloud",
+              "in": 3.0,
+              "out": 15.0
+            },
+            {
+              "id": "claude-3-haiku",
+              "tier": "paid_cloud",
+              "in": 0.25,
+              "out": 1.25
+            },
+            {
+              "id": "gpt-4o",
+              "tier": "paid_cloud",
+              "in": 5.0,
+              "out": 15.0
+            },
+            {
+              "id": "openrouter-gemini-2.0-flash",
+              "tier": "paid_cloud",
+              "in": 0.15,
+              "out": 0.6
+            },
+            {
+              "id": "openrouter-deepseek-coder",
+              "tier": "paid_cloud",
+              "in": 0.14,
+              "out": 0.28
+            },
+            {
+              "id": "claude-3-opus",
+              "tier": "premium",
+              "in": 15.0,
+              "out": 75.0,
+              "enabled": false
+            }
+          ]
+        },
+        "verification": {
+          "required_edges": [
+            [
+              "retrieve",
+              "answer"
+            ]
+          ],
+          "forbidden_tools": [
+            "delete_data",
+            "send_email"
+          ],
+          "personal_memory_claim_constraints": [
+            {
+              "claim_type": "constraint",
+              "object": {
+                "action": "block",
+                "resource": "production_database"
+              },
+              "sensitivity": "restricted",
+              "scope": "workspace",
+              "confidence": 0.95
+            }
+          ],
+          "edge_target_validation": {
+            "reject_dangling_edges": true,
+            "reject_self_loops": true
+          }
+        }
+      }
+    }
+  ]
+}
