@@ -33,6 +33,14 @@ class Settings(BaseSettings):
 
     AES_ENCRYPTION_KEY: str = "change-me-in-production"
 
+    # When True (default), decrypt_api_key can still decrypt the legacy v1
+    # format (hardcoded-salt) keys for backward compatibility. Operators who
+    # have finished migrating ALL encrypted stores (user_api_keys,
+    # integrations.auth_config_encrypted, api_keys) to the v2 per-key-salt
+    # format may set this to False to hard-disable the weakened v1 derivation
+    # path. See app/utils/encryption.py.
+    ENCRYPTION_ALLOW_LEGACY_DECRYPT: bool = True
+
     LLAMACPP_URL: str = "http://10.0.4.1:11434"
     LLAMACPP_LIGHT_URL: str = "http://10.0.4.1:11435"
     LITELLM_ENDPOINT: str = "http://localhost:4000"
