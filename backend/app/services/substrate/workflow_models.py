@@ -87,6 +87,14 @@ class NodeType(str, Enum):
     FAN_IN = "fan_in"  # Swarm synthesis
     SANDBOX = "sandbox"  # sandboxd Docker container execution
 
+    # Template node types (Scope B — real handlers in node_executor)
+    # Previously these collapsed to LLM_CALL through the task-type map default.
+    TRANSFORM = "transform"  # pure data transform (no LLM/tool)
+    CONDITION = "condition"  # evaluate a boolean expression, drive branching
+    LOG = "log"  # append a substrate log event (read-only)
+    LOOP = "loop"  # strategy-level bounded iteration marker
+    WEBHOOK = "webhook"  # outbound HTTP POST (irreversible side effect)
+
     # Convention: read-only / internal-passthrough node types are annotated
     # REVERSIBLE by the planner/adapter (see EffectClass + side-effect-safety
     # skill). The IRREVERSIBLE default otherwise applies to TOOL_CALL,

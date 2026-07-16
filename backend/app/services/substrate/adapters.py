@@ -43,6 +43,9 @@ _REVERSIBLE_NODE_TYPES: frozenset[NodeType] = frozenset(
         NodeType.PHASE_GATE,
         NodeType.FAN_OUT,
         NodeType.FAN_IN,
+        NodeType.LOG,  # read-only substrate event append
+        NodeType.CONDITION,  # handler only evaluates + reports branch
+        NodeType.TRANSFORM,  # pure data transform, no LLM/tool
     }
 )
 
@@ -80,6 +83,13 @@ _TASK_TYPE_MAP: dict[str, NodeType] = {
     "browser_close": NodeType.BROWSER_CLOSE,
     "approval": NodeType.APPROVAL,
     "parallel": NodeType.FAN_OUT,
+    # Scope B template node types — previously unmapped, defaulted to
+    # LLM_CALL (silently collapsing to an LLM call with no config).
+    "transform": NodeType.TRANSFORM,
+    "condition": NodeType.CONDITION,
+    "log": NodeType.LOG,
+    "loop": NodeType.LOOP,
+    "webhook": NodeType.WEBHOOK,
 }
 
 
