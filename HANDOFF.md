@@ -18,7 +18,51 @@ Chunk 9 implementation is complete (T1-T14 all marked done). The lenient validat
 - Validation-gate tests: 4 passed + 1 skipped
 - Health endpoint: 200 OK
 
-**Blocker:** Full backend pytest baseline fails with `163 failed, 2596 passed, 7 skipped, 82 warnings, 53 errors` due to `test_integration_graph_execution.py` using `localhost` instead of `workflow-postgres` inside the backend container. This is outside chunk 9 scope and documented.
+**Blocker (re-baselined 2026-07-16 — the original note below is STALE, do not act on it):**
+The original claim that the full suite fails with `163 failed, ... 53 errors`
+because `test_integration_graph_execution.py` used `localhost` instead of
+`workflow-postgres` is **wrong for the current branch**
+(`agent/2026-07-14-substrate-validate-edge-target`).
+
+What is actually true (re-baselined on host live tree, worktree
+`agent/2026-07-16-test-baseline-burndown`, commit a67750f4):
+
+- The named file was **moved/renamed** to `backend/tests/test_integration_graph_execution.py`
+  (no longer under `tests/integration/`).
+- The host-mismatch theory does NOT hold: `test_integration_connected_db.py`
+  uses the identical `.replace("workflow-postgres","localhost")` pattern and
+  passes 100%. The worktree has no `.env`, so `pop_config_overrides()` strips
+  `DATABASE_URL` and `Settings()` falls back to the code default `localhost`,
+  which connects fine. There are **zero** connection-refused / getaddrinfo
+  errors across the whole baseline.
+- Re-baselined full-suite count on this branch: **`96 failed, 3993 passed, 9 skipped, 10 errors`**
+  (now `97 failed, 3992 passed, 9 skipped, 2 errors` after the fixes below — net
+  +1 because 8 latent teardown ERRORs became clean assertion FAILEDs).
+- The 8 failures in `test_integration_graph_execution.py` are **by design**: the
+  v1 graph execution engine was retired (commit `1f4df6ec`, "dead code") and
+  `POST /api/graphs/{id}/execute` hard-returns **410 Gone**. The suite tests a
+  removed feature — that is a separate test-suite-vs-API drift item, NOT a
+  host-mismatch and NOT a regression.
+- Stale note (do NOT trust): "Full backend pytest baseline fails with
+  `163 failed, 2596 passed, 7 skipped, 82 warnings, 53 errors` due to
+  `test_integration_graph_execution.py` using `localhost` instead of
+  `workflow-postgres` inside the backend container."
+
+Fixes landed in commit a67750f4 (this branch):
+1. Host-agnostic DB URL resolution in the integration tests + honour
+   `FLOWMANNER_TEST_DB_URL` (regex swap of the Docker hostname -> localhost;
+   covers both `postgres` and `workflow-postgres` `.env` hosts).
+2. Fixed stale teardown SQL (`graph_states`/`graph_executions`/`graph_workflows`
+   -> `workflow_states`/`workflow_executions`/`workflows`, per H4.2
+   `h5_rename_graph_tables`) — eliminated the 8 `UndefinedTableError` teardown ERRORs.
+3. Fixed a real app bug: `uuid` was only `TYPE_CHECKING`-imported in
+   `app/api/v1/graph.py`, so with `from __future__ import annotations` the
+   `uuid.UUID` path params became unresolved forward-refs -> every v1 graph
+   route 500'd with `ForwardRef('uuid.UUID') is not fully defined`. Now imported
+   at runtime (with `# noqa: TCH003`) + graph response models rebuilt.
+4. Added a `pytest_collectstart` guard in `tests/conftest.py` that fails the
+   collection loudly if any test module re-introduces the deprecated `graph_*`
+   table names.
 
 ---
 
