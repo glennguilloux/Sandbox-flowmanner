@@ -1,0 +1,140 @@
+{
+  "workspace_id": null,
+  "workflow": {
+    "nodes": [
+      {
+        "id": "rag",
+        "type": "rag_query",
+        "title": "Retrieve churn cases",
+        "config": {
+          "collection": "churn_history",
+          "query": "<placeholder, overwritten per-case by _format_case_prompt>",
+          "top_k": 5
+        },
+        "effect_class": "reversible"
+      },
+      {
+        "id": "answer",
+        "type": "llm_call",
+        "title": "Score churn risk",
+        "assigned_model": "llamacpp/Qwen3.6-27B",
+        "config": {
+          "prompt": "You are a senior research analyst. Analyze the account using the retrieved churn cases. For each claim, cite its source node id. If the retrieved set cannot support a conclusion, set risk_level to \"unknown\". Return only JSON: {\"risk_level\": \"high\"|\"low\"|\"unknown\", \"basis\": \"<one sentence, cited>\", \"recommended_action\": \"<one sentence>\"}.",
+          "temperature": 0.0,
+          "system_prompt": "You are a senior research analyst. Use retrieved context as the primary knowledge source. Cite the source node id for every factual claim. If retrieval is empty or insufficient, explicitly say so. Return only the requested JSON.",
+          "tool_ids": []
+        },
+        "effect_class": "reversible"
+      }
+    ],
+    "edges": [
+      {"source": "rag", "target": "answer"}
+    ]
+  },
+  "memory": {
+    "top_k": 5,
+    "similarity_threshold": 0.0,
+    "reranker": false,
+    "chunk_size": 800,
+    "chunk_overlap": 120,
+    "decay_rate_per_day": 0.01
+  },
+  "verification": {
+    "forbidden_tools": ["delete_data", "send_email", "delete_collection"],
+    "edge_target_validation": {
+      "reject_dangling_edges": true,
+      "reject_self_loops": true
+    },
+    "required_edges": [["rag", "answer"]],
+    "personal_memory_claim_constraints": []
+  },
+  "routing": {
+    "semantic_cache_threshold": 0.9,
+    "catalog": [
+      {
+        "id": "llamacpp/Qwen3.6-27B",
+        "provider": "llamacpp",
+        "in": 0.0,
+        "out": 0.0,
+        "enabled": true,
+        "cost": 0.0,
+        "local": true
+      },
+      {
+        "id": "glennguilloux-demo-llm",
+        "provider": "openai_compatible",
+        "in": 0.0005,
+        "out": 0.0015,
+        "enabled": true,
+        "cost": 0.002,
+        "local": false
+      },
+      {
+        "id": "deepseek-v4-flash",
+        "provider": "deepseek",
+        "in": 0.00027,
+        "out": 0.0011,
+        "enabled": true,
+        "cost": 0.00137,
+        "local": false
+      },
+      {
+        "id": "deepseek-chat",
+        "provider": "deepseek",
+        "in": 0.00027,
+        "out": 0.0011,
+        "enabled": true,
+        "cost": 0.00137,
+        "local": false
+      },
+      {
+        "id": "deepseek-reasoner",
+        "provider": "deepseek",
+        "in": 0.00055,
+        "out": 0.0022,
+        "enabled": true,
+        "cost": 0.00275,
+        "local": false
+      },
+      {
+        "id": "claude-3-haiku",
+        "provider": "anthropic",
+        "in": 0.00025,
+        "out": 0.00125,
+        "enabled": true,
+        "cost": 0.0015,
+        "local": false
+      },
+      {
+        "id": "claude-3-5-sonnet",
+        "provider": "anthropic",
+        "in": 0.003,
+        "out": 0.015,
+        "enabled": true,
+        "cost": 0.018,
+        "local": false
+      },
+      {
+        "id": "openrouter-gemini-2.0-flash",
+        "provider": "openrouter",
+        "in": 0.0001,
+        "out": 0.0004,
+        "enabled": true,
+        "cost": 0.0005,
+        "local": false
+      }
+    ]
+  },
+  "tools": [
+    {
+      "id": "retrieve",
+      "type": "rag",
+      "description": "Semantic retrieval over the workspace collection. Use this as the primary knowledge source for workspace facts. Returns ranked chunks with source node ids."
+    },
+    {
+      "id": "web_search",
+      "type": "web_search",
+      "description": "Search the live web (SearXNG) for recent, attributable public information. Use only when required facts are absent from retrieved workspace context."
+    }
+  ]
+}

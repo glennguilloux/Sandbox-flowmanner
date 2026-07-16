@@ -1,152 +1,190 @@
-# harness-config.yaml — REAL Flowmanner harness configuration
-# Assembled 2026-07-16 from the live tree on branch
-# agent/2026-07-14-substrate-validate-edge-target.
+# harness-config.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# Base configuration for the harness-evolution meta-optimizer
+# (`.sisyphus/prototypes/harness_meta_optimizer.py`).
 #
-# Source of truth per section:
-#   - node config shape ........ backend/app/services/substrate/workflow_models.py (WorkflowNode)
-#   - rag defaults ............. backend/app/config.py (RAG_CHUNK_SIZE etc.)
-#   - model catalog ............ backend/app/config/models_catalog.json
-#   - router ................... backend/app/services/llm_router.py (ModelRouter)
-#   - verification gate ........ backend/app/services/substrate/assertion_engine.py
-#                                + backend/smoke_constraint_gate.py (PersonalMemoryClaim)
-#   - real template node ....... seed_templates.py ("Churn Risk Auto-Intervention" rag_query node)
+# Invoked as:
+#   HARNESS_EVAL_COMMAND="./scripts/evaluate_harness.sh" \
+#     python harness_meta_optimizer.py --config harness-config.yaml --budget 50
 #
-# IMPORTANT — two of your YAML keys do NOT exist as real config today:
-#   * `routing.model_per_step`  -> the real router picks model per-REQUEST via
-#                                  `model_preference` / assigned_model on the node,
-#                                  not a static per-step map. Map it to
-#                                  WorkflowNode.assigned_model instead.
-#   * `routing.semantic_cache_threshold` -> no semantic-cache knob exists in the
-#                                  router yet. It is a genuine gap (axis 1e in the
-#                                  design doc) — you can model it as a candidate knob.
-# Everything else below is a real, current value.
+# This single document serves TWO consumers and MUST satisfy BOTH:
+#   1. The optimizer / prototype (harness_meta_optimizer.py):
+#        - reads `routing.catalog` (a LIST of {id, ...} model specs) via
+#          model_catalog() -> {item["id"]: item}
+#        - reads `verification.*` gates via verify_candidate()
+#        - mutate() reads `tools` (ids "retrieve", "web_search") and
+#          `routing.semantic_cache_threshold`; the YAML MUST contain them so a
+#          mutated candidate stays structurally valid.
+#   2. The real evaluator shim (app.services.substrate.evaluate_harness):
+#        - build_workflow() reads `workflow.nodes` / `workflow.edges`
+#        - score_case() requires an `answer` node that emits `risk_level`
+#        - inject_rag_knobs() reads `memory.*`
+#        - safety_check() reads `verification.forbidden_tools`
+#   The prototype writes the ENTIRE config as the candidate JSON passed to the
+#   shim, so this file is simultaneously the optimizer base AND the shim input.
+#
+# Mutation axes (live, wired into the runtime per evaluate_harness.py:21-23):
+#   - answer.assigned_model
+#   - answer.config.temperature
+#   - answer.config.system_prompt
+#   - answer.config.tool_ids
+# GATED axes (injected via settings monkeypatch + RAGService n_results):
+#   - memory.top_k, memory.similarity_threshold, memory.reranker
+# INERT axes (embedding-time only; reported as knobs_inert, never faked):
+#   - memory.chunk_size, memory.chunk_overlap
+# ─────────────────────────────────────────────────────────────────────────────
+
+workspace_id: null
 
 workflow:
-  # WorkflowNode (workflow_models.py:139) — config: dict is free-form; the keys
-  # below are what node_executor._handle_llm / _handle_tool actually read.
   nodes:
-    - id: retrieve
-      type: rag_query            # NodeType.RAG_QUERY
+    - id: rag
+      type: rag_query
+      title: Retrieve churn cases
       config:
-        # real rag_query node config (seed_templates.py:2477)
-        label: "Find Similar Churn Patterns"
-        description: "Retrieve historical churn cases matching this behavior."
-        query: "historical churn patterns similar to current usage drop"
-        collection: "churn_history"
-        # retrieval knobs are GLOBAL (config.py), not per-node — see `memory:` below
-      assigned_model: null       # rag_query is read-only; no LLM call
-      reasoning_profile: normal  # ReasoningProfile.NORMAL (default)
-      effect_class: reversible   # read-only node MUST be annotated reversible
+        collection: churn_history
+        query: "<placeholder, overwritten per-case by _format_case_prompt>"
+        top_k: 5
+      effect_class: reversible
 
     - id: answer
-      type: llm                  # NodeType.LLM_CALL (template "task" -> LLM_CALL)
+      type: llm_call
+      title: Score churn risk
+      assigned_model: llamacpp/Qwen3.6-27B
       config:
-        # node_executor._handle_llm reads node.config["system_prompt"] / ["prompt"]
-        # NOTE: this MUST match one of SYSTEM_PROMPT_VARIANTS in
-        # harness_meta_optimizer.py so the surrogate's feature_vector() can
-        # .index() it. Literal block (|) preserves the newlines exactly.
-        # Variant #0 also resolves the policy conflict Opus flagged: it allows
-        # web_search as a fallback only when retrieval is empty, instead of the
-        # earlier contradictory "Use ONLY retrieved context".
-        system_prompt: |-
-          You are a senior research analyst. Use retrieved context as the primary
-          knowledge source. Cite the source node id for every factual claim. If retrieval
-          is empty or insufficient, explicitly say so. Return only the requested JSON.
         prompt: >-
-          Synthesize the retrieved churn cases into a risk assessment for the
-          current account. Return JSON: {risk_level, basis, recommended_action}.
-        tool_ids: ["web_search"]   # tool calls go through CapabilityEngine; see `tools:`
-        temperature: 0.2
-      assigned_model: "deepseek-v4-flash"   # per-node model override (real knob)
-      reasoning_profile: normal
-      effect_class: reversible      # read-only synthesis
+          You are a senior research analyst. Analyze the account using the
+          retrieved churn cases. For each claim, cite its source node id. If the
+          retrieved set cannot support a conclusion, set risk_level to "unknown".
+          Return only JSON: {"risk_level": "high"|"low"|"unknown", "basis":
+          "<one sentence, cited>", "recommended_action": "<one sentence>"}.
+        temperature: 0.0
+        system_prompt: >-
+          You are a senior research analyst. Use retrieved context as the primary
+          knowledge source. Cite the source node id for every factual claim. If
+          retrieval is empty or insufficient, explicitly say so. Return only the
+          requested JSON.
+        tool_ids: []
+      effect_class: reversible
 
   edges:
-    # WorkflowEdge (workflow_models.py:174): source, target, optional condition/label
-    - source: retrieve
+    - source: rag
       target: answer
-      # condition: "{{retrieve.output.status}} == 'success'"   # optional
-
-tools:
-  # Tool descriptions are the AXIS-1b search space (the LLM reads them every turn).
-  # NOTE: the live tool schema lives in the tool registry, not in workflow config.
-  # Below mirrors the shape node_executor._handle_tool consumes.
-  - id: web_search
-    description: >-
-      Search the live web (SearXNG) for recent, attributable information.
-      Use for facts NOT present in retrieved context. Returns ranked snippets
-      with source URLs. Do NOT use for internal/PII data.
-    parameters:
-      query:
-        description: "A concise search query. Prefer 3-6 specific keywords over a question."
-
-  - id: retrieve
-    description: >-
-      Semantic retrieval over the workspace collection. Returns ranked chunks
-      with source node ids. Primary knowledge source — prefer over web_search.
-    parameters:
-      query:
-        description: "Natural-language query describing what to retrieve."
 
 memory:
-  # GLOBAL retrieval config (backend/app/config.py) — not per-node.
-  # These are the real defaults; they ARE the Bayesian-search axis (1c).
-  chunk_size: 1000              # RAG_CHUNK_SIZE
-  chunk_overlap: 200            # RAG_CHUNK_OVERLAP
-  top_k: 5                      # MISSION_RAG_RESULTS_LIMIT (retrieval cap)
-  similarity_threshold: 0.7     # RAG_SIMILARITY_THRESHOLD (vector match cutoff)
-  embedding_model: "sentence-transformers/all-MiniLM-L6-v2"  # RAG_EMBEDDING_MODEL
-  reranker: true                # retrieval_service._rerank_llm (LLM rerank; skipped on error)
-  # Memory decay (config.py:356-360) — drives PersonalMemoryClaim lifecycle:
-  decay_ttl_days: 90            # MEMORY_DECAY_TTL_DAYS (soft-archive window)
-  decay_rate_per_day: 0.01      # MEMORY_DECAY_RATE_PER_DAY (importance * (1 - rate*days))
-  decay_min_importance: 0.0     # MEMORY_DECAY_MIN_IMPORTANCE (floor; 0 = can decay to zero)
-  # Note: 'decay_half_life_days' from your YAML is NOT a real knob — the real
-  # model is a linear rate (decay_rate_per_day). Map half-life -> rate if needed.
-
-routing:
-  default_model: "deepseek-v4-flash"   # LLM_MODEL_NAME env default (llm_router.py:186)
-  # model_per_step is NOT a real config — real per-step model = WorkflowNode.assigned_model.
-  # Semantic cache does NOT exist yet — model it as a candidate knob (axis 1e).
-  semantic_cache_threshold: 0.92       # CANDIDATE KNOB (not yet implemented)
-  # Full real model catalog (id -> tier/cost) — the discrete routing search space:
-  catalog:
-    - { id: "llamacpp-qwen3.6-27b",      tier: local,       in: 0.0,    out: 0.0 }
-    - { id: "llamacpp-qwen2.5-14b",      tier: local,       in: 0.0,    out: 0.0 }
-    - { id: "llamacpp-qwen3.6-latest",   tier: local,       in: 0.0,    out: 0.0 }
-    - { id: "glennguilloux-demo-llm",    tier: free_cloud,  in: 0.0,    out: 0.0 }
-    - { id: "deepseek-v4-flash",         tier: paid_cloud,  in: 0.14,   out: 0.28 }
-    - { id: "deepseek-chat",             tier: paid_cloud,  in: 0.14,   out: 0.28 }
-    - { id: "deepseek-reasoner",         tier: paid_cloud,  in: 0.55,   out: 2.19 }
-    - { id: "claude-3-5-sonnet",         tier: paid_cloud,  in: 3.0,    out: 15.0 }
-    - { id: "claude-3-haiku",            tier: paid_cloud,  in: 0.25,   out: 1.25 }
-    - { id: "gpt-4o",                    tier: paid_cloud,  in: 5.0,    out: 15.0 }
-    - { id: "openrouter-gemini-2.0-flash", tier: paid_cloud, in: 0.15, out: 0.6 }
-    - { id: "openrouter-deepseek-coder", tier: paid_cloud,  in: 0.14,   out: 0.28 }
-    - { id: "claude-3-opus",             tier: premium,     in: 15.0,   out: 75.0, enabled: false }
+  top_k: 5
+  similarity_threshold: 0.0
+  reranker: false
+  chunk_size: 800
+  chunk_overlap: 120
+  decay_rate_per_day: 0.01
 
 verification:
-  # ReplayAssertionEngine.evaluate (assertion_engine.py:100) consumes
-  # expected_behaviors with these exact keys. This is the hard gate (axis 1d).
-  required_edges:
-    - ["retrieve", "answer"]     # tool-sequence partial order (before -> after)
   forbidden_tools:
-    - "delete_data"              # must NEVER appear in the run
-    - "send_email"
-  # PersonalMemoryClaim constraint gate (smoke_constraint_gate.py + personal_memory
-  # schema). claim_type="constraint"; action in {block, escalate, allow}.
-  # sensitivity in {normal, restricted}; restricted claims are IMMORTAL (never decay).
-  personal_memory_claim_constraints:
-    - claim_type: "constraint"
-      object:
-        action: "block"          # block | escalate | allow
-        resource: "production_database"
-      sensitivity: "restricted"  # immortal; cannot be decayed/deleted
-      scope: "workspace"
-      confidence: 0.95
-  # Edge-target validation (NEW on this branch, aa097752 / 7c2774a8): a blueprint
-  # is REJECTED at publish/run if any edge source/target is missing or self-loops.
-  # The optimizer MUST keep edges valid or the gate rejects the whole config.
+    - delete_data
+    - send_email
+    - delete_collection
   edge_target_validation:
     reject_dangling_edges: true
     reject_self_loops: true
+  required_edges:
+    - ["rag", "answer"]
+  personal_memory_claim_constraints: []
+
+# Model catalog consumed by model_catalog() (verify_candidate + mutate).
+# `in` / `out` are relative cost weights used by the demo surrogate only; the
+# real evaluator derives cost from the live run, not these numbers. The local
+# local llamacpp model has cost 0 (no API key, $0) and MUST be the default answer
+# model so a live smoke runs with no cloud key. NOTE the SLASH form
+# `llamacpp/qwen3.6-27b` (not `llamacpp-qwen3.6-27b`): app.services.llm_providers
+# ._get_provider_for_model splits on "/" — a hyphenated id has NO provider
+# prefix and would fall through to the default cloud key (and hit the hard-refuse
+# gate at llm_router.py:242). The slash form routes to PROVIDER_MAP["llamacpp"]
+# which returns api_key="not-needed" (see llm_providers._resolve_provider). The
+# prototype's MODEL_CHOICES uses the hyphen token, but the catalog id MUST match
+# the runtime model id exactly so verify_candidate(answer.assigned_model in
+# routing.catalog) passes.
+routing:
+  semantic_cache_threshold: 0.9
+  catalog:
+    - id: llamacpp/Qwen3.6-27B
+      provider: llamacpp
+      in: 0.0
+      out: 0.0
+      enabled: true
+      cost: 0.0
+      local: true
+    - id: glennguilloux-demo-llm
+      provider: openai_compatible
+      in: 0.0005
+      out: 0.0015
+      enabled: true
+      cost: 0.002
+      local: false
+    - id: deepseek-v4-flash
+      provider: deepseek
+      in: 0.00027
+      out: 0.0011
+      enabled: true
+      cost: 0.00137
+      local: false
+    - id: deepseek-chat
+      provider: deepseek
+      in: 0.00027
+      out: 0.0011
+      enabled: true
+      cost: 0.00137
+      local: false
+    - id: deepseek-reasoner
+      provider: deepseek
+      in: 0.00055
+      out: 0.0022
+      enabled: true
+      cost: 0.00275
+      local: false
+    - id: claude-3-haiku
+      provider: anthropic
+      in: 0.00025
+      out: 0.00125
+      enabled: true
+      cost: 0.0015
+      local: false
+    - id: claude-3-5-sonnet
+      provider: anthropic
+      in: 0.003
+      out: 0.015
+      enabled: true
+      cost: 0.018
+      local: false
+    - id: openrouter-gemini-2.0-flash
+      provider: openrouter
+      in: 0.0001
+      out: 0.0004
+      enabled: true
+      cost: 0.0005
+      local: false
+
+# Tools referenced by mutate() (description variants). They are informational
+# for the optimizer; the live shim ignores tool_ids on the answer node because
+# the workflow has no tool_call node.
+tools:
+  - id: retrieve
+    type: rag
+    description: >-
+      Semantic retrieval over the workspace collection. Use this as the primary
+      knowledge source for workspace facts. Returns ranked chunks with source
+      node ids.
+  - id: web_search
+    type: web_search
+    description: >-
+      Search the live web (SearXNG) for recent, attributable public information.
+      Use only when required facts are absent from retrieved workspace context.
+
+# Optimizer knobs (documentation only — the prototype reads budget/warmup/seed
+# from CLI flags, not from here; listed so a human can see the run contract).
+optimizer:
+  budget: 50
+  warmup: 12
+  seed: 7
+  split: train
+  demo: false
