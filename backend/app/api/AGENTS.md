@@ -75,7 +75,7 @@ These rules apply across `app/api/`, on top of `backend/AGENTS.md` and `backend/
    ):
        return await commands.abort_mission(user, mission_id, reason_str="user_requested")
    ```
-7. **Multi-commit flows are explicit, not wrapped in `wrap_command()`.** When a handler must commit state → log separately → dispatch side effects (Celery, WS, analytics, dual-write), the `wrap_command()` comment explains why. Do not "fix" those by adding an outer wrapper — the multi-commit ordering is load-bearing.
+7. **Multi-commit flows are explicit, not wrapped in `wrap_command()`.** When a handler must commit state → log separately → dispatch side effects (Celery, WS, analytics), the `wrap_command()` comment explains why. Do not "fix" those by adding an outer wrapper — the multi-commit ordering is load-bearing. (The former Blueprint/Run dual-write side effect was removed 2026-07-07 — `Mission` is the sole source of truth.)
 8. **All LLM calls in CQRS routes go through `substrate.UnifiedExecutor` + `mission_to_workflow()`.** This is post-Phase-8.1 — `MissionExecutor` is no longer the execution path. The CQRS command handler `_op()` does:
    ```python
    from app.services.substrate.adapters import mission_to_workflow
@@ -83,8 +83,8 @@ These rules apply across `app/api/`, on top of `backend/AGENTS.md` and `backend/
    workflow = mission_to_workflow(mission, tasks)
    strategy_result = await get_unified_executor().execute(self.session, workflow)
    ```
-9. **Dual-writes to Blueprint/Run are fire-and-forget, not transactional.** The Phase 10.1 dual-write helpers (`dual_write_sync_run_status`, `dual_write_sync_blueprint`, `dual_write_soft_delete_blueprint` in `_mission_cqrs/compat.py`) run via `_schedule_fire_and_forget()` and log + swallow failures. The legacy `Mission` table is the source of truth during the transition; Blueprint/Run is the future.
-10. **Read routing respects the `USE_NEW_READS=1` feature flag.** When the flag is on, queries hit Blueprint/Run tables (`use_new_reads()` check at the top of each query handler). Without the flag, the legacy `Mission` table is queried. Test both paths.
+9. **~~Dual-writes to Blueprint/Run~~ REMOVED (2026-07-07).** The Phase 10.1 dual-write helpers (`dual_write_sync_run_status`, `dual_write_sync_blueprint`, `dual_write_soft_delete_blueprint`) were deleted from `_mission_cqrs/compat.py`; `commands.py` performs no Blueprint/Run writes. The legacy `Mission` table is the sole source of truth. `use_new_reads()` is pinned `False` (kill switch, 2026-07-16) so the query handlers can never serve from the dormant, unpopulated Blueprint/Run model. Do not reintroduce writes without a new decision (see `docs/DUAL-WRITE-DECISION.md`).
+10. **Read routing respects the `USE_NEW_READS` feature flag — currently DISABLED.** `use_new_reads()` is pinned `False` (kill switch, 2026-07-16), so query handlers always read from the legacy `Mission` table. The Blueprint/Run read model is dormant and unpopulated (its write path was removed 2026-07-07, `docs/DUAL-WRITE-DECISION.md`). Do not re-enable without a population/backfill decision.
 11. **The audit log is fire-and-forget, never blocking.** `self.audit.mission_created(...)` / `mission_updated()` / `mission_aborted()` / `mission_executed()` / `mission_paused()` / `mission_resumed()` / `mission_retried()` / `mission_deleted()` are no-fail calls. Do not wrap them in try/except in routes.
 12. **Soft-delete via `deleted_at` is universal.** All list/get queries must filter `WHERE deleted_at IS NULL`. Hard deletes are a code smell.
 13. **The versioning middleware (`APIVersioningMiddleware`) is the single source of truth for `X-API-Version` headers.** Do not set `X-API-Version` manually in routes.

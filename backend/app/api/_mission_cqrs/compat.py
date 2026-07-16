@@ -28,8 +28,24 @@ logger = structlog.get_logger(__name__)
 
 
 def use_new_reads() -> bool:
-    """Check whether the new-reads feature flag is enabled."""
-    return os.environ.get("USE_NEW_READS", "").strip() in ("1", "true", "yes")
+    """Check whether the new-reads feature flag is enabled.
+
+    KILL SWITCH — always False (2026-07-16).
+
+    The Blueprint/Run dual-write was removed 2026-07-07 (commit 5757b0aa;
+    see ``docs/DUAL-WRITE-DECISION.md``). Since then, ``commands.py`` performs
+    ZERO writes to Blueprint/Run, so those tables are unpopulated. With
+    ``USE_NEW_READS=1`` live in ``.env``, the query handlers below would SERVE
+    reads from the dormant, empty Blueprint/Run model — silently returning
+    empty/phantom mission data in production.
+
+    Mission is the sole source of truth. This function is pinned False so the
+    read path can never route to the deprecated model, regardless of env /
+    rebuild state. The flag-reading code is intentionally dead (kept so call
+    sites continue to import without churn). Re-enabling requires a new
+    decision plus a population/backfill path — do not flip without one.
+    """
+    return False
 
 
 # ── Mapping helpers ──────────────────────────────────────────────────────
