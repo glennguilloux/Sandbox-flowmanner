@@ -496,7 +496,12 @@ class TestHandleLlm:
             node_type=NodeType.LLM_CALL,
             config={"prompt": "hello", "model_id": "deepseek-chat", "max_tokens": 10},
         )
+        # Budget.remaining() is sync in production (capability_models.py:301) and
+        # returns a dict with "cost_usd" — depth_selection.py:79 str()'s it into a
+        # Decimal. A bare MagicMock makes remaining() return an AsyncMock/coroutine,
+        # which Decimal() rejects. Use the real interface shape.
         budget = MagicMock()
+        budget.remaining.return_value = {"cost_usd": 0.81}
 
         enforcer = MagicMock()
         enforcer.call = AsyncMock(
@@ -832,7 +837,10 @@ class TestHandleToolRouting:
             result = await ne._handle_tool(db, node, {}, budget, run_id, workflow)
 
         assert result["success"] is True
-        assert result["output"] == {"ok": True}
+        # Authoritative normalized form: _sanitize_tool_output (node_executor.py:807)
+        # always adds a `text` key to dict outputs so downstream consumers have a
+        # stable field. Asserting on the production shape, not the raw tool result.
+        assert result["output"] == {"ok": True, "text": ""}
         assert result["tokens"] == 42
         assert result["cost"] == 0.03
         mock_ws.assert_awaited_once()
