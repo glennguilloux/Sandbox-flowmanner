@@ -196,11 +196,96 @@ def test_safety_fail_constraint_blocked():
 
 
 @pytest.mark.usefixtures("_patch_runner")
-def test_accuracy_scores_against_golden(golden_dir):
-    # fake run predicts "high"; golden is 2x "high" -> accuracy 1.0
+def test_accuracy_scores_per_case_against_golden(golden_dir):
+    # Per-case mode: fake run predicts "high" for each case; golden is 2x "high"
+    # -> every case correct -> accuracy 1.0, source "per_case".
     out = eh.evaluate({"workflow": {"nodes": [], "edges": []}}, "train")
     assert out["accuracy"] == 1.0
-    assert out["_debug"]["accuracy_detail"]["source"] == "exact"
+    assert out["_debug"]["accuracy_detail"]["source"] == "per_case"
+    assert out["_debug"]["accuracy_detail"]["n"] == 2
+    assert out["_debug"]["accuracy_detail"]["correct"] == 2
+
+
+@pytest.mark.usefixtures("_patch_runner")
+def test_per_case_injects_features_and_scores_per_case(golden_dir):
+    # The golden set carries input features (minus the gold label, which must
+    # NOT enter the prompt). Prove per-case features are injected into the
+    # answer node prompt, and that accuracy is aggregated PER CASE (a runner
+    # that always predicts one label is right for exactly the matching cases).
+    captured: list[str] = []
+
+    async def _capture_runner(workflow, candidate):
+        answer = next((n for n in workflow.nodes if n.id == "answer"), None)
+        captured.append((answer.config.get("prompt") if answer else "") or "")
+        return _make_fake_run(True, risk_level="high")
+
+    data = golden_dir
+    (data / "train.jsonl").write_text(
+        json.dumps({"risk_level": "high", "tenure_days": 10})
+        + "\n"
+        + json.dumps({"risk_level": "low", "tenure_days": 900})
+        + "\n",
+        encoding="utf-8",
+    )
+    candidate = {
+        "workflow": {
+            "nodes": [{"id": "answer", "type": "llm", "config": {"prompt": "BASE"}, "effect_class": "reversible"}],
+            "edges": [],
+        }
+    }
+
+    with mock.patch.object(eh, "run_executor", _capture_runner):
+        out = eh.evaluate(candidate, "train")
+
+    # Each case's FEATURES (tenure_days) were injected; the gold label was NOT.
+    assert len(captured) == 2
+    assert '"tenure_days": 10' in captured[0]
+    assert '"tenure_days": 900' in captured[1]
+    assert "BASE" in captured[0]
+    assert "BASE" in captured[1]
+    assert '"risk_level"' not in captured[0]
+    assert '"risk_level"' not in captured[1]
+
+    # Runner always predicts "high" against {high, low} -> exactly 1 correct -> 0.5.
+    assert out["accuracy"] == 0.5
+    assert out["_debug"]["accuracy_detail"]["source"] == "per_case"
+    assert out["_debug"]["accuracy_detail"]["n"] == 2
+    assert out["_debug"]["accuracy_detail"]["correct"] == 1
+    # Per-case labels were the gold labels, predictions the runner's constant.
+    assert [pc["label"] for pc in out["_debug"]["per_case"]] == ["high", "low"]
+    assert [pc["predicted"] for pc in out["_debug"]["per_case"]] == ["high", "high"]
+
+
+@pytest.mark.usefixtures("_patch_runner")
+def test_per_case_safety_fails_whole_eval_on_any_case(golden_dir):
+    # Per-case mode: if ANY case run trips the safety gate, the entire eval's
+    # safety_pass is False (accuracy still reported for the other cases).
+    data = golden_dir
+    (data / "train.jsonl").write_text(
+        json.dumps({"risk_level": "high"}) + "\n" + json.dumps({"risk_level": "low"}) + "\n",
+        encoding="utf-8",
+    )
+    candidate = {
+        "verification": {"forbidden_tools": ["delete_data"]},
+        "workflow": {"nodes": [{"id": "answer", "type": "llm", "effect_class": "reversible"}], "edges": []},
+    }
+
+    calls = {"n": 0}
+
+    async def _second_case_forbidden(workflow, c):
+        calls["n"] += 1
+        # Trip the gate only on the second case; the first stays clean.
+        return _make_fake_run(True, forbidden_tool=(calls["n"] == 2))
+
+    with mock.patch.object(eh, "run_executor", _second_case_forbidden):
+        out = eh.evaluate(candidate, "train")
+    assert out["safety_pass"] is False
+
+    # Two cases, each fake run costs 0.03 / 1200ms -> sum 0.06 / mean 1200.
+    out = eh.evaluate({"workflow": {"nodes": [], "edges": []}}, "train")
+    assert out["cost_usd"] == 0.06
+    assert out["latency_ms"] == 1200.0
+    assert out["safety_pass"] is True
 
 
 @pytest.mark.usefixtures("_patch_runner")

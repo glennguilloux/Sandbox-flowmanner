@@ -30,10 +30,16 @@ The harness-config axes split into two classes:
   they changed retrieval.
 
 accuracy requires a labeled golden set for ``split`` in
-``$EVAL_DATA_DIR/{split}.jsonl`` (one JSON object per line with ``risk_level``).
-With no dataset, accuracy is emitted as ``0.0`` with ``accuracy_source="none"``
-so the optimizer can still run cost/latency/safety Pareto fronts without
-faking quality.
+``$EVAL_DATA_DIR/{split}.jsonl`` (one JSON object per line; the gold label is
+``risk_level`` and every other key is treated as an input feature). When the
+dataset exists, ``evaluate`` runs the workflow **once per case** with that
+case's features injected into the answer node's ``prompt`` (the only channel
+``node_executor._handle_llm`` renders into the live model call) and averages
+accuracy across cases. With no dataset, a single run is executed and accuracy
+is emitted as ``0.0`` with ``accuracy_source="none"`` -- so the optimizer can
+still run cost/latency/safety Pareto fronts without faking quality. Accuracy is
+NEVER fabricated; if a run fails or returns no prediction, that case counts as
+incorrect.
 
 The ONLY infra-touching seam is ``run_executor`` (Postgres + LLM + Qdrant).
 Everything else (workflow build, RAG-knob injection, safety check over the
@@ -334,28 +340,58 @@ def safety_check(
 # ── Accuracy ────────────────────────────────────────────────────────
 
 
-def score_accuracy(split: str, answer_output: dict[str, Any] | None) -> dict[str, Any]:
-    """Score the answer against the labeled golden set for ``split``.
+def score_case(case: dict[str, Any], answer_output: dict[str, Any] | None) -> dict[str, Any]:
+    """Score ONE golden case's predicted answer.
 
-    Returns ``{"accuracy", "source", "n", "correct"}``.
-
-    source="none"  -> no golden dataset for this split; accuracy emitted as 0.0
-                      (NOT fabricated). The optimizer still gets cost/latency/safety.
-    source="exact" -> exact match on the ``risk_level`` field vs. the gold label.
+    Returns ``{"correct": bool, "predicted": str|None, "label": str|None}``.
+    A missing prediction (run failure / no output) counts as incorrect -- we
+    never credit a case we cannot actually predict.
     """
-    golden_path = EVAL_DATA_DIR / f"{split}.jsonl"
-    if not golden_path.exists():
-        return {"accuracy": 0.0, "source": "none", "n": 0, "correct": 0}
-
-    cases = _load_golden(golden_path)
-    if not cases:
-        return {"accuracy": 0.0, "source": "none", "n": 0, "correct": 0}
-
+    label = case.get("risk_level")
     predicted = _predict_risk_level(answer_output)
-    correct = sum(1 for c in cases if c.get("risk_level") == predicted)
     return {
-        "accuracy": round(correct / len(cases), 4),
-        "source": "exact",
+        "correct": bool(label is not None and predicted == label),
+        "predicted": predicted,
+        "label": label,
+    }
+
+
+def _format_case_prompt(base_prompt: str, case: dict[str, Any]) -> str:
+    """Inject one golden case's features into the answer node's prompt.
+
+    ``node_executor._handle_llm`` renders ``node.config["prompt"]`` verbatim as
+    the user message (node_executor:1287; appended at :1370). The ``context``
+    argument to ``UnifiedExecutor.execute`` is NOT surfaced into the prompt, so
+    we inject here -- the only channel that reaches the model live. Features are
+    serialized in a stable, JSON-parseable block so a real run can recover them.
+    """
+    features = {k: v for k, v in case.items() if k != "risk_level"}
+    block = json.dumps(features, ensure_ascii=False, sort_keys=True)
+    return f"{base_prompt}\n\n[CASE INPUT]\n{block}\n[/CASE INPUT]"
+
+
+def score_accuracy(split: str, cases: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Aggregate per-case accuracy for ``split``.
+
+    If ``cases`` is provided (the per-case live path), accuracy is the fraction
+    of cases whose predicted ``risk_level`` matches the gold label. If ``cases``
+    is ``None`` (legacy single-run path with no golden set), returns
+    ``source="none"`` and accuracy ``0.0`` (NOT fabricated).
+    """
+    if cases is None:
+        golden_path = EVAL_DATA_DIR / f"{split}.jsonl"
+        if not golden_path.exists():
+            return {"accuracy": 0.0, "source": "none", "n": 0, "correct": 0}
+        cases = _load_golden(golden_path)
+        if not cases:
+            return {"accuracy": 0.0, "source": "none", "n": 0, "correct": 0}
+        # Legacy single-run path: no per-case predictions available.
+        return {"accuracy": 0.0, "source": "none", "n": len(cases), "correct": 0}
+
+    correct = sum(1 for c in cases if c.get("_scored", {}).get("correct"))
+    return {
+        "accuracy": round(correct / len(cases), 4) if cases else 0.0,
+        "source": "per_case" if cases else "none",
         "n": len(cases),
         "correct": correct,
     }
@@ -392,7 +428,16 @@ def _load_golden(path: Path) -> list[dict[str, Any]]:
 
 
 def evaluate(candidate: dict[str, Any], split: str) -> dict[str, Any]:
-    """Synchronous entry point: build -> inject -> run -> score -> safety."""
+    """Synchronous entry point: build -> inject -> run -> score -> safety.
+
+    Per-case mode (golden set present): the workflow is run once per golden
+    case with that case's features injected into the answer node's prompt. Cost
+    is summed across cases; latency is the mean; safety passes only if EVERY
+    case run passed; accuracy is the fraction of correct per-case predictions.
+
+    Legacy single-run mode (no golden set): one run, accuracy reported as
+    ``0.0`` with ``source="none"`` -- never fabricated.
+    """
     t0 = time.monotonic()
     debug: dict[str, Any] = {}
 
@@ -400,33 +445,105 @@ def evaluate(candidate: dict[str, Any], split: str) -> dict[str, Any]:
     rag_report = inject_rag_knobs(candidate)
     debug["rag_injection"] = rag_report
 
-    try:
-        run = asyncio.run(run_executor(workflow, candidate))
-    except Exception as exc:
-        debug["run_error"] = f"{type(exc).__name__}: {exc}"
-        debug["run_traceback"] = traceback.format_exc()
+    golden_path = EVAL_DATA_DIR / f"{split}.jsonl"
+    cases = _load_golden(golden_path) if golden_path.exists() else []
+
+    if not cases:
+        # ── Legacy single-run path (no labeled dataset) ──────────────
+        try:
+            run = asyncio.run(run_executor(workflow, candidate))
+        except Exception as exc:  # surface failure as a non-passing run
+            debug["run_error"] = f"{type(exc).__name__}: {exc}"
+            debug["run_traceback"] = traceback.format_exc()
+            return {
+                "accuracy": 0.0,
+                "cost_usd": 0.0,
+                "latency_ms": round((time.monotonic() - t0) * 1000, 1),
+                "safety_pass": False,
+                "_debug": debug,
+            }
+
+        result = run["result"]
+        latency_ms = float(result.get("execution_time_ms") or (time.monotonic() - t0) * 1000)
+        safety_pass, safety_failures = safety_check(candidate, run)
+        debug["safety_failures"] = safety_failures
+        accuracy = score_accuracy(split, None)  # source="none", accuracy 0.0
+        debug["accuracy_detail"] = accuracy
         return {
-            "accuracy": 0.0,
-            "cost_usd": 0.0,
-            "latency_ms": round((time.monotonic() - t0) * 1000, 1),
-            "safety_pass": False,
+            "accuracy": float(accuracy["accuracy"]),
+            "cost_usd": round(float(result.get("total_cost_usd", 0.0)), 6),
+            "latency_ms": round(latency_ms, 1),
+            "safety_pass": bool(safety_pass),
             "_debug": debug,
         }
 
-    result = run["result"]
-    latency_ms = float(result.get("execution_time_ms") or (time.monotonic() - t0) * 1000)
+    # ── Per-case loop (golden set present) ─────────────────────────
+    # Locate the answer node to inject each case's features into its prompt.
+    answer_node = next((n for n in workflow.nodes if n.id == "answer"), None)
+    base_prompt = (answer_node.config.get("prompt") if answer_node else None) or ""
 
-    safety_pass, safety_failures = safety_check(candidate, run)
-    debug["safety_failures"] = safety_failures
+    total_cost = 0.0
+    latencies: list[float] = []
+    per_case: list[dict[str, Any]] = []
 
-    accuracy = score_accuracy(split, run.get("answer_output"))
+    for case in cases:
+        if answer_node is not None:
+            # Clone the config so each case gets its own injected prompt.
+            answer_node.config = dict(answer_node.config)
+            answer_node.config["prompt"] = _format_case_prompt(base_prompt, case)
+
+        try:
+            run = asyncio.run(run_executor(workflow, candidate))
+        except Exception as exc:  # a failed case is scored wrong, not crashed
+            debug.setdefault("case_run_errors", []).append(f"{type(exc).__name__}: {exc}")
+            case_scored = {"correct": False, "predicted": None, "label": case.get("risk_level")}
+            per_case.append({"case": case, "scored": case_scored, "answer_output": None})
+            continue
+
+        result = run["result"]
+        total_cost += float(result.get("total_cost_usd", 0.0))
+        latencies.append(float(result.get("execution_time_ms") or (time.monotonic() - t0) * 1000))
+
+        case_safety, case_failures = safety_check(candidate, run)
+        answer_output = run.get("answer_output")
+        case_scored = score_case(case, answer_output)
+        per_case.append(
+            {
+                "case": case,
+                "scored": case_scored,
+                "answer_output": answer_output,
+                "safety_failures": case_failures,
+            }
+        )
+        # Safety must hold for EVERY case; a single violation fails the whole eval.
+        if not case_safety:
+            debug.setdefault("case_safety_failures", []).append(case_failures)
+
+    overall_safety = (
+        all(not c.get("safety_failures") for c in per_case if c.get("safety_failures") is not None)
+        and debug.get("case_safety_failures") is None
+    )
+    # Annotate each case with its score for aggregation.
+    for c in per_case:
+        c["case"]["_scored"] = c["scored"]
+
+    accuracy = score_accuracy(split, cases)
+    debug["per_case"] = [
+        {
+            "label": pc["case"].get("risk_level"),
+            "predicted": pc["scored"]["predicted"],
+            "correct": pc["scored"]["correct"],
+        }
+        for pc in per_case
+    ]
     debug["accuracy_detail"] = accuracy
 
+    mean_latency = round(sum(latencies) / len(latencies), 1) if latencies else 0.0
     return {
         "accuracy": float(accuracy["accuracy"]),
-        "cost_usd": round(float(result.get("total_cost_usd", 0.0)), 6),
-        "latency_ms": round(latency_ms, 1),
-        "safety_pass": bool(safety_pass),
+        "cost_usd": round(total_cost, 6),
+        "latency_ms": mean_latency,
+        "safety_pass": bool(overall_safety),
         "_debug": debug,
     }
 
