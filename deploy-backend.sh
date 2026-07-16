@@ -203,7 +203,28 @@ boot_smoke_test() {
 
   local env_file
   env_file=$(mktemp /tmp/flowmanner-boot-smoke-env.XXXXXX.txt)
-  docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$BACKEND_CONTAINER" > "$env_file"
+  # Prefer the COMPOSE-resolved env (docker-compose.yml `env_file:` + `environment:`),
+  # because that is exactly what `docker compose up` injects at promotion time.
+  # Borrowing the *running* container's env is WRONG: it lacks newly-added .env
+  # secrets (e.g. BYOK_KEK_SECRET), causing a false-negative boot-smoke failure
+  # that aborts the deploy before `docker compose up` can supply the secret.
+  if docker compose -f "$COMPOSE_DIR/docker-compose.yml" config --format json 2>/dev/null \
+       | python3 -c "import sys,json;
+d=json.load(sys.stdin);
+svc=[s for n,s in (d.get('services') or {}).items() if n=='$BACKEND_CONTAINER'];
+import os;
+envs=svc[0].get('environment') if svc else None;
+open('$env_file','w').write('\n'.join(f\"{k}={v}\" for k,v in envs.items())+'\n') if envs else None" 2>/dev/null \
+       && [ -s "$env_file" ]; then
+    log_info "Smoke test using compose-resolved env (includes .env secrets)"
+  elif docker ps --format '{{.Names}}' | grep -q "$BACKEND_CONTAINER"; then
+    docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$BACKEND_CONTAINER" > "$env_file"
+    log_warn "Compose env resolution failed — fell back to running container env"
+  else
+    log_warn "No env source available — skipping boot smoke test"
+    rm -f "$env_file"
+    return 0
+  fi
 
   local net
   net=$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' "$BACKEND_CONTAINER" | head -1)
