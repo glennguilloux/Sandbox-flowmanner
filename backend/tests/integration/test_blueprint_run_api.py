@@ -423,6 +423,62 @@ class TestPublishBlueprint:
 
         assert resp.status_code == 400
 
+    def test_publish_dangling_edge_returns_400(self, client, mock_db):
+        """Publishing a blueprint with a dangling edge must 4xx and name the
+        missing node — not fail silently at run time (or 500)."""
+        from types import SimpleNamespace
+
+        bp_id = str(uuid4())
+        dangling_def = {
+            "blueprint_type": "dag",
+            "nodes": [{"id": "a", "type": "llm_call"}],
+            "edges": [{"source": "a", "target": "ghost"}],
+        }
+        # A lightweight real object (not MagicMock, whose attributes are
+        # themselves mocks) so Blueprint.definition yields the actual dict.
+        fake_bp = SimpleNamespace(
+            id=bp_id,
+            status="draft",
+            definition=dangling_def,
+            user_id=42,
+        )
+        # BlueprintService.get() reads the row via db.execute(...).scalar_one_or_none().
+        # AsyncMock returns db.execute.return_value (a coroutine by default), so we
+        # must set it to a result object whose scalar_one_or_none returns fake_bp.
+        from unittest.mock import MagicMock
+
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = fake_bp
+        mock_db.execute.return_value = result
+
+        resp = client.post(f"/api/v2/blueprints/{bp_id}/publish")
+
+        assert resp.status_code == 400
+        assert "ghost" in resp.json()["detail"]
+
+    def test_create_dangling_edge_returns_400(self, client, mock_db):
+        """Creating a blueprint with a dangling edge must be rejected at save time."""
+        from unittest.mock import MagicMock
+
+        dangling_def = {
+            "blueprint_type": "dag",
+            "nodes": [{"id": "a", "type": "llm_call"}],
+            "edges": [{"source": "ghost", "target": "a"}],
+        }
+        # create() does NOT query first, so let db.add / flush succeed; the gate
+        # runs before the Blueprint row is built.
+        resp = client.post(
+            "/api/v2/blueprints",
+            json={
+                "title": "Broken",
+                "blueprint_type": "dag",
+                "definition": dangling_def,
+            },
+        )
+
+        assert resp.status_code == 400
+        assert "ghost" in resp.json()["detail"]
+
 
 class TestRunBlueprint:
     """POST /api/v2/blueprints/{id}/run"""
