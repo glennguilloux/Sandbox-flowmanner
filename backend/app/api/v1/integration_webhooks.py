@@ -19,10 +19,13 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.database import get_db
+from app.services.event_bus import get_event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -445,13 +448,20 @@ def verify_webhook(
 
 
 @router.post("/{provider}/webhook")
-async def handle_provider_webhook(provider: str, request: Request):
+async def handle_provider_webhook(
+    provider: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """Generic inbound webhook endpoint for all integrated providers.
 
     1. Looks up provider config from ``PROVIDERS`` registry.
     2. Verifies the request signature/token per the provider's auth_type.
     3. Parses JSON body and extracts (event_type, event_id, payload).
-    4. Returns ``{"status": "ok"}`` or provider-specific response.
+    4. Persists the event to the durable ``external_events`` bus
+       (``EventBus.publish``) BEFORE acknowledging, so webhook events
+       survive restarts / load and gain idempotency + replay.
+    5. Returns ``{"status": "ok"}`` or provider-specific response.
     """
     config = PROVIDERS.get(provider)
     if not config:
@@ -485,6 +495,27 @@ async def handle_provider_webhook(provider: str, request: Request):
         event_id or "n/a",
     )
 
-    # TODO: Route to external_events durable bus when integration is wired
-    # For now, log and acknowledge — the same behavior as the individual files.
+    # Route to the durable external_events bus. `EventBus.publish` persists the
+    # ExternalEvent row (idempotency via delivery_id) and dispatches to registered
+    # consumers (trigger matching, audit log). The caller owns the transaction:
+    # `get_db` commits on normal return, so the event is durable BEFORE the ack
+    # is sent. A bus failure raises and rolls back the transaction (no ack), so
+    # the provider retries — preserving at-least-once delivery.
+    try:
+        bus = get_event_bus()
+        await bus.publish(
+            db,
+            source=provider,
+            event_type=event_type,
+            payload=payload,
+            raw_body=payload,
+            delivery_id=event_id or None,
+        )
+    except Exception:
+        logger.exception(
+            "%s webhook: failed to persist event to durable bus — nacking",
+            provider,
+        )
+        raise
+
     return {"status": "ok", "provider": provider, "event_type": event_type}
