@@ -88,6 +88,7 @@ COPY tests/ /app/tests/
 # entrypoint can reconcile the live gallery on every boot (self-healing:
 # the canvas always matches the image's seed, no manual re-seed needed).
 COPY seed_templates.py /app/seed_templates.py
+COPY LICENSE /app/LICENSE
 COPY schemas/ /app/schemas/
 
 # Ensure no stray __pycache__ or .pyc from the host leak in
