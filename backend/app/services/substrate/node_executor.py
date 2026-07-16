@@ -1512,7 +1512,7 @@ class NodeExecutor:
         if not task_prompt:
             return {"success": False, "error": "No task_prompt provided"}
 
-        template = config.get("template", "python")
+        template = config.get("template", "worker-standard")
         shared_workspace = config.get("shared_workspace", False)
         input_files = config.get("input_files", {})
         snapshot_before = config.get("snapshot_before", False)
