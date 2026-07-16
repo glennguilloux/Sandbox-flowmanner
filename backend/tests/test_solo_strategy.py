@@ -89,7 +89,7 @@ class TestSoloExecute:
             }
         )
 
-        result = await strategy.execute(wf, {}, mock_executor, db)
+        result = await strategy.execute(wf, {}, mock_executor, db, run_id="test-run-solo")
 
         assert result.success is True
         assert result.status == "completed"
@@ -113,7 +113,7 @@ class TestSoloExecute:
             }
         )
 
-        result = await strategy.execute(wf, {}, mock_executor, db)
+        result = await strategy.execute(wf, {}, mock_executor, db, run_id="test-run-solo")
 
         assert result.success is False
         assert result.status == "failed"
@@ -129,7 +129,7 @@ class TestSoloExecute:
         mock_executor = MagicMock()
         mock_executor.is_aborted = MagicMock(return_value=True)
 
-        result = await strategy.execute(wf, {}, mock_executor, db)
+        result = await strategy.execute(wf, {}, mock_executor, db, run_id="test-run-solo")
 
         assert result.success is False
         assert result.status == "aborted"
@@ -146,7 +146,7 @@ class TestSoloExecute:
         mock_executor.is_aborted = MagicMock(return_value=False)
         mock_executor.execute_node = AsyncMock(return_value={"success": True, "output": "ok"})
 
-        await strategy.execute(wf, {}, mock_executor, db)
+        await strategy.execute(wf, {}, mock_executor, db, run_id="custom-run-id")
 
         # Verify the run_id was passed to execute_node
         call_kwargs = mock_executor.execute_node.call_args[1]

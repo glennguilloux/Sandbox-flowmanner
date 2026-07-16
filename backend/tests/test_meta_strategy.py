@@ -148,7 +148,7 @@ class TestMetaExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        result = await s.execute(wf, {"goal": "Test"}, executor, db)
+        result = await s.execute(wf, {"goal": "Test"}, executor, db, run_id="test-run-meta")
 
         assert result.success is True
         assert result.status == "completed"
@@ -163,7 +163,7 @@ class TestMetaExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        result = await s.execute(wf, {"goal": "Solo"}, executor, db)
+        result = await s.execute(wf, {"goal": "Solo"}, executor, db, run_id="test-run-meta")
 
         assert result.success is True
         assert len(result.completed_nodes) == 1
@@ -175,7 +175,7 @@ class TestMetaExecute:
         db = AsyncMock()
         executor = _make_executor(is_aborted=True)
 
-        result = await s.execute(wf, {"goal": "Test"}, executor, db)
+        result = await s.execute(wf, {"goal": "Test"}, executor, db, run_id="test-run-meta")
 
         assert result.success is False
         assert result.status == "aborted"
@@ -205,7 +205,7 @@ class TestMetaExecute:
 
         executor.execute_node = AsyncMock(side_effect=fail_then_succeed)
 
-        result = await s.execute(wf, {"goal": "Original"}, executor, db)
+        result = await s.execute(wf, {"goal": "Original"}, executor, db, run_id="test-run-meta")
 
         assert result.success is True
         assert call_count == 2  # failed once, succeeded on retry
@@ -224,7 +224,7 @@ class TestMetaExecute:
             }
         )
 
-        result = await s.execute(wf, {"goal": "Test"}, executor, db)
+        result = await s.execute(wf, {"goal": "Test"}, executor, db, run_id="test-run-meta")
 
         assert result.success is False
         assert result.status == "failed"
@@ -244,7 +244,7 @@ class TestMetaExecute:
             }
         )
 
-        result = await s.execute(wf, {"goal": "Test"}, executor, db)
+        result = await s.execute(wf, {"goal": "Test"}, executor, db, run_id="test-run-meta")
 
         assert result.success is False
         assert result.status == "failed"
@@ -257,7 +257,7 @@ class TestMetaExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        result = await s.execute(wf, {"goal": "Test"}, executor, db)
+        result = await s.execute(wf, {"goal": "Test"}, executor, db, run_id="test-run-meta")
 
         assert result.success is False
         assert "depth" in result.error.lower()
@@ -290,7 +290,7 @@ class TestMetaExecute:
 
         executor.execute_node = AsyncMock(side_effect=count_calls)
 
-        result = await s.execute(wf, {"goal": "Test"}, executor, db)
+        result = await s.execute(wf, {"goal": "Test"}, executor, db, run_id="test-run-meta")
 
         assert result.success is False
         assert result.status == "aborted"
@@ -303,7 +303,7 @@ class TestMetaExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-meta")
 
         assert result.success is True
         call_kwargs = executor.execute_node.call_args[1]
@@ -318,7 +318,7 @@ class TestMetaExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-meta")
 
         assert result.success is True
         call_kwargs = executor.execute_node.call_args[1]
@@ -332,7 +332,7 @@ class TestMetaExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        await s.execute(wf, {"goal": "Test"}, executor, db)
+        await s.execute(wf, {"goal": "Test"}, executor, db, run_id="test-run-meta")
 
         call_kwargs = executor.execute_node.call_args[1]
         assert call_kwargs["context"]["depth"] == 0
@@ -344,7 +344,7 @@ class TestMetaExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        await s.execute(wf, {}, executor, db)
+        await s.execute(wf, {}, executor, db, run_id="meta-run-1")
 
         call_kwargs = executor.execute_node.call_args[1]
         assert call_kwargs["run_id"] == "meta-run-1"
@@ -372,7 +372,7 @@ class TestMetaExecute:
 
         executor.execute_node = AsyncMock(side_effect=capture_and_succeed)
 
-        result = await s.execute(wf, {"goal": "Test"}, executor, db)
+        result = await s.execute(wf, {"goal": "Test"}, executor, db, run_id="test-run-meta")
 
         assert result.success is True
         assert contexts_seen[1].get("previous_error") == "First failure"

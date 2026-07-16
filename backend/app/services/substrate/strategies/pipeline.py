@@ -74,6 +74,7 @@ class PipelineStrategy(ExecutionStrategy):
         db: AsyncSession,
         run_id: str,
     ) -> StrategyResult:
+        total_tokens = 0
         total_cost = 0.0
         completed: list[str] = []
         review_feedback = None

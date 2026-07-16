@@ -27,10 +27,8 @@ def _make_swarm_workflow(
     metadata=None,
 ):
     nodes = []
-    for i in range(fan_out_count):
-        nodes.append(WorkflowNode(id=f"fo{i}", type=NodeType.FAN_OUT, title=f"Fan Out {i}"))
-    for i in range(fan_in_count):
-        nodes.append(WorkflowNode(id=f"fi{i}", type=NodeType.FAN_IN, title=f"Fan In {i}"))
+    nodes.extend(WorkflowNode(id=f"fo{i}", type=NodeType.FAN_OUT, title=f"Fan Out {i}") for i in range(fan_out_count))
+    nodes.extend(WorkflowNode(id=f"fi{i}", type=NodeType.FAN_IN, title=f"Fan In {i}") for i in range(fan_in_count))
     if extra_nodes:
         nodes.extend(extra_nodes)
     return Workflow(
@@ -152,7 +150,7 @@ class TestSwarmExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        result = await s.execute(wf, {"goal": "Do research"}, executor, db)
+        result = await s.execute(wf, {"goal": "Do research"}, executor, db, run_id="test-run-swarm")
 
         assert result.success is True
         assert result.status == "completed"
@@ -167,7 +165,7 @@ class TestSwarmExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-swarm")
 
         assert result.success is True
         # Verify call_llm was called with the workflow description as goal
@@ -182,7 +180,7 @@ class TestSwarmExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        result = await s.execute(wf, {"goal": "Custom goal"}, executor, db)
+        result = await s.execute(wf, {"goal": "Custom goal"}, executor, db, run_id="test-run-swarm")
 
         assert result.success is True
         decompose_call = executor.call_llm.call_args_list[0]
@@ -196,7 +194,7 @@ class TestSwarmExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        await s.execute(wf, {}, executor, db)
+        await s.execute(wf, {}, executor, db, run_id="swarm-run-1")
 
         decompose_call = executor.call_llm.call_args_list[0]
         assert decompose_call[1]["run_id"] == "swarm-run-1"
@@ -209,7 +207,7 @@ class TestSwarmExecute:
         executor = _make_executor()
         executor.is_aborted = MagicMock(return_value=True)
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-swarm")
 
         assert result.success is False
         assert result.status == "aborted"
@@ -229,7 +227,7 @@ class TestSwarmExecute:
             ]
         )
 
-        result = await s.execute(wf, {"goal": "Test goal"}, executor, db)
+        result = await s.execute(wf, {"goal": "Test goal"}, executor, db, run_id="test-run-swarm")
 
         assert result.success is True
         # Should have dispatched 1 fallback task + synthesis call
@@ -249,7 +247,7 @@ class TestSwarmExecute:
             ]
         )
 
-        result = await s.execute(wf, {"goal": "Test"}, executor, db)
+        result = await s.execute(wf, {"goal": "Test"}, executor, db, run_id="test-run-swarm")
 
         assert result.success is True
         assert executor.execute_node.call_count == 1  # single fallback task
@@ -272,7 +270,7 @@ class TestSwarmExecute:
             ]
         )
 
-        result = await s.execute(wf, {"goal": "Test"}, executor, db)
+        result = await s.execute(wf, {"goal": "Test"}, executor, db, run_id="test-run-swarm")
 
         assert result.success is True
         assert executor.execute_node.call_count == 1
@@ -286,11 +284,13 @@ class TestSwarmExecute:
         executor = _make_executor()
         executor.execute_node = AsyncMock(side_effect=RuntimeError("agent crashed"))
 
-        result = await s.execute(wf, {"goal": "Test"}, executor, db)
+        result = await s.execute(wf, {"goal": "Test"}, executor, db, run_id="test-run-swarm")
 
         # Synthesis still runs, but with error outputs
         assert executor.call_llm.call_count == 2  # decompose + synthesis
-        assert result.success is True  # synthesis succeeded
+        # Run success reflects subagent outcomes (trust boundary): all agents
+        # crashed, so the run fails even though synthesis itself succeeded.
+        assert result.success is False
 
     @pytest.mark.asyncio
     async def test_execute_agent_failure(self):
@@ -306,14 +306,14 @@ class TestSwarmExecute:
             }
         )
 
-        result = await s.execute(wf, {"goal": "Test"}, executor, db)
+        result = await s.execute(wf, {"goal": "Test"}, executor, db, run_id="test-run-swarm")
 
         # Synthesis still runs
         assert executor.call_llm.call_count == 2
         # Check agent outputs include failure info
         synthesis_call = executor.call_llm.call_args_list[1]
         prompt = synthesis_call[1]["messages"][1]["content"]
-        assert "Failed" in prompt
+        assert "FAILED" in prompt
 
     @pytest.mark.asyncio
     async def test_execute_synthesis_failure(self):
@@ -333,7 +333,7 @@ class TestSwarmExecute:
             ]
         )
 
-        result = await s.execute(wf, {"goal": "Test"}, executor, db)
+        result = await s.execute(wf, {"goal": "Test"}, executor, db, run_id="test-run-swarm")
 
         assert result.success is False
         assert result.status == "failed"
@@ -372,7 +372,7 @@ class TestSwarmExecute:
             ]
         )
 
-        result = await s.execute(wf, {"goal": "Multi-task goal"}, executor, db)
+        result = await s.execute(wf, {"goal": "Multi-task goal"}, executor, db, run_id="test-run-swarm")
 
         assert result.success is True
         assert executor.execute_node.call_count == 3
@@ -387,7 +387,7 @@ class TestSwarmExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-swarm")
 
         assert result.success is True
         decompose_call = executor.call_llm.call_args_list[0]
