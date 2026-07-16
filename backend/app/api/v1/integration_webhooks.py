@@ -153,7 +153,26 @@ def _verify_slack(body: bytes, headers: dict[str, str], secret: str | None) -> b
 
 
 def _verify_twilio(body: bytes, headers: dict[str, str], secret: str | None, request_url: str = "") -> bool:
-    """Twilio HMAC-SHA1 verification.
+    """Twilio HMAC-SHA1 verification (provider-mandated, NOT a weakness to "fix").
+
+    SECURITY POSTURE NOTE (self-audit LOW-13, 2026-07-15):
+      Twilio signs its outbound webhooks with **HMAC-SHA1** by specification
+      (``X-Twilio-Signature`` = Base64(HMAC-SHA1(auth_token, url + sorted_params))).
+      Twilio does NOT publish a SHA-256 validation mode for inbound webhooks, so
+      this implementation MUST stay on SHA1 to remain interoperable — upgrading the
+      hash here would break verification for every real Twilio request, which is a
+      far worse outcome than using a "weaker" hash on a provider-locked scheme.
+
+      SHA1's collision weakness is not exploitable in an HMAC construction: the
+      security of HMAC-SHA1 rests on the secrecy of the auth token (key), not on
+      second-preimage resistance of SHA1, and Twilio rotates/keys per-account. The
+      residual risk is therefore provider-bounded and accepted. Other providers in
+      this registry (Stripe, Slack, GitHub, …) use SHA256 because those providers
+      OFFER it; Twilio simply does not.
+
+      Do NOT "harden" this to SHA256 unless Twilio ships a SHA256 signature header.
+      If that ever happens, gate it behind a config flag and verify BOTH until the
+      old header is fully retired — never replace unconditionally.
 
     Twilio signs webhooks by computing HMAC-SHA1 of the full request URL
     concatenated with sorted form parameters, using the auth token as key.
@@ -181,6 +200,8 @@ def _verify_twilio(body: bytes, headers: dict[str, str], secret: str | None, req
     signed_string = request_url + sorted_params
 
     # HMAC-SHA1 with the Twilio auth token
+    # HMAC-SHA1 is MANDATED by Twilio's validation protocol (see docstring above).
+    # Do NOT swap to hashlib.sha256 — Twilio only emits X-Twilio-Signature as SHA1.
     expected = base64.b64encode(
         hmac.new(
             secret.encode("utf-8"),
