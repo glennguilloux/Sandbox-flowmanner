@@ -141,18 +141,18 @@ async def test_delete_api_key():
 
 
 def test_encrypt_decrypt_api_key():
-    """Test encryption utility — v2 per-key-salt format."""
+    """Test encryption utility — v3 envelope format."""
     from app.utils.encryption import decrypt_api_key, encrypt_api_key
 
-    original_key = "sk-test123456789"
+    original_key = "«redacted:sk-…»"
     encrypted = encrypt_api_key(original_key)
     decrypted = decrypt_api_key(encrypted)
 
     assert decrypted == original_key
-    assert encrypted.startswith("v2:"), "New encryptions must use v2 format"
-    # Random salt means two encryptions of the same plaintext differ
+    assert encrypted.startswith("v3:"), "New encryptions must use v3 envelope format"
+    # Random DEK means two encryptions of the same plaintext differ
     encrypted2 = encrypt_api_key(original_key)
-    assert encrypted != encrypted2, "Per-key salt must produce different ciphertexts"
+    assert encrypted != encrypted2, "Per-record DEK must produce different ciphertexts"
     assert decrypt_api_key(encrypted2) == original_key
 
 
@@ -206,7 +206,7 @@ def test_re_encrypt_api_key():
     with patch.object(enc_module, "settings", mock_settings):
         v2_encrypted = enc_module.re_encrypt_api_key(v1_encrypted)
 
-    assert v2_encrypted.startswith("v2:"), "re_encrypt must produce v2 format"
+    assert v2_encrypted.startswith("v3:"), "re_encrypt must produce v3 envelope format"
     assert v2_encrypted != v1_encrypted
     with patch.object(enc_module, "settings", mock_settings):
         assert enc_module.decrypt_api_key(v2_encrypted) == plaintext

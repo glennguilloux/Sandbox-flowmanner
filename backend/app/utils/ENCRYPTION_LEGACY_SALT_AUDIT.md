@@ -10,7 +10,9 @@ per-record). Severity: medium.
 ## What is still encrypted with the v1 path?
 Encryption (`encrypt_api_key`) has used the **v2 per-key random-salt** format
 since the change that introduced migration `byok_per_key_salt_001`
-(2026-07-04). The v1 path is now **read-only legacy-decrypt only**.
+(2026-07-04), and as of 2026-07-16 was upgraded to full **v3 envelope
+encryption** (KEK wraps a per-record DEK — see `app/utils/encryption.py`
+`encrypt_api_key`). The v1 path is now **read-only legacy-decrypt only**.
 
 Three stores consume this module:
 1. `user_api_keys.encrypted_key` (BYOK) — **already migrated** to v2 by
