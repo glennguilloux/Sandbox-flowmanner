@@ -298,10 +298,16 @@ class TestNodeTypeMapping:
         assert by_id["approval"] == NodeType.APPROVAL
         assert by_id["parallel"] == NodeType.FAN_OUT
         assert by_id["rag_query"] == NodeType.RAG_QUERY
-        # Documented semantic-loss: these all fall back to LLM_CALL because they
-        # are absent from _TASK_TYPE_MAP (see report). Locked as current behavior.
-        for t in ["task", "transform", "condition", "log", "loop", "webhook"]:
-            assert by_id[t] == NodeType.LLM_CALL, (t, by_id[t])
+        # "task" has no NodeType member of its own and correctly maps to LLM_CALL
+        # (a generic prompt-driven task is an LLM call). The other five template
+        # nodeTypes now have real enum members + NodeExecutor handlers
+        # (Scope B: Finding 3) instead of silently collapsing to LLM_CALL.
+        assert by_id["task"] == NodeType.LLM_CALL
+        assert by_id["transform"] == NodeType.TRANSFORM
+        assert by_id["condition"] == NodeType.CONDITION
+        assert by_id["log"] == NodeType.LOG
+        assert by_id["loop"] == NodeType.LOOP
+        assert by_id["webhook"] == NodeType.WEBHOOK
 
     def test_explicit_canonical_type_via_data_nodeType(self):
         """The map path uses ``data.nodeType``. 'tool' maps to TOOL_CALL;
