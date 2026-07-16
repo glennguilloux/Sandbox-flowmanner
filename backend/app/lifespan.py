@@ -27,6 +27,15 @@ async def lifespan(app):
 
     _validate_production_secrets()
 
+    # Comment 5: fail fast when an enabled model cannot be served (missing
+    # pricing/provider/env key). In production this raises; in dev it warns.
+    try:
+        from app.services.model_catalog import validate_model_catalog_at_startup
+
+        validate_model_catalog_at_startup()
+    except Exception as cat_err:  # pragma: no cover - defensive
+        logger.warning("Model catalog startup validation skipped: %s", cat_err)
+
     # Initialize Langfuse observability
     _init_langfuse()
 

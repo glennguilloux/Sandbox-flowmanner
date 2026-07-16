@@ -11,6 +11,11 @@ This project spans two machines. Use the file that matches where your agent runs
 - **Homelab agents** (10.99.0.3 / 172.16.1.1) → [AGENTS.homelab.md](./AGENTS.homelab.md)
 - **Ops/Dev agents** (172.16.1.2) → [AGENTS.ops.md](./AGENTS.ops.md)
 
+## Docs
+
+- **Mission template catalog** (35 built-in templates, node types, categories, add-a-template guide) → [templates/README.md](./templates/README.md)
+- **`.sisyphus/` knowledge-substrate schema** (Timeline convention + "earn a kind" gate) → [.sisyphus/SCHEMA.md](./.sisyphus/SCHEMA.md)
+
 ## Quick Reference
 
 | | VPS | Homelab | Ops/Dev |

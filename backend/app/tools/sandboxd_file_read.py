@@ -59,31 +59,34 @@ class SandboxdFileReadTool(BaseTool):
         except Exception as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
-        try:
-            sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
-            if not sandbox_id:
-                return ToolResult.error_result(
-                    tool_id=self.tool_id,
-                    error="No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`.",
-                )
+        # Hard wall-clock cap: a wedged sandboxd must never freeze the chat
+        # turn. Timeout is surfaced as a clean error_result (see _sandbox_timeout).
+        from app.tools._sandbox_timeout import run_sandbox_tool
 
-            if ".." in validated.path or validated.path.startswith("/"):
-                return ToolResult.error_result(
-                    tool_id=self.tool_id,
-                    error="Path must be relative and must not contain '..'",
-                )
+        return await run_sandbox_tool(self.tool_id, self._run(validated))
 
-            client = self._get_client()
-            # Use native GET /files/content API (up to 2 MiB)
-            content = await client.read_file(sandbox_id, validated.path)
-
-            return ToolResult.success_result(
+    async def _run(self, validated: SandboxdFileReadInput) -> ToolResult:
+        sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
+        if not sandbox_id:
+            return ToolResult.error_result(
                 tool_id=self.tool_id,
-                result={"content": content, "path": validated.path},
+                error="No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`.",
             )
-        except Exception as e:
-            logger.exception("sandboxd_file_read failed")
-            return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
+
+        if ".." in validated.path or validated.path.startswith("/"):
+            return ToolResult.error_result(
+                tool_id=self.tool_id,
+                error="Path must be relative and must not contain '..'",
+            )
+
+        client = self._get_client()
+        # Use native GET /files/content API (up to 2 MiB)
+        content = await client.read_file(sandbox_id, validated.path)
+
+        return ToolResult.success_result(
+            tool_id=self.tool_id,
+            result={"content": content, "path": validated.path},
+        )
 
     @staticmethod
     def _resolve_sandbox_id() -> str | None:

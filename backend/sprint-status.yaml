@@ -1,39 +1,70 @@
-# Sprint Status (Party Mode Sign-Off)
+# Sprint Status
+#
+# Format note: entries before Phase 7 used the "Party Mode Sign-Off" cadence.
+# After Phase 7 (2026-06-04) the project shifted to continuous feature/audit
+# branches driven by the kanban board; there is no single "sprint" sign-off
+# artifact. Post-Phase-7 activity below is DERIVED FROM COMMIT HISTORY and the
+# live kanban board (verified 2026-07-16), NOT from formal sprint sign-offs,
+# so it is summarized as milestones, not asserted as closed sprints.
 
-## FLO-15: Facilitate Party Mode Cross-Role Sign-Off
-- **Status**: Completed
-- **Sign-Off Timestamps**:
-  - Mary (Business Analyst): 2026-04-30T12:45:00Z ✅
-  - Amelia (Developer): 2026-04-30T12:46:00Z ✅
-  - Quinn (QA Engineer): 2026-04-30T12:47:00Z ✅
-  - John (PM): 2026-04-30T12:48:00Z ✅
-  - Bob (Scrum Master): 2026-04-30T12:49:00Z ✅
-- **Artifacts Signed Off**:
-  - architecture.md (a96a43b)
-  - epics.md (a96a43b)
-- **Push to feature/flowmanner-architecture**: ✅ 2026-04-30T12:50:00Z
 
----
 
-## Phase 7: Full Read Cutover & Dual-Write Activation
-- **Status**: Completed
-- **Completed**: 2026-06-04
-- **Summary**:
-  - Fixed 9 test assertion failures in test_new_reads_compat.py (mock identity + fire-and-forget assertions)
-  - Added `list_active_from_blueprints()` and `active_missions_from_blueprints()` compat functions
-  - Wired list_active/active_missions to support new read path with USE_NEW_READS guard
-  - Fixed cache-hit path in list_active to query Blueprint+Run when flag is on
-  - Added `_mission_status_to_run_status()` mapper (running→executing, planning→pending, approved→completed)
-  - Added dual-write helpers: `dual_write_sync_run_status`, `dual_write_sync_blueprint`, `dual_write_soft_delete_blueprint`
-  - Wired dual-write into all 7 mutation endpoints (update, delete, abort, pause, resume, retry, batch_abort)
-  - Added 16 integration tests for dual-write helpers and status mapping
-  - Enabled USE_NEW_READS=1 in production .env
-  - Deployed backend with all changes — health check passed, no dual-write errors in logs
-  - Deprecation headers already present on v1 mission/graph/flow_compat routers (Phase 5.5)
-- **Test Results**: 99/99 pass (65 integration + 34 unit)
-- **Key Files Changed**:
-  - backend/app/api/_mission_cqrs/compat.py (new read functions + dual-write helpers + status mapper)
-  - backend/app/api/_mission_cqrs/queries.py (list_active/active_missions USE_NEW_READS guard + cache-hit fix)
-  - backend/app/api/_mission_cqrs/commands.py (dual-write wired into all mutations)
-  - backend/tests/integration/test_new_reads_compat.py (9→65 tests)
-  - backend/.env (USE_NEW_READS=1)
+## [ARCHIVED] FLO-15: Facilitate Party Mode Cross-Role Sign-Off
+- "Status": "Completed (archived -- last real update 2026-04-30)"
+- "Sign-Off Timestamps":
+  - "Mary (Business Analyst): 2026-04-30T12:45:00Z"
+  - "Amelia (Developer): 2026-04-30T12:46:00Z"
+  - "Quinn (QA Engineer): 2026-04-30T12:47:00Z"
+  - "John (PM): 2026-04-30T12:48:00Z"
+  - "Bob (Scrum Master): 2026-04-30T12:49:00Z"
+- "Artifacts Signed Off":
+  - "architecture.md (a96a43b)"
+  - "epics.md (a96a43b)"
+- "Push to feature/flowmanner-architecture": "2026-04-30T12:50:00Z"
+
+# ---------------------------------------------------------------------------
+
+## [ARCHIVED] Phase 7: Full Read Cutover & Dual-Write Activation
+- "Status": "Completed (archived -- entry last updated 2026-06-04; flagged stale by self-audit MED-08, 2026-07-16)"
+- "Completed": "2026-06-04"
+- "Summary (historical, as originally recorded)":
+  - "Fixed 9 test assertion failures in test_new_reads_compat.py (mock identity + fire-and-forget assertions)"
+  - "Added list_active_from_blueprints() and active_missions_from_blueprints() compat functions"
+  - "Wired list_active/active_missions to support new read path with USE_NEW_READS guard"
+  - "Added _mission_status_to_run_status() mapper (running to executing, planning to pending, approved to completed)"
+  - "Added dual-write helpers: dual_write_sync_run_status, dual_write_sync_blueprint, dual_write_soft_delete_blueprint"
+  - "Wired dual-write into all 7 mutation endpoints (update, delete, abort, pause, resume, retry, batch_abort)"
+  - "Added 16 integration tests for dual-write helpers and status mapping"
+  - "Enabled USE_NEW_READS=1 in production .env"
+  - "Deployed backend -- health check passed"
+  - "Deprecation headers present on v1 mission/graph/flow_compat routers (Phase 5.5)"
+- "Verification note (2026-07-16)": "USE_NEW_READS flag still present in code (app/api/_mission_cqrs/compat.py, queries.py); conftest forces it off in tests. Dual-write path remains live. No regression to this phase is asserted here."
+
+# ---------------------------------------------------------------------------
+
+## Post-Phase-7 Activity (2026-07-11 to 2026-07-16, derived from git log + kanban)
+# These are milestones reconstructed from commit subjects and board state. They
+# are NOT formal sprint sign-offs. Each line is a verified commit-log fact.
+
+- "2026-07-13 -- Backend error-audit resolutions (P0)": "SSRF guard on api_keys base_url (R-8/R-9), budget pre-call estimate + fail-closed circuit breaker (R-4/R-5/R-11), governance approval callback path (G-*), rate-limit path/XFF/partition fixes (R-1/R-2/R-3), swarm run_sync detachment data-loss fix. (commits 6c6b6cb0 .. e10f6ae1)"
+- "2026-07-13 -- Mission template catalog expanded": "11 + 8 + 8 domain/advanced templates added; catalog docs updated. (fe650153, db8da06b, a1ff71fc)"
+- "2026-07-13 -- Intent-execution architecture audits opened": "multiple [AUDIT] Intent-execution:* tasks, mostly blocked/needs_input as of 2026-07-16."
+- "2026-07-14 -- Chat streaming hardening (BYOK P0/P1)": "hard per-tool timeout, stream-read timeout, default Budget for title gen, budget gate regression fix, /v1/models single source of truth. (a2899b02 .. dc455fc6)"
+- "2026-07-14 -- Substrate edge-target validation": "validate edge.target branch: drop sentinel edges, derive workflow type from topology, clear graph.py mypy debt. (7f81aa87, 9659c199)"
+- "2026-07-14 -- Resilience helper + v2 endpoints (Batch 6)": "templates bumped to 47 then 59. (75719650, be205bb4, 4e6d02a2)"
+- "2026-07-15 -- Sandbox fixes (c2 run_id work)": "persist blueprint-run sandboxes via run_id, map node type sandbox to NodeType.SANDBOX, backend default template python-img to python, sandboxd SSE stream parsing. (89edc394 .. 35c0b2df)"
+- "2026-07-15 -- Self-referential blueprint (MVP)": "flowmapper CLI rebuild + self-audit blueprint; run.input_data bridged into executor context as inputs; substrate inputs.* interpolation; BudgetEnforcer reasoning kwarg. (1b3ab815 .. a584679f)"
+- "2026-07-15 -- Security": "replace custom-filter eval with allowlist (authenticated RCE fix). (06908128)"
+- "2026-07-16 -- Substrate node-type handlers (Scope B)": "real handlers for transform/condition/log/loop/webhook; edge normalization (orphan/self-loop/duplicate); nodeType-mapping test aligned. (ced7c429 .. 8a6e3c22)"
+- "2026-07-15/16 -- Self-audit sweep": "13 findings tasks spawned from blueprint df2517fb (run 4d8ec2cc); this MED-08 task is one of them. Findings span security (SSRF inconsistency, Twilio HMAC-SHA1, sandboxd auth disabled, tool-permission always-allow), quality (149 Alembic migrations, disabled Celery tasks, ruff suppression sprawl, mypy baseline drift 314), and regression (11 quarantined dual-write/HITL/swarm tests). Most are running/blocked (needs_input) as of 2026-07-16."
+
+# ---------------------------------------------------------------------------
+
+## Current Status (as of 2026-07-16)
+- "Latest merged work": "substrate node-type handlers + edge normalization (HEAD 8a6e3c22)."
+- "Active work": "13 self-audit findings tasks (running) + ~47 blocked tasks awaiting human/architect decisions (sandboxd rebuild, LLM routing, governance contract-drift, frontend lint debt, etc.)."
+- "Known open gaps (from design doc + audit, not yet closed)":
+  - "DESIGN-BLUEPRINT-RUN-UNIFIED-MODEL.md notes a gap between DB schema and the unified run model -- not yet resolved."
+  - "11 dual-write/HITL/swarm tests remain quarantined (self-audit HIGH-01)."
+  - "4 of 8 substrate strategies DEPRECATED (self-audit MED-05)."
+- "Doc hygiene": "plans/ contains only discord-integration-card.md; this file (sprint-status.yaml) was the only sprint/status doc and was stale at Phase 7 -- now refreshed."

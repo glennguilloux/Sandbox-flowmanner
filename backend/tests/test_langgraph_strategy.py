@@ -159,7 +159,7 @@ class TestLangGraphExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-langgraph")
 
         assert result.success is True
         assert result.status == "completed"
@@ -182,7 +182,7 @@ class TestLangGraphExecute:
             }
         )
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-langgraph")
 
         assert result.success is False
         assert result.status == "failed"
@@ -197,7 +197,7 @@ class TestLangGraphExecute:
         executor = _make_executor()
         executor.is_aborted = MagicMock(return_value=True)
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-langgraph")
 
         assert result.success is False
         assert result.status == "aborted"
@@ -211,7 +211,7 @@ class TestLangGraphExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-langgraph")
 
         assert result.success is True
         assert len(result.completed_nodes) == 3
@@ -242,7 +242,7 @@ class TestLangGraphExecute:
 
         executor.execute_node = AsyncMock(side_effect=alternating)
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-langgraph")
 
         assert result.success is False
         assert len(result.completed_nodes) == 2
@@ -259,7 +259,7 @@ class TestLangGraphExecute:
         db = AsyncMock()
         executor = _make_executor()
 
-        await s.execute(wf, {}, executor, db)
+        await s.execute(wf, {}, executor, db, run_id="lg-run-1")
 
         call_kwargs = executor.execute_node.call_args[1]
         assert call_kwargs["run_id"] == "lg-run-1"
@@ -300,7 +300,7 @@ class TestLangGraphExecute:
             return {"success": False, "error": "native not available"}
 
         with patch.object(s, "_execute_langgraph_node", side_effect=native_fails):
-            result = await s.execute(wf, {}, executor, db)
+            result = await s.execute(wf, {}, executor, db, run_id="test-run-langgraph")
 
         assert result.success is False
         assert result.status == "aborted"

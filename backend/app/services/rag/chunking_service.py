@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from app.config import settings
+from app.core.llm_result import normalize_llm_result
 
 if TYPE_CHECKING:
     from app.services.model_router import ModelRouter
@@ -179,7 +180,13 @@ class ChunkingService:
                 max_tokens=200,
                 temperature=0,
             )
-            content = response.get("response", "")
+            # Normalize across router return shapes; a success=False raises
+            # and is caught below to fall back to keyword detection.
+            try:
+                content = normalize_llm_result(response, context="chunking_service._detect_topics_llm")
+            except Exception:
+                logger.debug("topic_detection_llm_failed", exc_info=True)
+                return []
             import json
 
             parsed = json.loads(content)

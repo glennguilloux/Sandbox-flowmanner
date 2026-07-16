@@ -354,3 +354,146 @@ Found 1 error in 1 file (errors prevented further checking)
 This narrows mypy to its actual scope (backend/app/) and eliminates all the noise. The metrics.py:53 phantom has not reappeared since.
 
 **Workaround used during investigation:** `git commit --no-verify` to land the override commit (`fbeec60`) and the .pre-commit-config.yaml change itself.
+
+---
+
+## 🚧 HARD GATE — Concurrency & Failure Propagation
+
+This is a **non-negotiable enforcement rule**. Hermes MUST refuse to ship any
+code that violates either of the two invariants below. The "Architectural
+Pre-flight" step (see [REJECT PATH](#reject-path)) blocks the task before any
+merge/commit if the invariant's required pattern is absent from the diff.
+
+### Invariant 1 — Deadlock-proof lock ordering
+
+**Fixes:** the `batch_abort` dining-philosophers deadlock (concurrent workers
+each locking missions in arbitrary order → circular wait).
+
+Every multi-row `FOR UPDATE` MUST be exactly:
+
+```python
+ids = sorted(str_ids)                                  # deterministic global order
+await session.execute(text("SET LOCAL lock_timeout='2s'"))   # bound the wait
+result = await session.execute(
+    select(Mission)
+    .where(Mission.id.in_(ids))
+    .order_by(Mission.id)                              # lock PK in order
+    .with_for_update(skip_locked=True)                 # skip, don't block
+)
+```
+
+- `ids = sorted(...)` + `.order_by(PK)` removes the circular-wait (all workers
+  acquire rows in the same order).
+- `with_for_update(skip_locked=True)` — a row already held by a sibling is
+  **skipped, not blocked**. Skipping a concurrently-aborting row is
+  semantically safe: it is already terminating. `lock_timeout='2s'` turns any
+  residual contention into a fast, retryable error instead of a hang.
+
+**Cited source (production, currently NON-CONFORMANT):**
+
+- `app/api/_mission_cqrs/commands.py:862` `batch_abort` → lock at **L875**:
+  `select(Mission).where(Mission.id.in_(str_ids)).with_for_update()` —
+  **VIOLATES**: no `sorted()`, no `order_by`, no `skip_locked`, no
+  `lock_timeout`. This is the bug the gate prevents.
+
+### Invariant 2 — LLM / model-routing failure propagation
+
+**Fixes:** the "~28ms mock success" defect (a `route_request` returning
+`{"success": False}` was read via `response.get("response", "")` and returned
+as `{"success": True}` with empty output).
+
+The `success` flag is a **contract, not a suggestion**. ANY call to
+`ModelRouter.route_request` (or `BudgetEnforcer.call`, or the `llm_manager` /
+`model_router` paths that return the same dict shape) that returns
+`{"success": False}` MUST propagate as an error. It is **FORBIDDEN** to do
+`response.get("response", "")` and return `{"success": True}` with empty output.
+
+```python
+response = await router.route_request(...)
+if not response.get("success"):
+    raise / return {"success": False, "error": response.get("error", "routing failed")}
+# only now may you read response.get("response") / response.get("content")
+```
+
+**Cited source (production):**
+
+- `app/services/model_router.py:427` `route_request` (contract origin; returns
+  the `success` dict). `success=False` paths at **L286**, **L367**, **L587**.
+- `app/services/llm_router.py:55` `route_request` (sibling router, same shape).
+- `app/services/substrate/node_executor.py` — canonical compliant caller at
+  **L559** (`if not response.get("success"): return {"success": False, ...}`).
+- Other compliant callers (the pattern to copy): `llm_executor.py:121`,
+  `mission_planner.py:883`, `task_executor.py:327`, `plan_generator.py:168`,
+  `llm_output_evaluator.py:375`, `llm_langgraph/agent.py:91`,
+  `api/v1/llm_advanced.py:210`.
+
+### One-assertion proofs (the gate is test-verifiable)
+
+Both invariants are proven by one-assertion unit tests in
+`app/tests/test_invariants_concurrency_failure_propagation.py` (run:
+`pytest app/tests/test_invariants_concurrency_failure_propagation.py` — **3 passed**):
+
+- **Invariant 1 (lock shape):** `test_invariant1_lock_ordering_is_deadlock_proof`
+  asserts the compiled SELECT contains `ORDER BY mission.id`, `FOR UPDATE`,
+  `SKIP LOCKED`, and that `ids == sorted(ids)` + `SET LOCAL lock_timeout='2s'`
+  is issued.
+- **Invariant 2 (propagation):** `test_invariant2_success_false_must_propagate_as_error`
+  asserts a representative caller returns `success=False` (with an `error` key)
+  for `{"success": False}`, i.e. never `success=True`.
+
+If you touch either invariant's code, you MUST keep these two tests green.
+
+### REJECT PATH
+
+The **Architectural Pre-flight Hard Gate** runs before merge/commit. It blocks
+the task if the diff:
+
+1. adds or edits a multi-row `FOR UPDATE` **without** `sorted(ids)` +
+   `.order_by(PK)` + `.with_for_update(skip_locked=True)` + `SET LOCAL lock_timeout`, **OR**
+2. adds or edits a `route_request` / `BudgetEnforcer.call` / `llm_manager`
+   call site **without** an `if not response.get("success"): raise/return error`
+   guard before any `response.get("response")`.
+
+Blocked tasks are returned to the author with the exact invariant + file:line of
+the offending site. No workaround, no `--no-verify`.
+
+### SELF-CRITIQUE — current `route_request` call sites that swallow `success=False`
+
+Enumerated across `backend/app` (production, excluding `app/tests/`): **18
+production call sites of `route_request`**. Classification by whether the
+`success=False` branch is honored (`✓` = checked & propagated) or swallowed
+(`✗` = reads `response`/`content` without a `success` guard):
+
+| File | Line | Honors `success=False`? | Risk |
+|------|------|--------------------------|------|
+| `services/substrate/node_executor.py` | 547 | ✓ (L559) | — |
+| `services/llm_executor.py` | 92 | ✓ (L121) | — |
+| `services/mission_planner.py` | 868 | ✓ (L883) | — |
+| `services/plan_selection/plan_generator.py` | 154 | ✓ (L168) | — |
+| `services/task_executor.py` | 319 | ✓ (L327) | — |
+| `services/llm_output_evaluator.py` | 368 | ✓ (L375) | — |
+| `services/llm_langgraph/agent.py` | 85 | ✓ (L91) | — |
+| `api/v1/llm_advanced.py` | 202 | ✓ (L210) | — |
+| `api/v1/llm.py` | 199 | ✓ (returns `result.success` / `result.error`) | — |
+| `services/budget_enforcer.py` | 324 | ⚠ partial (L339 catches `Exception` only; after a `success=False` dict from `route_request` that did NOT raise, it falls through to L470 `return response` — returns `success=False` dict but **does not raise/log a swallowed-success**; callers must still check) | medium |
+| `services/personal_memory_extractor.py` | 453 / 507 | ✗ (`content = response.get("response") or response.get("content")` — **no `success` guard**, L471) | **high** |
+| `services/brand_voice.py` | 214 / 252 | ✗ (`content = response.get("response", "")` — **no `success` guard**, L223/L261) | **high** |
+| `services/rag/retrieval_service.py` | 92 | ✗ (`content = response.get("response", "")` — no guard, L99) | **high** |
+| `services/rag/prompt_synthesizer.py` | 77 | ✗ (`content = response.get("response", "")` — no guard, L84) | **high** |
+| `services/rag/chunking_service.py` | 176 | ✗ (`content = response.get("response", "")` — no guard, L182) | **high** |
+| `services/nexus/orchestrator.py` | 350 | ✗ (`if response and "content" in response` — **no `success` guard**, L358) | **high** |
+| `services/browser_agent.py` | 147 | ✗ (`llm_content = result.get("content", "")` — no guard, L170) | **high** |
+| `tools/differentiators.py` | 1050 | indirect (delegates to `RetrievalService.route_request`; inherits L99 defect) | medium |
+
+**Conclusion for the gate:** the rule is **incomplete unless this enumeration
+is present and the ✗ sites are remediated**. The ✗ sites are the live
+manifestation of Invariant 2's defect. Remediation target (each must add the
+`if not response.get("success"): ...` guard before reading the payload):
+the 7 **high**-risk sites above. `budget_enforcer.py` is technically
+"propagating" (returns the `success=False` dict) but never inspects the flag
+itself — it is the *root producer* and its callers are the ones at risk; the
+gate still requires every new/modified site to check the flag.
+
+> Status: **GATE ENACTED 2026-07-12.** 9/18 call sites already compliant;
+> 7 high-risk swallow sites pending remediation (track as a follow-up task,
+> not a blocker for *new* code which is gated at pre-flight).

@@ -33,9 +33,31 @@ class Settings(BaseSettings):
 
     AES_ENCRYPTION_KEY: str = "change-me-in-production"
 
+    # Dedicated master secret for BYOK API-key envelope encryption (the
+    # key-encryption key, KEK). This is the secret that wraps every per-record
+    # data-encryption key. It MUST be set in production — encryption.py falls
+    # back to AES_ENCRYPTION_KEY/SECRET_KEY only for local dev/tests. Never
+    # commit a value; provide it via .env / the secret manager.
+    BYOK_KEK_SECRET: str | None = None
+
+    # When True (default), decrypt_api_key can still decrypt the legacy v1
+    # format (hardcoded-salt) keys for backward compatibility. Operators who
+    # have finished migrating ALL encrypted stores (user_api_keys,
+    # integrations.auth_config_encrypted, api_keys) to the v2 per-key-salt
+    # format may set this to False to hard-disable the weakened v1 derivation
+    # path. See app/utils/encryption.py.
+    ENCRYPTION_ALLOW_LEGACY_DECRYPT: bool = True
+
     LLAMACPP_URL: str = "http://10.0.4.1:11434"
     LLAMACPP_LIGHT_URL: str = "http://10.0.4.1:11435"
     LITELLM_ENDPOINT: str = "http://localhost:4000"
+
+    # Comma-separated CIDR/IP list of PROXY hops we trust to provide a truthful
+    # X-Forwarded-For client IP. Only when the immediate TCP peer is in this
+    # set do we honor XFF for rate-limit client-IP resolution. Covers the
+    # homelab topology: VPS Nginx (public) -> WireGuard (10.99.0.0/16) ->
+    # homelab backend, plus localhost / Docker bridge / link-local.
+    RATE_LIMIT_TRUSTED_PROXIES: str = "127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16"
 
     QDRANT_URL: str = "http://localhost:6333"
     QDRANT_COLLECTION_NAME: str = "workflows_docs"
@@ -243,6 +265,11 @@ class Settings(BaseSettings):
     MISSION_RATE_LIMIT_EXECUTE: int = 20
     MISSION_RATE_LIMIT_ABORT: int = 15
     MISSION_RATE_LIMIT_PLAN: int = 20
+    # Pause-timeout auto-fail window (days). A mission paused longer than this
+    # is auto-transitioned PAUSED -> FAILED and compensation is run. See
+    # app/tasks/expire_paused_missions.py. Historical rows with paused_at = NULL
+    # are treated as infinity and exempt.
+    MISSION_PAUSE_AUTO_FAIL_DAYS: int = 7
     MISSION_RATE_LIMIT_DEFAULT: int = 60
     MISSION_RATE_LIMIT_WINDOW_SECONDS: int = 60
     MISSION_RATE_LIMIT_BURST_MULTIPLIER: int = 2
@@ -267,7 +294,7 @@ class Settings(BaseSettings):
     SANDBOXD_PREVIEW_DOMAIN: str = "preview.flowmanner.com"
     SANDBOXD_PREVIEW_PORT: int = 8081
     SANDBOXD_ENABLED: bool = True
-    SANDBOXD_DEFAULT_TEMPLATE: str = "python-img"
+    SANDBOXD_DEFAULT_TEMPLATE: str = "worker-standard"
 
     # Chat tool-calling limits
     CHAT_MAX_TOOL_ROUNDS: int = 15
@@ -306,6 +333,11 @@ class Settings(BaseSettings):
 
     # Q1-A chunk 5: Per-workspace+provider circuit breaker
     FLOWMANNER_CIRCUIT_BREAKER_ENABLED: bool = True
+    # Fail-closed default: if the breaker's pre-call check throws (DB/serialization
+    # error), the guardrail DENIES the call rather than silently allowing it. Set to
+    # False only to restore the old fail-open behaviour (not recommended; it defeats
+    # the breaker). When False, check failures are still surfaced at ERROR + metric.
+    FLOWMANNER_CIRCUIT_BREAKER_FAIL_CLOSED: bool = True
 
     # Q1-B chunk 2: HITL timeout + expiry worker
     HITL_DEFAULT_TIMEOUT_HOURS: int = 24
@@ -342,6 +374,14 @@ class Settings(BaseSettings):
     # flip to True (env or here) for gradual rollout once inbox-noise volume
     # is observed on real traffic.
     REVIEWER_GUARD_DRAIN_ENABLED: bool = False
+
+    # Comment 9: wire the Q6-B cross-family SecondPassVerifier into the
+    # production inbox drain. Off by default: the drain stays lexical-only
+    # ($0 token cost) until this is explicitly enabled AND a different-family
+    # verifier model is available in the catalog. When ON but no verifier
+    # model can be resolved, the drain degrades to lexical-only and records
+    # that degradation in the HITL context + metrics (never silent).
+    REVIEWER_GUARD_SECOND_PASS_ENABLED: bool = False
 
     # Strategy gating — experimental strategies (swarm, pipeline, meta, langgraph)
     # Set to True to enable strategies that require complex workflow structures.
@@ -390,6 +430,19 @@ class Settings(BaseSettings):
     PLAN_SELECTION_K: int = 3
     PLAN_SELECTION_MIN_QUALITY: float = 0.6
 
+    # ── Native Anthropic / Opus support (Comment 6) ──────────────────────
+    # Opus (and other native Anthropic models) require a real Anthropic API key
+    # or an approved OpenRouter Anthropic route. They are DISABLED unless the
+    # catalog marks them enabled AND this flag is true, so a misconfigured deploy
+    # can never silently route Opus through the OpenAI-compatible path.
+    ENABLE_NATIVE_ANTHROPIC: bool = False
+    # Allow routing Anthropic models via OpenRouter's OpenAI-compatible proxy
+    # (requires OPENROUTER_API_KEY and an approved Anthropic route on OpenRouter).
+    ALLOW_ANTHROPIC_VIA_OPENROUTER: bool = False
+    # Hard gate for premium models (e.g. claude-3-opus). Even when the catalog
+    # enables a premium model, this must be on for it to be selectable.
+    ENABLE_PREMIUM_MODELS: bool = False
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
@@ -420,6 +473,11 @@ class Settings(BaseSettings):
         if self.AES_ENCRYPTION_KEY in PLACEHOLDER_SECRETS or len(self.AES_ENCRYPTION_KEY) < 32:
             bad.append(
                 "AES_ENCRYPTION_KEY must be set to a random string of at least 32 characters (used for API key encryption)"
+            )
+        if not self.BYOK_KEK_SECRET or len(self.BYOK_KEK_SECRET) < 32:
+            bad.append(
+                "BYOK_KEK_SECRET must be set to a random string of at least 32 characters "
+                "(KEK for BYOK envelope encryption — keep it separate from SECRET_KEY/AES_ENCRYPTION_KEY)"
             )
         if not self.AUTH_V3_COOKIE_SECURE:
             bad.append("AUTH_V3_COOKIE_SECURE must be true in production (HTTPS-only cookies)")

@@ -16,7 +16,10 @@ import re
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from app.services.substrate.strategies.base import ExecutionStrategy
+from app.services.substrate.strategies.base import (
+    ExecutionStrategy,
+    _validate_edge_endpoints,
+)
 from app.services.substrate.workflow_models import (
     StrategyResult,
     Workflow,
@@ -44,9 +47,7 @@ class GraphStrategy(ExecutionStrategy):
         if not workflow.nodes:
             errors.append("Graph workflow must have at least 1 node")
 
-        for edge in workflow.edges:
-            if edge.source not in node_ids:
-                errors.append(f"Edge source '{edge.source}' not found")  # noqa: PERF401
+        errors.extend(_validate_edge_endpoints(workflow))
 
         return errors
 
@@ -56,8 +57,8 @@ class GraphStrategy(ExecutionStrategy):
         context: dict[str, Any],
         executor: UnifiedExecutor,
         db: AsyncSession,
+        run_id: str,
     ) -> StrategyResult:
-        run_id = workflow.metadata.get("substrate_run_id", str(uuid4()))
         start_node_id = context.get("start_node_id")
 
         active_ids = (
@@ -105,7 +106,7 @@ class GraphStrategy(ExecutionStrategy):
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             for nid, result in zip(executable, results, strict=False):
-                if isinstance(result, Exception):
+                if isinstance(result, BaseException):
                     failed_nodes.append(nid)
                     node_outputs[nid] = {"error": str(result)}
                 elif result.get("success"):
@@ -148,8 +149,7 @@ class GraphStrategy(ExecutionStrategy):
             if current in result:
                 continue
             result.add(current)
-            for edge in workflow.dependency_map.get(current, []):
-                queue.append(edge.target)
+            queue.extend(edge.target for edge in workflow.dependency_map.get(current, []))
         return result
 
     def _evaluate_condition(self, edge, node_outputs: dict[str, Any]) -> bool:

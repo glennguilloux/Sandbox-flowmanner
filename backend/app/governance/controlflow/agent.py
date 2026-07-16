@@ -9,6 +9,19 @@ Main agent implementation that orchestrates:
 - Tool execution via WorkerHandler (Celery workers)
 - Persistence
 
+.. warning::
+    STATUS — UN-WIRED SCAFFOLDING (as of 2026-07-13). This agent is NOT the
+    live human-in-the-loop gate. The real, enforced approval path is the HITL
+    inbox (app/api/v1/hitl.py -> HITLPaused -> dispatch_hitl_resume). This
+    agent's ``resolve_approval`` has NO production caller: the graph dead-ends
+    at ``_check_approval_result`` returning "pending" (routing to END), and the
+    inbox does not yet invoke ``resolve_approval``. ``ControlFlowAgent.get_agent``
+    IS used live by app/services/substrate/strategies/langgraph.py to build the
+    ``graph_name="governance"`` substrate strategy (it reads ``self.graph``), so
+    the agent class stays — but its approval callback does not drive production
+    approvals. Do NOT treat a green import/test of ``resolve_approval`` as proof
+    the approval path works end-to-end.
+
 Migrated from services/langgraph/agent.py to governance/controlflow/
 """
 
@@ -362,7 +375,14 @@ class ControlFlowAgent:
         return state
 
     def _check_approval_result(self, state: AgentState) -> str:
-        """Check approval result"""
+        """Check approval result.
+
+        Returns "pending" while awaiting a human decision. The decision is
+        recorded by the explicit approval callback (``resolve_approval``), which
+        flips the tool status and clears ``awaiting_approval``. Until that
+        callback runs, we MUST stay in "pending" — we never infer resolution
+        here, because doing so would mask a missing human-in-the-loop decision.
+        """
         if state["awaiting_approval"]:
             return "pending"
 
@@ -373,29 +393,145 @@ class ControlFlowAgent:
 
         return "approved"
 
+    async def resolve_approval(
+        self,
+        session_id: str,
+        decision: str,
+        approved_by: int | None = None,
+        tool_index: int | None = None,
+        owner_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Record a human approval decision and resume the flow.
+
+        .. warning::
+            STATUS — UN-WIRED SCAFFOLDING.
+
+            This is the *correct* approval-callback implementation (it explicitly
+            flips tool status, clears ``awaiting_approval``/``current_approval_request``,
+            and resumes the graph from the same checkpointer thread). However, as of
+            2026-07-13 NO production caller reaches it:
+
+            - ``app/api/v1/governance.py`` exposes an endpoint that calls this method,
+              but that route has no live client (the real human-in-the-loop path is the
+              HITL inbox, which does not yet invoke ``resolve_approval``).
+            - The graph dead-ends at ``_check_approval_result`` returning "pending"
+              (routing to END), so without an external decision recorded here the flow
+              stalls. Until the HITL inbox is wired to call this method, approvals are
+              effectively unresolvable in production.
+
+            Do NOT treat a green import/test of this method as proof the approval path
+            works end-to-end.
+
+            ``owner_id`` is an OPTIONAL defense-in-depth ownership check (mirrors the
+            HITL inbox path, which rejects decisions from non-owners). When supplied it
+            MUST match the session's ``user_id``; the calling endpoint is responsible for
+            enforcing ownership — this method only raises if the values are both present
+            and differ. This is belt-and-suspenders: the endpoint is the authoritative
+            authz gate.
+
+        This is the ACTUAL approval callback path — the missing link that the
+        earlier defensive re-derivation was masking. The graph dead-ends at
+        ``_check_approval_result`` returning "pending" (which routes to END),
+        so the only way to progress is an external decision recorded here:
+
+          1. Load the session state.
+          2. Flip the relevant tool(s) to "approved"/"rejected" via
+             ``update_tool_execution`` (records approved_at / approved_by).
+          3. Clear ``awaiting_approval`` + ``current_approval_request`` — this is
+             the explicit flag reset the old code inferred defensively.
+          4. Re-invoke the graph with the SAME checkpointer thread_id so it
+             continues past the pending->END dead-end (executes approved tools
+             or generates a rejection response).
+
+        Args:
+            session_id: The agent session/thread id.
+            decision: "approved" or "rejected".
+            approved_by: User id of the human decision-maker (for audit).
+            tool_index: Optional index into pending_tools. If omitted, all
+                approval-required tools are set to the same decision.
+        """
+        if decision not in ("approved", "rejected"):
+            raise ValueError(f"decision must be 'approved' or 'rejected', got {decision!r}")
+
+        state = self._load_state(session_id)
+        if not state:
+            raise ValueError(f"No agent session found for session_id={session_id}")
+        if not state["awaiting_approval"]:
+            raise ValueError(f"Session {session_id} is not currently awaiting approval")
+
+        # Defense-in-depth ownership check (authoritative authz lives in the
+        # endpoint). Rejects approvals from a caller that does not own the session.
+        _owner = state.get("user_id")
+        if owner_id is not None and _owner is not None and int(owner_id) != int(_owner):
+            raise ValueError(
+                f"User {owner_id} does not own session {session_id} (owner={_owner})"
+            )
+
+        targets = [state["pending_tools"][tool_index]] if tool_index is not None else state["pending_tools"]
+        for tool in targets:
+            if tool["requires_approval"]:
+                tool = update_tool_execution(tool, status=decision, approved_by=approved_by)
+
+        # Explicit flag reset — this is the real callback, not inference.
+        state["awaiting_approval"] = False
+        state["current_approval_request"] = None
+        self._save_state(state)
+
+        # Resume the graph from the same checkpointer thread so it continues
+        # past the pending->END dead-end.
+        try:
+            result = await self.graph.ainvoke(
+                state,
+                config={"configurable": {"thread_id": session_id}},
+            )
+            state = result
+        except Exception as e:
+            logger.error("Error resuming graph after approval: %s", e)
+            state = add_message_to_state(state, "assistant", f"I encountered an error resuming: {e!s}")
+
+        self._save_state(state)
+        return {
+            "success": True,
+            "session_id": session_id,
+            "decision": decision,
+            "awaiting_approval": state["awaiting_approval"],
+            "approval_request": state["current_approval_request"],
+            "state": state_to_dict(state),
+        }
+
     async def _execute_tools_node(self, state: AgentState) -> AgentState:
         """Execute approved tools"""
         for tool in state["pending_tools"]:
-            if tool["status"] in ["pending", "approved"]:
-                # Execute tool
-                result = self._execute_tool(state, tool)  # type: ignore[arg-type]
+            # Only execute tools with a definitive go-ahead.
+            # - "approved" tools run.
+            # - "pending" tools that do NOT require approval run (happy path).
+            # - "pending" tools that REQUIRE approval must wait (not executed).
+            # - "rejected" tools must never run.
+            should_execute = tool["status"] == "approved" or (
+                tool["status"] == "pending" and not tool["requires_approval"]
+            )
+            if not should_execute:
+                continue
 
-                # Update tool execution
-                if result["success"]:
-                    tool = update_tool_execution(
-                        tool,
-                        status="completed",
-                        result=result,
-                    )
-                else:
-                    tool = update_tool_execution(
-                        tool,
-                        status="failed",
-                        error=result.get("error", "Execution failed"),
-                    )
+            # Execute tool
+            result = self._execute_tool(state, tool)  # type: ignore[arg-type]
 
-                # Add to history
-                state["tool_history"] = state["tool_history"] + [tool]
+            # Update tool execution
+            if result["success"]:
+                tool = update_tool_execution(
+                    tool,
+                    status="completed",
+                    result=result,
+                )
+            else:
+                tool = update_tool_execution(
+                    tool,
+                    status="failed",
+                    error=result.get("error", "Execution failed"),
+                )
+
+            # Add to history
+            state["tool_history"] = state["tool_history"] + [tool]
 
         # Clear pending tools
         state["pending_tools"] = []

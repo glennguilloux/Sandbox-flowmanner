@@ -6,6 +6,8 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from app.core.llm_result import normalize_llm_result
+
 if TYPE_CHECKING:
     from app.services.model_router import ModelRouter
     from app.services.rag.retrieval_service import RetrievalService, RetrievedChunk
@@ -81,8 +83,20 @@ class PromptSynthesizer:
             temperature=0.7,
         )
 
-        content = response.get("response", "")
-        usage = response.get("usage", {})
+        # Normalize across router return shapes (llm_router returns an object
+        # when bound to a DB session); a success=False is surfaced and routed
+        # to the empty-prompt fallback below.
+        try:
+            content = normalize_llm_result(response, context="prompt_synthesizer.synthesize")
+        except Exception as e:
+            logger.warning("Prompt synthesis LLM call failed: %s", e)
+            return GeneratedPrompt(
+                system_prompt="",
+                rationale={"error": ["LLM synthesis unavailable."]},
+                recommended_model="deepseek/deepseek-v4-flash",
+                temperature=0.7,
+            )
+        usage = response.get("usage", {}) if isinstance(response, dict) else {}
         parsed = self._parse_response(content)
         parsed.usage = usage
         return parsed

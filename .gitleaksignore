@@ -1,2 +1,14 @@
 # False positive: SQL feature-flag name, not a credential (archived historical doc)
-ARCHIVE/.sisyphus/handoffs/exit-audit-2026-06-27-phase2-deploy-verification.md:generic-api-key:42
+ARCHIVE/.sisyphus/handoffs/exit-audit-2026-06-27-phase2-deploy-verification.md:generic-api-key:***
+# Allowlist: tools/skillopt-gate/tests/test_runner.py exercises the secret
+# redactor with an api_key fixture. The value is clearly fake/low-entropy and
+# the staged content is verified clean (no real secret); gitleaks' generic-key
+# rule still flags the api_key keyword, so allowlist this one test path.
+tools/skillopt-gate/tests/test_runner.py
+# Allowlist: app/tests/test_v1_error_envelope_status.py sets clearly-fake,
+# low-entropy dummy secrets (required by app.config's 32+ char production-secret
+# guard) to boot the FastAPI app under TestClient. No real credentials; same
+# fixture pattern as app/tests/test_reliability.py.
+backend/app/tests/test_v1_error_envelope_status.py:generic-api-key:27
+backend/app/tests/test_v1_error_envelope_status.py:generic-api-key:28
+backend/app/tests/test_v1_error_envelope_status.py:generic-api-key:29

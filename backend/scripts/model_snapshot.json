@@ -1,7 +1,7 @@
 {
   "alembic_version": "",
   "generated_at": "1970-01-01T00:00:00Z",
-  "model_count": 155,
+  "model_count": 156,
   "tables": [
     {
       "columns": {
@@ -1088,17 +1088,23 @@
       "columns": {
         "aggregate_score": "FLOAT",
         "completed_at": "DATETIME",
+        "correct_count": "INTEGER",
         "created_at": "DATETIME",
         "dataset_id": "VARCHAR(36)",
         "error_message": "TEXT",
         "id": "VARCHAR(36)",
+        "judge_model": "VARCHAR(100)",
         "langfuse_trace_id": "VARCHAR(100)",
         "model_config_hash": "VARCHAR(64)",
         "model_name": "VARCHAR(100)",
+        "pass_rate": "FLOAT",
         "per_case_scores": "JSONB",
+        "routed_provider": "VARCHAR(50)",
         "scores_by_category": "JSONB",
         "started_at": "DATETIME",
         "status": "VARCHAR(20)",
+        "total_cost_usd": "FLOAT",
+        "total_latency_ms": "INTEGER",
         "updated_at": "DATETIME"
       },
       "foreign_keys": [
@@ -1470,6 +1476,7 @@
       "columns": {
         "context": "JSONB",
         "created_at": "DATETIME",
+        "depth_decision": "JSONB",
         "description": "TEXT",
         "expires_at": "DATETIME",
         "id": "VARCHAR(36)",
@@ -2105,6 +2112,32 @@
     {
       "columns": {
         "created_at": "DATETIME",
+        "error": "TEXT",
+        "id": "UUID",
+        "mission_id": "UUID",
+        "picked_at": "DATETIME",
+        "run_id": "VARCHAR(64)",
+        "selected_plan_id": "VARCHAR(64)",
+        "status": "VARCHAR(20)",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "mission_id",
+          "missions.id"
+        ]
+      ],
+      "indexes": [
+        "ix_mission_execution_outbox_mission_id",
+        "ix_mission_execution_outbox_run_id",
+        "ix_mission_execution_outbox_status"
+      ],
+      "name": "mission_execution_outbox",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
         "failure_context": "TEXT",
         "failure_type": "VARCHAR(50)",
         "id": "UUID",
@@ -2225,6 +2258,7 @@
         "mission_id": "UUID",
         "project_id": "VARCHAR(128)",
         "purged_at": "DATETIME",
+        "run_id": "UUID",
         "sandbox_id": "VARCHAR(64)",
         "status": "VARCHAR(20)",
         "stopped_at": "DATETIME",
@@ -2238,6 +2272,7 @@
       ],
       "indexes": [
         "ix_mission_sandboxes_mission_id",
+        "ix_mission_sandboxes_run_id",
         "ix_mission_sandboxes_sandbox_id",
         "ix_mission_sandboxes_status"
       ],
@@ -2395,6 +2430,7 @@
     {
       "columns": {
         "actual_cost": "DOUBLE",
+        "compensated_at": "DATETIME",
         "completed_at": "DATETIME",
         "constraints": "JSONB",
         "context_files": "JSONB",
@@ -2413,6 +2449,7 @@
         "mission_type": "VARCHAR(50)",
         "output_files": "JSONB",
         "parent_mission_id": "UUID",
+        "paused_at": "DATETIME",
         "plan": "JSONB",
         "priority": "VARCHAR(20)",
         "results": "JSONB",
@@ -2441,6 +2478,7 @@
       ],
       "indexes": [
         "ix_missions_deleted_at",
+        "ix_missions_paused_at",
         "ix_missions_status",
         "ix_missions_title",
         "ix_missions_user_id",
@@ -2750,6 +2788,7 @@
         "id": "UUID",
         "importance": "FLOAT",
         "last_used_at": "DATETIME",
+        "metadata": "JSONB",
         "object": "JSONB",
         "predicate": "VARCHAR(100)",
         "scope": "VARCHAR(20)",
@@ -3181,7 +3220,11 @@
         "ix_substrate_events_type"
       ],
       "name": "substrate_events",
-      "unique_constraints": []
+      "unique_constraints": [
+        [
+          "idempotency_key"
+        ]
+      ]
     },
     {
       "columns": {

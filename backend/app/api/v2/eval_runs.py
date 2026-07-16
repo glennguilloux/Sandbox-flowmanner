@@ -45,12 +45,29 @@ class EvalRunResponse(BaseModel):
     aggregate_score: float | None
     scores_by_category: dict | None
     per_case_count: int
+    # Comment 10: cost-per-correct-answer fields.
+    total_cost_usd: float | None = None
+    total_latency_ms: int | None = None
+    routed_provider: str | None = None
+    judge_model: str | None = None
+    pass_rate: float | None = None
+    correct_count: int | None = None
     error_message: str | None
     started_at: str | None
     completed_at: str | None
 
     class Config:
         from_attributes = True
+
+
+class CompareCandidatesRequest(BaseModel):
+    dataset_id: str
+    candidate_models: list[str]
+    system_prompt: str | None = None
+    temperature: float = 0.7
+    # A single fixed/deterministic judge model keeps the quality comparison
+    # apples-to-apples across candidates (Comment 10).
+    judge_model: str | None = None
 
 
 class EvalRunListResponse(BaseModel):
@@ -113,6 +130,12 @@ async def list_eval_runs(
                 aggregate_score=er.aggregate_score,
                 scores_by_category=er.scores_by_category,
                 per_case_count=len(er.per_case_scores) if er.per_case_scores else 0,
+                total_cost_usd=er.total_cost_usd,
+                total_latency_ms=er.total_latency_ms,
+                routed_provider=er.routed_provider,
+                judge_model=er.judge_model,
+                pass_rate=er.pass_rate,
+                correct_count=er.correct_count,
                 error_message=er.error_message,
                 started_at=er.started_at.isoformat() if er.started_at else None,
                 completed_at=er.completed_at.isoformat() if er.completed_at else None,
@@ -121,6 +144,39 @@ async def list_eval_runs(
         ],
         total=len(items),
     )
+
+
+@router.post("/compare", status_code=202)
+async def compare_candidate_models(
+    body: CompareCandidatesRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Comment 10: run the same dataset/prompt/config against a list of
+    candidate models and rank them by quality and cost efficiency.
+
+    Returns a task id; poll ``GET /evals/runs`` or the comparison result.  The
+    heavy lifting is delegated to a Celery task so large candidate sets don't
+    block the request.
+    """
+    if not body.candidate_models:
+        raise HTTPException(status_code=422, detail="candidate_models must be non-empty")
+
+    from app.tasks.eval_run import run_candidate_comparison
+
+    task = run_candidate_comparison.delay(
+        dataset_id=body.dataset_id,
+        candidate_models=body.candidate_models,
+        system_prompt=body.system_prompt,
+        temperature=body.temperature,
+        judge_model=body.judge_model,
+    )
+    return {
+        "task_id": task.id,
+        "status": "queued",
+        "dataset_id": body.dataset_id,
+        "candidate_models": body.candidate_models,
+    }
 
 
 @router.get("/runs/{run_id}", response_model=EvalRunResponse)
@@ -143,6 +199,12 @@ async def get_eval_run(
         aggregate_score=er.aggregate_score,
         scores_by_category=er.scores_by_category,
         per_case_count=len(er.per_case_scores) if er.per_case_scores else 0,
+        total_cost_usd=er.total_cost_usd,
+        total_latency_ms=er.total_latency_ms,
+        routed_provider=er.routed_provider,
+        judge_model=er.judge_model,
+        pass_rate=er.pass_rate,
+        correct_count=er.correct_count,
         error_message=er.error_message,
         started_at=er.started_at.isoformat() if er.started_at else None,
         completed_at=er.completed_at.isoformat() if er.completed_at else None,

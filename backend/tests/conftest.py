@@ -329,6 +329,44 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(pytest.mark.skip(reason=skip_reason))
 
 
+# ===========================================================================
+# Lock-in guard: the graph_* table names were renamed to workflow_* by the
+# H4.2 consolidation (migration h5_rename_graph_tables). Any test that still
+# hardcodes the old names will fail at runtime with an opaque
+# ``UndefinedTableError``. Fail the collection loudly instead so the mistake
+# can't silently re-break the suite.
+# ===========================================================================
+
+_DEPRECATED_TABLE_PATTERNS = (
+    "graph_states",
+    "graph_executions",
+    "graph_workflows",
+)
+
+
+def pytest_collectstart(collector: pytest.Collector) -> None:
+    """Error loudly if a collected test file still references pre-H4.2 tables."""
+    path = getattr(collector, "path", None) or getattr(collector, "fspath", None)
+    if path is None:
+        return
+    # Only inspect actual test modules, never this conftest itself.
+    name = getattr(path, "name", "") or str(path)
+    if name == "conftest.py" or not name.startswith("test_"):
+        return
+    try:
+        text_ = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return
+    for pattern in _DEPRECATED_TABLE_PATTERNS:
+        if pattern in text_:
+            raise pytest.UsageError(
+                f"{collector.nodeid or path}: references deprecated table "
+                f"'{pattern}'. H4.2 renamed graph_* -> workflow_* "
+                f"(migration h5_rename_graph_tables). Update the SQL to the "
+                f"new name or the test will fail with UndefinedTableError."
+            )
+
+
 @pytest.fixture
 def sample_user():
     """Mock user with all v3-accessible attributes."""

@@ -12,12 +12,21 @@ from uuid import uuid4
 
 from sqlalchemy import func, select
 
+# Re-export the canonical typed errors so the service raises the same AppError
+# subclasses the CQRS layer and the unified exception handler expect. Both are
+# distinct classes (404 vs 400) so the wire status is correct. This keeps a
+# 4xx (not a 500) on the wire for validation / not-found conditions.
+from app.api._blueprint_cqrs.errors import (
+    BlueprintNotFoundError,
+    BlueprintValidationError,
+)
 from app.models.blueprint_models import (
     Blueprint,
     BlueprintStatus,
     BlueprintVersion,
 )
 from app.models.workspace_models import WorkspaceMember
+from app.services.substrate.adapters import validate_blueprint_definition
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -25,18 +34,6 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
-
-
-class BlueprintNotFoundError(Exception):
-    """Raised when a blueprint is not found or access is denied."""
-
-    pass
-
-
-class BlueprintValidationError(Exception):
-    """Raised when a blueprint operation is invalid."""
-
-    pass
 
 
 class BlueprintService:
@@ -70,8 +67,15 @@ class BlueprintService:
                 mission dual-write path so that ``Blueprint.id`` matches the
                 source ``Mission.id`` for deterministic 1-to-1 linkage.
         """
+        bp_id = blueprint_id if blueprint_id is not None else str(uuid4())
+        # Validate the graph before persisting: a structurally broken blueprint
+        # (dangling edge) must never be saved. Empty list == valid.
+        _errors = validate_blueprint_definition(definition or {}, blueprint_id=bp_id)
+        if _errors:
+            raise BlueprintValidationError("; ".join(_errors))
+
         bp = Blueprint(
-            id=blueprint_id if blueprint_id is not None else str(uuid4()),
+            id=bp_id,
             user_id=user_id,
             title=title,
             description=description,
@@ -158,6 +162,11 @@ class BlueprintService:
             if value is not None and hasattr(bp, key):
                 if key == "definition" and value != bp.definition:
                     definition_changed = True
+                    # Validate the new graph before it is accepted. A
+                    # structurally broken blueprint must never be persisted.
+                    _errors = validate_blueprint_definition(value or {}, blueprint_id=str(blueprint_id))
+                    if _errors:
+                        raise BlueprintValidationError("; ".join(_errors))
                 setattr(bp, key, value)
 
         if definition_changed:
@@ -187,6 +196,11 @@ class BlueprintService:
             raise BlueprintValidationError(
                 f"Cannot publish blueprint in '{bp.status}' status. Only draft blueprints can be published."
             )
+        # Gate the publish on graph structure. A dangling edge must be caught
+        # here (before save / run time) and returned as a clear 4xx.
+        _errors = validate_blueprint_definition(bp.definition or {}, blueprint_id=str(bp.id))
+        if _errors:
+            raise BlueprintValidationError("; ".join(_errors))
         bp.status = BlueprintStatus.PUBLISHED.value
         bp.updated_at = datetime.now(UTC)
         await self.db.flush()
@@ -249,7 +263,7 @@ class BlueprintService:
                 select(WorkspaceMember).where(
                     WorkspaceMember.workspace_id == bp.workspace_id,
                     WorkspaceMember.user_id == user_id,
-                    WorkspaceMember.is_active == True,
+                    WorkspaceMember.is_active.is_(True),
                 )
             )
             if result.scalar_one_or_none() is not None:

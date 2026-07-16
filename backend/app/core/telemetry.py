@@ -24,6 +24,8 @@ def setup_telemetry(app, engine=None):
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+    from app.utils.scrubber import SpanAttributeScrubber
+
     resource = Resource.create(
         {
             "service.name": os.getenv("OTEL_SERVICE_NAME", "workflow-backend"),
@@ -32,6 +34,8 @@ def setup_telemetry(app, engine=None):
     )
 
     provider = TracerProvider(resource=resource)
+    # Scrub sensitive span attributes (BYOK keys, tokens) before export to Jaeger.
+    provider.add_span_processor(SpanAttributeScrubber())
     provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{otlp_endpoint}/v1/traces")))
     trace.set_tracer_provider(provider)
 

@@ -1,0 +1,533 @@
+{
+  "version": "1",
+  "updated_at": "2026-07-13",
+  "models": {
+    "llamacpp-qwen3.6-27b": {
+      "provider": "llamacpp",
+      "upstream_model_name": "Qwen3.6-27B-Q5_K_M-mtp.gguf",
+      "api_style": "openai",
+      "tier": "local",
+      "local": true,
+      "enabled": true,
+      "env_key": null,
+      "context_window": 131072,
+      "pricing": {
+        "input_per_1m": 0.0,
+        "output_per_1m": 0.0,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "qwen",
+      "capabilities": [
+        "chat",
+        "planning",
+        "review",
+        "deep_dive"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning",
+        "review",
+        "deep_dive",
+        "verifier"
+      ]
+    },
+    "llamacpp-qwen2.5-1.5b": {
+      "provider": "llamacpp",
+      "upstream_model_name": "qwen2.5:1.5b",
+      "api_style": "openai",
+      "tier": "local",
+      "local": true,
+      "enabled": true,
+      "env_key": null,
+      "context_window": 32768,
+      "pricing": {
+        "input_per_1m": 0.0,
+        "output_per_1m": 0.0,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "qwen",
+      "capabilities": [
+        "chat",
+        "planning"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning"
+      ]
+    },
+    "llamacpp-qwen2.5-14b": {
+      "provider": "llamacpp",
+      "upstream_model_name": "qwen2.5:14b",
+      "api_style": "openai",
+      "tier": "local",
+      "local": true,
+      "enabled": true,
+      "env_key": null,
+      "context_window": 131072,
+      "pricing": {
+        "input_per_1m": 0.0,
+        "output_per_1m": 0.0,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "qwen",
+      "capabilities": [
+        "chat",
+        "planning",
+        "review"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning",
+        "review",
+        "verifier"
+      ]
+    },
+    "llamacpp-qwen2.5-coder-7b": {
+      "provider": "llamacpp",
+      "upstream_model_name": "qwen2.5-coder:7b",
+      "api_style": "openai",
+      "tier": "local",
+      "local": true,
+      "enabled": true,
+      "env_key": null,
+      "context_window": 32768,
+      "pricing": {
+        "input_per_1m": 0.0,
+        "output_per_1m": 0.0,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "qwen",
+      "capabilities": [
+        "chat",
+        "planning"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning"
+      ]
+    },
+    "llamacpp-qwen3.6-latest": {
+      "provider": "llamacpp",
+      "upstream_model_name": "qwen3.6:latest",
+      "api_style": "openai",
+      "tier": "local",
+      "local": true,
+      "enabled": true,
+      "env_key": null,
+      "context_window": 131072,
+      "pricing": {
+        "input_per_1m": 0.0,
+        "output_per_1m": 0.0,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "qwen",
+      "capabilities": [
+        "chat",
+        "planning",
+        "review",
+        "deep_dive"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning",
+        "review",
+        "deep_dive",
+        "verifier"
+      ]
+    },
+    "glennguilloux-demo-llm": {
+      "provider": "glennguilloux",
+      "upstream_model_name": "glennguilloux-demo-llm",
+      "api_style": "openai",
+      "tier": "free_cloud",
+      "local": false,
+      "enabled": true,
+      "env_key": null,
+      "context_window": 32768,
+      "pricing": {
+        "input_per_1m": 0.0,
+        "output_per_1m": 0.0,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "qwen",
+      "capabilities": [
+        "chat",
+        "planning"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning"
+      ]
+    },
+    "deepseek-v4-flash": {
+      "provider": "deepseek",
+      "upstream_model_name": "deepseek/deepseek-v4-flash",
+      "api_style": "openai",
+      "tier": "paid_cloud",
+      "local": false,
+      "enabled": true,
+      "env_key": "DEEPSEEK_API_KEY",
+      "context_window": 128000,
+      "pricing": {
+        "input_per_1m": 0.14,
+        "output_per_1m": 0.28,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "deepseek",
+      "capabilities": [
+        "chat",
+        "planning",
+        "review",
+        "deep_dive"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning",
+        "review",
+        "deep_dive",
+        "verifier"
+      ]
+    },
+    "deepseek-chat": {
+      "provider": "deepseek",
+      "upstream_model_name": "deepseek/deepseek-chat",
+      "api_style": "openai",
+      "tier": "paid_cloud",
+      "local": false,
+      "enabled": true,
+      "env_key": "DEEPSEEK_API_KEY",
+      "context_window": 128000,
+      "pricing": {
+        "input_per_1m": 0.14,
+        "output_per_1m": 0.28,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "deepseek",
+      "capabilities": [
+        "chat",
+        "planning",
+        "review"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning",
+        "review",
+        "verifier"
+      ]
+    },
+    "deepseek-reasoner": {
+      "provider": "deepseek",
+      "upstream_model_name": "deepseek/deepseek-reasoner",
+      "api_style": "openai",
+      "tier": "paid_cloud",
+      "local": false,
+      "enabled": true,
+      "env_key": "DEEPSEEK_API_KEY",
+      "context_window": 64000,
+      "pricing": {
+        "input_per_1m": 0.55,
+        "output_per_1m": 2.19,
+        "reasoning_per_1m": 0.55
+      },
+      "family": "deepseek",
+      "capabilities": [
+        "planning",
+        "review",
+        "deep_dive"
+      ],
+      "allowed_use_cases": [
+        "planning",
+        "review",
+        "deep_dive",
+        "verifier"
+      ]
+    },
+    "claude-3-5-sonnet": {
+      "provider": "anthropic",
+      "upstream_model_name": "anthropic/claude-3-5-sonnet-20241022",
+      "api_style": "anthropic",
+      "tier": "paid_cloud",
+      "local": false,
+      "enabled": true,
+      "env_key": "ANTHROPIC_API_KEY",
+      "context_window": 200000,
+      "pricing": {
+        "input_per_1m": 3.0,
+        "output_per_1m": 15.0,
+        "reasoning_per_1m": 3.0
+      },
+      "family": "anthropic",
+      "capabilities": [
+        "chat",
+        "planning",
+        "review",
+        "deep_dive"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning",
+        "review",
+        "deep_dive",
+        "verifier"
+      ]
+    },
+    "claude-3-haiku": {
+      "provider": "anthropic",
+      "upstream_model_name": "anthropic/claude-3-haiku-20240307",
+      "api_style": "anthropic",
+      "tier": "paid_cloud",
+      "local": false,
+      "enabled": true,
+      "env_key": "ANTHROPIC_API_KEY",
+      "context_window": 200000,
+      "pricing": {
+        "input_per_1m": 0.25,
+        "output_per_1m": 1.25,
+        "reasoning_per_1m": 0.25
+      },
+      "family": "anthropic",
+      "capabilities": [
+        "chat",
+        "planning"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning",
+        "verifier"
+      ]
+    },
+    "claude-3-opus": {
+      "provider": "anthropic",
+      "upstream_model_name": "anthropic/claude-3-opus-20240229",
+      "api_style": "anthropic",
+      "tier": "premium",
+      "local": false,
+      "enabled": false,
+      "env_key": "ANTHROPIC_API_KEY",
+      "context_window": 200000,
+      "pricing": {
+        "input_per_1m": 15.0,
+        "output_per_1m": 75.0,
+        "reasoning_per_1m": 15.0
+      },
+      "family": "anthropic",
+      "capabilities": [
+        "deep_dive",
+        "review",
+        "planning"
+      ],
+      "allowed_use_cases": [
+        "deep_dive",
+        "review",
+        "planning",
+        "verifier"
+      ],
+      "requires_catalog_enabled": true
+    },
+    "openrouter-gemma-2-9b-free": {
+      "provider": "openrouter",
+      "upstream_model_name": "openrouter/google/gemma-2-9b-it:free",
+      "api_style": "openai",
+      "tier": "free_cloud",
+      "local": false,
+      "enabled": true,
+      "env_key": "OPENROUTER_API_KEY",
+      "context_window": 8192,
+      "pricing": {
+        "input_per_1m": 0.0,
+        "output_per_1m": 0.0,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "google",
+      "capabilities": [
+        "chat"
+      ],
+      "allowed_use_cases": [
+        "chat"
+      ]
+    },
+    "openrouter-claude-3.5-sonnet": {
+      "provider": "openrouter",
+      "upstream_model_name": "openrouter/anthropic/claude-3-5-sonnet",
+      "api_style": "openai",
+      "tier": "paid_cloud",
+      "local": false,
+      "enabled": true,
+      "env_key": "OPENROUTER_API_KEY",
+      "context_window": 200000,
+      "pricing": {
+        "input_per_1m": 3.0,
+        "output_per_1m": 15.0,
+        "reasoning_per_1m": 3.0
+      },
+      "family": "anthropic",
+      "capabilities": [
+        "chat",
+        "planning",
+        "review",
+        "deep_dive"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning",
+        "review",
+        "deep_dive",
+        "verifier"
+      ]
+    },
+    "openrouter-gpt-4o": {
+      "provider": "openrouter",
+      "upstream_model_name": "openrouter/openai/gpt-4o",
+      "api_style": "openai",
+      "tier": "paid_cloud",
+      "local": false,
+      "enabled": true,
+      "env_key": "OPENROUTER_API_KEY",
+      "context_window": 128000,
+      "pricing": {
+        "input_per_1m": 5.0,
+        "output_per_1m": 15.0,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "openai",
+      "capabilities": [
+        "chat",
+        "planning",
+        "review"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning",
+        "review",
+        "verifier"
+      ]
+    },
+    "openrouter-gemini-2.0-flash": {
+      "provider": "openrouter",
+      "upstream_model_name": "openrouter/google/gemini-2.0-flash",
+      "api_style": "openai",
+      "tier": "paid_cloud",
+      "local": false,
+      "enabled": true,
+      "env_key": "OPENROUTER_API_KEY",
+      "context_window": 1000000,
+      "pricing": {
+        "input_per_1m": 0.15,
+        "output_per_1m": 0.6,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "google",
+      "capabilities": [
+        "chat",
+        "planning"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning"
+      ]
+    },
+    "openrouter-deepseek-coder": {
+      "provider": "openrouter",
+      "upstream_model_name": "openrouter/deepseek/deepseek-coder",
+      "api_style": "openai",
+      "tier": "paid_cloud",
+      "local": false,
+      "enabled": true,
+      "env_key": "OPENROUTER_API_KEY",
+      "context_window": 128000,
+      "pricing": {
+        "input_per_1m": 0.14,
+        "output_per_1m": 0.28,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "deepseek",
+      "capabilities": [
+        "planning",
+        "review"
+      ],
+      "allowed_use_cases": [
+        "planning",
+        "review",
+        "verifier"
+      ]
+    },
+    "gpt-4o": {
+      "provider": "openai",
+      "upstream_model_name": "openai/gpt-4o",
+      "api_style": "openai",
+      "tier": "paid_cloud",
+      "local": false,
+      "enabled": true,
+      "env_key": "OPENAI_API_KEY",
+      "context_window": 128000,
+      "pricing": {
+        "input_per_1m": 5.0,
+        "output_per_1m": 15.0,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "openai",
+      "capabilities": [
+        "chat",
+        "planning",
+        "review"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning",
+        "review",
+        "verifier"
+      ]
+    },
+    "gpt-4-turbo": {
+      "provider": "openai",
+      "upstream_model_name": "openai/gpt-4-turbo",
+      "api_style": "openai",
+      "tier": "paid_cloud",
+      "local": false,
+      "enabled": true,
+      "env_key": "OPENAI_API_KEY",
+      "context_window": 128000,
+      "pricing": {
+        "input_per_1m": 10.0,
+        "output_per_1m": 30.0,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "openai",
+      "capabilities": [
+        "chat",
+        "planning",
+        "review"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning",
+        "review",
+        "verifier"
+      ]
+    },
+    "vllm-qwen3-14b-chat": {
+      "provider": "local",
+      "upstream_model_name": "vllm-qwen3-14b-chat",
+      "api_style": "openai",
+      "tier": "local",
+      "local": true,
+      "enabled": true,
+      "env_key": null,
+      "context_window": 131072,
+      "pricing": {
+        "input_per_1m": 0.0,
+        "output_per_1m": 0.0,
+        "reasoning_per_1m": 0.0
+      },
+      "family": "qwen",
+      "capabilities": [
+        "chat",
+        "planning"
+      ],
+      "allowed_use_cases": [
+        "chat",
+        "planning"
+      ]
+    }
+  }
+}

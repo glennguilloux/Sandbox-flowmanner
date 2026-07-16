@@ -7,7 +7,7 @@ through a single /api/tools/* interface. No changes to base.py needed.
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 
 from app.api.deps import get_current_user, get_current_user_optional
@@ -155,6 +155,7 @@ async def get_tool(
 async def execute_tool(
     tool_id: str,
     body: dict,
+    response: Response,
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -183,7 +184,8 @@ async def execute_tool(
             cost_usd=result.cost_usd,
         )
     except Exception as e:
-        logger.error("Tool %s execution error: %s", tool_id, e, exc_info=True)
+        logger.exception("Tool %s execution error", tool_id)
+        response.status_code = 500
         return ToolExecutionResult(
             tool_id=tool_id,
             success=False,

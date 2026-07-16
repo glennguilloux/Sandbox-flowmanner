@@ -141,18 +141,18 @@ async def test_delete_api_key():
 
 
 def test_encrypt_decrypt_api_key():
-    """Test encryption utility — v2 per-key-salt format."""
+    """Test encryption utility — v3 envelope format."""
     from app.utils.encryption import decrypt_api_key, encrypt_api_key
 
-    original_key = "sk-test123456789"
+    original_key = "«redacted:sk-…»"
     encrypted = encrypt_api_key(original_key)
     decrypted = decrypt_api_key(encrypted)
 
     assert decrypted == original_key
-    assert encrypted.startswith("v2:"), "New encryptions must use v2 format"
-    # Random salt means two encryptions of the same plaintext differ
+    assert encrypted.startswith("v3:"), "New encryptions must use v3 envelope format"
+    # Random DEK means two encryptions of the same plaintext differ
     encrypted2 = encrypt_api_key(original_key)
-    assert encrypted != encrypted2, "Per-key salt must produce different ciphertexts"
+    assert encrypted != encrypted2, "Per-record DEK must produce different ciphertexts"
     assert decrypt_api_key(encrypted2) == original_key
 
 
@@ -206,10 +206,63 @@ def test_re_encrypt_api_key():
     with patch.object(enc_module, "settings", mock_settings):
         v2_encrypted = enc_module.re_encrypt_api_key(v1_encrypted)
 
-    assert v2_encrypted.startswith("v2:"), "re_encrypt must produce v2 format"
+    assert v2_encrypted.startswith("v3:"), "re_encrypt must produce v3 envelope format"
     assert v2_encrypted != v1_encrypted
     with patch.object(enc_module, "settings", mock_settings):
         assert enc_module.decrypt_api_key(v2_encrypted) == plaintext
+
+
+def test_legacy_v1_decrypt_disabled_by_flag():
+    """ENCRYPTION_ALLOW_LEGACY_DECRYPT=False must hard-reject v1 keys.
+
+    Verifies the non-breaking hardening: with the flag off, the weakened
+    legacy hardcoded-salt path is disabled and decryption of v1 data raises
+    instead of silently using the static salt.
+    """
+    import base64
+
+    from cryptography.fernet import Fernet
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+    from app.utils import encryption as enc_module
+
+    secret = "test-secret-key-for-byok"
+    legacy_salt = b"flowmanner-salt-"
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=legacy_salt, iterations=100_000)
+    legacy_key = base64.urlsafe_b64encode(kdf.derive(secret.encode()))
+    fernet = Fernet(legacy_key)
+    plaintext = "«redacted:sk-…»"
+    v1_encrypted = base64.urlsafe_b64encode(fernet.encrypt(plaintext.encode())).decode()
+
+    # Default (True) still decrypts v1 — backward-compatible.
+    mock_settings_default = type(
+        "S",
+        (),
+        {
+            "ENCRYPTION_KEY": secret,
+            "SECRET_KEY": secret,
+            "ENCRYPTION_ALLOW_LEGACY_DECRYPT": True,
+        },
+    )()
+    with patch.object(enc_module, "settings", mock_settings_default):
+        assert enc_module.decrypt_api_key(v1_encrypted) == plaintext
+
+    # Flag off: v1 must raise, not use the legacy salt.
+    mock_settings_off = type(
+        "S",
+        (),
+        {
+            "ENCRYPTION_KEY": secret,
+            "SECRET_KEY": secret,
+            "ENCRYPTION_ALLOW_LEGACY_DECRYPT": False,
+        },
+    )()
+    with (
+        patch.object(enc_module, "settings", mock_settings_off),
+        pytest.raises(ValueError, match="legacy v1 format"),
+    ):
+        enc_module.decrypt_api_key(v1_encrypted)
 
 
 def test_validate_provider():

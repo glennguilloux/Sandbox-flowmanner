@@ -2,7 +2,16 @@
 
 Wraps the public v1 endpoints for sandbox lifecycle, file I/O, coding
 agent tasks, and snapshot management.  Uses ``httpx.AsyncClient`` with
-optional Bearer token auth (currently disabled in sandboxd config).
+**Bearer token auth**, sourced from ``settings.SANDBOXD_AUTH_TOKEN``
+(never hardcoded).  When a token is configured, every request to the
+sandboxd control plane carries ``Authorization: Bearer <token>``.
+
+When ``SANDBOXD_AUTH_TOKEN`` is empty the client sends no auth header —
+this is only safe because FlowManner and sandboxd run on the same
+homelab host and the sandboxd control plane is not exposed off-host.  A
+warning is logged at client-build time so the unauthenticated state is
+never silent.  Operators MUST set ``SANDBOXD_AUTH_TOKEN`` to enable
+control-plane authentication; see the sandboxd deployment docs.
 
 FlowManner and sandboxd run on the same homelab host, so the internal
 exec endpoint (``POST /sandbox/{id}/exec``) is also available for
@@ -11,6 +20,7 @@ Phase 1 code execution via ``SandboxdClient.exec_command``.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from collections.abc import AsyncIterator
@@ -80,7 +90,19 @@ class SandboxdClient:
         auth_token: str | None = None,
     ) -> None:
         self.base_url = (base_url or settings.SANDBOXD_API_URL).rstrip("/")
+        # Bearer token is ALWAYS sourced from config (SANDBOXD_AUTH_TOKEN)
+        # or an explicit constructor arg — never hardcoded in source.
         self._auth = auth_token or settings.SANDBOXD_AUTH_TOKEN or None
+        self._auth_enabled = bool(self._auth)
+        if not self._auth_enabled:
+            # Not silent: an unauthenticated control-plane client is a
+            # security gap. Only safe because sandboxd is same-host and
+            # not exposed off-host. Operators must set SANDBOXD_AUTH_TOKEN.
+            logger.warning(
+                "SandboxdClient: SANDBOXD_AUTH_TOKEN is not configured — "
+                "requests to the sandboxd control plane will be sent WITHOUT "
+                "Bearer auth. Set SANDBOXD_AUTH_TOKEN to enable authentication."
+            )
         self._client: httpx.AsyncClient | None = None
 
     # ── Client lifecycle ───────────────────────────────────────────────
@@ -89,6 +111,8 @@ class SandboxdClient:
         if self._client is None or self._client.is_closed:
             headers: dict[str, str] = {"Content-Type": "application/json"}
             if self._auth:
+                # Bearer auth is wired and sent on every control-plane request
+                # whenever a token is configured (SANDBOXD_AUTH_TOKEN).
                 headers["Authorization"] = f"Bearer {self._auth}"
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
@@ -195,7 +219,7 @@ class SandboxdClient:
         _port_m = re.search(r"-(\d+)\.preview", _raw_preview_url)
         _port = _port_m.group(1) if _port_m else "(none)"
         logger.debug(
-            "SandboxdClient.get(%s): status=%s preview.status=%s " "preview.url=%r preview_port=%s",
+            "SandboxdClient.get(%s): status=%s preview.status=%s preview.url=%r preview_port=%s",
             sandbox_id,
             data.get("status"),
             _preview.get("status"),
@@ -253,15 +277,19 @@ class SandboxdClient:
         sandbox_id: str,
         prompt: str,
         agent: str = "opencode",
+        model: str | None = None,
     ) -> dict[str, Any]:
         """POST /v1/sandboxes/{id}/tasks — start coding agent (202 Accepted).
 
         Auto-wakes stopped sandbox first.
         """
         client = await self._get_client()
+        body: dict[str, Any] = {"prompt": prompt, "agent": agent}
+        if model is not None:
+            body["model"] = model
         resp = await client.post(
             f"/v1/sandboxes/{sandbox_id}/tasks",
-            json={"prompt": prompt, "agent": agent},
+            json=body,
         )
         resp.raise_for_status()
         return resp.json()
@@ -278,32 +306,125 @@ class SandboxdClient:
         sandbox_id: str,
         task_id: str,
         since: int = 0,
+        _max_reconnects: int = 5,
     ) -> AsyncIterator[dict[str, Any]]:
-        """GET /v1/sandboxes/{id}/tasks/{taskId}/events — SSE stream.
+        """GET /v1/sandboxes/{id}/tasks/{taskId}/events — task event stream.
 
-        Yields ``{id, type, data}`` events. Supports ``Last-Event-ID``
-        for reconnect.
+        The live ``sandboxd-control-plane`` build emits **SSE** on the wire
+        (``event: <type>`` / ``data: <json>`` / ``id: <n>`` lines, blank
+        line-terminated). The persisted ``events.jsonl`` log is NDJSON, so a
+        finished-task replay may arrive as one-JSON-per-line instead. This
+        parser accepts **both** shapes and normalises each to
+        ``{id, type, data}``.
+
+        Event ``type`` values: ``status`` / ``message`` / ``tool`` / ``build``
+        (informational) and the terminal ``done`` (carries the ``TaskResult``
+        in ``data``). ``data`` is coerced to a dict when it is itself a
+        JSON object/string.
+
+        Reconnect: on a dropped connection we reopen the stream with the
+        ``Last-Event-ID`` header set to the last ``id`` consumed, so no
+        events are missed and the terminal ``done`` event is always observed.
         """
         client = await self._get_client()
         url = f"/v1/sandboxes/{sandbox_id}/tasks/{task_id}/events"
-        headers = {}
-        if since:
-            headers["Last-Event-ID"] = str(since)
+        last_id: str = str(max(since - 1, -1))
+        reconnects = 0
 
-        async with client.stream("GET", url, headers=headers) as resp:
-            resp.raise_for_status()
-            current_event: dict[str, Any] = {}
-            async for line in resp.aiter_lines():
-                line = line.strip()
-                if line.startswith("id:"):
-                    current_event["id"] = line[3:].strip()
-                elif line.startswith("event:"):
-                    current_event["type"] = line[6:].strip()
-                elif line.startswith("data:"):
-                    current_event["data"] = line[5:].strip()
-                elif line == "" and current_event:
-                    yield current_event
-                    current_event = {}
+        while True:
+            headers: dict[str, str] = {}
+            if last_id not in ("-1", ""):
+                headers["Last-Event-ID"] = last_id
+
+            try:
+                async with client.stream("GET", url, headers=headers) as resp:
+                    resp.raise_for_status()
+                    # SSE accumulator (used when the wire is event:/data:/id:)
+                    cur: dict[str, Any] = {}
+                    async for raw in resp.aiter_lines():
+                        line = raw.strip()
+                        if not line:
+                            # Blank line terminates an SSE event block.
+                            if cur:
+                                ev = cur
+                                cur = {}
+                                yielded = self._normalize_event(ev, last_id)
+                                if yielded is not None:
+                                    last_id = yielded["id"]
+                                    yield yielded
+                                    if yielded["type"] == "done":
+                                        return
+                            continue
+                        if line.startswith("event:"):
+                            cur["type"] = line[6:].strip()
+                        elif line.startswith("data:"):
+                            cur["data"] = line[5:].strip()
+                        elif line.startswith("id:"):
+                            cur["id"] = line[3:].strip()
+                        elif line.startswith(":"):
+                            # SSE comment / keep-alive — ignore.
+                            continue
+                        else:
+                            # NDJSON fallback: a bare JSON object per line.
+                            try:
+                                obj = json.loads(line)
+                            except json.JSONDecodeError:
+                                logger.warning(
+                                    "task_events: skipping unparseable line: %r",
+                                    line[:200],
+                                )
+                                continue
+                            if not isinstance(obj, dict):
+                                continue
+                            yielded = self._normalize_event(obj, last_id)
+                            if yielded is not None:
+                                last_id = yielded["id"]
+                                yield yielded
+                                if yielded["type"] == "done":
+                                    return
+                    # Stream closed cleanly (live task finished / replay ended).
+                    if cur:
+                        yielded = self._normalize_event(cur, last_id)
+                        if yielded is not None:
+                            last_id = yielded["id"]
+                            yield yielded
+                    return
+            except (httpx.HTTPError, json.JSONDecodeError) as exc:
+                # Stream dropped mid-run. Reconnect honoring Last-Event-ID.
+                reconnects += 1
+                if reconnects > _max_reconnects:
+                    logger.error(
+                        "task_events: giving up after %d reconnects (%s)",
+                        _max_reconnects,
+                        exc,
+                    )
+                    return
+                logger.warning(
+                    "task_events: stream dropped (%s); reconnecting Last-Event-ID=%s",
+                    exc,
+                    last_id,
+                )
+                continue
+
+    @staticmethod
+    def _normalize_event(ev: dict[str, Any], fallback_id: str) -> dict[str, Any] | None:
+        """Coerce a raw SSE/NDJSON event dict into {id, type, data}."""
+        raw_id = ev.get("id")
+        ev_id = str(raw_id) if raw_id is not None else fallback_id
+
+        data = ev.get("data", {})
+        if isinstance(data, str):
+            try:
+                data = json.loads(data) if data else {}
+            except json.JSONDecodeError:
+                data = {"raw": data}
+        elif not isinstance(data, dict):
+            data = {"value": data}
+
+        ev_type = ev.get("type", "")
+        if not ev_type and isinstance(data, dict):
+            ev_type = data.get("type", "")
+        return {"id": ev_id, "type": ev_type, "data": data}
 
     async def cancel_task(self, sandbox_id: str, task_id: str) -> dict[str, Any]:
         """POST /v1/sandboxes/{id}/tasks/{taskId}/cancel."""

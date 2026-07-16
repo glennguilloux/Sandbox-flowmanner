@@ -115,6 +115,11 @@ eval_duration_seconds = Histogram(
     buckets=[5, 10, 30, 60, 120, 300, 600],
 )
 
+eval_run_cost_usd = Histogram("flowmanner_eval_run_cost_usd", "Total cost USD per eval run", ["model"])
+eval_cost_per_correct = Histogram(
+    "flowmanner_eval_cost_per_correct_usd", "Cost per correct answer per eval run", ["model"]
+)
+eval_pass_rate = Histogram("flowmanner_eval_pass_rate", "Pass rate per eval run", ["model"])
 eval_test_cases_total = Counter(
     "flowmanner_eval_test_cases_total",
     "Total test cases evaluated",
@@ -181,6 +186,25 @@ def record_model_fallback(success: bool, provider: str = "unknown") -> None:
     model_fallback_total.labels(provider=provider).inc()
     if success:
         model_fallback_success.labels(provider=provider).inc()
+
+
+# --- Circuit Breaker guardrail failures (R-4 fix) ---------------------------
+
+circuit_breaker_guard_failed_total = Counter(
+    "flowmanner_circuit_breaker_guard_failed_total",
+    "Circuit breaker guardrail check/record failures (fail-closed or swallowed)",
+    ["stage"],  # "check" (CB check error) or "record" (CB record error)
+)
+
+
+def record_circuit_breaker_guard_failure(stage: str) -> None:
+    """Record that the per-mission circuit breaker guardrail failed.
+
+    Used when check_circuit_breaker / record_circuit_breaker_call hit an
+    exception so the failure is observable rather than silently swallowed
+    (R-4). ``stage`` is ``"check"`` or ``"record"``.
+    """
+    circuit_breaker_guard_failed_total.labels(stage=stage).inc()
 
 
 # ─── Memory Extraction Metrics ─────────────────────────────────────
@@ -290,3 +314,20 @@ def record_eval_test_case(model: str, task_type: str, passed: bool) -> None:
     """Record a single test case result."""
     result = "pass" if passed else "fail"
     eval_test_cases_total.labels(model=model, task_type=task_type, result=result).inc()
+
+
+def record_eval_run_cost(
+    model: str,
+    total_cost_usd: float,
+    correct_count: int,
+    cost_per_correct: float | None,
+    pass_rate: float,
+) -> None:
+    """Comment 10: record cost-per-correct-answer metrics for a run."""
+    try:
+        eval_run_cost_usd.labels(model=model).observe(max(total_cost_usd, 0.0))
+        eval_pass_rate.labels(model=model).observe(max(min(pass_rate, 1.0), 0.0))
+        if cost_per_correct is not None:
+            eval_cost_per_correct.labels(model=model).observe(max(cost_per_correct, 0.0))
+    except Exception:  # pragma: no cover - metrics should never break a run
+        pass

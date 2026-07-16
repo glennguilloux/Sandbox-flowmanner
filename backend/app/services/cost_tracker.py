@@ -37,6 +37,11 @@ class CostTracker:
             Unknown models fall back to the ``"default"`` key (0.50 USD).
     """
 
+    # Deprecated: pricing now lives in the authoritative model catalog
+    # (app/config/models_catalog.json via app.services.model_catalog). Kept as a
+    # last-resort fallback only when the catalog cannot be loaded, so legacy
+    # callers that import this constant do not break. Do NOT read this in new
+    # code — use ModelCatalog.estimate_cost() instead.
     COST_PER_1M_TOKENS: dict[str, float] = {
         "deepseek-chat": 0.14,
         "deepseek-v4-flash": 0.14,
@@ -69,8 +74,22 @@ class CostTracker:
             >>> tracker.estimate_cost("unknown-model", 500_000)
             0.25  # 0.50 / 2
         """
-        cost_per_1m = self.COST_PER_1M_TOKENS.get(model_id, self.COST_PER_1M_TOKENS["default"])
-        return (total_tokens / settings.MISSION_COST_DIVISOR) * cost_per_1m
+        # Comment 5: read pricing from the authoritative model catalog. The
+        # catalog treats unknown pricing for a paid model as an error, but for
+        # resilience we fall back to the deprecated hard-coded table when the
+        # catalog is unavailable so legacy call sites keep working.
+        try:
+            from app.services.model_catalog import get_model_catalog
+
+            catalog = get_model_catalog()
+            return catalog.estimate_cost(
+                model_id,
+                prompt_tokens=total_tokens,
+                completion_tokens=0,
+            )
+        except Exception:
+            cost_per_1m = self.COST_PER_1M_TOKENS.get(model_id, self.COST_PER_1M_TOKENS["default"])
+            return (total_tokens / settings.MISSION_COST_DIVISOR) * cost_per_1m
 
     async def record_llm_call(
         self,

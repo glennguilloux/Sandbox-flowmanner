@@ -44,7 +44,7 @@ Every v3 endpoint is gated on a feature flag stored in the `feature_flags` table
 
 | Flag | Gates | Behavior on off |
 |---|---|---|
-| `AUTH_V3_ENABLED` | All of `auth.py` | 404 on every endpoint (handler `_require_v3_enabled`) |
+| `AUTH_V3_ENDPOINTS` | All of `auth.py` | 404 on every endpoint (handler `_require_v3_enabled`) |
 | `AUTH_V3_OIDC` | `auth_oidc.py` | 404 on `/auth/oidc/*` |
 | `AUTH_V3_WEBHOOKS` | `auth_webhooks.py` | 404 on `/auth/webhooks*` |
 | `WORKSPACES_V3_ENDPOINTS` | `workspaces.py` | 404 on `/workspaces*` |
@@ -134,7 +134,7 @@ Notes:
 - `ApiKeyListResponse` (GET) = `{ id, name, key_prefix, scopes, is_active, last_used_at, expires_at, created_at }` — **no `key` field**
 - `UserSummary` = `{ id, email, username, full_name, role, avatar_url, totp_enabled }`
 - `UserResponse` = full user object including `is_admin`, `is_active`, `created_at`, `last_login_at`, `onboarding_*`
-- All handlers call `await _require_v3_enabled(db)` first → 404 if `AUTH_V3_ENABLED=0`.
+- All handlers call `await _require_v3_enabled(db)` first → 404 if `AUTH_V3_ENDPOINTS=0`.
 - Auth webhook events are emitted via `_emit_auth_event(db, user_id, event_type, payload)` — fire-and-forget, never raises. Events: `user.created`, `user.updated`, `session.created`, `session.refreshed`, `session.revoked`. Resolves workspace IDs via `WorkspaceMember` lookup.
 
 ### 2. auth OIDC — [`auth_oidc.py`](./auth_oidc.py) (tag: `v3-auth-oidc`)

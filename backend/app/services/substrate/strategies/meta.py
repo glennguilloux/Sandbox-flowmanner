@@ -12,7 +12,10 @@ import logging
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from app.services.substrate.strategies.base import ExecutionStrategy
+from app.services.substrate.strategies.base import (
+    ExecutionStrategy,
+    _validate_edge_endpoints,
+)
 from app.services.substrate.workflow_models import (
     NodeType,
     StrategyResult,
@@ -43,6 +46,8 @@ class MetaStrategy(ExecutionStrategy):
         if sub_count < 1:
             errors.append("Meta workflow requires at least 1 SUB_WORKFLOW node")
 
+        errors.extend(_validate_edge_endpoints(workflow))
+
         return errors
 
     async def execute(
@@ -51,8 +56,8 @@ class MetaStrategy(ExecutionStrategy):
         context: dict[str, Any],
         executor: UnifiedExecutor,
         db: AsyncSession,
+        run_id: str,
     ) -> StrategyResult:
-        run_id = workflow.metadata.get("substrate_run_id", str(uuid4()))
         max_depth = workflow.budget.max_depth
         goal = context.get("goal", workflow.description or workflow.title)
 

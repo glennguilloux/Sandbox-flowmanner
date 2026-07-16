@@ -100,6 +100,15 @@ class ModelRouter:
 
     def _get_model_name(self, model_id: str) -> str:
         """Get display name for a model."""
+        # Comment 5: prefer the catalog's canonical upstream model name.
+        try:
+            from app.services.model_catalog import get_model_catalog
+
+            spec = get_model_catalog().get(model_id)
+            if spec is not None:
+                return spec.upstream_model_name
+        except Exception:
+            pass
         if self.llm_manager:
             mapped = self.llm_manager.MODEL_MAP.get(model_id, model_id)
             if mapped.startswith("llamacpp/"):

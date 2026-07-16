@@ -14,7 +14,10 @@ import logging
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from app.services.substrate.strategies.base import ExecutionStrategy
+from app.services.substrate.strategies.base import (
+    ExecutionStrategy,
+    _validate_edge_endpoints,
+)
 from app.services.substrate.workflow_models import (
     NodeType,
     StrategyResult,
@@ -64,6 +67,8 @@ class PipelineStrategy(ExecutionStrategy):
         phase_configs = {n.config.get("phase") for n in workflow.nodes}
         errors.extend(f"Pipeline missing required phase: '{phase}'" for phase in PHASES if phase not in phase_configs)
 
+        errors.extend(_validate_edge_endpoints(workflow))
+
         return errors
 
     async def execute(
@@ -72,9 +77,8 @@ class PipelineStrategy(ExecutionStrategy):
         context: dict[str, Any],
         executor: UnifiedExecutor,
         db: AsyncSession,
+        run_id: str,
     ) -> StrategyResult:
-        run_id = workflow.metadata.get("substrate_run_id", str(uuid4()))
-
         total_tokens = 0
         total_cost = 0.0
         completed: list[str] = []

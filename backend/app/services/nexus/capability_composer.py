@@ -456,6 +456,7 @@ class CapabilityComposer:
             return CompositionResult(
                 success=False,
                 composed_id=composed_id,
+                outputs=[],
                 final_output=None,
                 error=f"Composed capability not found: {composed_id}",
             )
@@ -651,7 +652,22 @@ class CapabilityComposer:
                     if isinstance(current_output, dict)
                     else {**params, "input": current_output}
                 )
-                result = await cap.execute(exec_params)
+                # Trust-boundary (agent-loop-trust-boundary skill): every
+                # capability call needs a timeout; an unguarded await can stall
+                # the gather/loop indefinitely. Validate current_output shape so
+                # a malformed result from one capability cannot silently poison
+                # the next capability's params.
+                _cap_timeout = float(getattr(composed, "capability_timeout_seconds", None) or 60)
+                try:
+                    result = await asyncio.wait_for(cap.execute(exec_params), timeout=_cap_timeout)
+                except TimeoutError:
+                    logger.error("Capability %s timed out after %ss", cap_id, _cap_timeout)
+                    result = {
+                        "success": False,
+                        "error": f"Capability {cap_id} timed out",
+                    }
+                if not isinstance(result, dict | str | bytes):
+                    result = {"success": False, "error": "non-serializable capability output"}
                 iteration_outputs.append({"capability_id": cap_id, "output": result})
                 capabilities_executed.append(f"{cap_id}:{iterations}")
                 current_output = result
@@ -660,10 +676,13 @@ class CapabilityComposer:
             iterations += 1
 
             # Check loop condition
-            if composed.loop_condition and isinstance(current_output, dict):
-                if current_output.get(composed.loop_condition) == True:
-                    logger.info("Loop condition met after %s iterations", iterations)
-                    break
+            if (
+                composed.loop_condition
+                and isinstance(current_output, dict)
+                and current_output.get(composed.loop_condition) == True
+            ):
+                logger.info("Loop condition met after %s iterations", iterations)
+                break
 
             # Check for "done" flag in output
             if isinstance(current_output, dict) and current_output.get("done"):

@@ -1,99 +1,32 @@
-"""V3 middleware and exception handlers.
+"""V3 exception-handler registration.
 
-Catches HTTPException and unhandled errors for v3 routes, converts them to the
-v3 error envelope with trace_id. Only active for routes under /api/v3/.
+Historically this module defined a private ``_make_error_response`` plus a
+path-guarded ``HTTPException`` / ``Exception`` pair registered via
+``app.exception_handler(...)``. The v2 module did the same, and because
+FastAPI keys handlers by exception class (a dict), the *last* registration
+per class won and the two tiers only produced the right shape because each
+guarded on ``request.url.path.startswith(...)``. That made correctness
+depend on fragile, implicit registration order.
+
+The single path-aware dispatcher now lives in ``app/api/_shared_errors.py``
+and is registered once in ``app/main_fastapi.py``. This module keeps the
+``register_v3_exception_handlers(app)`` entrypoint (still used by the
+``v3_test_app`` test fixture) but delegates to the shared dispatcher so a
+v3-only app still gets the correct v3 envelope.
 """
 
 from __future__ import annotations
 
-import structlog
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 
-from app.api.v3.base import ErrorDetail, ResponseMeta
-
-logger = structlog.get_logger()
-
-
-def _make_error_response(
-    status_code: int,
-    code: str,
-    message: str,
-    details: dict | None = None,
-    request_id: str | None = None,
-    trace_id: str | None = None,
-) -> JSONResponse:
-    error = ErrorDetail(code=code, message=message, details=details)
-    if trace_id:
-        error.trace_id = trace_id
-    meta = ResponseMeta()
-    if request_id:
-        meta.request_id = request_id
-    body = {"data": None, "meta": meta.model_dump(), "error": error.model_dump()}
-    return JSONResponse(status_code=status_code, content=body)
+from app.api._shared_errors import register_unified_exception_handlers
 
 
 def register_v3_exception_handlers(app: FastAPI) -> None:
-    """Register exception handlers that produce v3 error envelopes.
+    """Register v3 error handling (delegates to the unified dispatcher).
 
-    Only active for routes under /api/v3/.
+    Kept for backward compatibility with the ``v3_test_app`` fixture in
+    ``tests/conftest.py``. The dispatcher is path-aware, so a v3-only app
+    still produces the v3 envelope for ``/api/v3/*`` paths.
     """
-
-    @app.exception_handler(HTTPException)
-    async def v3_http_exception_handler(request: Request, exc: HTTPException):
-        if not request.url.path.startswith("/api/v3"):
-            # Let the v2 handler or default handler deal with it
-            from fastapi.responses import JSONResponse as PlainJSON
-
-            return PlainJSON(
-                status_code=exc.status_code,
-                content={"detail": exc.detail},
-            )
-
-        code = _status_to_code(exc.status_code)
-        trace_id = getattr(request.state, "trace_id", None)
-        return _make_error_response(
-            status_code=exc.status_code,
-            code=code,
-            message=str(exc.detail),
-            request_id=request.headers.get("X-Request-ID"),
-            trace_id=trace_id,
-        )
-
-    @app.exception_handler(Exception)
-    async def v3_general_exception_handler(request: Request, exc: Exception):
-        if not request.url.path.startswith("/api/v3"):
-            from fastapi.responses import JSONResponse as PlainJSON
-
-            return PlainJSON(
-                status_code=500,
-                content={"detail": "An error occurred. Please try again later."},
-            )
-
-        trace_id = getattr(request.state, "trace_id", None)
-        logger.error("Unhandled v3 exception", error=str(exc), exc_info=True, trace_id=trace_id)
-        return _make_error_response(
-            status_code=500,
-            code="INTERNAL_ERROR",
-            message="An error occurred. Please try again later.",
-            request_id=request.headers.get("X-Request-ID"),
-            trace_id=trace_id,
-        )
-
-
-_STATUS_CODE_MAP: dict[int, str] = {
-    400: "BAD_REQUEST",
-    401: "UNAUTHORIZED",
-    403: "FORBIDDEN",
-    404: "NOT_FOUND",
-    409: "CONFLICT",
-    422: "VALIDATION_ERROR",
-    423: "ACCOUNT_LOCKED",
-    429: "RATE_LIMITED",
-    500: "INTERNAL_ERROR",
-    502: "BAD_GATEWAY",
-}
-
-
-def _status_to_code(status_code: int) -> str:
-    return _STATUS_CODE_MAP.get(status_code, f"HTTP_{status_code}")
+    register_unified_exception_handlers(app)

@@ -51,6 +51,120 @@ class ModelRouter:
     def __init__(self, db_session=None, user_id: str | None = None):
         self.db = db_session
         self.user_id = user_id
+        self._last_messages: list[dict[str, Any]] = []
+
+    @staticmethod
+    def _is_native_anthropic(model_id: str) -> bool:
+        """Comment 6: route Anthropic-API-style models to the native adapter."""
+        try:
+            from app.services.providers.anthropic_adapter import is_native_anthropic
+
+            return is_native_anthropic(model_id)
+        except Exception:
+            return False
+
+    async def _route_native_anthropic(
+        self,
+        raw_model: str,
+        messages: list[dict[str, Any]],
+        *,
+        reasoning=None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        user_id: str = "system",
+        is_admin: bool = False,
+    ) -> Any:
+        """Dispatch a native-Anthropic model through the Anthropic adapter.
+
+        Comment 6: Opus (and other native Anthropic models) require a real
+        Anthropic key or an approved OpenRouter Anthropic route, and are gated
+        by the catalog + feature flags. We never silently fall back to the
+        OpenAI-compatible path for these models.
+        """
+        from app.config import settings
+        from app.services.model_catalog import get_model_catalog
+        from app.services.providers.anthropic_adapter import (
+            AnthropicAdapter,
+            OpenAICompatibleAdapter,
+            ProviderCallResult,
+            ReasoningOptions,
+        )
+
+        catalog = get_model_catalog()
+        spec = catalog.get(raw_model)
+        upstream = spec.upstream_model_name if spec else raw_model
+
+        # Opus hard gate (Comment 6).
+        if raw_model == "claude-3-opus":
+            from app.services.providers.anthropic_adapter import opus_enabled
+
+            if not opus_enabled():
+                result = LLMRouteResult(
+                    model=raw_model,
+                    content="",
+                    success=False,
+                    error=(
+                        "Opus is disabled: set ENABLE_NATIVE_ANTHROPIC, "
+                        "ENABLE_PREMIUM_MODELS, and provide ANTHROPIC_API_KEY "
+                        "(or an approved OpenRouter Anthropic route)."
+                    ),
+                )
+                return self._maybe_dict_result(result, 0, user_id, is_admin)
+
+        if reasoning is None:
+            reasoning = ReasoningOptions()
+        elif not isinstance(reasoning, ReasoningOptions):
+            reasoning = ReasoningOptions(**(reasoning if isinstance(reasoning, dict) else {}))
+
+        # Prefer native Anthropic when a real key exists; otherwise an approved
+        # OpenRouter Anthropic route is allowed as a fallback.
+        adapter: Any = None
+        if os.getenv("ANTHROPIC_API_KEY"):
+            adapter = AnthropicAdapter(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        elif settings.ALLOW_ANTHROPIC_VIA_OPENROUTER and os.getenv("OPENROUTER_API_KEY"):
+            adapter = OpenAICompatibleAdapter(
+                base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+                api_key=os.getenv("OPENROUTER_API_KEY"),
+                upstream_model=upstream,
+            )
+
+        if adapter is None:
+            result = LLMRouteResult(
+                model=raw_model,
+                content="",
+                success=False,
+                error="No Anthropic credentials available for native Anthropic model",
+            )
+            return self._maybe_dict_result(result, 0, user_id, is_admin)
+
+        res: ProviderCallResult = await adapter.complete(
+            model=upstream,
+            messages=messages,
+            reasoning=reasoning,
+            max_tokens=max_tokens or 4096,
+            temperature=temperature if temperature is not None else 1.0,
+        )
+
+        result = LLMRouteResult(
+            model=raw_model,
+            provider="anthropic",
+            content=res.content,
+            success=res.success,
+            usage={
+                "prompt_tokens": res.input_tokens,
+                "completion_tokens": res.output_tokens,
+                "total_tokens": res.input_tokens + res.output_tokens,
+            },
+            error=res.error or "",
+        )
+        payload = self._maybe_dict_result(result, 0, user_id, is_admin)
+        if isinstance(payload, dict):
+            payload["reasoning_tokens"] = res.reasoning_tokens
+            payload["degraded"] = res.degraded
+            payload["degradation_note"] = res.degradation_note
+            if res.thinking:
+                payload["thinking"] = res.thinking
+        return payload
 
     async def route_request(
         self,
@@ -62,12 +176,29 @@ class ModelRouter:
         is_admin: bool = False,
         max_tokens: int | None = None,
         temperature: float | None = None,
+        reasoning=None,
         **kwargs,
     ) -> Any:
         effective_user_id = user_id or self.user_id or "system"
         # Use the db_session passed per-request if constructor didn't have one
         effective_db = db_session or self.db
+        self._last_messages = list(messages or [])
         raw_model = model_preference or os.getenv("LLM_MODEL_NAME", "deepseek/deepseek-v4-flash")
+
+        # Comment 6: native Anthropic models (claude-3-5-sonnet, claude-3-opus)
+        # must NOT go through the OpenAI-compatible path. Route them to the
+        # native Anthropic adapter, which uses the correct messages API, key,
+        # headers, thinking-block parsing, and prompt-cache controls.
+        if self._is_native_anthropic(raw_model):
+            return await self._route_native_anthropic(
+                raw_model,
+                kwargs.get("messages_for_anthropic") or self._last_messages,  # populated below for local builds
+                reasoning=reasoning,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                user_id=effective_user_id,
+                is_admin=is_admin,
+            )
 
         base_url, api_key, _model_name = _resolve_provider(raw_model)
 

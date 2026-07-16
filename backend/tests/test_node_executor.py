@@ -8,7 +8,11 @@ from uuid import uuid4
 import pytest
 
 from app.models.capability_models import BudgetExhausted
-from app.services.substrate.workflow_models import WorkflowNode, WorkflowType
+from app.services.substrate.workflow_models import (
+    EffectClass,
+    WorkflowNode,
+    WorkflowType,
+)
 
 
 def _make_node(
@@ -36,6 +40,8 @@ def _make_mock_node_executor():
     mock_executor.event_log.append = AsyncMock(return_value=[MagicMock(sequence=1)])
     mock_executor.event_log.get_latest_sequence = AsyncMock(return_value=0)
     mock_executor.event_log.get_events = AsyncMock(return_value=[])
+    # execute() awaits find_by_idempotency_key (node_executor.py:348) — must be async.
+    mock_executor.event_log.find_by_idempotency_key = AsyncMock(return_value=None)
     mock_executor.call_llm = AsyncMock(
         return_value={
             "success": True,
@@ -114,8 +120,15 @@ class TestExecuteMainLoop:
 
     @pytest.mark.asyncio
     async def test_execute_retries_on_failure(self):
+        # A read-only node (llm_call) is REVERSIBLE in production — the
+        # adapter maps it via _REVERSIBLE_NODE_TYPES. A raw WorkflowNode
+        # inherits the fail-closed IRREVERSIBLE default, which makes
+        # NodeExecutor promote the first failure to ESCALATE and refuse to
+        # retry (correct behavior for an irreversible node). To exercise the
+        # retry path this test must model the node as REVERSIBLE.
         ne, mock_executor = _make_mock_node_executor()
         node = _make_node(max_retries=2)
+        node.effect_class = EffectClass.REVERSIBLE
         db = AsyncMock()
         run_id = str(uuid4())
         budget = _make_budget()
@@ -410,6 +423,11 @@ class TestHandleTool:
         db = AsyncMock()
         run_id = str(uuid4())
         budget = MagicMock()
+        # Budget.remaining() is sync in production (capability_models.py:301) and
+        # returns a dict with "cost_usd" — depth_selection.py:79 str()'s it into a
+        # Decimal. A bare MagicMock makes remaining() return a coroutine, which
+        # Decimal() rejects. Use the real interface shape.
+        budget.remaining.return_value = {"cost_usd": 0.81}
         context = {"mission_id": "m1"}
         from app.services.substrate.workflow_models import Workflow
 
@@ -435,6 +453,11 @@ class TestHandleTool:
         db = AsyncMock()
         run_id = str(uuid4())
         budget = MagicMock()
+        # Budget.remaining() is sync in production (capability_models.py:301) and
+        # returns a dict with "cost_usd" — depth_selection.py:79 str()'s it into a
+        # Decimal. A bare MagicMock makes remaining() return a coroutine, which
+        # Decimal() rejects. Use the real interface shape.
+        budget.remaining.return_value = {"cost_usd": 0.81}
         context = {"mission_id": "m1"}
         from app.services.substrate.workflow_models import Workflow
 
@@ -568,6 +591,11 @@ class TestHandleLLM:
         db = AsyncMock()
         run_id = str(uuid4())
         budget = MagicMock()
+        # Budget.remaining() is sync in production (capability_models.py:301) and
+        # returns a dict with "cost_usd" — depth_selection.py:79 str()'s it into a
+        # Decimal. A bare MagicMock makes remaining() return a coroutine, which
+        # Decimal() rejects. Use the real interface shape.
+        budget.remaining.return_value = {"cost_usd": 0.81}
         context = {"mission_id": "m1"}
 
         mock_enforcer = MagicMock()
@@ -614,6 +642,11 @@ class TestHandleLLM:
         db = AsyncMock()
         run_id = str(uuid4())
         budget = MagicMock()
+        # Budget.remaining() is sync in production (capability_models.py:301) and
+        # returns a dict with "cost_usd" — depth_selection.py:79 str()'s it into a
+        # Decimal. A bare MagicMock makes remaining() return a coroutine, which
+        # Decimal() rejects. Use the real interface shape.
+        budget.remaining.return_value = {"cost_usd": 0.81}
         context = {"mission_id": "m1"}
 
         mock_enforcer = MagicMock()
@@ -653,6 +686,11 @@ class TestHandleLLM:
         db = AsyncMock()
         run_id = str(uuid4())
         budget = MagicMock()
+        # Budget.remaining() is sync in production (capability_models.py:301) and
+        # returns a dict with "cost_usd" — depth_selection.py:79 str()'s it into a
+        # Decimal. A bare MagicMock makes remaining() return a coroutine, which
+        # Decimal() rejects. Use the real interface shape.
+        budget.remaining.return_value = {"cost_usd": 0.81}
         context = {"mission_id": "m1"}
 
         mock_enforcer = MagicMock()
@@ -705,6 +743,11 @@ class TestHandleLLM:
         db = AsyncMock()
         run_id = str(uuid4())
         budget = MagicMock()
+        # Budget.remaining() is sync in production (capability_models.py:301) and
+        # returns a dict with "cost_usd" — depth_selection.py:79 str()'s it into a
+        # Decimal. A bare MagicMock makes remaining() return a coroutine, which
+        # Decimal() rejects. Use the real interface shape.
+        budget.remaining.return_value = {"cost_usd": 0.81}
         context = {"mission_id": "m1"}
 
         mock_enforcer = MagicMock()

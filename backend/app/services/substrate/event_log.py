@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 from uuid import NAMESPACE_DNS, UUID, uuid4, uuid5
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from app.models.substrate_models import SubstrateEvent
 
@@ -149,11 +150,28 @@ class EventLog:
             # Set blueprint_id if column exists (added in phase101 migration)
             with suppress(AttributeError):
                 event.blueprint_id = blueprint_id or event_dict.get("blueprint_id")
-            db.add(event)
+            try:
+                db.add(event)
+            except IntegrityError:
+                # Concurrent writer won the unique-constraint race on
+                # idempotency_key (S2) — treat as already logged.
+                await db.rollback()
+                skipped += 1
+                continue
             persisted.append(event)
 
         if persisted:
-            await db.flush()
+            try:
+                await db.flush()
+            except IntegrityError:
+                # A concurrent flush inserted the same idempotency_key.
+                # Roll back added rows so the caller can commit its other work.
+                await db.rollback()
+                logger.warning(
+                    "Dedup-on-write: concurrent insert of idempotency_key for run %s",
+                    run_id,
+                )
+                return []
 
         if skipped:
             logger.info(

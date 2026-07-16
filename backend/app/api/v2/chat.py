@@ -497,6 +497,7 @@ async def chat_with_llm_stream(
                     model_id=requested_model,
                     attachments=attachments_data,
                     web_search=payload.web_search,
+                    request=request,
                 )
             )
         ),

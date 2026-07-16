@@ -203,7 +203,28 @@ boot_smoke_test() {
 
   local env_file
   env_file=$(mktemp /tmp/flowmanner-boot-smoke-env.XXXXXX.txt)
-  docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$BACKEND_CONTAINER" > "$env_file"
+  # Prefer the COMPOSE-resolved env (docker-compose.yml `env_file:` + `environment:`),
+  # because that is exactly what `docker compose up` injects at promotion time.
+  # Borrowing the *running* container's env is WRONG: it lacks newly-added .env
+  # secrets (e.g. BYOK_KEK_SECRET), causing a false-negative boot-smoke failure
+  # that aborts the deploy before `docker compose up` can supply the secret.
+  if docker compose -f "$COMPOSE_DIR/docker-compose.yml" config --format json 2>/dev/null \
+       | python3 -c "import sys,json;
+d=json.load(sys.stdin);
+svc=[s for n,s in (d.get('services') or {}).items() if n=='$BACKEND_CONTAINER'];
+import os;
+envs=svc[0].get('environment') if svc else None;
+open('$env_file','w').write('\n'.join(f\"{k}={v}\" for k,v in envs.items())+'\n') if envs else None" 2>/dev/null \
+       && [ -s "$env_file" ]; then
+    log_info "Smoke test using compose-resolved env (includes .env secrets)"
+  elif docker ps --format '{{.Names}}' | grep -q "$BACKEND_CONTAINER"; then
+    docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$BACKEND_CONTAINER" > "$env_file"
+    log_warn "Compose env resolution failed — fell back to running container env"
+  else
+    log_warn "No env source available — skipping boot smoke test"
+    rm -f "$env_file"
+    return 0
+  fi
 
   local net
   net=$(docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' "$BACKEND_CONTAINER" | head -1)
@@ -504,6 +525,28 @@ run_migrations() {
 build_and_deploy() {
   log_step "Building backend image"
 
+  # Stage the built-in template seed into the build context so the
+  # Dockerfile can BAKE it into the image (A2: entrypoint reconciles
+  # the live gallery from it on every boot). Without this copy the
+  # build FAILS (seed lives at repo root, outside backend/ context).
+  # Idempotent: always reflects the current root seed_templates.py.
+  if [ -f "$COMPOSE_DIR/seed_templates.py" ]; then
+    cp -f "$COMPOSE_DIR/seed_templates.py" "$BACKEND_SOURCE/seed_templates.py"
+    log_info "Staged seed_templates.py ($(grep -cE '^[[:space:]]*make_template\(' "$BACKEND_SOURCE/seed_templates.py") templates) into build context"
+  else
+    log_warn "seed_templates.py not found at $COMPOSE_DIR — image will bake NO seed (entrypoint reload will no-op)"
+  fi
+
+  # Stage the repo-root AGPLv3 LICENSE into the build context so the
+  # Dockerfile can COPY it into the image (compliance: published artifact
+  # must carry the license). Idempotent: reflects current root LICENSE.
+  if [ -f "$COMPOSE_DIR/LICENSE" ]; then
+    cp -f "$COMPOSE_DIR/LICENSE" "$BACKEND_SOURCE/LICENSE"
+    log_info "Staged LICENSE ($(wc -c < "$BACKEND_SOURCE/LICENSE") bytes) into build context"
+  else
+    log_warn "LICENSE not found at $COMPOSE_DIR — image will bake NO license file"
+  fi
+
   if [ "$DRY_RUN" = true ]; then
     echo -e "${YELLOW}[DRY-RUN]${NC} docker build --target runtime -t ${BACKEND_IMAGE} ${BACKEND_SOURCE}"
     echo -e "${YELLOW}[DRY-RUN]${NC} cd ${COMPOSE_DIR} && docker compose up -d --no-deps --force-recreate ${BACKEND_CONTAINER} ${CELERY_SERVICES[*]}"
@@ -542,6 +585,37 @@ build_and_deploy() {
 }
 
 # ---------------------------------------------------------------------------
+# Built-in Template Reload (anti-drift)
+# ---------------------------------------------------------------------------
+# The built-in mission-template gallery MUST match seed_templates.py after a
+# deploy. The seed file is NOT in the image by default and seed() is
+# idempotent (skips if any built-in exists), so a plain deploy silently
+# leaves the live gallery stale (observed: DB had 10 built-ins vs 47 in
+# the file). This step reconciles the live gallery to the CURRENT repo's
+# seed file on every deploy — and works on the existing image too, because
+# it copies both the seed file and the reload script into the container.
+# (The image-baked version lives in the entrypoint via the same script;
+# this deploy step is the retroactive safety net.)
+seed_templates_reload() {
+  if [ "$DRY_RUN" = true ]; then
+    echo -e "${YELLOW}[DRY-RUN]${NC} docker compose cp seed_templates.py + reload_builtin_templates.py -> backend; run reload"
+    return 0
+  fi
+  log_step "Reconciling built-in templates to seed_templates.py"
+  docker compose cp "$COMPOSE_DIR/seed_templates.py" backend:/app/seed_templates.py >/dev/null 2>&1 || {
+    log_warn "seed_templates.py not found at $COMPOSE_DIR — skipping reload"
+    return 0
+  }
+  docker compose cp "$BACKEND_SOURCE/scripts/reload_builtin_templates.py" backend:/app/scripts/reload_builtin_templates.py >/dev/null 2>&1 || true
+  if docker compose exec -e PYTHONPATH=/app -T backend \
+        python3 /app/scripts/reload_builtin_templates.py 2>&1 | tail -3; then
+    log_success "Built-in templates reconciled to seed file"
+  else
+    log_warn "Built-in template reload reported an error (non-fatal — gallery may be stale until next boot)"
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # Post-Deploy Health Check
 # ---------------------------------------------------------------------------
 post_deploy_health() {
@@ -574,7 +648,7 @@ run_precheck() {
     exit 1
   fi
   log_info "Running precheck: $PRECHECK_SCRIPT"
-  if ! bash "$PRECHECK_SCRIPT"; then
+  if ! PRECHECK_SCOPE=backend bash "$PRECHECK_SCRIPT"; then
     log_error "precheck FAILED — aborting deploy"
     exit 1
   fi
@@ -625,6 +699,11 @@ main() {
   # container has the latest migration files baked into its image. See
   # run_migrations() for the full explanation.
   build_and_deploy
+
+  # Reconcile built-in templates to the seed file (anti-drift).
+  # Runs after recreate + health gate so the live gallery matches
+  # seed_templates.py without a manual re-seed.
+  seed_templates_reload
 
   if [ "$MIGRATE" = true ]; then
     if ! run_validation; then

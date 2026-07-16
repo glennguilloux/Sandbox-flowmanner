@@ -92,6 +92,9 @@ class MissionPlanner:
         # Returns None when no service is registered — the section is
         # silently omitted in that case.
         self._get_personal_memory_service = get_personal_memory_service or (lambda: None)
+        # Comment 4: explicit per-route budget policy for planning generation.
+        # When None, _generate_plan builds a default planning budget from settings.
+        self._plan_budget: Any | None = None
 
     # ── Public API ─────────────────────────────────────────────────────────
 
@@ -352,12 +355,45 @@ class MissionPlanner:
             if not candidates:
                 raise RuntimeError("No candidates generated")
 
+            # ── Planner-trust gate: forced-fallback plans route to human review ──
+            # (side-effect-safety-and-planner-trust skill) A degraded winner must
+            # NOT auto-ship: route the mission to PLANNED_PENDING_REVIEW and trip
+            # the fallback-rate alarm. select_plan() invokes this only when the
+            # winning candidate is degraded (HARD override, score-independent).
+            async def _on_fallback_winner(winner_cand, reason: str) -> None:
+                from app.models.mission_models import MissionStatus
+                from app.services.nexus.observability import get_observability_service
+
+                logger.warning(
+                    "Forced-fallback plan %s selected for mission %s (reason=%s); "
+                    "routing to PLANNED_PENDING_REVIEW — human approval required.",
+                    winner_cand.plan_id,
+                    mission_id,
+                    reason,
+                )
+                # Block execution until a human clears review (409 guard in commands).
+                mission.status = MissionStatus.PLANNED_PENDING_REVIEW
+                # Fallback-rate sliding-window alarm (counter consumed by an
+                # alert evaluator that detects sustained degradation).
+                try:
+                    obs = get_observability_service()
+                    await obs.increment_counter(
+                        "planner_fallback_rate",
+                        labels={
+                            "mission_id": str(mission_id),
+                            "strategy": winner_cand.generation_strategy,
+                        },
+                    )
+                except Exception:
+                    logger.debug("observability_fallback_counter_failed", exc_info=True)
+
             # 2. Select winner
             policy = "min_cost" if mode == "on" else "balanced"
             winner, sorted_candidates = await select_plan(
                 candidates,
                 policy=policy,
                 min_quality_threshold=min_quality,
+                on_fallback=_on_fallback_winner,
             )
 
             # 3. Persist all candidates to MissionPlanCandidate table
@@ -387,6 +423,10 @@ class MissionPlanner:
                 "policy": policy,
                 "candidate_count": len(candidates),
                 "ranked_ids": [c.plan_id for c in sorted_candidates],
+                # Planner-trust transparency (side-effect-safety-and-planner-trust):
+                # surfaces whether the shipped plan is a forced fallback that a
+                # human must clear before execution.
+                "requires_review": getattr(winner, "degraded", False),
             }
             mission.plan = plan_meta
 
@@ -863,9 +903,32 @@ class MissionPlanner:
         completion_tokens = 0
         content = ""
         try:
-            model_router = self._get_model_router()
-            if model_router:
-                response = await model_router.route_request(
+            # Comment 4: route ALL planning generation through the budget enforcer.
+            # This is the named starting point for the cost-blow-up fix — planning
+            # previously bypassed the budget gate by calling ModelRouter directly
+            # (and even a raw httpx fallback for cloud models). Now it goes through
+            # BudgetEnforcer.call(), which enforces the same pre-call budget checks
+            # as every other LLM path and records spend with provenance.
+            from app.models.capability_models import Budget
+            from app.services.budget_enforcer import BudgetExhausted, get_budget_enforcer
+
+            plan_budget = (
+                self._plan_budget
+                if getattr(self, "_plan_budget", None)
+                else Budget(
+                    max_cost_usd=getattr(settings, "MISSION_PLAN_MAX_COST_USD", 0.05),
+                    max_wall_time_seconds=getattr(settings, "MISSION_PLAN_MAX_WALL_SECONDS", 120),
+                    max_iterations=1,
+                    max_depth=1,
+                )
+            )
+            enforcer = get_budget_enforcer()
+            try:
+                # Comment 4: BudgetExhausted MUST propagate — a budget gate
+                # failure is not a planning-quality problem, it is a hard stop.
+                response = await enforcer.call(
+                    budget=plan_budget,
+                    model_id="deepseek-v4-flash",
                     messages=[{"role": "user", "content": prompt}],
                     user_id=str(user_id) if user_id else "system",
                     db_session=db,
@@ -873,45 +936,21 @@ class MissionPlanner:
                     temperature=settings.MISSION_PLAN_TEMPERATURE,
                     max_tokens=settings.MISSION_PLAN_MAX_TOKENS,
                 )
+            except BudgetExhausted:
+                raise
 
-                model_id = response.get("model", "deepseek-v4-flash")
-                provider = response.get("provider", "unknown")
-                cost_info = response.get("cost", {})
-                prompt_tokens = cost_info.get("input_tokens", 0)
-                completion_tokens = cost_info.get("output_tokens", 0)
+            model_id = response.get("model", "deepseek-v4-flash")
+            provider = response.get("provider", "unknown")
+            cost_info = response.get("cost", {})
+            prompt_tokens = cost_info.get("input_tokens", 0)
+            completion_tokens = cost_info.get("output_tokens", 0)
 
-                if not response.get("success"):
-                    error_msg = response.get("error", "Model routing failed")
-                    logger.error("Plan generation failed: %s", error_msg)
-                    raise RuntimeError(f"Plan generation failed: {error_msg}")
+            if not response.get("success"):
+                error_msg = response.get("error", "Model routing failed")
+                logger.error("Plan generation failed: %s", error_msg)
+                raise RuntimeError(f"Plan generation failed: {error_msg}")
 
-                content = response.get("content", "") if isinstance(response, dict) else str(response)
-            else:
-                llm_url = getattr(settings, "LLM_BASE_URL", "http://localhost:11434")
-                llm_key = getattr(settings, "LLM_API_KEY", "")
-                llm_model = getattr(settings, "LLM_DEFAULT_MODEL", "qwen3:14b")
-                model_id = llm_model
-                provider = "llamacpp"
-
-                headers = {"Content-Type": "application/json"}
-                if llm_key:
-                    headers["Authorization"] = f"Bearer {llm_key}"
-
-                async with httpx.AsyncClient(timeout=settings.MISSION_LLM_REQUEST_TIMEOUT) as client:
-                    resp = await client.post(
-                        f"{llm_url}/v1/chat/completions",
-                        headers=headers,
-                        json={
-                            "model": llm_model,
-                            "messages": [{"role": "user", "content": prompt}],
-                            "temperature": settings.MISSION_PLAN_TEMPERATURE,
-                            "max_tokens": settings.MISSION_PLAN_MAX_TOKENS,
-                        },
-                    )
-                    data = resp.json()
-                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                    prompt_tokens = data.get("usage", {}).get("prompt_tokens", 0)
-                    completion_tokens = data.get("usage", {}).get("completion_tokens", 0)
+            content = response.get("content", "") if isinstance(response, dict) else str(response)
 
             # Extract JSON array from response
             content = content.strip()
@@ -933,6 +972,10 @@ class MissionPlanner:
             error_msg = str(e)
             logger.error("Permanent LLM plan generation failure: %s", e)
             return []
+        except BudgetExhausted:
+            # Comment 4: do NOT swallow budget exhaustion — propagate so the
+            # caller (and fire_program budget pre-check) can react.
+            raise
         except Exception as e:
             error_msg = str(e)
             logger.error("LLM plan generation failed: %s", e)

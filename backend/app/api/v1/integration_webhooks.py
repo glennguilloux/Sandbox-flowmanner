@@ -19,10 +19,13 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.database import get_db
+from app.services.event_bus import get_event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +153,26 @@ def _verify_slack(body: bytes, headers: dict[str, str], secret: str | None) -> b
 
 
 def _verify_twilio(body: bytes, headers: dict[str, str], secret: str | None, request_url: str = "") -> bool:
-    """Twilio HMAC-SHA1 verification.
+    """Twilio HMAC-SHA1 verification (provider-mandated, NOT a weakness to "fix").
+
+    SECURITY POSTURE NOTE (self-audit LOW-13, 2026-07-15):
+      Twilio signs its outbound webhooks with **HMAC-SHA1** by specification
+      (``X-Twilio-Signature`` = Base64(HMAC-SHA1(auth_token, url + sorted_params))).
+      Twilio does NOT publish a SHA-256 validation mode for inbound webhooks, so
+      this implementation MUST stay on SHA1 to remain interoperable — upgrading the
+      hash here would break verification for every real Twilio request, which is a
+      far worse outcome than using a "weaker" hash on a provider-locked scheme.
+
+      SHA1's collision weakness is not exploitable in an HMAC construction: the
+      security of HMAC-SHA1 rests on the secrecy of the auth token (key), not on
+      second-preimage resistance of SHA1, and Twilio rotates/keys per-account. The
+      residual risk is therefore provider-bounded and accepted. Other providers in
+      this registry (Stripe, Slack, GitHub, …) use SHA256 because those providers
+      OFFER it; Twilio simply does not.
+
+      Do NOT "harden" this to SHA256 unless Twilio ships a SHA256 signature header.
+      If that ever happens, gate it behind a config flag and verify BOTH until the
+      old header is fully retired — never replace unconditionally.
 
     Twilio signs webhooks by computing HMAC-SHA1 of the full request URL
     concatenated with sorted form parameters, using the auth token as key.
@@ -178,6 +200,8 @@ def _verify_twilio(body: bytes, headers: dict[str, str], secret: str | None, req
     signed_string = request_url + sorted_params
 
     # HMAC-SHA1 with the Twilio auth token
+    # HMAC-SHA1 is MANDATED by Twilio's validation protocol (see docstring above).
+    # Do NOT swap to hashlib.sha256 — Twilio only emits X-Twilio-Signature as SHA1.
     expected = base64.b64encode(
         hmac.new(
             secret.encode("utf-8"),
@@ -445,13 +469,20 @@ def verify_webhook(
 
 
 @router.post("/{provider}/webhook")
-async def handle_provider_webhook(provider: str, request: Request):
+async def handle_provider_webhook(
+    provider: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """Generic inbound webhook endpoint for all integrated providers.
 
     1. Looks up provider config from ``PROVIDERS`` registry.
     2. Verifies the request signature/token per the provider's auth_type.
     3. Parses JSON body and extracts (event_type, event_id, payload).
-    4. Returns ``{"status": "ok"}`` or provider-specific response.
+    4. Persists the event to the durable ``external_events`` bus
+       (``EventBus.publish``) BEFORE acknowledging, so webhook events
+       survive restarts / load and gain idempotency + replay.
+    5. Returns ``{"status": "ok"}`` or provider-specific response.
     """
     config = PROVIDERS.get(provider)
     if not config:
@@ -485,6 +516,27 @@ async def handle_provider_webhook(provider: str, request: Request):
         event_id or "n/a",
     )
 
-    # TODO: Route to external_events durable bus when integration is wired
-    # For now, log and acknowledge — the same behavior as the individual files.
+    # Route to the durable external_events bus. `EventBus.publish` persists the
+    # ExternalEvent row (idempotency via delivery_id) and dispatches to registered
+    # consumers (trigger matching, audit log). The caller owns the transaction:
+    # `get_db` commits on normal return, so the event is durable BEFORE the ack
+    # is sent. A bus failure raises and rolls back the transaction (no ack), so
+    # the provider retries — preserving at-least-once delivery.
+    try:
+        bus = get_event_bus()
+        await bus.publish(
+            db,
+            source=provider,
+            event_type=event_type,
+            payload=payload,
+            raw_body=payload,
+            delivery_id=event_id or None,
+        )
+    except Exception:
+        logger.exception(
+            "%s webhook: failed to persist event to durable bus — nacking",
+            provider,
+        )
+        raise
+
     return {"status": "ok", "provider": provider, "event_type": event_type}

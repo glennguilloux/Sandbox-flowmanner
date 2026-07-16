@@ -285,7 +285,7 @@ check_pending_migrations() {
   return 0
 }
 
-# --- Check 6: no uncommitted model .py files ---------------------------------
+# --- Check 6: no uncommitted model files (backend/app/models/) --------
 # Per §4.3: pin the path explicitly. Do NOT hardcode globs that miss new
 # subdirectories under backend/app/models/.
 check_model_path() {
@@ -307,12 +307,71 @@ check_model_path() {
   return 0
 }
 
-# --- main --------------------------------------------------------------------
+# --- Check 7 (F-3, P3): frontend lint + typecheck gate ----------------
+# The frontend lives in a SEPARATE repo (/home/glenn/FlowmannerV2-frontend).
+# This check runs THAT repo's own lint/typecheck when present so a broken
+# but compiling frontend cannot ship.
+#
+# SCOPE: this gate is scope-aware via PRECHECK_SCOPE (set by the caller):
+#   - frontend  -> FAIL-CLOSED (blocks a frontend deploy on lint/tsc errors)
+#   - backend   -> INFO-ONLY   (never blocks a backend deploy on unrelated
+#                                frontend lint debt in a separate repo)
+#   - all       -> FAIL-CLOSED (default)
+# Rationale: a backend P0 security fix must NOT be blocked because the
+# frontend repo has pre-existing lint errors it does not own.
+#
+# It is also SKIPPABLE via FRONTEND_CHECK=skip (audit-logged) for operator
+# escape hatches. We deliberately do NOT run `npm run build` here — the
+# deploy script does the docker build on the VPS. Lint + tsc --noEmit catch
+# the "compiles but is broken" class the audit called out.
+FRONTEND_DIR="${FRONTEND_DIR:-/home/glenn/FlowmannerV2-frontend}"
+PRECHECK_SCOPE="${PRECHECK_SCOPE:-all}"
+check_frontend_quality() {
+  log_step "Check 7/7: frontend lint + typecheck (F-3) [scope=$PRECHECK_SCOPE]"
+  if [[ "${FRONTEND_CHECK:-}" == "skip" ]]; then
+    log_warn "AUDIT: FRONTEND_CHECK=skip bypass invoked"
+    record_skip "frontend_quality" "FRONTEND_CHECK=skip (audit-logged)"
+    return 0
+  fi
+  if [[ ! -d "$FRONTEND_DIR" ]]; then
+    record_info "frontend_quality" "frontend dir not found at $FRONTEND_DIR (info-level)"
+    return 0
+  fi
+  if [[ ! -f "$FRONTEND_DIR/package.json" ]]; then
+    record_info "frontend_quality" "no package.json in $FRONTEND_DIR (info-level)"
+    return 0
+  fi
+  log_info "Running frontend checks in $FRONTEND_DIR"
+  local rc=0
+  ( cd "$FRONTEND_DIR" && npm run lint --silent ) || rc=1
+  if [[ $rc -ne 0 ]]; then
+    if [[ "$PRECHECK_SCOPE" == "backend" ]]; then
+      record_info "frontend_quality" "npm run lint FAILED in $FRONTEND_DIR — INFO-ONLY (backend scope, does not block backend deploy)"
+      return 0
+    fi
+    record_fail "frontend_quality" "npm run lint FAILED in $FRONTEND_DIR — fix before deploy"
+    return 0
+  fi
+  ( cd "$FRONTEND_DIR" && npx tsc --noEmit --skipLibCheck ) || rc=1
+  if [[ $rc -ne 0 ]]; then
+    if [[ "$PRECHECK_SCOPE" == "backend" ]]; then
+      record_info "frontend_quality" "tsc --noEmit FAILED in $FRONTEND_DIR — INFO-ONLY (backend scope, does not block backend deploy)"
+      return 0
+    fi
+    record_fail "frontend_quality" "tsc --noEmit FAILED in $FRONTEND_DIR — fix before deploy"
+    return 0
+  fi
+  record_pass "frontend_quality" "lint + tsc --noEmit passed"
+  return 0
+}
+
+# --- main -------------------------------------------------------------------
 main() {
-  log_step "pre-deploy-check.sh — Wave 1 skeleton"
+  log_step "pre-deploy-check.sh — Wave 1 skeleton + P3 F-3 gate"
   log_info "PROJECT_ROOT=$PROJECT_ROOT"
   log_info "HEALTH_URL=$HEALTH_URL"
   log_info "WG_CHECK=${WG_CHECK:-(unset, fail-closed on missing sudoers)}"
+  log_info "FRONTEND_DIR=$FRONTEND_DIR"
 
   check_status_file
   check_working_tree
@@ -320,8 +379,9 @@ main() {
   check_health_url
   check_pending_migrations
   check_model_path
+  check_frontend_quality
 
-  # ── Summary ────────────────────────────────────────────────────────────────
+  # ── Summary ──────────────────────────────────────────────────────────
   log_step "summary"
   echo "  checks run:   $CHECKS_RUN"
   echo "  passed:       $CHECKS_PASS"

@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import time
+from asyncio import timeout as _stream_timeout
 from collections import deque
 from collections.abc import AsyncGenerator
 from datetime import UTC
@@ -16,9 +17,14 @@ from typing import TYPE_CHECKING, cast
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
+    from starlette.requests import Request
+
+from decimal import Decimal
+
 from openai import AsyncOpenAI
 from sqlalchemy import func, select
 
+from app.models.capability_models import Budget, BudgetExhausted
 from app.models.chat import ChatBranch, ChatFile, ChatMessage, ChatThread
 from app.models.phase4_models import UserFile
 
@@ -158,12 +164,19 @@ _SANDBOXD_SYSTEM_GUIDANCE = """
 
 ## Live Preview Tools (sandboxd)
 
+You have tool-calling (function-calling) capabilities available. **When you
+want to use one of these tools, you MUST emit an actual tool/function call —
+do NOT describe the call in prose or write it as if it were text.** Narrating
+"I will call sandboxd_preview" without emitting the function call does nothing
+and stalls the conversation. Always prefer calling a tool over talking about
+calling it.
+
 When the user asks you to build something visual (landing page, dashboard,
 chart, tool, app, or any HTML/CSS/JS project), use the sandboxd tools to
 create a live preview. Follow this workflow **exactly**:
 
-1. **sandboxd_preview** — call with `{}` (no arguments) to create a new sandbox.
-   Save the returned `sandbox_id` for ALL subsequent calls.
+1. **sandboxd_preview** — emit a tool call with `{}` (no arguments) to create a
+   new sandbox. Save the returned `sandbox_id` for ALL subsequent calls.
    ⚠️  CRITICAL: sandboxd_preview returns sandbox metadata ONLY (id, status).
    It does NOT return a usable app preview URL.  The sandbox runtime URL (port 3000)
    is empty — do NOT show it to the user.  The preview URL comes from sandboxd_serve.
@@ -204,6 +217,30 @@ from app.services.sse_protocol import _CANVAS_UPDATE_TOOLS, _build_canvas_update
 # tool round can block the generator for >15s with no yield — a yield-gated
 # ping would never fire and nginx would drop the idle connection.
 _SSE_KEEPALIVE_INTERVAL = 15  # seconds
+
+# Hard ceiling on how long we wait for the *provider* to emit the next stream
+# chunk. Without this, a provider that accepts the request but never streams
+# (e.g. a 403 "plan does not include this model" that hangs instead of failing
+# fast) would keep the SSE connection open forever — the frontend's reader never
+# sees [DONE], finalizeRunningEvents() never runs, and an unresolved "running"
+# tool/sandbox step spins the browser's render loop (frozen tab, pegged CPU).
+# On timeout we surface a clean error event so the client terminates cleanly.
+_STREAM_READ_TIMEOUT = 90  # seconds without a chunk before we give up
+
+# Hard ceiling on a SINGLE tool-call's total wall-clock time. A tool that
+# blocks (e.g. browser_sandbox container launch stalling on an image pull, or
+# a sandboxd call wedged on a network fault) must not hang the chat stream
+# forever — the SSE keepalive pings would otherwise keep the connection alive
+# and the client watchdog would never fire, leaving the tab "still running".
+# On timeout we return a clean error ToolResult so the agent loop sees a
+# definitive failure and the stream terminates normally with [DONE].
+_HARD_TOOL_CALL_CAP_S = 120.0
+
+# Hard ceiling on a single chat streaming turn. The per-chunk guard
+# (_STREAM_READ_TIMEOUT) only fires after 90s of TOTAL SILENCE, so a model that
+# drips tokens / keepalive pings forever (or a provider that accepts-then-stalls)
+# never trips it. This bounds the whole turn so the SSE stream always terminates.
+TURN_HARD_CAP_S = 180.0
 
 # SSE comment line. `: ` prefix makes it a comment the browser EventSource ignores.
 _SSE_KEEPALIVE_PING = ": ping\n\n"
@@ -307,6 +344,7 @@ async def stream_message_to_llm(
     model_id: str | None = None,
     attachments: list | None = None,
     web_search: bool | None = None,
+    request: Request | None = None,
 ) -> AsyncGenerator[str, None]:
     """Send a message to the LLM and stream the response via SSE.
 
@@ -324,27 +362,43 @@ async def stream_message_to_llm(
     _keepalive_queue: asyncio.Queue = asyncio.Queue()
     _keepalive_stop = asyncio.Event()
     _keepalive_task = _sse_keepalive_spawn(_keepalive_queue, _keepalive_stop)
+    raw_model = model_id or model_preference or _LLM_MODEL
     try:
-        async for event in _sse_keepalive_merge(
-            cast(
-                "AsyncGenerator[str, None]",
-                _stream_message_to_llm_body(
-                    db,
-                    thread_id,
-                    content,
-                    user_id,
-                    model_preference,
-                    user_api_key,
-                    user_base_url,
-                    model_id,
-                    attachments,
-                    web_search,
-                ),
-            ),
-            _keepalive_queue,
-            _keepalive_stop,
-        ):
-            yield event
+        try:
+            async with asyncio.timeout(TURN_HARD_CAP_S):
+                async for event in _sse_keepalive_merge(
+                    cast(
+                        "AsyncGenerator[str, None]",
+                        _stream_message_to_llm_body(
+                            db,
+                            thread_id,
+                            content,
+                            user_id,
+                            model_preference,
+                            user_api_key,
+                            user_base_url,
+                            model_id,
+                            attachments,
+                            web_search,
+                            request,
+                        ),
+                    ),
+                    _keepalive_queue,
+                    _keepalive_stop,
+                ):
+                    yield event
+        except TimeoutError:
+            logger.warning(
+                "stream_message_to_llm: turn exceeded TURN_HARD_CAP_S=%.0fs for %s",
+                TURN_HARD_CAP_S,
+                raw_model,
+            )
+            yield json.dumps(
+                {
+                    "type": "error",
+                    "error": "Response timed out. The model took too long to respond; please try again or pick a faster model.",
+                }
+            )
     finally:
         _keepalive_stop.set()
         _keepalive_task.cancel()
@@ -363,6 +417,7 @@ async def _stream_message_to_llm_body(
     model_id: str | None = None,
     attachments: list | None = None,
     web_search: bool | None = None,
+    request: Request | None = None,
 ):
     """Send a message to the LLM and stream the response via SSE.
 
@@ -394,6 +449,18 @@ async def _stream_message_to_llm_body(
 
     if raw_model and raw_model.startswith("llamacpp/"):
         effective_user_key = None
+
+    # Comment 4: chat generation requires an explicit budget. The
+    # `enforce_budget_before_llm` gate (below) rejects a `None` budget, so we
+    # must declare one here rather than pass an undefined/`None` name. Chat is a
+    # local, single-call generation path — a generous per-message budget is
+    # appropriate; multi-minute/offline mission runs have their own budgets.
+    budget = Budget(
+        max_cost_usd=Decimal("2.00"),
+        max_wall_time_seconds=300,
+        max_iterations=5,
+        max_depth=1,
+    )
 
     if effective_user_key:
         effective_base = effective_base_url or base_url
@@ -547,6 +614,9 @@ async def _stream_message_to_llm_body(
 
             # ── Tool-calling loop ───────────────────────────────────
             for _round in range(_MAX_TOOL_ROUNDS):
+                if request is not None and await request.is_disconnected():
+                    yield json.dumps({"type": "error", "error": "Client disconnected"})
+                    break
                 create_kwargs: dict = {
                     "model": model,
                     "messages": messages_for_llm,
@@ -555,54 +625,109 @@ async def _stream_message_to_llm_body(
                 if openai_tools:
                     create_kwargs["tools"] = openai_tools
 
-                response = await client.chat.completions.create(**create_kwargs)
+                # Bound a single LLM turn so weak BYOK models (e.g. tencent-hy3)
+                # cannot emit unbounded verbose prose when they narrate a tool
+                # call instead of calling it. CHAT_MAX_TOKENS is not defined in
+                # settings, so we fall back to 2000.
+                create_kwargs["max_tokens"] = getattr(settings, "CHAT_MAX_TOKENS", 2000) or 2000
 
-                # Accumulate streaming chunks — we need to detect both
-                # content tokens AND tool_call deltas in the same stream.
-                round_content_chunks: list[str] = []
-                # tool_calls_by_index tracks partial tool call arguments
-                tool_calls_by_index: dict[int, dict] = {}
+                # Comment 4: enforce the budget BEFORE the provider call so chat
+                # generation cannot blow past the budget silently.
+                from app.services.budget_enforcer import enforce_budget_before_llm
 
-                async for chunk in response:
-                    choice = chunk.choices[0] if chunk.choices else None
-                    if not choice:
-                        continue
+                enforce_budget_before_llm(
+                    budget,
+                    model_id=model,
+                    estimated_prompt_tokens=len(messages_for_llm),
+                    estimated_completion_tokens=settings.CHAT_MAX_TOKENS
+                    if hasattr(settings, "CHAT_MAX_TOKENS")
+                    else 2000,
+                )
+                try:
+                    response = await client.chat.completions.create(**create_kwargs)
+                    try:
+                        # Accumulate streaming chunks — we need to detect both
+                        # content tokens AND tool_call deltas in the same stream.
+                        round_content_chunks: list[str] = []
+                        # tool_calls_by_index tracks partial tool call arguments
+                        tool_calls_by_index: dict[int, dict] = {}
 
-                    delta = choice.delta
+                        async with _stream_timeout(_STREAM_READ_TIMEOUT):
+                            async for chunk in response:
+                                if request is not None and await request.is_disconnected():
+                                    yield json.dumps({"type": "error", "error": "Client disconnected"})
+                                    break
 
-                    # Stream text content to the frontend
-                    if delta.content:
-                        round_content_chunks.append(delta.content)
-                        collected_chunks.append(delta.content)
-                        yield json.dumps({"type": "token", "content": delta.content})
+                                choice = chunk.choices[0] if chunk.choices else None
+                                if not choice:
+                                    continue
 
-                    # Accumulate tool calls from streaming deltas
-                    if delta.tool_calls:
-                        for tc_delta in delta.tool_calls:
-                            idx = tc_delta.index
-                            if idx not in tool_calls_by_index:
-                                tool_calls_by_index[idx] = {
-                                    "id": "",
-                                    "function": {"name": "", "arguments": ""},
-                                }
-                            tc = tool_calls_by_index[idx]
-                            if tc_delta.id:
-                                tc["id"] = tc_delta.id
-                            if tc_delta.function:
-                                if tc_delta.function.name:
-                                    tc["function"]["name"] = tc_delta.function.name
-                                if tc_delta.function.arguments:
-                                    tc["function"]["arguments"] += tc_delta.function.arguments
+                            delta = choice.delta
 
-                    # Capture usage from streaming chunks (if provider includes it)
-                    chunk_usage = getattr(chunk, "usage", None)
-                    if chunk_usage and isinstance(getattr(chunk_usage, "prompt_tokens", None), int):
-                        accumulated_prompt_tokens += chunk_usage.prompt_tokens or 0
-                        accumulated_completion_tokens += chunk_usage.completion_tokens or 0
+                            # Stream text content to the frontend
+                            if delta.content:
+                                round_content_chunks.append(delta.content)
+                                collected_chunks.append(delta.content)
+                                yield json.dumps({"type": "token", "content": delta.content})
 
-                    # Detect finish_reason
-                    if choice.finish_reason == "tool_calls":
-                        break
+                            # Accumulate tool calls from streaming deltas
+                            if delta.tool_calls:
+                                for tc_delta in delta.tool_calls:
+                                    idx = tc_delta.index
+                                    if idx not in tool_calls_by_index:
+                                        tool_calls_by_index[idx] = {
+                                            "id": "",
+                                            "function": {"name": "", "arguments": ""},
+                                        }
+                                    tc = tool_calls_by_index[idx]
+                                    if tc_delta.id:
+                                        tc["id"] = tc_delta.id
+                                    if tc_delta.function:
+                                        if tc_delta.function.name:
+                                            tc["function"]["name"] = tc_delta.function.name
+                                        if tc_delta.function.arguments:
+                                            tc["function"]["arguments"] += tc_delta.function.arguments
+
+                            # Capture usage from streaming chunks (if provider includes it)
+                            chunk_usage = getattr(chunk, "usage", None)
+                            if chunk_usage and isinstance(getattr(chunk_usage, "prompt_tokens", None), int):
+                                accumulated_prompt_tokens += chunk_usage.prompt_tokens or 0
+                                accumulated_completion_tokens += chunk_usage.completion_tokens or 0
+
+                            # Detect finish_reason
+                            if choice.finish_reason == "tool_calls":
+                                break
+                    finally:
+                        # Release the provider httpx connection on every exit
+                        # (normal finish, disconnect, timeout, error) so the
+                        # socket is not leaked.
+                        with contextlib.suppress(Exception):
+                            await response.aclose()
+                except TimeoutError:
+                    # Provider went silent mid-stream. Surface a clean error so the
+                    # client terminates (emits [DONE] via _sse_stream) instead of
+                    # hanging on an open connection with an unresolved running step.
+                    yield json.dumps(
+                        {
+                            "type": "error",
+                            "error": "The model provider stopped responding mid-response. Please try again.",
+                        }
+                    )
+                    break
+                except Exception as _prov_err:  # provider auth/quota/transport failures
+                    # A hard provider error (e.g. 401/403 "plan does not include
+                    # this model", 429 quota) must become a clean error event + [DONE],
+                    # never an unhandled generator crash that leaves the SSE open.
+                    _msg = getattr(_prov_err, "message", None) or str(_prov_err)
+                    if not isinstance(_msg, str):
+                        _msg = str(_prov_err)
+                    yield json.dumps(
+                        {
+                            "type": "error",
+                            "error": f"Model provider error: {_msg[:400]}",
+                        }
+                    )
+                    break
 
                 # ── Process tool calls ──────────────────────────────
                 if tool_calls_by_index:
@@ -717,8 +842,17 @@ async def _stream_message_to_llm_body(
                     }
                     if openai_tools:
                         non_stream_kwargs["tools"] = openai_tools
-                    non_stream_response = await client.chat.completions.create(**non_stream_kwargs)
-                    if non_stream_response.choices:
+                    try:
+                        async with _stream_timeout(_STREAM_READ_TIMEOUT):
+                            non_stream_response = await client.chat.completions.create(**non_stream_kwargs)
+                    except Exception as e:
+                        logger.error(
+                            "stream_message_to_llm: non-streaming fallback timed out for %s: %s",
+                            raw_model,
+                            e,
+                        )
+                        non_stream_response = None
+                    if non_stream_response and non_stream_response.choices:
                         full_response = non_stream_response.choices[0].message.content or ""
                     # Second fallback: retry without tools if still empty
                     # (some models don't support function calling)
@@ -728,8 +862,17 @@ async def _stream_message_to_llm_body(
                             raw_model,
                         )
                         non_stream_kwargs.pop("tools", None)
-                        no_tools_response = await client.chat.completions.create(**non_stream_kwargs)
-                        if no_tools_response.choices:
+                        try:
+                            async with _stream_timeout(_STREAM_READ_TIMEOUT):
+                                no_tools_response = await client.chat.completions.create(**non_stream_kwargs)
+                        except Exception as e:
+                            logger.error(
+                                "stream_message_to_llm: non-streaming no-tools fallback timed out for %s: %s",
+                                raw_model,
+                                e,
+                            )
+                            no_tools_response = None
+                        if no_tools_response and no_tools_response.choices:
                             full_response = no_tools_response.choices[0].message.content or ""
                     if full_response:
                         yield json.dumps({"type": "token", "content": full_response})
@@ -738,6 +881,12 @@ async def _stream_message_to_llm_body(
                         "stream_message_to_llm: non-streaming retry also failed for %s: %s",
                         raw_model,
                         retry_err,
+                    )
+                # Both fallbacks exhausted with no content — emit a clean error
+                # event so _sse_stream still terminates with [DONE].
+                if not full_response.strip():
+                    yield json.dumps(
+                        {"type": "error", "error": "The model returned no content and the fallback request timed out."}
                     )
 
         # Use actual token counts if available from streaming, else estimate
@@ -756,7 +905,6 @@ async def _stream_message_to_llm_body(
 
         # Session was closed before LLM call to prevent idle-in-transaction timeout.
         # Always use fresh session for saving.
-        import asyncio
 
         assistant_msg: ChatMessage | None = None
         # Save with retry (3 attempts, exponential backoff)
@@ -1603,8 +1751,6 @@ async def _maybe_extract_memory_claims(
     if not settings.FLOWMANNER_CROSS_MISSION_MEMORY:
         return
 
-    import asyncio
-
     try:
         from app.database import fresh_session
 
@@ -1954,10 +2100,8 @@ def _record_tool_cost_fire_and_forget(
     """Fire-and-forget: record tool call cost using a fresh DB session.
 
     Opens its own ``AsyncSessionLocal`` so the recording is independent of the
-    caller's (already-closed) request session.  Errors are swallowed — cost
     tracking must never break the chat.
     """
-    import asyncio
 
     async def _run() -> None:
         try:
@@ -1992,6 +2136,8 @@ async def send_message_to_llm(
     model_id: str | None = None,
     attachments: list | None = None,
     web_search: bool | None = None,
+    # Comment 4: explicit budget policy required for the chat generation path.
+    budget: Budget | None = None,
 ) -> dict:
     """Send a message to the LLM and get a non-streaming response.
 
@@ -2030,6 +2176,16 @@ async def send_message_to_llm(
 
     if raw_model and raw_model.startswith("llamacpp/"):
         effective_user_key = None
+
+    # Comment 4: chat generation requires an explicit budget. See the
+    # `_stream_message_to_llm_body` twin above for rationale — `enforce_budget_before_llm`
+    # rejects a `None` budget, so we declare a per-message budget here.
+    budget = Budget(
+        max_cost_usd=Decimal("2.00"),
+        max_wall_time_seconds=300,
+        max_iterations=5,
+        max_depth=1,
+    )
 
     if effective_user_key:
         effective_base = effective_base_url or base_url
@@ -2394,7 +2550,22 @@ async def _execute_tool_call(
                 )
 
         args = json.loads(arguments_json) if arguments_json else {}
-        result = await tool.execute(args)
+        try:
+            result = await asyncio.wait_for(tool.execute(args), timeout=_HARD_TOOL_CALL_CAP_S)
+        except TimeoutError:
+            logger.error(
+                "Tool %s exceeded hard cap of %.0fs — returning clean error so the stream does not hang",
+                tool_name,
+                _HARD_TOOL_CALL_CAP_S,
+            )
+            return json.dumps(
+                {
+                    "error": (
+                        f"Tool '{tool_name}' timed out after {int(_HARD_TOOL_CALL_CAP_S)}s "
+                        f"and was cancelled. The model may retry with a simpler request."
+                    )
+                }
+            )
         if result.success:
             return json.dumps(result.result)
         return json.dumps({"error": result.error})
@@ -2408,6 +2579,8 @@ async def _execute_tool_call(
 async def generate_thread_title(
     db: AsyncSession,
     thread_id: int,
+    # Comment 4: explicit budget policy required for title generation.
+    budget: Budget | None = None,
 ) -> str | None:
     """Generate a 3-5 word title for a thread based on its first exchange.
 
@@ -2451,6 +2624,15 @@ async def generate_thread_title(
         if "/" in model_name:
             model_name = model_name.split("/", 1)[1]
 
+        # Comment 4: enforce the budget BEFORE the provider call.
+        from app.services.budget_enforcer import enforce_budget_before_llm
+
+        # Title generation is a cheap, internal, read-only call. When no
+        # explicit budget is supplied (the common case — the chat auto-title
+        # path), fall back to a default Budget rather than crashing
+        # (enforce_budget_before_llm rejects a None budget by design, so a
+        # missing budget must not 500 the title endpoint).
+        enforce_budget_before_llm(budget or Budget(), model_id=model_name, estimated_completion_tokens=20)
         response = await _client.chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": title_prompt}],
@@ -2480,6 +2662,10 @@ async def generate_thread_title(
                 logger.info("Auto-titled thread %d: %s", thread_id, title)
                 return title
 
+    except BudgetExhausted:
+        # Comment 4: a budget gate failure is a hard stop, not a "titling
+        # failed, carry on" condition. Propagate so callers can react.
+        raise
     except Exception as e:
         logger.warning("Auto-titling failed for thread %d: %s", thread_id, e)
 

@@ -97,13 +97,16 @@ def cmd_missions_list(args: argparse.Namespace) -> None:
     """List recent missions."""
     fm = _get_client(args)
     try:
-        missions = fm.list_missions(per_page=args.limit)
-        if isinstance(missions, list):
-            items = missions
-        elif hasattr(missions, "__iter__"):
-            items = list(missions)
+        result = fm.list_missions(per_page=args.limit)
+        # Live API returns a paginated dict envelope
+        # {"items": [...], "total", "page", "per_page", "pages"}. Unwrap .items;
+        # fall back to a bare list for backward-compat.
+        if isinstance(result, dict) and "items" in result:
+            items = result["items"] or []
+        elif isinstance(result, list):
+            items = result
         else:
-            items = [missions] if missions else []
+            items = [result] if result else []
 
         if not items:
             print("No missions found.")

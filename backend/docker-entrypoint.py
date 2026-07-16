@@ -29,6 +29,25 @@ if os.geteuid() == 0:
     os.environ["HOME"] = flowmanner.pw_dir
     os.environ["USER"] = flowmanner.pw_name
 
+# Reconcile built-in mission templates against the baked seed file.
+# Self-healing: the canvas gallery always matches the image's seed
+# after every container start (no manual re-seed, no silent DB drift).
+# Runs as root (above) so it can reach the DB via the app env.
+# Best-effort: a transient DB outage at boot must NEVER block startup,
+# so failures are logged and swallowed before we exec uvicorn.
+try:
+    import subprocess as _sp
+
+    _sp.run(
+        [sys.executable, "/app/scripts/reload_builtin_templates.py"],
+        env={**os.environ, "APP_DIR": "/app", "PYTHONPATH": "/app"},
+        check=False,
+        timeout=120,
+    )
+except Exception as _e:
+    sys.stderr.write(f"[entrypoint] builtin-template reload skipped: {_e}\n")
+
+
 # Exec the CMD (args passed via sys.argv[1:])
 if len(sys.argv) > 1:
     cmd = sys.argv[1:]

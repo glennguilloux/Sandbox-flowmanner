@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "skillopt-gate"
+version = "0.1.0"
+description = "Validation-gated skill optimizer (SkillOpt pattern, offline-safe) for Hermes agent skills."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+llm = ["openai>=1.0"]
+
+[project.scripts]
+skillopt-gate = "skillopt_gate.cli:main"
+
+[tool.setuptools]
+packages = ["skillopt_gate", "skillopt_gate.tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

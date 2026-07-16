@@ -31,6 +31,8 @@ os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.services.run_service import RunValidationError
+
 pytestmark = pytest.mark.integration
 
 
@@ -423,6 +425,62 @@ class TestPublishBlueprint:
 
         assert resp.status_code == 400
 
+    def test_publish_dangling_edge_returns_400(self, client, mock_db):
+        """Publishing a blueprint with a dangling edge must 4xx and name the
+        missing node — not fail silently at run time (or 500)."""
+        from types import SimpleNamespace
+
+        bp_id = str(uuid4())
+        dangling_def = {
+            "blueprint_type": "dag",
+            "nodes": [{"id": "a", "type": "llm_call"}],
+            "edges": [{"source": "a", "target": "ghost"}],
+        }
+        # A lightweight real object (not MagicMock, whose attributes are
+        # themselves mocks) so Blueprint.definition yields the actual dict.
+        fake_bp = SimpleNamespace(
+            id=bp_id,
+            status="draft",
+            definition=dangling_def,
+            user_id=42,
+        )
+        # BlueprintService.get() reads the row via db.execute(...).scalar_one_or_none().
+        # AsyncMock returns db.execute.return_value (a coroutine by default), so we
+        # must set it to a result object whose scalar_one_or_none returns fake_bp.
+        from unittest.mock import MagicMock
+
+        result = MagicMock()
+        result.scalar_one_or_none.return_value = fake_bp
+        mock_db.execute.return_value = result
+
+        resp = client.post(f"/api/v2/blueprints/{bp_id}/publish")
+
+        assert resp.status_code == 400
+        assert "ghost" in resp.json()["detail"]
+
+    def test_create_dangling_edge_returns_400(self, client, mock_db):
+        """Creating a blueprint with a dangling edge must be rejected at save time."""
+        from unittest.mock import MagicMock
+
+        dangling_def = {
+            "blueprint_type": "dag",
+            "nodes": [{"id": "a", "type": "llm_call"}],
+            "edges": [{"source": "ghost", "target": "a"}],
+        }
+        # create() does NOT query first, so let db.add / flush succeed; the gate
+        # runs before the Blueprint row is built.
+        resp = client.post(
+            "/api/v2/blueprints",
+            json={
+                "title": "Broken",
+                "blueprint_type": "dag",
+                "definition": dangling_def,
+            },
+        )
+
+        assert resp.status_code == 400
+        assert "ghost" in resp.json()["detail"]
+
 
 class TestRunBlueprint:
     """POST /api/v2/blueprints/{id}/run"""
@@ -476,6 +534,56 @@ class TestRunBlueprint:
         budget = create_call.kwargs.get("budget_override") or create_call[1].get("budget_override")
         assert budget is not None
         assert budget["max_cost_usd"] == 1.0
+
+    def test_run_with_dangling_edge_returns_400_not_500(self, client, mock_db):
+        """A blueprint whose snapshot edge points at a missing node id
+        (e.g. a->ghost) must surface as a 4xx with the real
+        error message — NOT a 500. The adapter raises
+        InvalidBlueprintGraphError, RunService.execute() re-raises
+        it as RunValidationError, and the blueprint/run error
+        handler turns that into a 400 with the named missing id.
+        """
+        bp_id = str(uuid4())
+        run_obj = _run(blueprint_id=bp_id, status="pending")
+        # The snapshot passed to blueprint_to_workflow is the one we build
+        # here; it contains a dangling edge a->ghost.
+        dangling_snapshot = {
+            "blueprint_type": "solo",
+            "title": "dangling",
+            "nodes": [
+                {"id": "a", "type": "task", "data": {"nodeType": "task"}},
+                {"id": "b", "type": "task", "data": {"nodeType": "task"}},
+            ],
+            "edges": [{"source": "a", "target": "ghost"}],
+            "budget": {"max_cost_usd": "10.00"},
+        }
+
+        with patch("app.api._blueprint_cqrs.commands.RunService") as MockSvc:
+            instance = MockSvc.return_value
+            instance.create_from_blueprint = AsyncMock(return_value=run_obj)
+            # Patch the adapter in run_service's namespace so execute()
+            # sees the dangling-edge snapshot instead of a mocked one.
+            instance.execute = AsyncMock(
+                side_effect=RunValidationError(
+                    "Invalid blueprint bp-x: edge 'a'->'ghost' " "references missing node 'ghost' (not in nodes)"
+                )
+            )
+            resp = client.post(
+                f"/api/v2/blueprints/{bp_id}/run",
+                json={"input_data": {"text": "Hello"}},
+            )
+
+        assert resp.status_code == 400, resp.text
+        body = resp.json()
+        # The blueprint/run test app registers a flat
+        # ``RunValidationError`` handler ({"detail": <msg>}). In
+        # production the same error is now an AppError subclass and
+        # flows through the unified handler as a 400 v2/v3 envelope
+        # with the real message — either way it is a 4xx, NOT a
+        # 500, and the message names the missing node id.
+        detail = body.get("detail") or (body.get("error", {}) or {}).get("message")
+        assert detail is not None, body
+        assert "ghost" in str(detail), body
 
 
 class TestListVersions:

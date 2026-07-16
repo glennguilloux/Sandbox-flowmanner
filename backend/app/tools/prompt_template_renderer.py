@@ -28,6 +28,34 @@ _SUPPORTED_FILTERS = [
     "first_sentence",
 ]
 
+# Vetted, side-effect-free custom-filter allowlist (security fix).
+#
+# The previous implementation compiled + eval'd a user-supplied Python expression
+# for each custom filter, gated only by {"__builtins__": {}}. That guard is
+# bypassable: an attacker recovers the real `os` module via a subclass walk
+# (().__class__.__bases__[0].__subclasses__() -> a class with `os` in
+# __globals__) and runs os.system/os.popen -> arbitrary command execution as the
+# backend uid (authenticated RCE, reachable via POST /api/v1/tools/
+# prompt_template_renderer/execute). We now map a filter NAME to one of this
+# fixed set of pure callables. User-supplied expression text is NEVER executed.
+# Any name not in this allowlist fails closed with a clear error.
+_SAFE_CUSTOM_FILTERS = {
+    "upper": lambda v: v.upper() if isinstance(v, str) else v,
+    "lower": lambda v: v.lower() if isinstance(v, str) else v,
+    "capitalize": lambda v: v.capitalize() if isinstance(v, str) else v,
+    "title": lambda v: v.title() if isinstance(v, str) else v,
+    "trim": lambda v: v.strip() if isinstance(v, str) else v,
+    "default": lambda v, d=None: v if v else d,
+    "default_ext": lambda v, d=None: v if v else d,
+    "to_json": lambda v: __import__("json").dumps(v, indent=2),
+    "json_encode": lambda v: __import__("json").dumps(v, indent=2),
+    "code_block": lambda v, lang="": f"```{lang}\n{v}\n```" if v else "",
+    "length": len,
+    "first_sentence": lambda v: (v.split(".")[0].strip() + ".") if isinstance(v, str) and v else v,
+    "truncate": lambda v, n=80: (v[:n] + "…") if isinstance(v, str) and len(v) > n else v,
+    "replace": lambda v, old, new="": v.replace(old, new) if isinstance(v, str) else v,
+}
+
 
 class PromptTemplateRendererInput(ToolInput):
     """Input schema: template, variables, engine, validate_only, strict_mode, trim_blocks, autoescape."""
@@ -117,6 +145,25 @@ class PromptTemplateRendererTool(BaseTool):
             return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
         variables = validated.variables or {}
+
+        # SECURITY: validate custom-filter names against the allowlist BEFORE any
+        # render attempt. The previous implementation eval'd a user-supplied
+        # Python expression per filter (authenticated RCE, bypassable
+        # __builtins__ guard). We only support a fixed set of pure callables
+        # (_SAFE_CUSTOM_FILTERS). Rejecting here makes the tool fail CLOSED: the
+        # error surfaces to the caller as success=False instead of being
+        # swallowed by the render try/except below. This runs even on the
+        # validate_only path so a bad name is never accepted.
+        if validated.custom_filters:
+            bad = [n for n in validated.custom_filters if n not in _SAFE_CUSTOM_FILTERS]
+            if bad:
+                return ToolResult.error_result(
+                    tool_id=self.tool_id,
+                    error=(
+                        f"Custom filter(s) {bad} not in allowlist of safe filters. "
+                        f"Allowed: {sorted(_SAFE_CUSTOM_FILTERS)}"
+                    ),
+                )
 
         # Extract all variable names from template
         extracted = self._extract_variables(validated.template)  # type: ignore[arg-type]
@@ -209,29 +256,33 @@ class PromptTemplateRendererTool(BaseTool):
             env.filters["trim"] = lambda v: v.strip() if isinstance(v, str) else v
             env.filters["upper"] = lambda v: v.upper() if isinstance(v, str) else v
             env.filters["lower"] = lambda v: v.lower() if isinstance(v, str) else v
-            env.filters["code_block"] = lambda v, lang="": (f"```{lang}\n{v}\n```" if v else "")
+            env.filters["code_block"] = lambda v, lang="": f"```{lang}\n{v}\n```" if v else ""
             env.filters["length"] = len
-            env.filters["first_sentence"] = lambda v: (
-                (v.split(".")[0].strip() + ".") if isinstance(v, str) and v else v
-            )
+            env.filters["first_sentence"] = lambda v: (v.split(".")[0].strip() + ".") if isinstance(v, str) and v else v
 
-            # Register custom user-provided filters
+            # Register custom user-provided filters from a vetted allowlist.
+            # SECURITY: NO eval/exec/compile is performed on user input. The
+            # previous implementation compiled + eval'd a user-supplied Python
+            # expression gated only by {"__builtins__": {}}, which is bypassable
+            # to recover os.system (authenticated RCE). We now map a filter NAME
+            # to one of the fixed, side-effect-free callables in
+            # _SAFE_CUSTOM_FILTERS. Any name not in the allowlist fails closed
+            # with a clear error. The user-supplied expression text is ignored.
             if custom_filters:
-                for name, expr in custom_filters.items():
-                    try:
-                        compiled = compile(expr, "<custom_filter>", "eval")
-                        env.filters[name] = lambda v, _c=compiled: eval(_c, {"v": v, "__builtins__": {}}, {})
-                    except Exception as e:
-                        logger.warning("Failed to register custom filter '%s': %s", name, e)
+                for name in custom_filters:
+                    if name not in _SAFE_CUSTOM_FILTERS:
+                        raise ValueError(
+                            f"Custom filter '{name}' is not in the allowlist of safe "
+                            f"filters. Allowed: {sorted(_SAFE_CUSTOM_FILTERS)}"
+                        )
+                    env.filters[name] = _SAFE_CUSTOM_FILTERS[name]
 
             tmpl = env.from_string(template)
             return tmpl.render(**variables)
 
         except ImportError:
             logger.debug("Jinja2 not installed, using simple variable substitution")
-            return (
-                self._simple_substitute(template, variables) if strict else self._simple_substitute(template, variables)
-            )
+            return self._simple_substitute(template, variables)
 
         except TemplateSyntaxError as e:
             raise ValueError(f"Template syntax error at line {e.lineno}: {e.message}")

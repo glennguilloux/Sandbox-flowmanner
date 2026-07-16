@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
+from app.core.llm_result import normalize_llm_result
 from app.services.learning_service import get_learning_service
 
 # Lazy import to avoid circular dependency
@@ -152,7 +153,7 @@ class NexusOrchestrator:
 
     async def build_context(self, ctx: ExecutionContext) -> dict[str, Any]:
         """Assemble context from all registered sources"""
-        context = {
+        context: dict[str, Any] = {
             "user_id": ctx.user_id,
             "session_id": ctx.session_id,
             "conversation_id": ctx.conversation_id,
@@ -199,10 +200,20 @@ class NexusOrchestrator:
                     task_name=f"capability:{capability_id}",
                     metadata={"capability_id": capability_id, "params": params},
                 )
-                # Wait for task completion
+                # Wait for task completion — bounded (trust-boundary skill:
+                # an autonomous loop MUST have a hard wall-clock bound; an
+                # unbounded `while True:` hangs forever if the distributed
+                # task is lost / never flips status).
                 import asyncio
 
+                poll_deadline_s = float(getattr(self.distributed_executor, "poll_timeout_seconds", 300) or 300)
+                poll_start = datetime.now(UTC).timestamp()
                 while True:
+                    if datetime.now(UTC).timestamp() - poll_start > poll_deadline_s:
+                        return OperationResult(
+                            success=False,
+                            error=f"Distributed task {task_id} poll timed out after {poll_deadline_s}s",
+                        )
                     task = self.distributed_executor.get_task_status(task_id)
                     if task and task.status.value in ("success", "failure"):
                         break
@@ -355,17 +366,21 @@ class NexusOrchestrator:
                 temperature=0.3,
             )
 
-            if response and "content" in response:
-                content = response["content"].strip()
-                if "```" in content:
-                    match = re.search(r"```(?:json)?\s*([\s\S]*?)```", content)
-                    if match:
-                        content = match.group(1).strip()
+            # Normalize across router return shapes (dict vs object) and treat a
+            # success=False as a failure (the previously checked "content" key
+            # never appears on the model_router result, so successful calls
+            # were wrongly discarded). normalize_llm_result raises on failure;
+            # the outer except degrades to None per the function contract.
+            content = normalize_llm_result(response, context="_create_plan_ai").strip()
+            if "```" in content:
+                match = re.search(r"```(?:json)?\s*([\s\S]*?)```", content)
+                if match:
+                    content = match.group(1).strip()
 
-                plan = json.loads(content)
-                if isinstance(plan, list):
-                    logger.info("AI planning created plan with %s steps", len(plan))
-                    return plan
+            plan = json.loads(content)
+            if isinstance(plan, list):
+                logger.info("AI planning created plan with %s steps", len(plan))
+                return plan
 
             return None
 
@@ -403,9 +418,8 @@ class NexusOrchestrator:
         # Fallback to keyword matching
         goal_lower = goal.lower()
 
-        if "search" in goal_lower or "find" in goal_lower:
-            if "knowledge" in goal_lower or "document" in goal_lower:
-                plan.append({"capability": "tool:search_knowledge", "params": {"query": goal}})
+        if ("search" in goal_lower or "find" in goal_lower) and ("knowledge" in goal_lower or "document" in goal_lower):
+            plan.append({"capability": "tool:search_knowledge", "params": {"query": goal}})
 
         if "agent" in goal_lower or "execute" in goal_lower:
             plan.append({"capability": "tool:spawn_agent", "params": {"task": goal}})

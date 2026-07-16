@@ -27,6 +27,50 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 COMPAT = BACKEND_ROOT / "app" / "api" / "_mission_cqrs" / "compat.py"
 
 
+class TestUseNewReadsKillSwitch:
+    """Regression: the dormant Blueprint/Run read model must stay OFF.
+
+    The Blueprint/Run write path was removed 2026-07-07 (commit 5757b0aa;
+    docs/DUAL-WRITE-DECISION.md). With no writer, the Blueprint/Run tables are
+    unpopulated, so serving reads from them would silently return empty/phantom
+    mission data. ``use_new_reads()`` is pinned False as a code-level kill switch
+    so the read path can never route to the deprecated model, regardless of the
+    USE_NEW_READS env var or rebuild state.
+    """
+
+    def test_use_new_reads_is_false_in_code(self):
+        """The function body must return False unconditionally (not env-gated)."""
+        src = COMPAT.read_text()
+        # Locate the function body.
+        start = src.index("def use_new_reads()")
+        rest = src[start:]
+        next_def = re.search(r"\n\S", rest[1:])  # first line starting at col 0
+        end = (start + 1 + next_def.start() + 1) if next_def else len(src)
+        body = src[start:end]
+        assert "return False" in body, "use_new_reads() must pin False"
+        # It must NOT read the env var anymore (env is dead, intentionally).
+        assert "os.environ" not in body, (
+            "use_new_reads() must not read USE_NEW_READS from the environment; "
+            "the kill switch is the code definition so it survives rebuild."
+        )
+
+    def test_use_new_reads_returns_false_imported(self):
+        """Imported behavior matches: even with USE_NEW_READS=1, it returns False."""
+        import importlib
+        import os
+
+        saved = os.environ.get("USE_NEW_READS")
+        os.environ["USE_NEW_READS"] = "1"
+        try:
+            mod = importlib.import_module("app.api._mission_cqrs.compat")
+            assert mod.use_new_reads() is False
+        finally:
+            if saved is None:
+                os.environ.pop("USE_NEW_READS", None)
+            else:
+                os.environ["USE_NEW_READS"] = saved
+
+
 def _extract_active_missions_from_blueprints_body() -> str:
     """Return the source for ``async def active_missions_from_blueprints``
     (start through the next ``async def`` or end of file).

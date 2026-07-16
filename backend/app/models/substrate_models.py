@@ -15,7 +15,7 @@ Event columns:
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import BigInteger, DateTime, String
+from sqlalchemy import BigInteger, DateTime, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -58,6 +58,16 @@ class SubstrateEvent(Base):
         String(256),
         nullable=True,
         index=True,
+    )
+
+    # Item #3 / S2: hard dedup-on-write. Because idempotency_key is nullable,
+    # Postgres permits multiple NULLs; only non-null keys are unique-constrained
+    # (correct for an optional key).
+    __table_args__ = (
+        UniqueConstraint(
+            "idempotency_key",
+            name="uq_substrate_events_idempotency_key",
+        ),
     )
 
 
@@ -159,6 +169,13 @@ class SubstrateEventType:
     SANDBOX_TASK_COMPLETED = "sandbox.task_completed"
     SANDBOX_TASK_FAILED = "sandbox.task_failed"
     SANDBOX_SNAPSHOT_CREATED = "sandbox.snapshot_created"
+
+    # Side-effect safety (two-phase STAGE→CONFIRM dispatch, side-effect-safety skill)
+    # STAGE: committed BEFORE any external call — the intent to fire an effect.
+    SIDE_EFFECT_INTENT = "side_effect.intent"
+    # CONFIRM: committed AFTER the orchestrator's fallback/skip/escalate decision;
+    # the external effect is only FIRED after this event is written.
+    SIDE_EFFECT_CONFIRMED = "side_effect.confirmed"
 
     # Backward-compat aliases (deprecated — use RUN_* / NODE_* instead)
     MISSION_STARTED = RUN_STARTED

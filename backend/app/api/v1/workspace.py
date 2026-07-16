@@ -454,6 +454,64 @@ async def list_members(
     ]
 
 
+@workspace_router.delete("/{workspace_id}/members/{member_id}", status_code=204)
+async def remove_member(
+    workspace_id: str,
+    member_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Remove a member from a workspace (soft-delete via is_active=False).
+
+    Authz: caller must be an owner or admin of the workspace. A member is
+    never hard-deleted — we flip ``is_active`` to False so historical
+    references (audit log, messages, runs) stay intact, matching the
+    soft-delete convention used for workspaces (DELETE /workspaces/{id}) and
+    teams (DELETE /teams/{ws}/{team}).
+    """
+    caller = await _verify_membership(db, workspace_id, user.id)
+    if caller.role not in ("owner", "admin"):
+        raise HTTPException(
+            status_code=403,
+            detail="Only owners and admins can remove workspace members",
+        )
+
+    result = await db.execute(
+        select(WorkspaceMember).where(
+            and_(
+                WorkspaceMember.id == member_id,
+                WorkspaceMember.workspace_id == workspace_id,
+            )
+        )
+    )
+    member = result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    if member.role == "owner":
+        # Guard against orphaning the workspace: block removal of the last owner.
+        owners = await db.execute(
+            select(WorkspaceMember).where(
+                and_(
+                    WorkspaceMember.workspace_id == workspace_id,
+                    WorkspaceMember.role == "owner",
+                    WorkspaceMember.is_active == True,
+                )
+            )
+        )
+        active_owners = owners.scalars().all()
+        if len(active_owners) <= 1:
+            raise HTTPException(
+                status_code=409,
+                detail="Cannot remove the last owner of a workspace",
+            )
+
+    member.is_active = False
+    await db.commit()
+    logger.info("Removed workspace member %s from workspace %s", member_id, workspace_id)
+    return None
+
+
 # ── Team Router ─────────────────────────────────────────────────────────────
 
 team_router = APIRouter(prefix="/teams", tags=["teams"])

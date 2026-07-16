@@ -1,0 +1,119 @@
+# flowmanner.yaml — version 1
+#
+# Self-referential blueprint (MVP): a single `sandbox` node that clones the
+# Flowmanner repo, gathers signals (tests/lint, debt markers, plan/doc drift),
+# ranks them into a "clues to work on" list, and emits strict JSON.
+#
+# Author with the `cli/` package (NOT the SDK CLI):
+#   flowmanner validate      # checks this file
+#   flowmanner push          # creates a draft Blueprint, prints id
+#   flowmanner publish        # mark ready to run
+#   flowmanner run --input repo_url=https://github.com/<owner>/<repo>.git
+#
+# Design + verification: see .hermes audit SELFREF-BLUEPRINT-DESIGN.md (P1),
+# SELFREF-RUNTIME-UNKNOWNS.md (P2). The `sandbox` node is the ONLY egress-capable
+# substrate type (node_executor.py:1485); `code`/`tool` nodes are network-isolated
+# and cannot clone (node_executor.py:1285). sandboxd-base image ships `git`.
+#
+# Spelling note: the product name is `flowmanner` (no 'p').
+
+version: 1
+
+name: "flowmanner-self-audit"
+description: |
+  Self-referential analyzer. When run, a sandbox node clones the Flowmanner
+  repo, gathers health signals, and emits a prioritized "clues to work on"
+  list as JSON.
+
+blueprint_type: solo
+
+inputs:
+  repo_url:
+    type: string
+    default: "https://github.com/glennguilloux/flowmanner.git"
+  prior_clues_url:
+    type: string
+    default: ""
+  workdir:
+    type: string
+    default: "/workspace/repo"
+
+definition:
+  blueprint_type: solo
+  nodes:
+    - id: self_audit
+      type: sandbox
+      title: Clone + analyze + rank Flowmanner repo
+      description: >
+        Egress-capable sandbox (sandboxd) agent that performs the whole
+        self-audit in one task and prints a single JSON block.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        model: ""
+        task_prompt: |
+          You are analyzing the Flowmanner codebase (a workflow platform).
+          Execute these steps with shell commands, then output ONLY a JSON
+          code block (no prose outside the block).
+
+          STEP 1 — Clone
+            repo_url="${repo_url:-https://github.com/glennguilloux/flowmanner.git}"
+            workdir="${workdir:-/workspace/repo}"
+            rm -rf "$workdir" && git clone --depth 1 "$repo_url" "$workdir"
+            cd "$workdir"
+
+          STEP 2 — Gather signals (print each condensed, then discard)
+            a) Test/lint baseline:
+               pytest --co -q 2>/dev/null | tail -3
+               ruff check . 2>/dev/null | tail -5 || true
+            b) Debt markers (code only):
+               grep -rnE '\b(TODO|FIXME|HACK|XXX)\b' backend --include=*.py \
+                 | grep -vE '_quarantine|XXX-[0-9]{2}-[0-9]{4}' | head -40
+            c) Quarantined/known-broken tests:
+               ls backend/tests/_quarantine/ 2>/dev/null
+            d) Plan/doc drift signals:
+               ls docs/ .sisyphus/plans/ 2>/dev/null
+               grep -rln ' drift\|gap\|known issue\|Active Warnings' \
+                 backend/Docs/ AGENTS.md 2>/dev/null | head
+
+          STEP 3 — Optional prior-state reconciliation
+            prior_clues_url="${prior_clues_url:-}"
+            If prior_clues_url is non-empty, curl -fsSL "$prior_clues_url" and
+            read the previous clues; for each new clue set status from comparison.
+            Otherwise all statuses are "open".
+
+          STEP 4 — Rank into clues
+            Produce a JSON array. Each element:
+              {
+                "id": "short-kebab-id",
+                "title": "one-line clue",
+                "why": "what signal implies this",
+                "file_hint": "path or glob",
+                "severity": "high|medium|low",
+                "effort": "s|m|l",
+                "status": "open|done|stale"
+              }
+            Rules:
+              - severity from blast radius (auth, data, money = high).
+              - effort s < 1 file, m = few files, l = cross-cutting.
+              - prefer concrete file_hints from STEP 2.
+              - 5–15 clues max; dedupe.
+              - if prior_clues_url was used, set status "done" when its
+                file_hint no longer matches any new signal, "stale" if >30d old.
+
+          STEP 5 — Output
+            Print exactly one fenced json block:
+              ```json
+              [ ...clues... ]
+              ```
+            Nothing else.
+
+  edges: []
+  budget:
+    max_cost_usd: 2.00
+    max_wall_time_seconds: 600
+    max_iterations: 20
+    max_depth: 1
+  config: {}

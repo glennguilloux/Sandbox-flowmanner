@@ -1,7 +1,7 @@
 """Mission and MissionTask models (separate from mission.py for services/learning_service.py)."""
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import Enum, StrEnum
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -21,7 +21,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models import Base, TimestampMixin
 
 
-class AbortReason(str, Enum):
+class AbortReason(StrEnum):
     """Typed reasons for aborting a mission."""
 
     USER_REQUESTED = "user_requested"
@@ -32,7 +32,7 @@ class AbortReason(str, Enum):
     MANUAL_INTERVENTION = "manual_intervention"
 
 
-class MissionStatus(str, Enum):
+class MissionStatus(StrEnum):
     """Typed mission lifecycle states with validated transitions.
 
     External (user-visible): draft, pending, queued, running, completed, approved, failed, paused, aborted
@@ -53,27 +53,27 @@ class MissionStatus(str, Enum):
     PAUSED = "paused"
     ABORTED = "aborted"
     CANCELLED = "aborted"  # deprecated alias for ABORTED — same value
+    # Planner generated, but trust gate forced human review (e.g. FALLBACK
+    # strategy override, or rubber-stamp approval audit). Execution/retry is
+    # blocked while in this substate — see side-effect-safety-and-planner-trust.
+    PLANNED_PENDING_REVIEW = "planned_pending_review"
 
-    # Valid transitions from each state (use enum members, not strings)
-    _TRANSITIONS: dict["MissionStatus", set["MissionStatus"]] = {
-        DRAFT: {PENDING, ABORTED},  # type: ignore[arg-type, dict-item]
-        PENDING: {PLANNING, QUEUED, ABORTED},  # type: ignore[arg-type, dict-item]
-        PLANNING: {PLANNED, ABORTED},  # type: ignore[arg-type, dict-item]
-        PLANNED: {EXECUTING, ABORTED},  # type: ignore[arg-type, dict-item]
-        EXECUTING: {RUNNING, ABORTED},  # type: ignore[arg-type, dict-item]
-        QUEUED: {RUNNING, ABORTED},  # type: ignore[arg-type, dict-item]
-        RUNNING: {COMPLETED, APPROVED, FAILED, PAUSED, ABORTED},  # type: ignore[arg-type, dict-item]
-        PAUSED: {RUNNING, ABORTED},  # type: ignore[arg-type, dict-item]
-        COMPLETED: {APPROVED},  # type: ignore[arg-type, dict-item]  # completed can be promoted to approved
-        APPROVED: set(),  # type: ignore[arg-type, dict-item]  # terminal
-        FAILED: set(),  # type: ignore[arg-type, dict-item]  # terminal
-        ABORTED: set(),  # type: ignore[arg-type, dict-item]  # terminal
-    }
+    # ── Transition table ──────────────────────────────────────────────────
+    # DEFINED AS A MODULE-LEVEL DICT, NOT a class attribute. A
+    # ``MissionStatus(str, Enum)`` LEAKS class attributes into the enum
+    # namespace (see the ALL_MISSION_STATUSES warning below), which makes
+    # ``self._TRANSITIONS`` resolve to the enum itself instead of the dict —
+    # breaking is_terminal / can_transition_to. Keeping it module-level
+    # avoids that shadowing. (Pre-existing bug; fixed while extending the
+    # table for PLANNED_PENDING_REVIEW.)
+    @property
+    def _transitions(self) -> dict["MissionStatus", set["MissionStatus"]]:
+        return _MISSION_TRANSITIONS
 
     @property
     def is_terminal(self) -> bool:
         """Return True if this status is a terminal/final state."""
-        return not self._TRANSITIONS.get(self, set())
+        return not self._transitions.get(self, set())
 
     @property
     def is_active(self) -> bool:
@@ -82,11 +82,41 @@ class MissionStatus(str, Enum):
 
     def can_transition_to(self, target: "MissionStatus") -> bool:
         """Return True if transitioning from self to target is valid."""
-        allowed = self._TRANSITIONS.get(self, set())
+        allowed = self._transitions.get(self, set())
         return target in allowed
 
 
-class MissionTaskStatus(str, Enum):
+# ── Mission status transition table (module-level, NOT a class attribute) ──
+# A ``MissionStatus(str, Enum)`` leaks class attributes into the enum
+# namespace, so defining this inside the class makes ``self._TRANSITIONS``
+# resolve to the enum instead of the dict — breaking is_terminal /
+# can_transition_to. Keep it module-level. Keys/values are MissionStatus
+# members. (Pre-existing bug fixed while extending for PLANNED_PENDING_REVIEW.)
+_MISSION_TRANSITIONS: dict["MissionStatus", set["MissionStatus"]] = {
+    MissionStatus.DRAFT: {MissionStatus.PENDING, MissionStatus.ABORTED},
+    MissionStatus.PENDING: {MissionStatus.PLANNING, MissionStatus.QUEUED, MissionStatus.ABORTED},
+    MissionStatus.PLANNING: {MissionStatus.PLANNED, MissionStatus.ABORTED},
+    MissionStatus.PLANNED: {MissionStatus.EXECUTING, MissionStatus.ABORTED},
+    MissionStatus.EXECUTING: {MissionStatus.RUNNING, MissionStatus.ABORTED},
+    MissionStatus.QUEUED: {MissionStatus.RUNNING, MissionStatus.ABORTED},
+    MissionStatus.RUNNING: {
+        MissionStatus.COMPLETED,
+        MissionStatus.APPROVED,
+        MissionStatus.FAILED,
+        MissionStatus.PAUSED,
+        MissionStatus.ABORTED,
+    },
+    MissionStatus.PAUSED: {MissionStatus.RUNNING, MissionStatus.FAILED, MissionStatus.ABORTED},
+    MissionStatus.COMPLETED: {MissionStatus.APPROVED},
+    MissionStatus.APPROVED: set(),
+    MissionStatus.FAILED: set(),
+    MissionStatus.ABORTED: set(),
+    # Planner-trust substate: review cleared → re-planned; never EXECUTING.
+    MissionStatus.PLANNED_PENDING_REVIEW: {MissionStatus.PLANNED, MissionStatus.ABORTED},
+}
+
+
+class MissionTaskStatus(StrEnum):
     """Typed task lifecycle states with validated transitions."""
 
     PENDING = "pending"
@@ -94,13 +124,9 @@ class MissionTaskStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
 
-    # Valid transitions from each state (use enum members, not strings)
-    _TRANSITIONS: dict["MissionTaskStatus", set["MissionTaskStatus"]] = {
-        PENDING: {RUNNING},  # type: ignore[arg-type, dict-item]
-        RUNNING: {COMPLETED, FAILED},  # type: ignore[arg-type, dict-item]
-        FAILED: {PENDING},  # type: ignore[arg-type, dict-item]  # allow retry
-        COMPLETED: set(),  # type: ignore[arg-type, dict-item]  # terminal
-    }
+    @property
+    def _TRANSITIONS(self) -> dict["MissionTaskStatus", set["MissionTaskStatus"]]:
+        return _MISSION_TASK_TRANSITIONS
 
     @property
     def is_terminal(self) -> bool:
@@ -116,6 +142,20 @@ class MissionTaskStatus(str, Enum):
         """Return True if transitioning from self to target is valid."""
         allowed = self._TRANSITIONS.get(self, set())
         return target in allowed
+
+
+# ── Task status transition table (module-level, NOT a class attribute) ──
+# A ``MissionTaskStatus(str, Enum)`` leaks class attributes into the enum
+# namespace, so defining this inside the class makes ``self._TRANSITIONS``
+# resolve to the enum instead of the dict — breaking is_terminal /
+# can_transition_to. Keep it module-level. Keys/values are MissionTaskStatus
+# members.
+_MISSION_TASK_TRANSITIONS: dict["MissionTaskStatus", set["MissionTaskStatus"]] = {
+    MissionTaskStatus.PENDING: {MissionTaskStatus.RUNNING},
+    MissionTaskStatus.RUNNING: {MissionTaskStatus.COMPLETED, MissionTaskStatus.FAILED},
+    MissionTaskStatus.FAILED: {MissionTaskStatus.PENDING},  # allow retry
+    MissionTaskStatus.COMPLETED: set(),  # terminal
+}
 
 
 # ── Models ───────────────────────────────────────────────────────────────────
@@ -136,6 +176,7 @@ ALL_MISSION_STATUSES: tuple[str, ...] = (
     "failed",
     "paused",
     "aborted",
+    "planned_pending_review",
 )
 ALL_TASK_STATUSES: tuple[str, ...] = ("pending", "running", "completed", "failed")
 
@@ -186,6 +227,12 @@ class Mission(Base, TimestampMixin):
         nullable=True,
         index=True,
     )
+    # Pause-timeout auto-fail (expire_paused_missions.py): NULL = legacy /
+    # paused before this column existed, treated as infinity (exempt from auto-fail).
+    paused_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    # Compensation durability (mission_compensation_service.py): set in its own
+    # session before a refund runs so a Celery retry cannot double-refund.
+    compensated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class MissionTask(Base, TimestampMixin):
@@ -238,6 +285,29 @@ class MissionLog(Base):
     message: Mapped[str] = mapped_column(Text, nullable=False)
     data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), index=True)
+
+
+class MissionExecutionOutbox(Base):
+    """Durable outbox for async mission execution dispatch (Comment 8).
+
+    When the Celery broker is unavailable at dispatch time, we persist an
+    outbox row in the same transaction that marked the mission QUEUED, then
+    fail closed with a retryable error. A worker/sweeper can later pick up the
+    row and dispatch, instead of silently falling back to an orphaned
+    asyncio.create_task that dies with the request.
+    """
+
+    __tablename__ = "mission_execution_outbox"
+
+    id: Mapped[str] = mapped_column(UUID(as_uuid=True), primary_key=True, default=lambda: uuid4())
+    mission_id: Mapped[str] = mapped_column(UUID(as_uuid=True), ForeignKey("missions.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    run_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    selected_plan_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+    picked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class MissionImprovement(Base, TimestampMixin):

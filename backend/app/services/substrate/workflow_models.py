@@ -20,7 +20,38 @@ from pydantic import BaseModel, Field
 
 from app.models.capability_models import Budget
 
+__all__ = [
+    "EffectClass",
+    "NodeType",
+    "ReasoningProfile",
+    "StrategyResult",
+    "Workflow",
+    "WorkflowEdge",
+    "WorkflowNode",
+    "WorkflowType",
+]
+
 # ── Node types (union of all old executor node types) ────────────────
+
+
+class EffectClass(str, Enum):
+    """Per-invocation classification of a node's external side effect.
+
+    Declared on the WorkflowNode (by the planner/adapter that builds it) — NEVER
+    inferred from the backend type. A POST can be reversible (idempotent upsert)
+    or not (send email); a GET can be irreversible (debiting a quota). The class
+    describes the *semantics* of this invocation's effect.
+
+    Default is IRREVERSIBLE (fail-closed): an unannotated node is treated as a
+    point-of-no-return effect, so the two-phase STAGE→CONFIRM dispatch gates it.
+    Read-only nodes (LLM_CALL, CODE_EXECUTION, RAG_QUERY, WEB_SEARCH, read-only
+    FILE_OPERATION, HUMAN_REVIEW/APPROVAL, the PHASE_GATE/FAN_OUT/FAN_IN passthrough)
+    MUST be explicitly annotated REVERSIBLE — see node_executor / side-effect-safety
+    skill.
+    """
+
+    REVERSIBLE = "reversible"
+    IRREVERSIBLE = "irreversible"
 
 
 class NodeType(str, Enum):
@@ -56,6 +87,19 @@ class NodeType(str, Enum):
     FAN_IN = "fan_in"  # Swarm synthesis
     SANDBOX = "sandbox"  # sandboxd Docker container execution
 
+    # Template node types (Scope B — real handlers in node_executor)
+    # Previously these collapsed to LLM_CALL through the task-type map default.
+    TRANSFORM = "transform"  # pure data transform (no LLM/tool)
+    CONDITION = "condition"  # evaluate a boolean expression, drive branching
+    LOG = "log"  # append a substrate log event (read-only)
+    LOOP = "loop"  # strategy-level bounded iteration marker
+    WEBHOOK = "webhook"  # outbound HTTP POST (irreversible side effect)
+
+    # Convention: read-only / internal-passthrough node types are annotated
+    # REVERSIBLE by the planner/adapter (see EffectClass + side-effect-safety
+    # skill). The IRREVERSIBLE default otherwise applies to TOOL_CALL,
+    # BROWSER_*, SUB_WORKFLOW, SANDBOX.
+
 
 # ── Workflow types (maps 1:1 to old executors) ──────────────────────
 
@@ -78,6 +122,20 @@ class WorkflowType(str, Enum):
 # ── Workflow components ──────────────────────────────────────────────
 
 
+class ReasoningProfile(str, Enum):
+    """Reasoning depth profile carried on a node/execution context (Comment 7).
+
+    Mirrors DepthPolicy depth levels. ``shallow`` -> local/cheap, no reasoning;
+    ``normal`` -> default cloud path; ``deep`` -> premium-reasoning tier when
+    budget + catalog policy allow (e.g. Opus). The profile drives model and
+    reasoning-option selection in ``NodeExecutor._handle_llm``.
+    """
+
+    SHALLOW = "shallow"
+    NORMAL = "normal"
+    DEEP = "deep"
+
+
 class WorkflowNode(BaseModel):
     """A single node in a workflow.
 
@@ -92,8 +150,18 @@ class WorkflowNode(BaseModel):
     dependencies: list[str] = Field(default_factory=list)
     assigned_model: str | None = None
     assigned_agent_id: str | None = None
+    # Comment 7: reasoning depth profile for this node. Consumed by
+    # NodeExecutor._handle_llm to select the model + ReasoningOptions. Defaults
+    # to NORMAL when the planner/adapter does not set it.
+    reasoning_profile: ReasoningProfile = ReasoningProfile.NORMAL
     max_retries: int = 3
     fallback_strategy: str = "human_escalate"
+    # Side-effect classification (per-invocation, fail-closed default).
+    # IRREVERSIBLE nodes are gated by the two-phase STAGE→CONFIRM dispatch in
+    # NodeExecutor.execute(): the effect intent is committed before any
+    # external call, and the effect is only FIRED after the orchestrator's
+    # fallback/skip/escalate decision. Read-only nodes MUST set REVERSIBLE.
+    effect_class: EffectClass = EffectClass.IRREVERSIBLE
     # Runtime fields (populated during execution)
     status: str = "pending"
     output_data: dict[str, Any] | None = None

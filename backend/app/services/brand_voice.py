@@ -13,6 +13,9 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
+from typing import Any
+
+from app.core.llm_result import LLMResultError, normalize_llm_result
 
 logger = logging.getLogger(__name__)
 
@@ -220,7 +223,13 @@ async def _llm_evaluate(text: str, style_guide: dict) -> EvaluationResult | None
             max_tokens=1000,
             temperature=0.1,
         )
-        content = response.get("response", "")
+        # Normalize across router return shapes; a success=False is treated as
+        # a failure and falls back to rules (the function's designed contract).
+        try:
+            content = normalize_llm_result(response, context="_llm_evaluate")
+        except LLMResultError as exc:
+            logger.debug("LLM evaluation failed, falling back to rules: %s", exc)
+            return None
         parsed = json.loads(content)
         issues = [
             StyleIssue(
@@ -258,7 +267,11 @@ async def _llm_rewrite(text: str, style_guide: dict) -> RewriteResult | None:
             max_tokens=4000,
             temperature=0.3,
         )
-        content = response.get("response", "")
+        try:
+            content = normalize_llm_result(response, context="_llm_rewrite")
+        except LLMResultError as exc:
+            logger.debug("LLM rewrite failed, falling back to original: %s", exc)
+            return None
         parsed = json.loads(content)
         return RewriteResult(
             rewritten_text=parsed.get("rewritten_text", text),

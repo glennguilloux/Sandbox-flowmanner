@@ -24,3 +24,12 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["F", "I", "UP"]
+
+[tool.poetry.scripts]
+flowmanner = "flowmanner_api_client.cli:main"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

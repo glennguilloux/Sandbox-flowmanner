@@ -26,6 +26,7 @@ from app.database import AsyncSessionLocal
 
 if TYPE_CHECKING:
     from datetime import datetime
+    from uuid import UUID
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +145,6 @@ class TriggerBridge:
         # Lazy imports — keeps the bridge lightweight and avoids cycles.
         from datetime import UTC, datetime
         from typing import Any
-        from uuid import UUID
 
         from croniter import croniter
         from sqlalchemy import and_, select

@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 
 from app.models.blueprint_models import Blueprint, Run, RunStatus
 from app.models.workspace_models import WorkspaceMember
-from app.services.substrate.adapters import blueprint_to_workflow
+from app.services.substrate.adapters import InvalidBlueprintGraphError, blueprint_to_workflow
 from app.services.substrate.executor import get_unified_executor
 from app.services.substrate.replay_engine import get_replay_engine
 
@@ -124,20 +124,31 @@ class RunService:
         run.started_at = datetime.now(UTC)
         await self.db.flush()
 
-        # Convert snapshot to Workflow
-        workflow = blueprint_to_workflow(
-            snapshot=run.snapshot,
-            blueprint_id=str(run.blueprint_id) if run.blueprint_id else str(run.id),
-            user_id=str(user_id),
-        )
+        # Convert snapshot to Workflow. A structurally broken snapshot
+        # (e.g. an edge whose source/target names a node id that
+        # does not exist, or a self-loop) raises
+        # InvalidBlueprintGraphError from the adapter instead of being
+        # silently dropped. Surface it as a RunValidationError so the
+        # API layer returns a clear 4xx rather than a 500 / silent
+        # data loss.
+        try:
+            workflow = blueprint_to_workflow(
+                snapshot=run.snapshot,
+                blueprint_id=str(run.blueprint_id) if run.blueprint_id else str(run.id),
+                user_id=str(user_id),
+            )
+        except InvalidBlueprintGraphError as exc:
+            raise RunValidationError(str(exc)) from exc
 
         # Execute through unified executor
         executor = get_unified_executor()
+        context = {"inputs": run.input_data or {}}
         result = await executor.execute(
             db=self.db,
             workflow=workflow,
             run_id=str(run.id),
             blueprint_id=str(run.blueprint_id) if run.blueprint_id else None,
+            context=context,
         )
 
         # Update run from result

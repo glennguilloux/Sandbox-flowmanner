@@ -6,7 +6,7 @@ import logging
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 logger = logging.getLogger(__name__)
 import uuid  # FastAPI/Pydantic v2 needs uuid at runtime for path param resolution
@@ -16,6 +16,7 @@ from app.models.mission_advanced_models import MissionTemplate
 from app.models.mission_models import (
     AbortReason,
     Mission,
+    MissionExecutionOutbox,
     MissionLog,
     MissionStatus,
     MissionTask,
@@ -39,6 +40,7 @@ from app.services.mission_errors import (
     MissionNotFoundError,
     MissionTransitionConflictError,
     MissionValidationError,
+    RetryableMissionError,
 )
 from app.services.mission_planner import MissionPlanner
 from app.services.mission_service import (
@@ -398,6 +400,17 @@ class MissionCommandHandlers(CommandHandlerBase):
     ) -> MissionExecutionStatus:
         mission = await require_mission_access(self.session, mission_id, user.id)
 
+        # ── Planner-trust gate: block execution while pending human review ──
+        # (side-effect-safety-and-planner-trust skill) A plan forced into
+        # PLANNED_PENDING_REVIEW (FALLBACK override, rubber-stamp audit) must NOT
+        # be executed/retried until a human clears it. Returns 409.
+        if mission.status == MissionStatus.PLANNED_PENDING_REVIEW:
+            raise MissionTransitionConflictError(
+                f"Mission '{mission_id}' is PLANNED_PENDING_REVIEW and requires "
+                f"human approval before execution. It cannot be executed or retried "
+                f"until the review is cleared."
+            )
+
         old_status = mission.status.value if hasattr(mission.status, "value") else mission.status
 
         async def _op():
@@ -496,6 +509,15 @@ class MissionCommandHandlers(CommandHandlerBase):
         #   3. Dispatch to Celery (durable, retryable) instead of fire-and-forget
         mission = await require_mission_access(self.session, mission_id, user.id)
 
+        # ── Planner-trust gate: block execution while pending human review ──
+        # (side-effect-safety-and-planner-trust skill) See execute_mission.
+        if mission.status == MissionStatus.PLANNED_PENDING_REVIEW:
+            raise MissionTransitionConflictError(
+                f"Mission '{mission_id}' is PLANNED_PENDING_REVIEW and requires "
+                f"human approval before execution. It cannot be queued for async "
+                f"execution until the review is cleared."
+            )
+
         # Round-trip hook — accept selected_plan_id so the Celery worker
         # dispatches against the rebuilt task list.  Unknown IDs log and
         # fall through.
@@ -510,50 +532,69 @@ class MissionCommandHandlers(CommandHandlerBase):
 
         prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
         mission.status = MissionStatus.QUEUED
-        await self.session.commit()
 
-        # Log the transition
-        log = MissionLog(
-            mission_id=mission_id,
-            level="info",
-            message=f"Mission queued for async execution (was: {prev_status})",
-            data={
-                "actor": "api",
-                "prev_state": prev_status,
-                "next_state": MissionStatus.QUEUED,
-                "cause": "Async execution queued by user",
-                "user_id": str(user.id),
-            },
+        # Comment 8: generate a stable run_id up front and thread it through to
+        # Celery, the substrate executor, and the outbox so replay, leases,
+        # aborts, and event correlation all share one identity.
+        run_id = str(uuid4())
+        selected_plan_id = None
+        if payload is not None:
+            selected_plan_id = getattr(payload, "selected_plan_id", None)
+            selected_plan_id = str(selected_plan_id) if selected_plan_id is not None else None
+
+        # Persist the run identity onto the mission plan before commit so a
+        # later abort/resume knows which substrate run to target.
+        mission.plan = {**(mission.plan or {}), "substrate_run_id": run_id}
+
+        self.session.add(
+            MissionLog(
+                mission_id=mission_id,
+                level="info",
+                message=f"Mission queued for async execution (was: {prev_status})",
+                data={
+                    "actor": "api",
+                    "prev_state": prev_status,
+                    "next_state": MissionStatus.QUEUED,
+                    "cause": "Async execution queued by user",
+                    "user_id": str(user.id),
+                    "run_id": run_id,
+                },
+            )
         )
-        self.session.add(log)
         await self.session.commit()
 
-        # B3: Dispatch to Celery for durable execution
+        # B3: Dispatch to Celery for durable execution. If the broker is
+        # unreachable at dispatch time, fail closed: persist an outbox row in
+        # the same transaction the mission was already QUEUED under and raise a
+        # retryable error. We never silently fall back to an orphaned
+        # asyncio.create_task that dies with the request.
         try:
             from app.tasks.mission_execution import dispatch_mission_execution
 
-            dispatch_mission_execution(str(mission_id), user.id)
-        except Exception:
-            # Fallback: use UnifiedExecutor in a background task
-            _fallback_log = __import__("structlog").get_logger(__name__)
-            _fallback_log.warning("celery_dispatch_failed_fallback", mission_id=str(mission_id))
-
-            async def _run_execution():
-                from app.database import AsyncSessionLocal
-                from app.services.substrate.adapters import mission_to_workflow
-                from app.services.substrate.executor import get_unified_executor
-
-                async with AsyncSessionLocal() as db_session:
-                    result = await db_session.execute(select(Mission).where(Mission.id == str(mission_id)))
-                    m = result.scalars().first()
-                    if m:
-                        tasks = await get_mission_tasks(db_session, mission_id)
-                        workflow = mission_to_workflow(m, tasks)
-                        await get_unified_executor().execute(db_session, workflow)
-
-            import asyncio
-
-            asyncio.create_task(_run_execution())
+            dispatch_mission_execution(str(mission_id), user.id, run_id, selected_plan_id)
+        except Exception as dispatch_exc:
+            logger.warning(
+                "celery_dispatch_failed_persist_outbox mission_id=%s run_id=%s error=%s",
+                str(mission_id),
+                run_id,
+                str(dispatch_exc),
+            )
+            self.session.add(
+                MissionExecutionOutbox(
+                    mission_id=str(mission_id),
+                    user_id=user.id,
+                    run_id=run_id,
+                    selected_plan_id=selected_plan_id,
+                    status="pending",
+                    error=str(dispatch_exc),
+                )
+            )
+            await self.session.commit()
+            raise RetryableMissionError(
+                f"Mission '{mission_id}' was queued but dispatch to the execution "
+                f"worker failed. A durable outbox row was recorded; retry the "
+                f"request. run_id={run_id}"
+            ) from dispatch_exc
 
         tasks = await get_mission_tasks(self.session, mission_id)
         return MissionExecutionStatus(
@@ -583,8 +624,13 @@ class MissionCommandHandlers(CommandHandlerBase):
                 f"Invalid abort reason: '{reason_str}'. Valid reasons: {[r.value for r in AbortReason]}"
             )
 
-        # SELECT ... FOR UPDATE to prevent TOCTOU races
-        result = await self.session.execute(select(Mission).where(Mission.id == str(mission_id)).with_for_update())
+        # SELECT ... FOR UPDATE to prevent TOCTOU races. Bound a lock_timeout
+        # and prefer SKIP LOCKED so a row already held by a concurrent
+        # batch_abort (see batch_abort) is skipped rather than deadlocking.
+        await self.session.execute(text("SET LOCAL lock_timeout = '2s'"))
+        result = await self.session.execute(
+            select(Mission).where(Mission.id == str(mission_id)).with_for_update(skip_locked=True)
+        )
         mission = result.scalars().first()
         if mission is None:
             raise MissionNotFoundError("Mission not found")
@@ -724,6 +770,11 @@ class MissionCommandHandlers(CommandHandlerBase):
 
         prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
         mission.status = MissionStatus.PAUSED
+        # Record the pause timestamp so the auto-fail scanner can compute the
+        # 7-day window. Legacy rows that were paused before this column existed
+        # have paused_at = NULL and are treated as "infinity" by the scanner
+        # (exempt from auto-fail), so backfills are not required.
+        mission.paused_at = datetime.now(UTC)
 
         # Cancel all RUNNING tasks back to PENDING
         task_result = await self.session.execute(
@@ -765,9 +816,38 @@ class MissionCommandHandlers(CommandHandlerBase):
 
     async def resume_mission(self, user: User, mission_id: uuid.UUID) -> MissionExecutionStatus:
         # NOTE: not wrapped in wrap_command — multi-commit flow:
-        #   1. commit status → QUEUED
-        #   2. commit transition log separately
-        mission = await require_mission_access(self.session, mission_id, user.id)
+        #   1. SELECT … FOR UPDATE locks the mission row atomically
+        #   2. commit status → QUEUED
+        #   3. commit transition log separately
+        # Trust B2: the expire_paused_missions beat task locks PAUSED rows with
+        # FOR UPDATE SKIP LOCKED before flipping them to FAILED. Without a lock
+        # here, resume's plain SELECT would not be skipped and the two
+        # transactions could interleave (resume commits QUEUED, expire commits
+        # FAILED → user's resume clobbered). Locking the row FOR UPDATE means
+        # expire's SKIP LOCKED skips the row we hold, giving mutual exclusion.
+        await self.session.execute(text("SET LOCAL lock_timeout = '2s'"))
+        result = await self.session.execute(select(Mission).where(Mission.id == str(mission_id)).with_for_update())
+        mission = result.scalars().first()
+        if mission is None:
+            raise MissionNotFoundError("Mission not found")
+        # Workspace-aware access check (post-lock to avoid TOCTOU), mirroring
+        # abort_mission. Preserves require_mission_access ownership semantics.
+        if mission.workspace_id:
+            from sqlalchemy import select as _sel
+
+            from app.models.workspace_models import WorkspaceMember
+
+            member_result = await self.session.execute(
+                _sel(WorkspaceMember).where(
+                    WorkspaceMember.workspace_id == mission.workspace_id,
+                    WorkspaceMember.user_id == user.id,
+                    WorkspaceMember.is_active == True,
+                )
+            )
+            if member_result.scalar_one_or_none() is None:
+                raise MissionNotFoundError("Mission not found")
+        elif mission.user_id != user.id:
+            raise MissionNotFoundError("Mission not found")
 
         if mission.status != MissionStatus.PAUSED:
             raise MissionTransitionConflictError(f"Can only resume a paused mission, not '{mission.status}'")
@@ -811,6 +891,15 @@ class MissionCommandHandlers(CommandHandlerBase):
 
         if mission.status != MissionStatus.FAILED:
             raise MissionTransitionConflictError(f"Can only retry a failed mission, not '{mission.status}'")
+
+        # ── Planner-trust gate: block retry while pending human review ──
+        # (side-effect-safety-and-planner-trust skill) Even a retry must not
+        # bypass the review substate.
+        if mission.status == MissionStatus.PLANNED_PENDING_REVIEW:
+            raise MissionTransitionConflictError(
+                f"Mission '{mission_id}' is PLANNED_PENDING_REVIEW and cannot be "
+                f"retried until a human clears the review."
+            )
 
         prev_status = mission.status.value if hasattr(mission.status, "value") else mission.status
         mission.status = MissionStatus.PENDING
@@ -866,8 +955,14 @@ class MissionCommandHandlers(CommandHandlerBase):
             )
 
         str_ids = [str(mid) for mid in mission_ids]
-
-        result = await self.session.execute(select(Mission).where(Mission.id.in_(str_ids)).with_for_update())
+        # Lock the target rows in a deterministic (sorted) order and use
+        # SKIP LOCKED so that any row already held by a concurrent per-mission
+        # abort is skipped instead of deadlocking. A session-level lock_timeout
+        # bounds how long a contended lock can block.
+        await self.session.execute(text("SET LOCAL lock_timeout = '2s'"))
+        result = await self.session.execute(
+            select(Mission).where(Mission.id.in_(str_ids)).order_by(Mission.id).with_for_update(skip_locked=True)
+        )
         missions = result.scalars().all()
 
         results = []

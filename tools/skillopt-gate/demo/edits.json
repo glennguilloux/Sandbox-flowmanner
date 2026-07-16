@@ -1,0 +1,4 @@
+[
+  {"op": "replace", "target": "# Demo Agent Skill", "content": "# Demo Agent Skill\n\nThe agent MUST always run the test before claiming done, and stage proposals for human review."},
+  {"op": "add", "content": "Rule: never mutate the live skill without explicit adopt. Rule: log the per-edit gate decision."}
+]

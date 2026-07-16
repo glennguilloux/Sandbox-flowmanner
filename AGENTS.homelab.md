@@ -7,8 +7,7 @@
 - Source edits NEVER take effect without rebuild. Deploy: `bash /opt/flowmanner/deploy-frontend.sh`
   ⚠️ **DEPLOY TIMING: `deploy-frontend.sh` takes ~4 minutes** (rsync ~30s + docker build ~2min + restart + 10 health checks at 5s each). Use `timeout=300` or `background=true, notify_on_complete=true`. If it times out, do NOT retry blindly — check if it actually completed: `ssh -i ~/.ssh/vps_flowmanner_new root@74.208.115.142 "cd /opt/flowmanner && docker compose ps"` and check the image creation time. Repeated retries that timeout are a sign the previous one may have succeeded or is still running.
 - After deploy, verify: login works, nav shows Dashboard after login, chat no 401, no offline banner
-- Two auth systems: NextAuth JWT cookie + Zustand localStorage key "fm_tokens". Both must agree.
-- LocalStorage key is "fm_tokens" (SSH output filter may show "***" — ignore, real key is fm_tokens)
+- Frontend auth: the **only** trust boundary that matters now is the httpOnly NextAuth JWT cookie. The legacy `fm_tokens` localStorage two-system auth described in older docs was REMOVED (`TriggerManagement.test.tsx`); the current token is `fm_auth_token` in `sessionStorage` (5-min TTL), seeded from NextAuth (`preview-cookie-sync.tsx`, `get-auth-token.ts`). Treat `fm_auth_token` as a session-scoped convenience, not an auth system.
 - **Always verify suspicious `***` values with `od -c` or Python `repr()` before acting**
 
 ---
@@ -96,19 +95,20 @@ Three commands installed at `~/.local/bin/`:
 |---------|-------------|
 | `dev` | Start the Next.js dev server (systemd user service, auto-starts on boot) |
 | `wip` | Silent local save-point. No push, no deploy. |
-| `ship` | **Only way to reach production** — auto-commits dirty files, pushes origin, then runs `deploy-frontend.sh`. |
+
+**Frontend deploy:** there is **NO `ship` command** (it was removed — do not use it). The canonical deploy is `bash /opt/flowmanner/deploy-frontend.sh` (from homelab). It rsyncs `/home/glenn/FlowmannerV2-frontend/` to the VPS, builds the Docker image, and restarts nginx.
 
 **Dev server:** `http://172.16.1.1:3000` — HMR on save. Logs: `journalctl --user -u flowmanner-dev -f`.
 
-⛔ **Never run Docker commands on the VPS directly.** Always use `ship`.
+⛔ **Never run Docker commands on the VPS directly.** Always deploy from homelab via `deploy-frontend.sh`.
 
 ## Frontend Deployment to VPS
 
 The frontend source lives locally at `/home/glenn/FlowmannerV2-frontend/`. It has no git remote.
 
-**Canonical deploy command:** `ship` (auto-commits + pushes + calls the deploy script).
+**Canonical deploy command:** `bash /opt/flowmanner/deploy-frontend.sh`
 
-Or directly (fallback): `bash /opt/flowmanner/deploy-frontend.sh`
+Or with the standard flags: `bash /opt/flowmanner/deploy-frontend.sh --dry-run` (preview) / `--skip-precheck` (orchestrators that already validated).
 
 ⚠️ **TIMING: The full deploy pipeline takes ~4 minutes.** Breakdown:
 - rsync: ~30 seconds

@@ -127,7 +127,7 @@ class TestDAGExecute:
             }
         )
 
-        result = await s.execute(wf, {}, mock_executor, db)
+        result = await s.execute(wf, {}, mock_executor, db, run_id="test-run-dag")
 
         assert result.success is True
         assert result.status == "completed"
@@ -160,7 +160,7 @@ class TestDAGExecute:
         # But since abort_after_first checks call_count >= 1, and execute_node
         # is called once for n1 (layer 0), the is_aborted check for layer 1
         # will return True
-        result = await s.execute(wf, {}, mock_executor, db)
+        result = await s.execute(wf, {}, mock_executor, db, run_id="test-run-dag")
         assert result.status == "aborted"
         assert "n1" in result.completed_nodes  # layer 0 node completed
         assert "n2" not in result.completed_nodes  # layer 1 was aborted
@@ -181,7 +181,7 @@ class TestDAGExecute:
             }
         )
 
-        result = await s.execute(wf, {}, mock_executor, db)
+        result = await s.execute(wf, {}, mock_executor, db, run_id="test-run-dag")
 
         assert result.success is False
         assert "failed" in result.status.lower()
@@ -316,7 +316,7 @@ class TestPipelineExecute:
             }
         )
 
-        result = await s.execute(wf, {}, mock_executor, db)
+        result = await s.execute(wf, {}, mock_executor, db, run_id="test-run-dag")
 
         assert result.success is True
         assert len(result.completed_nodes) == 7
@@ -354,7 +354,7 @@ class TestPipelineExecute:
         mock_executor.ws_manager.broadcast_phase = AsyncMock()
         mock_executor.execute_node = AsyncMock(side_effect=mock_execute)
 
-        result = await s.execute(wf, {}, mock_executor, db)
+        result = await s.execute(wf, {}, mock_executor, db, run_id="test-run-dag")
 
         assert result.success is True
         # 7 phases first pass + 4 retry phases (debate, consensus, synthesis, review) = 11
@@ -369,7 +369,7 @@ class TestPipelineExecute:
         mock_executor = MagicMock()
         mock_executor.is_aborted = MagicMock(return_value=True)
 
-        result = await s.execute(wf, {}, mock_executor, db)
+        result = await s.execute(wf, {}, mock_executor, db, run_id="test-run-dag")
         assert result.status == "aborted"
 
     @pytest.mark.asyncio
@@ -389,7 +389,7 @@ class TestPipelineExecute:
             }
         )
 
-        result = await s.execute(wf, {}, mock_executor, db)
+        result = await s.execute(wf, {}, mock_executor, db, run_id="test-run-dag")
 
         assert result.success is False
         assert "failed" in result.status.lower()
@@ -414,7 +414,7 @@ class TestPipelineExecute:
             }
         )
 
-        result = await s.execute(wf, {}, mock_executor, db)
+        result = await s.execute(wf, {}, mock_executor, db, run_id="test-run-dag")
 
         assert result.success is False
         assert "Max review retries" in result.error

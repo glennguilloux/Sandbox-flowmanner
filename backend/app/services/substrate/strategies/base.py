@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
+    from app.services.substrate.executor import UnifiedExecutor
     from app.services.substrate.workflow_models import (
         StrategyResult,
         Workflow,
@@ -29,6 +30,28 @@ if TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_edge_endpoints(workflow: Workflow) -> list[str]:
+    """Reject edges whose source or target names a non-existent node id.
+
+    Shared by every strategy so dangling edges fail validation uniformly
+    (parity). Previously only DAG/Graph checked this; Swarm/Pipeline/Meta/
+    LangGraph silently accepted dangling edges. This is now the single
+    source of truth.
+
+    The message strings are asserted by DAG validation tests, so they must
+    stay exactly: ``Edge source '<id>' not found in nodes`` /
+    ``Edge target '<id>' not found in nodes``.
+    """
+    node_ids = {n.id for n in workflow.nodes}
+    errors: list[str] = []
+    for edge in workflow.edges:
+        if edge.source not in node_ids:
+            errors.append(f"Edge source '{edge.source}' not found in nodes")
+        if edge.target not in node_ids:
+            errors.append(f"Edge target '{edge.target}' not found in nodes")
+    return errors
 
 
 class ExecutionStrategy(ABC):
@@ -61,6 +84,7 @@ class ExecutionStrategy(ABC):
         context: dict[str, Any],
         executor: UnifiedExecutor,
         db: AsyncSession,
+        run_id: str,
     ) -> StrategyResult:
         """Execute the strategy against a workflow.
 
@@ -71,6 +95,11 @@ class ExecutionStrategy(ABC):
                       (event_log, budget_enforcer, capability_engine, etc.).
             db: The database session from the API route — strategies MUST
                 use this session, not create their own.
+            run_id: The substrate run ID. This is the ONLY authoritative run
+                ID for the execution and is owned by UnifiedExecutor. Strategies
+                MUST NOT generate or read their own run ID; all events, abort
+                checks, leases, and HITL resume use this value so that replay,
+                leases, aborts, and event correlation stay consistent.
 
         Returns:
             StrategyResult with success, status, and execution details.
@@ -81,14 +110,6 @@ class ExecutionStrategy(ABC):
     def can_handle(self, workflow_type: WorkflowType) -> bool:
         """Check if this strategy handles the given workflow type."""
         ...
-
-
-# Forward reference to UnifiedExecutor for type hints.
-# The actual class is in substrate/executor.py
-class UnifiedExecutor:  # pragma: no cover (forward ref)
-    """Forward reference for type hints.  Real class is in substrate/executor.py."""
-
-    pass
 
 
 class WorkflowWSManager:

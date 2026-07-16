@@ -230,6 +230,30 @@ async def create_message(
     return await create_chat_message(db, thread_id, payload.role, payload.content)
 
 
+@router.delete(
+    "/threads/{thread_id}/messages/{message_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_message(
+    thread_id: int,
+    message_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Permanently delete a single chat message.
+
+    Access is verified through the parent thread's workspace. The message must
+    belong to the referenced thread (defense against cross-thread deletion).
+    """
+    await require_chat_thread_access(db, thread_id, user.id)
+    from app.services.chat_service import delete_chat_message
+
+    deleted = await delete_chat_message(db, message_id)
+    if not deleted:
+        raise _not_found()
+    await db.commit()
+
+
 @router.get("/threads/{thread_id}/files", response_model=list[ChatFileResponse])
 async def list_files(
     thread_id: int,

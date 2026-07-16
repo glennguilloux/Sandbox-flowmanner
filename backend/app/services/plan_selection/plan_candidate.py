@@ -40,6 +40,18 @@ class PlanCandidate:
     risk_flags: list[str] = field(default_factory=list)
     rationale: str = ""
     predicted_strategy: str = ""  # execution strategy predicted by calibration
+    # Planner-trust flag (side-effect-safety-and-planner-trust skill):
+    # True when this candidate was produced by a forced fallback (LLM failed /
+    # degraded) rather than a clean generation. A degraded plan NEVER auto-ships
+    # — the planner must route it to PLANNED_PENDING_REVIEW (human review).
+    degraded: bool = False
+
+    # Generation strategies
+    HEURISTIC = "heuristic"
+    LLM_PERSONA = "llm_persona"
+    LLM_DEFAULT = "llm_default"
+    # Forced fallback — a HARD marker that overrides score-based auto-queue.
+    FALLBACK = "fallback_heuristic"
 
     def __post_init__(self) -> None:
         """Auto-populate predicted_strategy if not set."""
@@ -59,6 +71,7 @@ class PlanCandidate:
             "risk_flags": self.risk_flags,
             "rationale": self.rationale,
             "predicted_strategy": self.predicted_strategy,
+            "degraded": self.degraded,
         }
 
     @classmethod
@@ -75,4 +88,5 @@ class PlanCandidate:
             risk_flags=data.get("risk_flags", []),
             rationale=data.get("rationale", ""),
             predicted_strategy=data.get("predicted_strategy", ""),
+            degraded=data.get("degraded", False),
         )

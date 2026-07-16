@@ -153,7 +153,10 @@ if _sio_available:
                 logger.debug("WebSocket authenticated: user %d (sid=%s)", user_id, sid)
             else:
                 logger.debug("WebSocket connect: no valid JWT (sid=%s)", sid)
-                # Don't reject — allow anonymous for mission/graph subscriptions
+                # Allow anonymous socket establishment, but all data subscriptions
+                # below (subscribe_mission / subscribe_graph / workspace_subscribe)
+                # reject anonymous sockets and require a tenant/membership check,
+                # so an unauthenticated socket can join no data rooms.
         except Exception as e:
             logger.warning("WebSocket connect auth error (sid=%s): %s", sid, e)
 
@@ -164,10 +167,36 @@ if _sio_available:
 
     @sio.event
     async def subscribe_mission(sid, data):
-        """Client subscribes to mission updates."""
+        """Client subscribes to mission updates (tenant-checked)."""
         mission_id = data.get("mission_id")
-        if mission_id:
+        if not mission_id:
+            return
+
+        session = await sio.get_session(sid)
+        user_id = session.get("user_id") if session else None
+        if not user_id:
+            logger.debug("subscribe_mission rejected: no auth (sid=%s)", sid)
+            return
+
+        # Ownership/membership gate mirrors require_mission_access on the REST
+        # surface. Fail closed: any error or non-membership => no room join.
+        try:
+            from uuid import UUID
+
+            from app.database import AsyncSessionLocal
+            from app.services.mission_service import require_mission_access
+
+            mission_uuid = UUID(str(mission_id))
+            async with AsyncSessionLocal() as db:
+                await require_mission_access(db, mission_uuid, user_id)
             await sio.enter_room(sid, f"mission_{mission_id}")
+        except Exception as e:
+            logger.warning(
+                "subscribe_mission rejected: access denied user=%s mission=%s (%s)",
+                user_id,
+                mission_id,
+                e,
+            )
 
     @sio.event
     async def unsubscribe_mission(sid, data):
@@ -178,10 +207,43 @@ if _sio_available:
 
     @sio.event
     async def subscribe_graph(sid, data):
-        """Client subscribes to graph execution updates."""
+        """Client subscribes to graph execution updates (tenant-checked)."""
         execution_id = data.get("execution_id")
-        if execution_id:
+        if not execution_id:
+            return
+
+        session = await sio.get_session(sid)
+        user_id = session.get("user_id") if session else None
+        if not user_id:
+            logger.debug("subscribe_graph rejected: no auth (sid=%s)", sid)
+            return
+
+        # Resolve execution -> workflow, then verify owner/membership. Mirrors
+        # require_graph_access on the REST surface. Fail closed on any error.
+        try:
+            from uuid import UUID
+
+            from app.database import AsyncSessionLocal
+            from app.services.graph_service import (
+                get_graph_execution,
+                require_graph_access,
+            )
+
+            execution_uuid = UUID(str(execution_id))
+            async with AsyncSessionLocal() as db:
+                execution = await get_graph_execution(db, execution_uuid)
+                if execution is None or not execution.workflow_id:
+                    logger.debug("subscribe_graph rejected: unknown execution=%s", execution_id)
+                    return
+                await require_graph_access(db, execution.workflow_id, user_id)
             await sio.enter_room(sid, f"graph_exec_{execution_id}")
+        except Exception as e:
+            logger.warning(
+                "subscribe_graph rejected: access denied user=%s execution=%s (%s)",
+                user_id,
+                execution_id,
+                e,
+            )
 
     @sio.event
     async def unsubscribe_graph(sid, data):

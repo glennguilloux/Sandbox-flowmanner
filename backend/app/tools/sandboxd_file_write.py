@@ -72,58 +72,61 @@ class SandboxdFileWriteTool(BaseTool):
         except Exception as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
-        try:
-            sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
-            if not sandbox_id:
-                return ToolResult.error_result(
-                    tool_id=self.tool_id,
-                    error="No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`.",
-                )
+        # Hard wall-clock cap: a wedged sandboxd must never freeze the chat
+        # turn. Timeout is surfaced as a clean error_result (see _sandbox_timeout).
+        from app.tools._sandbox_timeout import run_sandbox_tool
 
-            if ".." in validated.path or validated.path.startswith("/"):
-                return ToolResult.error_result(
-                    tool_id=self.tool_id,
-                    error="Path must be relative and must not contain '..'",
-                )
+        return await run_sandbox_tool(self.tool_id, self._run(validated))
 
-            client = self._get_client()
-
-            # Ensure parent directory exists (sandboxd native API writes to
-            # the exact path; we need dirs to exist first).
-            parent = "/".join(validated.path.split("/")[:-1])
-            if parent:
-                mkdir_result = await client.exec_command(
-                    sandbox_id,
-                    ["mkdir", "-p", f"/home/sandbox/{parent}"],
-                )
-                if mkdir_result.get("exit_code", 1) != 0:
-                    logger.warning(
-                        "sandboxd_file_write: mkdir -p failed for %s: %s",
-                        parent,
-                        mkdir_result.get("stderr", ""),
-                    )
-
-            # Use native PUT /files API (atomic, up to 25 MiB)
-            await client.write_file(
-                sandbox_id,
-                validated.path,
-                validated.content,
-            )
-
-            # Note: no auto-serve here. The python http.server on port 8081
-            # is started by the sandboxd base image's entrypoint, so the
-            # preview URL works as soon as the container is up — no LLM
-            # action required. Previously this tool auto-started a server
-            # on every successful write (the session-3 band-aid); that has
-            # been removed since it's now redundant.
-
-            return ToolResult.success_result(
+    async def _run(self, validated: SandboxdFileWriteInput) -> ToolResult:
+        sandbox_id = validated.sandbox_id or self._resolve_sandbox_id()
+        if not sandbox_id:
+            return ToolResult.error_result(
                 tool_id=self.tool_id,
-                result={"written": True, "path": validated.path},
+                error="No sandbox available. Call sandboxd_preview first to create one, or pass `sandbox_id`.",
             )
-        except Exception as e:
-            logger.exception("sandboxd_file_write failed")
-            return ToolResult.error_result(tool_id=self.tool_id, error=str(e))
+
+        if ".." in validated.path or validated.path.startswith("/"):
+            return ToolResult.error_result(
+                tool_id=self.tool_id,
+                error="Path must be relative and must not contain '..'",
+            )
+
+        client = self._get_client()
+
+        # Ensure parent directory exists (sandboxd native API writes to
+        # the exact path; we need dirs to exist first).
+        parent = "/".join(validated.path.split("/")[:-1])
+        if parent:
+            mkdir_result = await client.exec_command(
+                sandbox_id,
+                ["mkdir", "-p", f"/home/sandbox/{parent}"],
+            )
+            if mkdir_result.get("exit_code", 1) != 0:
+                logger.warning(
+                    "sandboxd_file_write: mkdir -p failed for %s: %s",
+                    parent,
+                    mkdir_result.get("stderr", ""),
+                )
+
+        # Use native PUT /files API (atomic, up to 25 MiB)
+        await client.write_file(
+            sandbox_id,
+            validated.path,
+            validated.content,
+        )
+
+        # Note: no auto-serve here. The python http.server on port 8081
+        # is started by the sandboxd base image's entrypoint, so the
+        # preview URL works as soon as the container is up — no LLM
+        # action required. Previously this tool auto-started a server
+        # on every successful write (the session-3 band-aid); that has
+        # been removed since it's now redundant.
+
+        return ToolResult.success_result(
+            tool_id=self.tool_id,
+            result={"written": True, "path": validated.path},
+        )
 
     @staticmethod
     def _resolve_sandbox_id() -> str | None:

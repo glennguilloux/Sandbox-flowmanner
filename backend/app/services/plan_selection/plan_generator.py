@@ -281,17 +281,28 @@ async def generate_plan_candidates(
             temperature=0.5,  # lower temp for concise output
         )
         if not llm_tasks_a:
-            # Fallback: use heuristic if LLM fails
+            # Fallback: use heuristic if LLM fails — mark degraded so the
+            # planner routes this candidate to human review (never auto-ship).
             llm_tasks_a = heuristic_tasks
-        persona_a = _finalize_candidate(
-            plan_id="llm_persona_a",
-            generation_strategy="llm_persona",
-            tasks=llm_tasks_a,
-            rationale="LLM persona: concise engineer. Prefers minimal, "
-            "direct steps. Lower temperature for deterministic output.",
-            latency_override_ms=int(latency_a * 1000),
-            token_override=prompt_tok_a + comp_tok_a,
-        )
+            persona_a = _finalize_candidate(
+                plan_id="llm_persona_a",
+                generation_strategy=PlanCandidate.FALLBACK,
+                tasks=llm_tasks_a,
+                rationale="LLM persona A failed; substituted heuristic plan. DEGRADED — requires human review.",
+                latency_override_ms=int(latency_a * 1000),
+                token_override=prompt_tok_a + comp_tok_a,
+                degraded=True,
+            )
+        else:
+            persona_a = _finalize_candidate(
+                plan_id="llm_persona_a",
+                generation_strategy="llm_persona",
+                tasks=llm_tasks_a,
+                rationale="LLM persona: concise engineer. Prefers minimal, "
+                "direct steps. Lower temperature for deterministic output.",
+                latency_override_ms=int(latency_a * 1000),
+                token_override=prompt_tok_a + comp_tok_a,
+            )
         candidates.append(persona_a)
 
     # ── Strategy 3: LLM Persona B (thorough strategist) ──────────────────
@@ -307,17 +318,28 @@ async def generate_plan_candidates(
             temperature=0.9,  # higher temp for creative/diverse plans
         )
         if not llm_tasks_b:
+            # Fallback: use heuristic if LLM fails — mark degraded.
             llm_tasks_b = heuristic_tasks
-        persona_b = _finalize_candidate(
-            plan_id="llm_persona_b",
-            generation_strategy="llm_persona",
-            tasks=llm_tasks_b,
-            rationale="LLM persona: thorough strategist. Prefers detailed, "
-            "resilient plans with fallbacks and review steps. "
-            "Higher temperature for diverse planning.",
-            latency_override_ms=int(latency_b * 1000),
-            token_override=prompt_tok_b + comp_tok_b,
-        )
+            persona_b = _finalize_candidate(
+                plan_id="llm_persona_b",
+                generation_strategy=PlanCandidate.FALLBACK,
+                tasks=llm_tasks_b,
+                rationale="LLM persona B failed; substituted heuristic plan. DEGRADED — requires human review.",
+                latency_override_ms=int(latency_b * 1000),
+                token_override=prompt_tok_b + comp_tok_b,
+                degraded=True,
+            )
+        else:
+            persona_b = _finalize_candidate(
+                plan_id="llm_persona_b",
+                generation_strategy="llm_persona",
+                tasks=llm_tasks_b,
+                rationale="LLM persona: thorough strategist. Prefers detailed, "
+                "resilient plans with fallbacks and review steps. "
+                "Higher temperature for diverse planning.",
+                latency_override_ms=int(latency_b * 1000),
+                token_override=prompt_tok_b + comp_tok_b,
+            )
         candidates.append(persona_b)
 
     return candidates
@@ -331,8 +353,17 @@ def _finalize_candidate(
     rationale: str,
     latency_override_ms: int | None = None,
     token_override: int | None = None,
+    degraded: bool = False,
 ) -> PlanCandidate:
-    """Build a PlanCandidate with deterministic cost estimates and score."""
+    """Build a PlanCandidate with deterministic cost estimates and score.
+
+    Args:
+        degraded: True when this candidate was produced by a forced fallback
+            (e.g. an LLM strategy failed and was substituted with heuristic
+            tasks). Degraded candidates are NEVER allowed to auto-ship — the
+            planner routes them to PLANNED_PENDING_REVIEW. See
+            side-effect-safety-and-planner-trust skill.
+    """
     estimated_tokens = token_override if token_override is not None else estimate_tokens_for_tasks(tasks)
     estimated_latency_ms = latency_override_ms if latency_override_ms is not None else estimate_latency_ms(tasks)
 
@@ -352,6 +383,7 @@ def _finalize_candidate(
         quality_score=0.0,  # filled by scorer
         risk_flags=risk_flags,
         rationale=rationale,
+        degraded=degraded,
     )
     # Score the candidate
     candidate.quality_score = score_plan(candidate)

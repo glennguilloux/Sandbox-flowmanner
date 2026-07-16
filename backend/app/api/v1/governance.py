@@ -21,16 +21,23 @@ FastAPI JSONResponse (v1 routes never use the v2 envelope).
 
 from __future__ import annotations
 
+import logging
+from datetime import UTC, datetime, timezone
 from typing import TYPE_CHECKING, Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select, type_coerce
+from sqlalchemy.dialects.postgresql import JSONB
 
 from app.api.deps import get_current_user, get_db, require_role
 from app.models.memory_models import PendingWrite, PendingWriteStatus
 from app.models.personal_memory_models import PersonalMemoryClaim
 
+logger = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.user import User
@@ -42,6 +49,11 @@ router = APIRouter(prefix="/governance", tags=["governance"])
 
 _DEFAULT_PAGE_SIZE = 50
 _MAX_PAGE_SIZE = 200
+
+# JSONB containment filter for flagged poison-scan verdicts. Pushed to the DB
+# so we never load full tables into Python (the previous version fetched every
+# pending write / claim and filtered in memory).
+_FLAGGED_VERDICT = {"poison_scan": {"flagged": True}}
 
 
 def _verdict(payload_meta: Any) -> dict[str, Any] | None:
@@ -111,39 +123,55 @@ async def list_poison_scans(
     """Return poison-scan flagged items with severity + provenance.
 
     Covers BOTH ``pending_writes`` (live) and ``personal_memory_claims``
-    (retro) sources. Results are ordered by recency (newest first) within
-    each source, then merged and paginated across sources.
+    (retro) sources. Filtering + pagination are pushed to the database: the
+    flagged verdict is matched by JSONB containment (``meta @> {poison_scan:
+    {flagged: true}}``) and paging uses real ``LIMIT``/``OFFSET`` so we never
+    load the full table into Python.
     """
     offset = (page - 1) * page_size
 
-    rows: list[dict[str, Any]] = []
-
-    if source in ("live", "all"):
+    # Single-source request: paginate entirely in the DB.
+    if source in ("live", "retro"):
+        model, transform = (PendingWrite, _pending_row) if source == "live" else (PersonalMemoryClaim, _claim_row)
         stmt = (
-            select(PendingWrite)
-            .where(PendingWrite.status == PendingWriteStatus.PENDING)
-            .order_by(PendingWrite.created_at.desc())
+            select(model)
+            .where(model.meta.op("@>")(type_coerce(_FLAGGED_VERDICT, JSONB)))
+            .order_by(model.created_at.desc().nullslast())
+            .limit(page_size)
+            .offset(offset)
         )
         result = await db.execute(stmt)
-        rows.extend(_pending_row(pw) for pw in result.scalars().all() if _verdict(pw.meta))
+        rows = [transform(obj) for obj in result.scalars().all()]
+        total = await _count_flagged(db, model)
+        pages = (total + page_size - 1) // page_size if page_size else 1
+        return {
+            "items": rows,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "pages": pages,
+            "source": source,
+        }
 
-    if source in ("retro", "all"):
-        stmt = (
-            select(PersonalMemoryClaim)
-            .where(PersonalMemoryClaim.deleted_at.is_(None))
-            .order_by(PersonalMemoryClaim.created_at.desc())
-        )
-        result = await db.execute(stmt)
-        rows.extend(_claim_row(claim) for claim in result.scalars().all() if _verdict(claim.meta))
+    # Cross-source "all": each source is DB-filtered to flagged rows and
+    # fetched in full, then merged into one chronological stream and sliced.
+    # Flagged poison-scan rows are inherently a small, human-attended
+    # governance queue, so fetching all flagged (not all rows) keeps memory
+    # bounded while guaranteeing correct page-window slicing — independent
+    # per-source offset paging + re-slice would return wrong rows when one
+    # source dominates the timeline.
+    live_rows, live_total = await _fetch_source(db, PendingWrite, _pending_row, limit=None)
+    retro_rows, retro_total = await _fetch_source(db, PersonalMemoryClaim, _claim_row, limit=None)
 
-    # Merge + stable sort by created_at descending (None last).
+    rows = [*live_rows, *retro_rows]
+    # Stable chronological merge: real datetimes sort correctly; missing
+    # timestamps sort last regardless of source.
     rows.sort(
-        key=lambda r: (r.get("created_at") is not None, r.get("created_at") or ""),
+        key=lambda r: (r.get("created_at") is None, _as_sort_dt(r.get("created_at"))),
         reverse=True,
     )
-
-    total = len(rows)
     page_rows = rows[offset : offset + page_size]
+    total = live_total + retro_total
     pages = (total + page_size - 1) // page_size if page_size else 1
 
     return {
@@ -154,3 +182,141 @@ async def list_poison_scans(
         "pages": pages,
         "source": source,
     }
+
+
+def _as_sort_dt(value: str | None) -> datetime:
+    """Parse an ISO timestamp for correct chronological sorting.
+
+    Falls back to epoch-min for unparseable/empty values so they sort last
+    rather than raising — robustness over false precision.
+    """
+    if not value:
+        return datetime.min.replace(tzinfo=UTC)
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return datetime.min.replace(tzinfo=UTC)
+
+
+async def _count_flagged(
+    db: AsyncSession,
+    model: type[PendingWrite] | type[PersonalMemoryClaim],
+) -> int:
+    """Count rows with a flagged poison-scan verdict (DB-side)."""
+    from sqlalchemy import func
+
+    stmt = select(func.count()).select_from(model).where(model.meta.op("@>")(type_coerce(_FLAGGED_VERDICT, JSONB)))
+    if model is PendingWrite:
+        stmt = stmt.where(model.status == PendingWriteStatus.PENDING)
+    else:
+        stmt = stmt.where(model.deleted_at.is_(None))
+    result = await db.execute(stmt)
+    return int(result.scalar_one() or 0)
+
+
+async def _fetch_source(
+    db: AsyncSession,
+    model: type[PendingWrite] | type[PersonalMemoryClaim],
+    transform: Callable[[Any], dict[str, Any]],
+    limit: int | None = None,
+) -> tuple[list[dict[str, Any]], int]:
+    """Fetch DB-filtered flagged rows from one source + its flagged total.
+
+    ``limit=None`` returns every flagged row (used by the cross-source merge,
+    where a Python slice produces the final page window). A positive ``limit``
+    combined with ``offset`` (handled by the caller) paginates at the DB for a
+    single source.
+    """
+    base = model.meta.op("@>")(type_coerce(_FLAGGED_VERDICT, JSONB))
+    if model is PendingWrite:
+        base = base & (model.status == PendingWriteStatus.PENDING)
+    else:
+        base = base & (model.deleted_at.is_(None))
+
+    rows_stmt = select(model).where(base).order_by(model.created_at.desc().nullslast())
+    if limit is not None:
+        rows_stmt = rows_stmt.limit(limit)
+    result = await db.execute(rows_stmt)
+    rows = [transform(obj) for obj in result.scalars().all()]
+
+    from sqlalchemy import func
+
+    count_stmt = select(func.count()).select_from(model).where(base)
+    total = int((await db.execute(count_stmt)).scalar_one() or 0)
+    return rows, total
+
+
+# ── ControlFlowAgent HITL approval resume ───────────────────────────────────
+# NOTICE (G-4 / G-6, 2026-07-13): This endpoint is UN-WIRED SCAFFOLDING. The
+# real, enforced human-in-the-loop gate is the HITL inbox
+# (app/api/v1/hitl.py -> HITLPaused -> dispatch_hitl_resume). This endpoint has
+# no live client and does NOT drive production approvals; its callback
+# (ControlFlowAgent.resolve_approval) is dead-end reached from the graph. It is
+# retained as the intended wiring point, but MUST fail closed: an approval can
+# only be recorded by the session owner (or an admin), and the agent.authz
+# check is defense-in-depth. See app/governance/controlflow/agent.py.
+from pydantic import BaseModel
+
+from app.governance.controlflow.agent import get_agent
+
+
+class ApprovalDecision(BaseModel):
+    decision: str  # "approved" | "rejected"
+    tool_index: int | None = None  # optional; omit to decide all approval-required tools
+
+
+@router.post("/agents/{session_id}/approval", summary="Resolve a ControlFlowAgent approval request")
+async def resolve_agent_approval(
+    session_id: str,
+    body: ApprovalDecision,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Record a human approval/rejection for a paused ControlFlowAgent session.
+
+    Body: {"decision": "approved"|"rejected", "tool_index"?: int}
+
+    Authz (G-4): FAILS CLOSED. An approval decision is a sensitive, state-changing
+    action, so it is restricted to the session owner or an admin (mirrors the HITL
+    inbox path in app/api/v1/hitl.py, which rejects decisions from non-owners with
+    404). If the caller is not the owner and not an admin, the request is denied
+    with 403 — never fail-open. The agent's ``resolve_approval`` also enforces
+    ownership as defense-in-depth (raises ValueError -> 400).
+
+    WARNING: this endpoint is NOT the live approval gate (the HITL inbox is). It
+    has no production caller. Treat a green test here as proof of the *authz guard
+    only*, not of an end-to-end approval flow.
+    """
+    # Load the session to discover its owner. The agent persists session state;
+    # use the same loader the agent uses so we read the live owner (user_id).
+    agent = get_agent()
+    owner_id: int | None = None
+    try:
+        state = agent._load_state(session_id)
+        if state:
+            owner_id = state.get("user_id")
+    except Exception:
+        # If we cannot read state, do NOT silently proceed — fail closed below
+        # (non-owner + non-admin is denied). Continue to the authz decision.
+        logger.warning("resolve_agent_approval: could not load session state for %s", session_id)
+
+    is_admin = bool(getattr(user, "is_admin", False)) or bool(getattr(user, "is_superuser", False))
+    is_owner = owner_id is not None and int(owner_id) == int(user.id)
+
+    if not (is_admin or is_owner):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not own this approval session and are not an admin",
+        )
+
+    try:
+        result = await agent.resolve_approval(
+            session_id=session_id,
+            decision=body.decision,
+            approved_by=user.id,
+            tool_index=body.tool_index,
+            owner_id=user.id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return result

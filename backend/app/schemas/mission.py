@@ -252,3 +252,34 @@ class MissionAnalyticsResult(BaseModel):
     over_time: Any = None
     token_usage: Any = None
     failure_analysis: Any = None
+
+
+# ── Forward-ref resolution ──────────────────────────────────────────────────
+# This module uses `from __future__ import annotations`, which stringifies every
+# annotation. `PaginatedMissions.items` / `MissionListResult.missions` reference
+# `list[MissionResponse]` as strings; without an explicit rebuild, Pydantic v2
+# cannot resolve them and FastAPI's OpenAPI generator SILENTLY SKIPS every route
+# whose `response_model` is one of these (e.g. /api/missions/{id}/events,
+# /replay-state, /event/{sequence}). model_rebuild() is idempotent and
+# behavior-preserving.
+for _m in (
+    MissionCreate,
+    MissionUpdate,
+    MissionResponse,
+    MissionTaskCreate,
+    MissionTaskUpdate,
+    MissionTaskResponse,
+    MissionLogCreate,
+    MissionLogResponse,
+    MissionExecuteRequest,
+    SelectPlanCandidateRequest,
+    MissionExecutionStatus,
+    MissionImprovementCreate,
+    MissionImprovementResponse,
+    MissionAnalyticsResponse,
+    PaginatedMissions,
+    MissionListResult,
+    PlanCandidateResponse,
+    MissionAnalyticsResult,
+):
+    _m.model_rebuild()

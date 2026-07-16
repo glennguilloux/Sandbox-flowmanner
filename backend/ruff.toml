@@ -57,18 +57,9 @@ ignore = [
 # Tools use dynamic type references
 "app/tools/*.py" = ["F821"]
 # Strawberry GraphQL needs runtime imports (Info, JSON, datetime).
-# NOTE: the TCH (flake8-type-checking) rules ARE active under the pinned
-# ruff v0.6.9 — the claim that TC001/TC002/TC003 were "removed in ruff 0.6"
-# is stale; the pre-commit hook flags them. Files below carry pre-existing
-# runtime-needed imports (FastAPI route signatures, Pydantic models) that
-# cannot move to a TYPE_CHECKING block, so they are per-file-ignored.
-"app/api/v2/schema.py" = []
-# Path is used at runtime in test fixtures, not just type annotations
-"tests/test_integration_manifest_service.py" = ["TCH003"]
 # Test files import pytest for fixtures and runtime assertions — moving
 # into TYPE_CHECKING blocks would be noisy and break monkeypatch types.
 "tests/test_chat_memory_extraction.py" = ["TCH002"]
-"tests/test_memory_flywheel_integration.py" = ["TCH002"]
 # Request is a FastAPI runtime dependency — cannot move to TYPE_CHECKING
 "app/api/v1/sandbox_preview.py" = ["TCH002"]
 # AsyncIterator used in return annotation; harmless at top level
@@ -96,10 +87,10 @@ ignore = [
 # TYPE_CHECKING). TC003 is a false positive here — same as blog_models.py.
 "app/models/memory_models.py" = ["TCH003"]
 # test_memory_entry_lifecycle_fields.py: uses datetime.now(timezone.utc).
-# ruff's UP017 prefers datetime.UTC (3.11+), but the pinned uv-built
-# cpython-3.11 in this worktree's venv predates datetime.UTC, so the
-# UP017 suggestion is not importable here. Keep timezone.utc (valid on all
-# 3.x) and silence the lint finding rather than shipping a test that fails
+# ruff's UP017 prefers datetime.UTC (3.12+), but the pinned uv-built
+# cpython-3.11 in this worktree's venv predates datetime.UTC (added in 3.12),
+# so the UP017 suggestion is not importable here. Keep timezone.utc (valid on
+# all 3.x) and silence the lint finding rather than shipping a test that fails
 # in the project's own test runner.
 "app/tests/test_memory_entry_lifecycle_fields.py" = ["UP017"]
 # workflow_models.py: NodeType / WorkflowType are str+Enum (intentional — they
@@ -118,3 +109,26 @@ ignore = [
 # (.worktrees/<id>/backend/app/models/hitl_models.py) — the plain
 # app/models/*.py glob does not match the worktree-nested path.
 "**/hitl_models.py" = ["TCH003", "UP042"]
+# ── OpenAPI forward-ref resolution (mission / substrate / tool-routing) ──────
+# These modules use `from __future__ import annotations`. Names used in FastAPI
+# route/dependency signatures and path params (UUID, User, the CQRS handler
+# types, ToolConverter) MUST be importable at RUNTIME so FastAPI/Pydantic can
+# resolve the stringified annotations when generating the OpenAPI spec. If they
+# live in a TYPE_CHECKING block the routes are SILENTLY SKIPPED from the spec
+# ("unresolved forward refs"), which broke the frontend↔backend contract
+# scanner's source of truth. TCH001/TCH003 (move-into-type-checking) are
+# therefore false positives here — the imports are intentionally at runtime.
+"app/api/v1/mission.py" = ["TCH001", "TCH003"]
+"app/api/v1/substrate.py" = ["TCH001", "TCH003"]
+"app/services/tool_router.py" = ["TCH001"]
+# schemas/mission.py: uuid / datetime / MissionStatus back Pydantic model fields
+# and the model_rebuild() forward-ref resolution added for OpenAPI completeness;
+# runtime-needed, not deferrable to TYPE_CHECKING (same precedent as
+# schemas/personal_memory.py).
+"app/schemas/mission.py" = ["TCH001", "TCH003"]
+# workspace_v3.py: TeamResponse.created_at / TeamMemberResponse.joined_at use
+# datetime as Pydantic model fields; with `from __future__ import annotations`
+# these must resolve at runtime, so datetime stays a top-level import (cannot
+# defer to TYPE_CHECKING). TCH001 is a false positive here — same precedent as
+# schemas/mission.py.
+"**/workspace_v3.py" = ["TCH001", "TCH003"]

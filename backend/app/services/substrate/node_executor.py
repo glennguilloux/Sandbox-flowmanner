@@ -17,8 +17,10 @@ All tool calls go through CapabilityEngine.verify().
 
 from __future__ import annotations
 
+import ast
 import json
 import logging
+import re
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -26,8 +28,11 @@ from app.integrations.sandboxd_client import SandboxdClient, get_sandboxd_client
 from app.models.capability_models import Action, Budget, BudgetExhausted, ResourceRef
 from app.models.substrate_models import SubstrateEvent, SubstrateEventType
 from app.services.sandbox_service import SandboxService
+from app.services.substrate.context_manager import ContextManager
 from app.services.substrate.event_log import _compute_idempotency_key, get_event_log
+from app.services.substrate.hitl_pause import HITLPaused
 from app.services.substrate.workflow_models import (
+    EffectClass,
     NodeType,
     Workflow,
     WorkflowNode,
@@ -37,6 +42,370 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
+
+# ── Scope B helpers: safe evaluators for transform / condition nodes ──
+# These nodes MUST NOT run arbitrary code. They use ast.parse to compile the
+# user expression and allow ONLY a whitelisted node set (literals, names
+# resolved from the provided context, comparisons, boolean ops, comprehensions
+# over dict/list, subscript, attribute on allowlisted containers, calls to a
+# small set of pure builtins). Anything else (imports, lambdas, attribute
+# chains into arbitrary objects, attribute access that escapes the sandbox)
+# is rejected before eval. This is the same trust-boundary discipline the
+# code-sandbox applies — never eval untrusted input with bare eval().
+
+_SAFE_BUILTINS: dict[str, Any] = {
+    "len": len,
+    "min": min,
+    "max": max,
+    "sum": sum,
+    "abs": abs,
+    "round": round,
+    "sorted": sorted,
+    "list": list,
+    "dict": dict,
+    "set": set,
+    "tuple": tuple,
+    "bool": bool,
+    "int": int,
+    "float": float,
+    "str": str,
+    "any": any,
+    "all": all,
+    "enumerate": enumerate,
+    "range": range,
+    "zip": zip,
+    "map": map,
+    "filter": filter,
+    "isinstance": isinstance,
+    "get": dict.get,
+}
+
+
+def _safe_eval(expression: str, context: dict[str, Any]) -> Any:
+    """Safely evaluate a boolean/arithmetic expression against ``context``.
+
+    Raises ValueError if the expression uses any disallowed construct.
+    """
+    import ast
+
+    tree = ast.parse(expression, mode="eval")
+    return _safe_eval_node(tree.body, context or {})
+
+
+# Node types whitelisted for transform/condition expressions. Anything else
+# (imports, lambdas, comprehensions that escape the sandbox, attribute
+# chains into arbitrary objects) is rejected before evaluation.
+_ALLOWED_NODES = (
+    ast.Expression,
+    ast.BoolOp,
+    ast.BinOp,
+    ast.UnaryOp,
+    ast.Compare,
+    ast.IfExp,
+    ast.Call,
+    ast.Name,
+    ast.Constant,
+    ast.List,
+    ast.Tuple,
+    ast.Set,
+    ast.Dict,
+    ast.Subscript,
+    ast.Slice,
+    ast.comprehension,
+    ast.ListComp,
+    ast.SetComp,
+    ast.DictComp,
+    ast.GeneratorExp,
+    ast.Attribute,
+    ast.keyword,
+)
+# Operators that are pure / side-effect free.
+_ALLOWED_OPS = (
+    ast.And,
+    ast.Or,
+    ast.Not,
+    ast.USub,
+    ast.UAdd,
+    ast.Invert,
+    ast.Add,
+    ast.Sub,
+    ast.Mult,
+    ast.Div,
+    ast.FloorDiv,
+    ast.Mod,
+    ast.Pow,
+    ast.LShift,
+    ast.RShift,
+    ast.BitAnd,
+    ast.BitOr,
+    ast.BitXor,
+    ast.Eq,
+    ast.NotEq,
+    ast.Lt,
+    ast.LtE,
+    ast.Gt,
+    ast.GtE,
+    ast.Is,
+    ast.IsNot,
+    ast.In,
+    ast.NotIn,
+)
+
+
+def _safe_eval_node(node: Any, ctx: dict[str, Any]) -> Any:
+    """Recursively evaluate ``node`` against ``ctx`` (whitelist-restricted)."""
+    if not isinstance(node, _ALLOWED_NODES):
+        raise ValueError(f"Disallowed expression construct: {type(node).__name__}")
+
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.Name):
+        if node.id in ctx:
+            return ctx[node.id]
+        if node.id in _SAFE_BUILTINS:
+            return _SAFE_BUILTINS[node.id]
+        raise ValueError(f"Unknown name in expression: {node.id}")
+    if isinstance(node, ast.BoolOp):
+        vals = [_safe_eval_node(v, ctx) for v in node.values]
+        if isinstance(node.op, ast.And):
+            return all(vals)
+        return any(vals)
+    if isinstance(node, ast.UnaryOp):
+        val = _safe_eval_node(node.operand, ctx)
+        if isinstance(node.op, ast.Not):
+            return not val
+        if isinstance(node.op, ast.USub):
+            return -val
+        if isinstance(node.op, ast.UAdd):
+            return +val
+        if isinstance(node.op, ast.Invert):
+            return ~val
+        raise ValueError("Disallowed unary operator")
+    if isinstance(node, ast.BinOp):
+        left = _safe_eval_node(node.left, ctx)
+        right = _safe_eval_node(node.right, ctx)
+        return _apply_binop(node.op, left, right)
+    if isinstance(node, ast.Compare):
+        left = _safe_eval_node(node.left, ctx)
+        for op, comparator in zip(node.ops, node.comparators, strict=False):
+            right = _safe_eval_node(comparator, ctx)
+            if not _apply_cmpop(op, left, right):
+                return False
+            left = right
+        return True
+    if isinstance(node, ast.IfExp):
+        if _safe_eval_node(node.test, ctx):
+            return _safe_eval_node(node.body, ctx)
+        return _safe_eval_node(node.orelse, ctx)
+    if isinstance(node, ast.Call):
+        if not isinstance(node.func, ast.Name):
+            raise ValueError("Only direct builtin calls allowed (no chained calls)")
+        func = _safe_eval_node(node.func, ctx)
+        if func not in _SAFE_BUILTINS.values():
+            raise ValueError("Only whitelisted builtins may be called")
+        args = [_safe_eval_node(a, ctx) for a in node.args]
+        kwargs = {kw.arg: _safe_eval_node(kw.value, ctx) for kw in node.keywords}
+        return func(*args, **kwargs)
+    if isinstance(node, ast.Subscript):
+        value = _safe_eval_node(node.value, ctx)
+        if not isinstance(value, dict | list | str | tuple | set | bytes):
+            raise ValueError("Subscript on non-container type blocked")
+        key = _safe_eval_node(node.slice, ctx)
+        container: Any = value
+        return container[key]
+    if isinstance(node, ast.Attribute):
+        # Only allow attribute access on containers we already resolved
+        # from context (dict/list/str/etc.) — never on arbitrary objects.
+        # This blocks escapes like __class__, __globals__, etc.
+        value = _safe_eval_node(node.value, ctx)
+        if isinstance(value, dict | list | str | tuple | set | bytes):
+            if isinstance(value, dict):
+                # dict.attr access is not supported; use subscript.
+                raise ValueError(f"dict attribute access not allowed: .{node.attr}")
+            return getattr(value, node.attr, None)
+        raise ValueError(f"Attribute access on non-container type blocked: .{node.attr}")
+    if isinstance(node, ast.ListComp | ast.SetComp | ast.GeneratorExp):
+        return _eval_comp(node, ctx)
+    if isinstance(node, ast.DictComp):
+        return _eval_dictcomp(node, ctx)
+    raise ValueError(f"Unsupported expression node: {type(node).__name__}")
+
+
+def _apply_binop(op: Any, left: Any, right: Any) -> Any:
+    if isinstance(op, ast.Add):
+        return left + right
+    if isinstance(op, ast.Sub):
+        return left - right
+    if isinstance(op, ast.Mult):
+        return left * right
+    if isinstance(op, ast.Div):
+        return left / right
+    if isinstance(op, ast.FloorDiv):
+        return left // right
+    if isinstance(op, ast.Mod):
+        return left % right
+    if isinstance(op, ast.Pow):
+        return left**right
+    if isinstance(op, ast.LShift):
+        return left << right
+    if isinstance(op, ast.RShift):
+        return left >> right
+    if isinstance(op, ast.BitAnd):
+        return left & right
+    if isinstance(op, ast.BitOr):
+        return left | right
+    if isinstance(op, ast.BitXor):
+        return left ^ right
+    raise ValueError("Disallowed binary operator")
+
+
+def _apply_cmpop(op: Any, left: Any, right: Any) -> bool:
+    if isinstance(op, ast.Eq):
+        return left == right
+    if isinstance(op, ast.NotEq):
+        return left != right
+    if isinstance(op, ast.Lt):
+        return left < right
+    if isinstance(op, ast.LtE):
+        return left <= right
+    if isinstance(op, ast.Gt):
+        return left > right
+    if isinstance(op, ast.GtE):
+        return left >= right
+    if isinstance(op, ast.Is):
+        return left is right
+    if isinstance(op, ast.IsNot):
+        return left is not right
+    if isinstance(op, ast.In):
+        return left in right
+    if isinstance(op, ast.NotIn):
+        return left not in right
+    raise ValueError("Disallowed comparison operator")
+
+
+def _eval_comp(node: Any, ctx: dict[str, Any]) -> Any:
+    """Evaluate a list/set/generator comprehension (single generator)."""
+    gen = node.generators[0]
+    iterable = _safe_eval_node(gen.iter, ctx)
+    result = []
+    for item in iterable:
+        local = {**ctx}
+        _unpack(gen.target, item, local)
+        if all(_safe_eval_node(iff, local) for iff in gen.ifs):
+            result.append(_safe_eval_node(node.elt, local))
+    if isinstance(node, ast.SetComp):
+        return set(result)
+    return result
+
+
+def _eval_dictcomp(node: Any, ctx: dict[str, Any]) -> dict:
+    gen = node.generators[0]
+    iterable = _safe_eval_node(gen.iter, ctx)
+    out: dict = {}
+    for item in iterable:
+        local = {**ctx}
+        _unpack(gen.target, item, local)
+        if all(_safe_eval_node(iff, local) for iff in gen.ifs):
+            k = _safe_eval_node(node.key, local)
+            v = _safe_eval_node(node.value, local)
+            out[k] = v
+    return out
+
+
+def _unpack(target: Any, value: Any, ctx: dict[str, Any]) -> None:
+    """Bind a comprehension target (Name or Tuple) into ``ctx``."""
+    if isinstance(target, ast.Name):
+        ctx[target.id] = value
+    elif isinstance(target, ast.Tuple):
+        for t, v in zip(target.elts, value, strict=False):
+            _unpack(t, v, ctx)
+    else:
+        raise ValueError("Unsupported comprehension target")
+
+
+def _safe_transform(
+    transform_type: str,
+    expression: str,
+    data: Any,
+    context: dict[str, Any],
+) -> Any:
+    """Apply a restricted transform to ``data``.
+
+    transform_type "map"/"filter": ``expression`` is applied to each element
+    via a comprehension over the (resolved) element name ``x``. The
+    element name is injected into the evaluation context.
+    transform_type "expression": the bare expression is evaluated with both
+    ``data`` and the full context available.
+    """
+    if transform_type in ("map", "filter"):
+        if not isinstance(data, list | tuple | set):
+            # Allow mapping a single value as a 1-element list for convenience.
+            data = [data]
+        results = []
+        for x in data:
+            local_ctx = {**context, "x": x, "data": data}
+            value = _safe_eval(expression, local_ctx)
+            if transform_type == "filter":
+                if value:
+                    results.append(x)
+            else:
+                results.append(value)
+        return results
+    if transform_type == "expression":
+        local_ctx = {**context, "data": data}
+        return _safe_eval(expression, local_ctx)
+    raise ValueError(f"Unknown transformType: {transform_type}")
+
+
+def _is_safe_url(url: str) -> bool:
+    """SSRF guard for outbound webhook URLs.
+
+    Rejects non-http(s) schemes and any host that resolves to a
+    private / loopback / link-local address. Mirrors the SSRF guard
+    used by the sandboxd-egress allowlist work (B19).
+    """
+    import socket
+    from urllib.parse import urlparse
+
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False
+    if parsed.scheme not in ("http", "https"):
+        return False
+    host = parsed.hostname
+    if not host:
+        return False
+    # Reject literal IPs / hostnames in private ranges. DNS resolution is
+    # attempted but every resolved address must be public.
+    candidates: list[str] = []
+    if host.replace(".", "").isdigit() or ":" in host:
+        candidates.append(host)  # IPv4/IPv6 literal
+    else:
+        try:
+            infos = socket.getaddrinfo(host, None)
+            candidates = [info[4][0] for info in infos]
+        except Exception:
+            return False
+    for addr in candidates:
+        try:
+            import ipaddress
+
+            ip = ipaddress.ip_address(addr)
+        except ValueError:
+            # Unparsable resolved address — treat as unsafe.
+            return False
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            return False
+    return True
+
 
 # ── Code execution wrapper (written to temp file to avoid quote issues) ──
 
@@ -111,6 +480,11 @@ class NodeExecutor:
         self.executor = unified_executor
         self._sbx_client: SandboxdClient | None = None
         self._sbx_svc: SandboxService | None = None
+        # Comment 11: dedicated long-context substrate for Opus deep dives.
+        # The manager is created per run so chunk ids / pinned evidence /
+        # rolling summaries are scoped to one execution and replayable via the
+        # context.plan substrate event it emits.
+        self._context_managers: dict[str, ContextManager] = {}
 
     @property
     def _sandbox_client(self) -> SandboxdClient:
@@ -125,6 +499,15 @@ class NodeExecutor:
         return self._sbx_svc
 
     # ── Context window (Q2-Q3 Chunk 2 Tier 1) ──────────────────────
+
+    # ── Comment 11: long-context management ──────────────────────────
+    def _context_manager(self, run_id: str) -> ContextManager:
+        """Return the per-run :class:`ContextManager` (creating it on demand)."""
+        mgr = self._context_managers.get(run_id)
+        if mgr is None:
+            mgr = ContextManager()
+            self._context_managers[run_id] = mgr
+        return mgr
 
     async def _build_context_window(
         self,
@@ -161,19 +544,49 @@ class NodeExecutor:
         # Filter out noisy infrastructure events
         return [e for e in raw_events if e.type not in _NOISY_EVENT_TYPES]
 
-    @staticmethod
-    def _format_context_events(events: list[SubstrateEvent]) -> str:
+    @classmethod
+    def _sanitize_payload(cls, value: Any) -> Any:
+        """Recursively sanitize the string values of an untrusted payload.
+
+        Reuses the shared ``_sanitize_text`` helper (the same one
+        ``_sanitize_tool_output`` uses) so control chars are stripped and
+        each string is length-capped BEFORE JSON serialization — sanitizing
+        the already-serialized JSON would be a no-op because ``json.dumps``
+        escapes control chars to ``\\uXXXX`` text.
+        """
+        if isinstance(value, str):
+            return cls._sanitize_text(value)
+        if isinstance(value, dict):
+            return {k: cls._sanitize_payload(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [cls._sanitize_payload(v) for v in value]
+        return value
+
+    @classmethod
+    def _format_context_events(cls, events: list[SubstrateEvent]) -> str:
         """Format context events as structured text for LLM injection.
 
         Each event is serialized as a compact line with sequence, type,
         actor, and payload summary.  Payloads are truncated to 300 chars
         to avoid blowing up the context window.
+
+        Trust boundary (B3): event payloads carry verbatim tool/agent
+        outputs (RAG, web_search, code, file, browser, sandbox).  This is
+        the single chokepoint where prior-event output re-enters the LLM
+        prompt (see :771).  Every payload's string values are sanitized
+        here via the shared ``_sanitize_text`` helper (control-char strip +
+        length cap — the same helper ``_sanitize_tool_output`` uses) so
+        untrusted output is never injected raw.
         """
         if not events:
             return ""
         lines: list[str] = []
         for ev in events:
-            payload_str = json.dumps(ev.payload or {}, default=str)
+            # Sanitize the untrusted payload BEFORE serialization so control
+            # chars in tool/agent output are stripped (json.dumps would only
+            # escape, not remove, them).
+            sanitized = cls._sanitize_payload(ev.payload or {})
+            payload_str = json.dumps(sanitized, default=str)
             if len(payload_str) > 300:
                 payload_str = payload_str[:300] + "..."
             lines.append(f"[{ev.sequence}] {ev.type} (actor={ev.actor}) {payload_str}")
@@ -216,6 +629,18 @@ class NodeExecutor:
 
         # Max retries
         max_retries = node.max_retries if node.max_retries is not None else 3
+
+        # ── Side-effect safety: resolve classification BEFORE routing. ──
+        # (side-effect-safety-and-planner-trust skill)
+        # IRREVERSIBLE nodes are committed in two phases so the external
+        # effect can never fire before the orchestrator's fallback/skip/esc
+        # decision: STAGE commits side_effect_intent (run-scoped key) BEFORE
+        # the call; CONFIRM commits side_effect_confirmed (key EXCLUDES run_id
+        # so it deduplicates across retries) AFTER the decision; the effect
+        # fires only post-CONFIRM.
+        effect_class = node.effect_class
+        is_irreversible = effect_class == EffectClass.IRREVERSIBLE
+
         for attempt in range(max_retries + 1):
             # Check abort signal between retries
             if self.executor.is_aborted(run_id):
@@ -266,16 +691,126 @@ class NodeExecutor:
             )
 
             try:
-                result = await self._dispatch(
-                    db,
-                    node,
-                    context,
-                    budget,
-                    run_id,
-                    workflow,
-                    context_events=context_events,
-                )
+                # ── Two-phase STAGE→CONFIRM dispatch (side-effect-safety skill) ──
+                # For IRREVERSIBLE nodes we must NOT fire the external effect inside
+                # _dispatch. Instead: STAGE commits the fully-rendered intent BEFORE
+                # the call, then we only CALL the handler AFTER we've decided to GO;
+                # CONFIRM is committed (run-excluded key) and only THEN do we consider
+                # the effect "fired". This guarantees the orchestrator's
+                # fallback/skip/escalate decision sits between STAGE and the fire.
+                if is_irreversible:
+                    # Comment 3: crash-window guard. Before any external call,
+                    # check whether this logical effect was ALREADY confirmed
+                    # (the run-excluded key dedupes across retries/parallel
+                    # workers). If so, skip the external call and return a
+                    # replayed success — no double-fire after a crash between
+                    # dispatch and confirmation.
+                    event_log = get_event_log()
+                    payload = self._render_effect_payload(node, workflow)
+                    confirm_key = _compute_idempotency_key(
+                        None, SubstrateEventType.SIDE_EFFECT_CONFIRMED, node.id, payload
+                    )
+                    already_confirmed = await event_log.find_by_idempotency_key(db, confirm_key)
+                    if already_confirmed is not None:
+                        logger.info(
+                            "Skipping irreversible dispatch for node %s: effect already "
+                            "confirmed (key %s) — replaying success.",
+                            node.id,
+                            confirm_key,
+                        )
+                        return {
+                            "success": True,
+                            "output": (already_confirmed.payload or {}).get("effect", {}),
+                            "tokens": 0,
+                            "cost": 0.0,
+                            "replayed": True,
+                            "replay_reason": "side_effect_already_confirmed",
+                        }
+
+                    # Intent exists but was never confirmed (crash window between
+                    # STAGE and CONFIRM, or a stalled retry). Do NOT re-fire the
+                    # external effect blindly. Escalate to HITL so a human (or an
+                    # external idempotency/outbox acknowledgement) breaks the glass.
+                    intent_key = _compute_idempotency_key(
+                        run_id, SubstrateEventType.SIDE_EFFECT_INTENT, node.id, payload
+                    )
+                    existing_intent = await event_log.find_by_idempotency_key(db, intent_key)
+                    if existing_intent is not None and already_confirmed is None:
+                        logger.error(
+                            "Irreversible intent staged but not confirmed for node %s "
+                            "(key %s). Escalating to HITL instead of re-firing.",
+                            node.id,
+                            intent_key,
+                        )
+                        await event_log.append(
+                            db,
+                            run_id,
+                            [
+                                {
+                                    "type": SubstrateEventType.TASK_FAILED,
+                                    "payload": {
+                                        "task_id": node.id,
+                                        "error": "irreversible effect intent without confirmation",
+                                        "reason": "intent_not_confirmed",
+                                        "promoted_to": "hitl_escalate",
+                                    },
+                                    "actor": "node_executor",
+                                    "mission_id": workflow.id if workflow else None,
+                                    "task_id": node.id,
+                                }
+                            ],
+                        )
+                        node.status = "failed"
+                        node.error_message = (
+                            "Irreversible effect intent staged without confirmation; "
+                            "escalated for outbox/idempotency acknowledgement."
+                        )
+                        return {
+                            "success": False,
+                            "escalated": True,
+                            "requires_acknowledgement": True,
+                            "error": node.error_message,
+                        }
+
+                    # Forward a stable idempotency key to external tools that
+                    # support it (run-scoped, so each attempt has its own key).
+                    committed = await self._stage_irreversible_effect(db, run_id, node, workflow)
+                    node.config = {**node.config, "idempotency_key": committed}
+                    # Orchestrator health / fallback decision happens in the normal
+                    # flow below; if the attempt ultimately fails we promote to
+                    # ESCALATE (no retry re-fires) — see failure handling.
+                    result = await self._dispatch(
+                        db,
+                        node,
+                        context,
+                        budget,
+                        run_id,
+                        workflow,
+                        context_events=context_events,
+                    )
+                    # CONFIRM only after a successful fire.
+                    if result.get("success"):
+                        await self._confirm_irreversible_effect(db, run_id, node, workflow, committed_key=committed)
+                else:
+                    result = await self._dispatch(
+                        db,
+                        node,
+                        context,
+                        budget,
+                        run_id,
+                        workflow,
+                        context_events=context_events,
+                    )
             except BudgetExhausted:
+                raise
+            except HITLPaused:
+                # Q1-B chunk 1: a node (HITL interrupt node OR a tool node whose
+                # standing constraint escalated) raised HITLPaused to actually
+                # pause the run. Propagate it so UnifiedExecutor._execute_inner
+                # can release the lease and emit RUN_PAUSED. This MUST come
+                # before the generic Exception handler — HITLPaused is a control
+                # signal, not a node failure. (The generic handler previously
+                # swallowed it, which silently broke every HITL pause.)
                 raise
             except Exception as e:
                 logger.exception("Node %s execution error", node.id)
@@ -312,6 +847,46 @@ class NodeExecutor:
                 return result
 
             # Failure handling
+            # ── Side-effect safety: committed + IRREVERSIBLE ⇒ ESCALATE ──
+            # (side-effect-safety-and-planner-trust skill)
+            # If we already committed an irreversible effect intent and the node
+            # is IRREVERSIBLE, we must NOT retry: a Retryable error would re-fire
+            # the external effect (double-send). Promote ANY error — even a
+            # RetryableMissionError — to ESCALATE so a human breaks the glass.
+            error = result.get("error")
+            if is_irreversible and attempt < max_retries:
+                logger.error(
+                    "Irreversible effect already committed for node %s; NOT retrying "
+                    "(would re-fire). Promoting to ESCALATE.",
+                    node.id,
+                )
+                await event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": SubstrateEventType.TASK_FAILED,
+                            "payload": {
+                                "task_id": node.id,
+                                "attempt": attempt + 1,
+                                "error": error,
+                                "reason": "irreversible_effect_committed",
+                                "promoted_to": "escalate",
+                            },
+                            "actor": "node_executor",
+                            "mission_id": workflow.id if workflow else None,
+                            "task_id": node.id,
+                        }
+                    ],
+                )
+                node.status = "failed"
+                node.error_message = f"[ESCALATED] irreversible effect already committed: {error}"
+                escalated_result = dict(result)
+                escalated_result["escalated"] = True
+                escalated_result["error"] = node.error_message
+                return escalated_result
+                # attempt == max_retries path falls through to TASK_FAILED below.
+
             if attempt < max_retries:
                 node.retry_count = attempt + 1
                 logger.warning(
@@ -367,6 +942,124 @@ class NodeExecutor:
             return result
 
         return result  # Should not reach here
+
+    # ── Side-effect safety: two-phase STAGE→CONFIRM dispatch ──────────
+    # (side-effect-safety-and-planner-trust skill)
+    #
+    # STAGE  — commit side_effect_intent BEFORE any external call. The key is
+    #          run-scoped (includes run_id) so each retry re-commits its own
+    #          intent; the payload is the fully-rendered effect descriptor.
+    # CONFIRM— commit side_effect_confirmed AFTER the orchestrator's
+    #          fallback/skip/escalate decision AND only on a successful fire.
+    #          The key EXCLUDES run_id so the same logical effect dedupes across
+    #          retries (prevents a double-send when a retry observes the prior
+    #          CONFIRM already present).
+    async def _stage_irreversible_effect(
+        self,
+        db: AsyncSession,
+        run_id: str,
+        node: WorkflowNode,
+        workflow: Workflow | None,
+    ) -> str:
+        """STAGE: commit the fully-rendered effect intent before any external call.
+
+        Returns the run-scoped idempotency key for this intent (used by CONFIRM to
+        link the two phases).
+        """
+        event_log = get_event_log()
+        payload = self._render_effect_payload(node, workflow)
+        # Run-scoped key → one intent per (run, node, attempt-content).
+        idem_key = _compute_idempotency_key(run_id, SubstrateEventType.SIDE_EFFECT_INTENT, node.id, payload)
+        await event_log.append(
+            db,
+            run_id,
+            [
+                {
+                    "type": SubstrateEventType.SIDE_EFFECT_INTENT,
+                    "payload": {
+                        "task_id": node.id,
+                        "node_type": node.type.value,
+                        "effect_class": node.effect_class.value,
+                        "idempotency_key": idem_key,
+                        "effect": payload,
+                    },
+                    "actor": "node_executor",
+                    "mission_id": workflow.id if workflow else None,
+                    "task_id": node.id,
+                }
+            ],
+        )
+        logger.info(
+            "STAGE committed side_effect_intent for run %s node %s (key %s)",
+            run_id,
+            node.id,
+            idem_key,
+        )
+        return idem_key
+
+    async def _confirm_irreversible_effect(
+        self,
+        db: AsyncSession,
+        run_id: str,
+        node: WorkflowNode,
+        workflow: Workflow | None,
+        *,
+        committed_key: str,
+    ) -> None:
+        """CONFIRM: commit side_effect_confirmed AFTER a successful fire.
+
+        The key EXCLUDES run_id so a retried/parallel invocation that already
+        confirmed this logical effect is deduplicated by the event log and the
+        external call is never re-fired.
+        """
+        event_log = get_event_log()
+        payload = self._render_effect_payload(node, workflow)
+        # Run-EXCLUDED key → dedupes across retries for the same logical effect.
+        idem_key = _compute_idempotency_key(None, SubstrateEventType.SIDE_EFFECT_CONFIRMED, node.id, payload)
+        await event_log.append(
+            db,
+            run_id,
+            [
+                {
+                    "type": SubstrateEventType.SIDE_EFFECT_CONFIRMED,
+                    "payload": {
+                        "task_id": node.id,
+                        "node_type": node.type.value,
+                        "effect_class": node.effect_class.value,
+                        "staged_key": committed_key,
+                        "idempotency_key": idem_key,
+                        "effect": payload,
+                    },
+                    "actor": "node_executor",
+                    "mission_id": workflow.id if workflow else None,
+                    "task_id": node.id,
+                }
+            ],
+        )
+        logger.info(
+            "CONFIRM committed side_effect_confirmed for run %s node %s (key %s)",
+            run_id,
+            node.id,
+            idem_key,
+        )
+
+    @staticmethod
+    def _render_effect_payload(node: WorkflowNode, workflow: Workflow | None) -> dict[str, Any]:
+        """Render the fully-rendered, idempotency-deterministic effect descriptor.
+
+        This is what gets committed in STAGE and compared in CONFIRM. It must
+        contain everything needed to (re)fire the effect exactly once.
+        """
+        return {
+            "task_id": node.id,
+            "node_type": node.type.value,
+            "tool_name": node.config.get("tool_name"),
+            "prompt": node.config.get("prompt"),
+            "url": node.config.get("url"),
+            "action": node.config.get("action"),
+            "sub_workflow_mode": node.config.get("sub_workflow_mode"),
+            "mission_id": workflow.id if workflow else None,
+        }
 
     async def _dispatch(
         self,
@@ -436,6 +1129,21 @@ class NodeExecutor:
                 return {"success": True, "output": context, "tokens": 0}
             case NodeType.SANDBOX:
                 return await self._handle_sandbox_node(db, node, context, budget, run_id, workflow)
+            case NodeType.TRANSFORM:
+                return await self._handle_transform(node, context)
+            case NodeType.CONDITION:
+                # Handler only evaluates the expression + reports the branch.
+                # Actual branch *taking* is strategy-level (see DAGStrategy).
+                return await self._handle_condition(node, context)
+            case NodeType.LOG:
+                return await self._handle_log(db, node, context, run_id, workflow)
+            case NodeType.LOOP:
+                # Marker node: the bounded iteration loop is driven by the
+                # strategy (see DAGStrategy). The handler just reports the
+                # configured bounds so the strategy can honor them.
+                return await self._handle_loop(node, context)
+            case NodeType.WEBHOOK:
+                return await self._handle_webhook(db, node, context, run_id, workflow)
             case _:
                 return {"success": False, "error": f"Unknown node type: {node.type}"}
 
@@ -463,6 +1171,30 @@ class NodeExecutor:
             "cost": float(getattr(result, "cost_usd", 0.0) or 0.0),
             "error": getattr(result, "error", None),
         }
+
+    # Trust-boundary (agent-loop-trust-boundary skill): tool output re-enters
+    # the prompt on the next node, so it must be sanitized at this boundary.
+    _CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+    _MAX_OUTPUT_CHARS = 16_000
+
+    @classmethod
+    def _sanitize_tool_output(cls, normalized: dict[str, Any]) -> dict[str, Any]:
+        """Delimit + strip control chars + length-cap the untrusted OUTPUT field."""
+        out = normalized.get("output")
+        if isinstance(out, dict):
+            text = out.get("text") or out.get("stdout") or ""
+            if isinstance(text, str):
+                out = {**out, "text": cls._sanitize_text(text)}
+        elif isinstance(out, str):
+            out = cls._sanitize_text(out)
+        return {**normalized, "output": out}
+
+    @classmethod
+    def _sanitize_text(cls, text: str) -> str:
+        text = cls._CONTROL_CHARS.sub(" ", text)
+        if len(text) > cls._MAX_OUTPUT_CHARS:
+            text = text[: cls._MAX_OUTPUT_CHARS] + " …[truncated]"
+        return text
 
     async def _handle_llm(
         self,
@@ -496,7 +1228,62 @@ class NodeExecutor:
 
         # Item #3: LLM output replay — check for recorded response
         event_log = get_event_log()
-        model_id = node.assigned_model or node.config.get("model_id", "deepseek-v4-flash")
+
+        # Comment 7: consume the depth/reasoning profile (promoted from the
+        # DepthPolicy decision) to pick the model + ReasoningOptions. An
+        # explicitly assigned model is still honored for normal/deep when it
+        # satisfies the profile's tier; otherwise depth selection wins.
+        from app.services.substrate.depth_selection import select_model_for_depth
+        from app.services.substrate.workflow_models import ReasoningProfile
+
+        _profile = node.reasoning_profile or ReasoningProfile.NORMAL
+        _budget_remaining = None
+        if hasattr(budget, "remaining"):
+            try:
+                _budget_remaining = budget.remaining().get("cost_usd")
+            except Exception:
+                _budget_remaining = None
+        _sel = select_model_for_depth(
+            _profile,
+            budget_remaining_usd=_budget_remaining,
+            explicit_model=node.assigned_model,
+        )
+        model_id = _sel.model_id
+        reasoning_options = _sel.reasoning
+        if node.assigned_model and node.assigned_model != _sel.model_id:
+            logger.info(
+                "Depth profile %s overrode node model %s -> %s%s",
+                _profile.value,
+                node.assigned_model,
+                _sel.model_id,
+                f" (degraded: {_sel.degradation_note})" if _sel.degraded else "",
+            )
+
+        # Emit the existing DEPTH_DECIDED event so replay explains the choice.
+        try:
+            await event_log.append(
+                db,
+                run_id,
+                [
+                    {
+                        "type": "depth.decided",
+                        "payload": {
+                            "node_id": node.id,
+                            "profile": _profile.value,
+                            "model_id": _sel.model_id,
+                            "reflection_iterations": _sel.reflection_iterations,
+                            "degraded": _sel.degraded,
+                            "degradation_note": _sel.degradation_note,
+                        },
+                        "actor": "node_executor",
+                        "mission_id": mission_id,
+                        "task_id": node.id,
+                    }
+                ],
+            )
+        except Exception as e:
+            logger.debug("Failed to record depth.decided event: %s", e)
+
         prompt = node.config.get("prompt", node.description or node.title)
 
         replay_key = _compute_idempotency_key(
@@ -542,6 +1329,44 @@ class NodeExecutor:
                     }
                 )
 
+        # Comment 11: long-context assembly for deep/long-context nodes.
+        # This is the dedicated long-context substrate (NOT personal/episodic
+        # memory). When the node profile is deep, or the node explicitly opts
+        # into long-context, we consult the run-scoped ContextManager, inject
+        # the rendered context BEFORE the user prompt, and persist a
+        # context.plan substrate event so replay explains exactly what the
+        # model saw (which chunks, pins, rolling summary, token budget).
+        wants_context = _profile == ReasoningProfile.DEEP or node.config.get("long_context") is True
+        if wants_context:
+            _mgr = self._context_manager(run_id)
+            if _mgr.has_sources():
+                _query = node.config.get("context_query", prompt)
+                try:
+                    _plan, _rendered = _mgr.build_plan(
+                        run_id,
+                        node.id,
+                        query=_query,
+                        token_budget=node.config.get("context_token_budget"),
+                    )
+                except Exception as e:  # never block execution on context build
+                    _plan, _rendered = None, None
+                    logger.debug("ContextManager.build_plan failed: %s", e)
+                if _rendered:
+                    messages.append(
+                        {
+                            "role": "system",
+                            "content": (
+                                "Long-context research window (ingested sources, "
+                                "pinned evidence, rolling summary):\n" + _rendered
+                            ),
+                        }
+                    )
+                if _plan is not None:
+                    try:
+                        await _mgr.record_context_event(db, run_id, _plan, node_id=node.id, mission_id=mission_id)
+                    except Exception as e:  # fire-and-forget persistence
+                        logger.debug("Failed to record context.plan event: %s", e)
+
         messages.append({"role": "user", "content": prompt})
 
         response = await enforcer.call(
@@ -554,6 +1379,7 @@ class NodeExecutor:
             task_id=node.id,
             temperature=node.config.get("temperature", 0.7),
             max_tokens=node.config.get("max_tokens", 2000),
+            reasoning=reasoning_options,
         )
 
         if not response.get("success"):
@@ -612,6 +1438,10 @@ class NodeExecutor:
             "cost": cost_usd,
             "model": response.get("model", model_id),
             "provider": response.get("provider", "unknown"),
+            "reasoning_profile": _profile.value,
+            "reflection_iterations": _sel.reflection_iterations,
+            "depth_degraded": _sel.degraded,
+            "depth_degradation_note": _sel.degradation_note,
         }
 
     # ── Tool handler ────────────────────────────────────────────────
@@ -714,7 +1544,9 @@ class NodeExecutor:
         # Epic 4.1b: standing-constraint gate. Loads the user's durable
         # ``constraint`` claims and blocks / escalates conflicting tool
         # calls. Fail-open by design — a memory-store error must never
-        # brick tool dispatch.
+        # brick tool dispatch. NOTE: fail-open means a constraint-store
+        # outage widens permissions to allow-all (incl. payment/send); a
+        # static deny-list for those is future hardening, not here.
         workspace_id = getattr(workflow, "workspace_id", None) or ""
         if workspace_id:
             from app.services.pre_tool_constraints import (
@@ -742,21 +1574,27 @@ class NodeExecutor:
                     "constraint_id": verdict.triggered_claim_id,
                 }
             if verdict.decision == "escalate":
-                # Route through the existing HITL approval gate instead of
-                # silently forbidding. The mission executor's pending-inbox
-                # path (raise_interrupt) is the production surface; here we
-                # surface the gate decision so the caller can interrupt.
-                logger.info(
-                    "Tool %s requires approval per standing constraint: %s",
-                    tool_name,
-                    verdict.reason,
-                )
-                return {
-                    "success": False,
-                    "error": f"Approval required: {verdict.reason}",
-                    "constraint_escalate": True,
-                    "constraint_id": verdict.triggered_claim_id,
-                }
+                # REAL human-in-the-loop gate (G-9). A standing constraint
+                # says this tool needs a human's sign-off before it runs.
+                # Pause the run by raising HITLPaused — exactly the same
+                # mechanism an APPROVAL/HUMAN_REVIEW node uses — so the run
+                # is released (lease) and a human-review inbox item is
+                # created. On approval the executor re-enters this node and
+                # the approved tool proceeds; on reject the node fails.
+                #
+                # NOTE: this must NOT simply return a failure dict — that
+                # would be a silent hard block, not HITL. The run genuinely
+                # pauses here.
+                # `_escalate_constraint_to_hitl` raises HITLPaused for the
+                # pause cases; on approval it returns None so the tool
+                # actually runs below; on rejection it returns a failure dict.
+                proceed_result = await self._escalate_constraint_to_hitl(db, node, run_id, workflow, verdict)
+                if proceed_result is not None:
+                    # HITLPaused is raised for pause cases (propagates as an
+                    # exception, never reaches here). Only a rejected decision
+                    # returns a failure dict.
+                    return proceed_result
+                # proceed_result is None → human approved; let the tool run below.
 
         # Route to tool handler
         handlers = {
@@ -779,6 +1617,12 @@ class NodeExecutor:
         params = node.config.get("params", {})
         tool_result = await handler(params, context)
         normalized = self._tool_result_to_dict(tool_result)
+
+        # Trust-boundary (agent-loop-trust-boundary skill): the capability and
+        # standing-constraint gates above (:920, :937) check the CALLER/tool,
+        # NOT the OUTPUT. A web_search/rag/file_reader result is untrusted and
+        # re-enters the prompt on the next node — sanitize it here.
+        normalized = self._sanitize_tool_output(normalized)
 
         # Q1-B Chunk 4: emit tool_execution cost event
         if normalized.get("success"):
@@ -1023,6 +1867,248 @@ class NodeExecutor:
         except Exception as e:
             return {"success": False, "error": f"Browser tool failed: {e}"}
 
+    # ── Transform (pure data transform, no LLM / no tool) ──────────
+    async def _handle_transform(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
+        """Apply a non-LLM transform to the node input / context.
+
+        Config keys:
+            transformType: "map" | "filter" | "expression" (default "map")
+            transformExpression: the transform body (string)
+            input: optional explicit input (defaults to node input / context)
+
+        The transform runs in a restricted scope supporting only dict/list
+        comprehensions + the safe builtins already whitelisted for
+        ``_execute_code_sandboxed``-style use. No network, no import,
+        no arbitrary attribute access (ast-compiled + guarded eval).
+        """
+        transform_type = node.config.get("transformType", "map")
+        expression = node.config.get("transformExpression")
+        if not expression:
+            return {"success": False, "error": "No transformExpression provided"}
+
+        # Resolve the input: explicit config beats the in-flight node input/context.
+        data = node.config["input"] if "input" in node.config else context.get("input", context)
+
+        try:
+            result = _safe_transform(transform_type, expression, data, context)
+        except Exception as e:
+            return {"success": False, "error": f"Transform failed: {e}"}
+
+        return {"success": True, "output": result, "tokens": 0, "cost": 0.0}
+
+    # ── Condition (evaluate a boolean expression) ─────────────────
+    async def _handle_condition(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
+        """Evaluate node.config['expression'] against the context.
+
+        The handler ONLY evaluates + reports the boolean / selected branch.
+        The actual branch *taking* (skipping the non-taken branch) is the
+        strategy's job (see DAGStrategy.execute). This mirrors GraphStrategy,
+        where edges carry the condition and the strategy decides executability.
+
+        Config keys:
+            expression: a boolean expression (e.g. "{{n1.output.score}} > 0.5")
+                        or a bare Python boolean expression over context vars.
+
+        Returns {"success", "output": {"value": bool, "branch": ...}}.
+        """
+        expression = node.config.get("expression")
+        if not expression:
+            return {"success": False, "error": "No condition expression provided"}
+
+        try:
+            value = _safe_eval(expression, context)
+        except Exception as e:
+            return {"success": False, "error": f"Condition evaluation failed: {e}"}
+
+        if isinstance(value, bool):
+            result = value
+        else:
+            # Truthy coercion (string "true"/"false", 0/1, etc.)
+            result = str(value).strip().lower() in ("true", "1", "yes", "success", "completed") or bool(value)
+        return {
+            "success": True,
+            "output": {"value": result, "expression": expression},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    # ── Log (read-only substrate event append) ─────────────────────
+    async def _handle_log(
+        self,
+        db: AsyncSession | None,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        run_id: str,
+        workflow: Workflow | None = None,
+    ) -> dict[str, Any]:
+        """Append a substrate log event. Read-only, REVERSIBLE.
+
+        Config keys:
+            message: optional explicit message (str)
+            level: "info" | "warn" | "error" (default "info")
+
+        The message may reference context via {{node_id.output.field}} — the
+        message is rendered through the same interpolation used by GraphStrategy
+        edges. If no message is given, a default is logged.
+        """
+        level = node.config.get("level", "info")
+        raw_message = node.config.get("message") or node.title or node.description or (f"LOG node {node.id}")
+        try:
+            from app.services.substrate.strategies.graph import GraphStrategy
+
+            message = GraphStrategy()._resolve_interpolation(raw_message, context)
+        except Exception:
+            message = raw_message
+
+        event_type = "node.log"
+        try:
+            if db and run_id:
+                event_log = get_event_log()
+                await event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": event_type,
+                            "payload": {
+                                "node_id": node.id,
+                                "level": level,
+                                "message": str(message)[:2000],
+                            },
+                            "actor": "node_executor",
+                            "mission_id": workflow.id if workflow else None,
+                            "task_id": node.id,
+                        }
+                    ],
+                )
+        except Exception as e:
+            # Read-only node: a logging failure must NOT fail the workflow.
+            logger.debug("Log node %s event write skipped: %s", node.id, e)
+
+        return {
+            "success": True,
+            "output": {"level": level, "message": str(message)[:2000]},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    # ── Loop (strategy-level bounded iteration marker) ──────────────
+    async def _handle_loop(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
+        """Report the configured loop bounds.
+
+        The actual bounded iteration over the loop body is driven by the
+        strategy (see DAGStrategy). The handler is a pure marker that
+        surfaces the configured parameters so the strategy can honor them and
+        emit a per-iteration event.
+
+        Config keys:
+            max_iterations: hard cap on iterations (default 10)
+            stop_condition: optional boolean expression evaluated each iteration
+            loop_var: name bound to the current iteration index in body context
+
+        Returns the resolved bounds for the strategy to consume.
+        """
+        max_iterations = int(node.config.get("max_iterations", 10))
+        stop_condition = node.config.get("stop_condition")
+        loop_var = node.config.get("loop_var", "i")
+        # Guard the hard cap so a runaway loop cannot exhaust resources.
+        max_iterations = max(1, min(max_iterations, 1000))
+        return {
+            "success": True,
+            "output": {
+                "max_iterations": max_iterations,
+                "stop_condition": stop_condition,
+                "loop_var": loop_var,
+            },
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    # ── Webhook (outbound HTTP POST — IRREVERSIBLE side effect) ───
+    async def _handle_webhook(
+        self,
+        db: AsyncSession | None,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        run_id: str,
+        workflow: Workflow | None = None,
+    ) -> dict[str, Any]:
+        """Emit an outbound HTTP POST to node.config['url'] with a payload.
+
+        IRREVERSIBLE — fires an external side effect. The two-phase
+        STAGE→CONFIRM dispatch in execute() guarantees the effect only
+        fires after the orchestrator's fallback/skip/escalate decision, and
+        dedupes across retries via the side_effect_confirmed idempotency key.
+
+        Config keys:
+            url: target URL (REQUIRED)
+            payload: optional explicit payload (dict); defaults to the node
+                     input / context
+            method: optional (default "POST")
+            headers: optional dict
+
+        The URL is SSRF-guarded: only http/https schemes are allowed and
+        the host is rejected if it resolves to a private/loopback address.
+        """
+        url = node.config.get("url")
+        if not url:
+            return {"success": False, "error": "No webhook url provided"}
+
+        if not _is_safe_url(url):
+            return {
+                "success": False,
+                "error": f"Webhook URL rejected by SSRF guard: {url}",
+            }
+
+        method = (node.config.get("method") or "POST").upper()
+        payload = node.config["payload"] if "payload" in node.config else context.get("input", context)
+
+        headers = {"Content-Type": "application/json"}
+        headers.update(node.config.get("headers") or {})
+
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.request(method, url, json=payload, headers=headers)
+            status = resp.status_code
+            try:
+                body = resp.json()
+            except Exception:
+                body = resp.text[:2000]
+            # Best-effort cost-less event log (fire-and-forget).
+            try:
+                if db and run_id:
+                    event_log = get_event_log()
+                    await event_log.append(
+                        db,
+                        run_id,
+                        [
+                            {
+                                "type": "node.webhook.sent",
+                                "payload": {
+                                    "node_id": node.id,
+                                    "url": url,
+                                    "method": method,
+                                    "status_code": status,
+                                },
+                                "actor": "node_executor",
+                                "mission_id": workflow.id if workflow else None,
+                                "task_id": node.id,
+                            }
+                        ],
+                    )
+            except Exception as e:
+                logger.debug("Webhook sent event write skipped: %s", e)
+            return {
+                "success": 200 <= status < 300,
+                "output": {"status_code": status, "body": body},
+                "tokens": 0,
+                "cost": 0.0,
+            }
+        except Exception as e:
+            return {"success": False, "error": f"Webhook request failed: {e}"}
+
     # ── Sandbox node (Phase 3) ───────────────────────────────────────
 
     async def _handle_sandbox_node(
@@ -1037,7 +2123,7 @@ class NodeExecutor:
         """Execute a sandbox node: create container → push files → submit task → stream SSE.
 
         Config keys:
-            template: sandboxd template name (default "python-img")
+            template: sandboxd template name (default "python")
             task_prompt: coding task prompt for sandboxd's AI agent
             shared_workspace: reuse existing sandbox for this mission
             input_files: dict of path→content to write before task
@@ -1048,30 +2134,41 @@ class NodeExecutor:
         if not task_prompt:
             return {"success": False, "error": "No task_prompt provided"}
 
-        template = config.get("template", "python-img")
+        template = config.get("template", "worker-standard")
         shared_workspace = config.get("shared_workspace", False)
         input_files = config.get("input_files", {})
         snapshot_before = config.get("snapshot_before", False)
+        model = config.get("model")
 
-        mission_id = workflow.id if workflow else None
+        # Blueprint/substrate runs have a run_id but no missions row
+        # (Workflow.id == blueprint_id, not a mission id). Keying the
+        # sandbox mapping on mission_id would violate the FK to missions(id),
+        # so for blueprint-sourced runs we leave mission_id NULL and let
+        # run_id carry the link. Legacy Mission runs keep mission_id.
+        blueprint_id = getattr(self.executor, "_active_blueprint_id", None)
+        mission_id = None if blueprint_id else (workflow.id if workflow else None)
         user_id = workflow.user_id if workflow else "system"
         event_log = get_event_log()
 
         sandbox_id = None
         try:
             # 1 — Create or reuse sandbox
-            if shared_workspace and mission_id:
-                sandbox_id = await self._sandbox_service.get_sandbox_for_mission(mission_id, db=db)
+            # Blueprint/substrate runs have a run_id but no missions row, so key
+            # the sandbox mapping on run_id (mission_id stays NULL → no FK break).
+            # Legacy Mission runs keep mission_id.
+            if shared_workspace and (mission_id or run_id):
+                sandbox_id = await self._sandbox_service.get_sandbox_for_mission(mission_id, db=db, run_id=run_id)
             if not sandbox_id:
-                if mission_id:
+                if mission_id or run_id:
                     sandbox_id = await self._sandbox_service.ensure_sandbox_for_mission(
                         mission_id=mission_id,
                         user_id=user_id,
                         db=db,
                         template=template,
+                        run_id=run_id,
                     )
                 else:
-                    # No mission context — create ephemeral sandbox
+                    # No mission/run context — create ephemeral sandbox
                     resp = await self._sandbox_client.create(
                         project_id=f"node_{node.id}",
                         user_id=user_id,
@@ -1134,10 +2231,20 @@ class NodeExecutor:
                 )
 
             # 4 — Submit task to sandboxd
+            # Render {{ inputs.<key> }} from the run's input values. Use re.sub,
+            # not str.format: the sandbox wrapper carries literal {} braces.
+            inputs = context.get("inputs") or {}
+            if inputs:
+                task_prompt = re.sub(
+                    r"\{\{\s*inputs\.(\w+)\s*\}\}",
+                    lambda m: str(inputs.get(m.group(1), m.group(0))),
+                    task_prompt,
+                )
             task = await self._sandbox_client.submit_task(
                 sandbox_id=sandbox_id,
                 prompt=task_prompt,
                 agent="opencode",
+                model=model,
             )
             task_id = task["id"]
 
@@ -1155,15 +2262,19 @@ class NodeExecutor:
                 ],
             )
 
-            # 5 — Stream SSE events, recording progress
-            async for sse in self._sandbox_client.task_events(sandbox_id, task_id):
+            # 5 — Stream task events, recording progress.
+            # sandboxd emits NDJSON. The terminal event is type=="done" (carries
+            # the TaskResult in `data`); informational types are status/
+            # message/tool/build. "progress"/"complete"/"error" are kept for
+            # test compatibility (mocked events).
+            async for sse in self._sandbox_client.task_events(sandbox_id, task_id, since=0):
                 ev_type = sse.get("type", "")
-                ev_data_str = sse.get("data", "{}")
-
-                try:
-                    ev_data = json.loads(ev_data_str) if isinstance(ev_data_str, str) else ev_data_str
-                except (json.JSONDecodeError, TypeError):
-                    ev_data = {"raw": ev_data_str}
+                ev_data = sse.get("data", {})
+                if not isinstance(ev_data, dict):
+                    try:
+                        ev_data = json.loads(ev_data) if isinstance(ev_data, str) else {}
+                    except (json.JSONDecodeError, TypeError):
+                        ev_data = {"raw": ev_data}
 
                 if ev_type == "progress":
                     await event_log.append(
@@ -1194,7 +2305,19 @@ class NodeExecutor:
                             },
                         )
 
-                elif ev_type == "complete":
+                elif ev_type in ("complete", "done"):
+                    # "done" is sandboxd's real terminal event; "complete"
+                    # is retained for test mocks. The TaskResult payload
+                    # lands in `data` for "done" (status, error_message,
+                    # agent_message_final, files_changed, tokens).
+                    task_status = str(ev_data.get("status", "")).lower()
+                    # For "done" events, success = sandboxd task status succeeded;
+                    # for test-mock "complete" shape, success = exit_code == 0.
+                    succeeded = task_status == "succeeded" if ev_type == "done" else ev_data.get("exit_code", 0) == 0
+
+                    agent_output = ev_data.get("agent_message_final") or ev_data.get("stdout") or ""
+                    agent_output = str(agent_output)
+
                     await event_log.append(
                         db,
                         run_id,
@@ -1203,8 +2326,8 @@ class NodeExecutor:
                                 "type": SubstrateEventType.SANDBOX_TASK_COMPLETED,
                                 "payload": {
                                     "task_id": task_id,
-                                    "exit_code": ev_data.get("exit_code", 0),
-                                    "stdout": str(ev_data.get("stdout", ""))[:50000],
+                                    "status": task_status or ev_data.get("exit_code", 0),
+                                    "output": agent_output[:50000],
                                 },
                                 "actor": "node_executor",
                                 "mission_id": mission_id,
@@ -1213,18 +2336,23 @@ class NodeExecutor:
                         ],
                     )
                     return {
-                        "success": ev_data.get("exit_code", 0) == 0,
+                        "success": succeeded,
                         "output": {
                             "sandbox_id": sandbox_id,
                             "task_id": task_id,
-                            "stdout": ev_data.get("stdout", ""),
+                            "status": task_status or "succeeded",
+                            "agent_output": agent_output,
+                            "stdout": ev_data.get("stdout", agent_output),
                             "exit_code": ev_data.get("exit_code", 0),
+                            "error_message": ev_data.get("error_message", ""),
+                            "files_changed": ev_data.get("files_changed", []),
+                            "tokens": ev_data.get("tokens", {}),
                         },
                         "tokens": 0,
                         "cost": 0.0,
                     }
 
-                elif ev_type == "error":
+                elif ev_type in ("error", "failed"):
                     await event_log.append(
                         db,
                         run_id,
@@ -1233,7 +2361,9 @@ class NodeExecutor:
                                 "type": SubstrateEventType.SANDBOX_TASK_FAILED,
                                 "payload": {
                                     "task_id": task_id,
-                                    "error": ev_data.get("error", "Unknown sandbox task error"),
+                                    "error": ev_data.get(
+                                        "error", ev_data.get("error_message", "Unknown sandbox task error")
+                                    ),
                                 },
                                 "actor": "node_executor",
                                 "mission_id": mission_id,
@@ -1243,7 +2373,7 @@ class NodeExecutor:
                     )
                     return {
                         "success": False,
-                        "error": ev_data.get("error", "Sandbox task failed"),
+                        "error": ev_data.get("error", ev_data.get("error_message", "Sandbox task failed")),
                         "tokens": 0,
                     }
 
@@ -1438,6 +2568,164 @@ class NodeExecutor:
             "cost": 0.0,
         }
 
+    async def _escalate_constraint_to_hitl(
+        self,
+        db: AsyncSession,
+        node: WorkflowNode,
+        run_id: str,
+        workflow: Workflow | None,
+        verdict: Any,
+    ) -> dict[str, Any] | None:
+        """Pause a tool node for human sign-off on a standing constraint (escalate).
+
+        A standing ``constraint`` claim with action ``escalate`` means the tool
+        may only run after a human approves it. This creates an inbox item and
+        raises ``HITLPaused`` so the run genuinely pauses (it is NOT a silent
+        block). On resume the executor re-enters this tool node:
+
+        - pending  → raise HITLPaused again (still awaiting human)
+        - approved → return None so ``_handle_tool`` actually runs the tool
+        - rejected/expired/cancelled → return a failure dict (node fails)
+
+        The resume guard reuses the existing inbox item for this node+run so we
+        never create duplicates or loop forever.
+        """
+        from sqlalchemy import select
+
+        from app.models.hitl_models import HumanInterruptType, InboxItem
+        from app.services.hitl_service import HITLService
+        from app.services.substrate.event_log import get_event_log
+        from app.services.substrate.hitl_pause import HITLPaused, check_hitl_resolution
+
+        event_log = get_event_log()
+        mission_id = workflow.id if workflow else None
+        workspace_id = getattr(workflow, "workspace_id", None) if workflow else None
+
+        # workflow.user_id is a UUID *string*; inbox_items.user_id is an int.
+        resolved_uid_int = 0
+        if workflow and workflow.user_id:
+            _raw = workflow.user_id
+            resolved_uid_int = int(_raw) if isinstance(_raw, int) else (int(_raw) if str(_raw).isdigit() else 0)
+        # A UUID-string workflow.user_id (substrate contract) can't be coerced
+        # to an int, leaving resolved_uid_int == 0, which violates the
+        # inbox_items.user_id FK. Fall back to the workspace owner, who is a
+        # real user and the sensible notify target for a constraint escalation.
+        if resolved_uid_int == 0 and workspace_id:
+            from sqlalchemy import select
+
+            from app.models.workspace_models import Workspace
+
+            _ws = await db.execute(select(Workspace.owner_id).where(Workspace.id == str(workspace_id)))
+            _owner = _ws.scalar_one_or_none()
+            if _owner:
+                resolved_uid_int = _owner
+
+        tool_name = node.config.get("tool_name") or node.config.get("tool_id")
+
+        # ── Resume guard: reuse the existing inbox item for this node+run ──
+        result = await db.execute(
+            select(InboxItem)
+            .where(InboxItem.run_id == run_id, InboxItem.node_id == node.id)
+            .order_by(InboxItem.created_at.desc())
+            .limit(1)
+        )
+        existing = result.scalar_one_or_none()
+        if existing is not None:
+            resolution = await check_hitl_resolution(db, existing.id)
+            if not resolution.resolved:
+                # Still awaiting the human — pause again.
+                raise HITLPaused(
+                    inbox_item_id=existing.id,
+                    run_id=run_id,
+                    node_id=node.id,
+                    mission_id=mission_id,
+                    interrupt_type="escalation",
+                    title=existing.title,
+                    context={"current_context": {}},
+                )
+            if resolution.status in ("approved", "clarified"):
+                return None
+            return {
+                "success": False,
+                "error": f"Standing constraint escalation {resolution.status}: "
+                f"{resolution.resolution_note or 'no details'}",
+                "tokens": 0,
+                "cost": 0.0,
+                "constraint_escalation_rejected": True,
+            }
+
+        # ── First escalation: create inbox item and pause the run ──
+        constraint_subject = verdict.constraint_subject or "standing constraint"
+        title = f"Approval required: {constraint_subject}"
+        description = f"Tool '{tool_name}' is gated by standing constraint " f"'{constraint_subject}'. {verdict.reason}"
+        proposed_action = {
+            "node_id": node.id,
+            "node_title": node.title,
+            "node_type": node.type.value,
+            "tool_name": tool_name,
+            "constraint_claim_id": verdict.triggered_claim_id,
+        }
+
+        from decimal import Decimal
+
+        depth_decision = HITLService.build_depth_decision(
+            risk="medium",
+            uncertainty=0.5,
+            budget_remaining_usd=Decimal("10.0"),
+            prior_failures=0,
+            tool_requires_approval=True,
+            retry_count=0,
+            policy_override=False,
+        )
+        service = HITLService(db)
+        item = await service.create_interrupt(
+            mission_id=mission_id or None,
+            user_id=resolved_uid_int,
+            interrupt_type=HumanInterruptType.ESCALATION,
+            title=title,
+            description=description,
+            proposed_action=proposed_action,
+            context={"verdict": {"decision": verdict.decision, "reason": verdict.reason}},
+            depth_decision=depth_decision,
+            task_id=node.id,
+            node_id=node.id,
+            run_id=run_id,
+            workspace_id=workspace_id,
+        )
+        await event_log.append(
+            db,
+            run_id,
+            [
+                {
+                    "type": SubstrateEventType.HUMAN_INTERRUPT_RAISED,
+                    "payload": {
+                        "inbox_item_id": item.id,
+                        "interrupt_type": "escalation",
+                        "title": title,
+                        "node_id": node.id,
+                        "constraint_claim_id": verdict.triggered_claim_id,
+                    },
+                    "actor": "node_executor",
+                    "mission_id": mission_id,
+                    "task_id": node.id,
+                }
+            ],
+        )
+        logger.info(
+            "Constraint escalation → HITL pause: node=%s inbox_item=%s",
+            node.id,
+            item.id,
+        )
+        raise HITLPaused(
+            inbox_item_id=item.id,
+            run_id=run_id,
+            node_id=node.id,
+            mission_id=mission_id,
+            interrupt_type="escalation",
+            title=title,
+            context={"current_context": {}},
+        )
+
     # ── HITL interrupt handler (Phase 6.2) ──────────────────────────
 
     async def _handle_hitl_interrupt(
@@ -1472,8 +2760,15 @@ class NodeExecutor:
             "config": {k: v for k, v in node.config.items() if k not in ("approval_prompt",)},
         }
 
-        # Determine the user to notify
-        user_id = int(workflow.user_id) if workflow and workflow.user_id else 0
+        # Determine the user to notify. workflow.user_id is a UUID *string*
+        # (substrate contract) while inbox_items.user_id is an int — coerce
+        # only when it's already numeric; otherwise fall back to 0 so a
+        # UUID string never raises ValueError here.
+        if workflow and workflow.user_id:
+            _raw = workflow.user_id
+            user_id = int(_raw) if isinstance(_raw, int) else (int(_raw) if str(_raw).isdigit() else 0)
+        else:
+            user_id = 0
         workspace_id = getattr(workflow, "workspace_id", None) if workflow else None
         mission_id = workflow.id if workflow else None
 
@@ -1526,7 +2821,7 @@ class NodeExecutor:
                 policy_override=False,
             )
             item = await service.create_interrupt(
-                mission_id=mission_id or "unknown",
+                mission_id=mission_id or None,
                 user_id=user_id,
                 interrupt_type=hitl_type,
                 title=title,

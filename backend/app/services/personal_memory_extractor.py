@@ -39,6 +39,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from app.core.llm_result import normalize_llm_result
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -466,9 +468,20 @@ class PersonalMemoryExtractor:
             )
             return []
 
-        # The ModelRouter's dict shape varies across code paths
-        # (sometimes ``response``, sometimes ``content``); accept both.
-        content = response.get("response") or response.get("content") or ""
+        # Normalize the router result (handles both the dict-returning and
+        # object-returning ModelRouter). A success=False — including a
+        # non-raising "model unavailable" payload — must not be silently read
+        # as empty content; surface it and degrade to the empty result.
+        try:
+            content = normalize_llm_result(response, context="personal_memory.extract")
+        except Exception as exc:
+            logger.warning(
+                "personal_memory.extract: LLM call failed user_id=%s workspace_id=%s " "error=%s",
+                user_id,
+                workspace_id,
+                exc,
+            )
+            return []
         if not content:
             return []
 
@@ -522,7 +535,18 @@ class PersonalMemoryExtractor:
             claims = self.fallback_extractor.extract(text)
             return claims, (ExtractionSource.FALLBACK if claims else ExtractionSource.EMPTY)
 
-        content = response.get("response") or response.get("content") or ""
+        try:
+            content = normalize_llm_result(response, context="personal_memory.extract_with_fallback")
+        except Exception as exc:
+            logger.warning(
+                "personal_memory.extract_with_fallback: LLM call failed "
+                "user_id=%s workspace_id=%s error=%s; using regex fallback",
+                user_id,
+                workspace_id,
+                exc,
+            )
+            claims = self.fallback_extractor.extract(text)
+            return claims, (ExtractionSource.FALLBACK if claims else ExtractionSource.EMPTY)
         if not content:
             return [], ExtractionSource.EMPTY
 

@@ -54,6 +54,7 @@ users_router = _import_router("users", tier=RouterTier.CRITICAL)
 mission_router = _import_router("mission", tier=RouterTier.CRITICAL)
 chat_router = _import_router("chat", tier=RouterTier.CRITICAL)
 browser_router = _import_router("browser", tier=RouterTier.CRITICAL)
+graph_router = _import_router("graph", tier=RouterTier.CRITICAL)
 
 # ── STANDARD routers: warn if missing ───────────────────────────────
 
@@ -177,6 +178,7 @@ for _name, _router in [
     ("llm_advanced", llm_advanced_router),
     ("memory", memory_router),
     ("mission", mission_router),
+    ("graph", graph_router),
     ("mission_advanced", mission_advanced_router),
     ("oidc", oidc_router),
     ("delegations", delegations_router),

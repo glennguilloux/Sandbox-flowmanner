@@ -222,9 +222,14 @@ class TestCircuitBreaker:
     async def test_check_circuit_breaker_allowed_when_closed(self):
         executor, _, _ = _make_mock_executor()
         db = AsyncMock()
+        # begin_nested must return a valid async context manager (real
+        # CircuitBreakerService.get_breaker is async — executor.py:892 awaits it).
+        db.begin_nested = MagicMock(return_value=AsyncMock(__aenter__=AsyncMock(), __aexit__=AsyncMock()))
 
         mock_cb = MagicMock()
-        mock_cb.is_circuit_open = AsyncMock(return_value=False)
+        # get_breaker is async in production (circuit_breaker_service.py:186);
+        # returning None means "no breaker yet" -> check_circuit_breaker allows.
+        mock_cb.get_breaker = AsyncMock(return_value=None)
 
         with patch(
             "app.services.circuit_breaker_service.CircuitBreakerService",

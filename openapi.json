@@ -37328,6 +37328,88 @@
           }
         }
       }
+    },
+    "/api/workspaces/{workspace_id}/members/{member_id}": {
+      "delete": {
+        "delete": {
+          "tags": [
+            "workspaces"
+          ],
+          "summary": "Remove Member",
+          "description": "Remove a member from a workspace (soft-delete via is_active=False). Authz: caller must be an owner or admin. Blocks removal of the last owner.",
+          "operationId": "remove_member_api_workspaces__workspace_id__members__member_id__delete",
+          "security": [
+            {
+              "OAuth2PasswordBearer": []
+            }
+          ],
+          "parameters": [
+            {
+              "name": "workspace_id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Workspace Id"
+              }
+            },
+            {
+              "name": "member_id",
+              "in": "path",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "title": "Member Id"
+              }
+            }
+          ],
+          "responses": {
+            "204": {
+              "description": "Member removed (soft-delete)"
+            },
+            "403": {
+              "description": "Not authorized",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPError"
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Member not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPError"
+                  }
+                }
+              }
+            },
+            "409": {
+              "description": "Conflict (last owner)",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPError"
+                  }
+                }
+              }
+            },
+            "422": {
+              "description": "Validation Error",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "$ref": "#/components/schemas/HTTPValidationError"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

@@ -81,8 +81,23 @@ class TeamResponse(BaseModel):
     workspace_id: str
     name: str
     description: str
-    member_count: int = 0
     created_at: datetime
+
+
+class TeamMemberResponse(BaseModel):
+    user_id: int
+    role: str
+    joined_at: datetime
+
+
+class TeamMemberCreateRequest(BaseModel):
+    user_id: int
+    role: str = "member"
+
+
+class TeamUpdateRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
 
 
 class AuditLogEntry(BaseModel):

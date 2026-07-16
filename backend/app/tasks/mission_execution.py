@@ -27,6 +27,12 @@ from app.models.mission_models import (
 )
 from app.services.mission_service import get_mission_tasks
 
+# Local import to avoid a circular import at module load time.
+try:
+    from app.api._mission_cqrs.commands import _rebuild_tasks_from_candidate
+except Exception:  # pragma: no cover - defensive
+    _rebuild_tasks_from_candidate = None
+
 logger = structlog.get_logger(__name__)
 
 
@@ -46,7 +52,7 @@ class ExecuteMissionTask(Task):
     acks_late = True
     reject_on_worker_lost = True
 
-    def run(self, mission_id: str, user_id: int):
+    def run(self, mission_id: str, user_id: int, run_id: str | None = None, selected_plan_id: str | None = None):
         """Synchronous entry point — runs the async execution via asyncio.
 
         If no event loop is running, uses asyncio.run().
@@ -56,16 +62,18 @@ class ExecuteMissionTask(Task):
             loop = asyncio.get_running_loop()
         except RuntimeError:
             # No running loop — safe to use asyncio.run()
-            return asyncio.run(self._execute_async(mission_id, user_id))
+            return asyncio.run(self._execute_async(mission_id, user_id, run_id, selected_plan_id))
         else:
             # Loop exists — use a separate one for Celery isolation
             new_loop = asyncio.new_event_loop()
             try:
-                return new_loop.run_until_complete(self._execute_async(mission_id, user_id))
+                return new_loop.run_until_complete(self._execute_async(mission_id, user_id, run_id, selected_plan_id))
             finally:
                 new_loop.close()
 
-    async def _execute_async(self, mission_id: str, user_id: int):
+    async def _execute_async(
+        self, mission_id: str, user_id: int, run_id: str | None = None, selected_plan_id: str | None = None
+    ):
         """Async execution with proper session management."""
         async with AsyncSessionLocal() as session:
             try:
@@ -108,8 +116,22 @@ class ExecuteMissionTask(Task):
                 from app.services.substrate.executor import get_unified_executor
 
                 tasks = await get_mission_tasks(session, uuid.UUID(mission_id))
+                # Comment 8: honor a pre-selected plan so the worker runs the
+                # exact task set the requester chose (round-trip of
+                # MissionExecuteRequest.selected_plan_id).
+                if selected_plan_id:
+                    rebuilt = await _rebuild_tasks_from_candidate(session, uuid.UUID(mission_id), selected_plan_id)
+                    if rebuilt is not None:
+                        tasks = rebuilt
+                # A stable run_id lets replay, leases, aborts and event
+                # correlation line up with the dispatch that queued this task.
+                if run_id:
+                    # Persist the run identity onto the mission plan so abort /
+                    # resume flows can find it later.
+                    mission.plan = {**(mission.plan or {}), "substrate_run_id": run_id}
+                    await session.commit()
                 workflow = mission_to_workflow(mission, tasks)
-                strategy_result = await get_unified_executor().execute(session, workflow)
+                strategy_result = await get_unified_executor().execute(session, workflow, run_id=run_id)
                 exec_result = {
                     "success": strategy_result.success,
                     "status": strategy_result.status,
@@ -179,17 +201,23 @@ class ExecuteMissionTask(Task):
 # ── Dispatch helper ───────────────────────────────────────────────────────────
 
 
-def dispatch_mission_execution(mission_id: str, user_id: int) -> None:
+def dispatch_mission_execution(
+    mission_id: str,
+    user_id: int,
+    run_id: str | None = None,
+    selected_plan_id: str | None = None,
+) -> None:
     """Queue a mission for async execution via Celery.
 
-    Safe to call from within a sync or async context.
-    Replace all asyncio.create_task(_run_execution) patterns with this.
+    Safe to call from within a sync or async context. Comment 8: the caller
+    generates a stable ``run_id`` (and may pass a ``selected_plan_id``) so the
+    worker executes with the same run identity that the dispatch recorded.
     """
     from celery import current_app
 
     current_app.send_task(
         "mission.execute_async",
-        args=[mission_id, user_id],
+        args=[mission_id, user_id, run_id, selected_plan_id],
         queue="celery",
     )
-    logger.info("mission_execute_dispatched", mission_id=mission_id)
+    logger.info("mission_execute_dispatched", mission_id=mission_id, run_id=run_id)

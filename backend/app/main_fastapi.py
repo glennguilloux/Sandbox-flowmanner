@@ -14,6 +14,7 @@ from app.api.middleware.audit import AuditMiddleware
 from app.api.middleware.metrics import MetricsMiddleware
 from app.api.middleware.rate_limit import GlobalRateLimitMiddleware
 from app.api.middleware.security_headers import SecurityHeadersMiddleware
+from app.api.middleware.versioning import APIVersioningMiddleware
 from app.api.v1 import api_v1_router
 from app.api.v1.health import router as health_router
 from app.config import settings
@@ -22,6 +23,7 @@ from app.core.telemetry import setup_telemetry
 from app.lifespan import lifespan
 from app.middleware.auth_cookie import AuthCookieMiddleware
 from app.middleware.scope_validator import ScopeValidationMiddleware
+from app.utils.scrubber import structlog_scrub_processor
 from app.websocket.mission_ws import ws_app
 
 structlog.configure(
@@ -31,6 +33,9 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.dev.set_exc_info,
         structlog.processors.TimeStamper(fmt="iso"),
+        # Scrub BYOK secrets/keys from every log line before rendering.
+        # Must run before the renderer so the redacted value is what gets emitted.
+        structlog_scrub_processor,
         (structlog.processors.JSONRenderer() if settings.APP_ENV != "development" else structlog.dev.ConsoleRenderer()),
     ],
     wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
@@ -127,6 +132,12 @@ app.add_middleware(
 
 # Security headers middleware
 app.add_middleware(SecurityHeadersMiddleware)
+
+# API versioning middleware (Accept-Version negotiation + X-API-Version /
+# Deprecation / Sunset / Link deprecation headers). Mounted after the
+# security/cors middleware and before audit/metrics so it wraps only the
+# request/response headers of API paths without interfering with auth/session.
+app.add_middleware(APIVersioningMiddleware)
 
 # Audit logging middleware
 app.add_middleware(AuditMiddleware)
@@ -285,10 +296,10 @@ async def general_error_handler(request: Request, exc: Exception):
     except Exception as notify_err:  # pragma: no cover — defensive
         structlog.get_logger().warning("Failed to enqueue 5xx ntfy alert", error=str(notify_err))
 
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "An error occurred. Please try again later."},
-    )
+    # Path-aware envelope (v2 / v3 / flat) — single shared serializer.
+    from app.api._shared_errors import make_unhandled_response
+
+    return make_unhandled_response(request, message="An error occurred. Please try again later.")
 
 
 # ---------------------------------------------------------------------------
@@ -399,13 +410,18 @@ app.include_router(health_router)
 app.include_router(health_router, prefix="/api")
 app.include_router(api_v1_router)
 
+# Single path-aware dispatcher for HTTPException + Exception (v2 + v3 + unversioned).
+# Consolidated in app/api/_shared_errors.py: exactly one handler per exception
+# class, branching on request path. Registered once below — do NOT re-register
+# from the v2/v3 middleware modules here (their register_* functions remain as
+# conftest shims for the v3 test app, but are NOT invoked at app startup).
+from app.api._shared_errors import register_unified_exception_handlers
 from app.api.v2 import api_v2_router
 from app.api.v2.idempotency import IdempotencyFinalizationMiddleware
-from app.api.v2.middleware import register_v2_exception_handlers
 from app.api.v2.rate_limit_headers import RateLimitHeadersMiddleware
 from app.api.v2.validation_middleware import register_strict_validation
 
-register_v2_exception_handlers(app)
+register_unified_exception_handlers(app)
 register_strict_validation(app)
 # Rate limit headers: injects X-RateLimit-* into every v2 response
 app.add_middleware(RateLimitHeadersMiddleware)
@@ -414,12 +430,12 @@ app.add_middleware(IdempotencyFinalizationMiddleware)
 app.include_router(api_v2_router)
 
 # ---------------------------------------------------------------------------
-# Auth v3 — register v3 routers, exception handlers, and cookie middleware
+# Auth v3 — register v3 routers. Exception handlers are already registered
+# above by the unified dispatcher; the v3 middleware register_* shim is only
+# for the test conftest, not for live startup.
 # ---------------------------------------------------------------------------
 from app.api.v3 import api_v3_router
-from app.api.v3.middleware import register_v3_exception_handlers
 
-register_v3_exception_handlers(app)
 app.include_router(api_v3_router)
 
 try:

@@ -307,16 +307,50 @@ async def approve_item(
             details={"current_status": item.status},
         )
 
+    # ── Planner-trust: rubber-stamp approval audit ──
+    # (side-effect-safety-and-planner-trust skill) A human cannot read and
+    # approve an interrupt in under a second. Sub-second resolutions are
+    # flagged for sample audit (possible automation/accidental click) and
+    # tripped as an observability alarm.
+    from datetime import UTC as _UTC
+    from datetime import datetime as _datetime
+
+    from app.services.nexus.observability import get_observability_service
+
+    _now = _datetime.now(_UTC)
+    _decision_latency = (_now - (item.created_at or _now)).total_seconds()
+    _rubber_stamp = _decision_latency < 1.0
+    if _rubber_stamp:
+        logger.warning(
+            "Rubber-stamp approval detected for inbox item %s: "
+            "resolved after %.3fs (< 1.0s). Flagging for sample audit.",
+            item.id,
+            _decision_latency,
+        )
+        try:
+            obs = get_observability_service()
+            await obs.increment_counter(
+                "hitl_rubber_stamp_approval",
+                labels={"user_id": str(user.id), "item_id": str(item.id)},
+            )
+        except Exception:
+            logger.debug("observability_rubber_stamp_counter_failed", exc_info=True)
+
     # GOV-1.1: memory-write approvals apply the staged write, never resume a
     # mission. Skip the executor resume signal when this is a memory approval.
     is_memory = await _maybe_resolve_memory_write(item, db, approve=True, resolved_by=user.id)
 
+    _base_payload: dict = (body.resolution_payload if body else None) or {}
     resolved = await service.resolve_interrupt(
         item_id,
         resolved_by=user.id,
         status=InboxItemStatus.APPROVED,
         resolution_note=body.resolution_note if body else None,
-        resolution_payload=body.resolution_payload if body else None,
+        resolution_payload={
+            **_base_payload,
+            "rubber_stamp_audit": _rubber_stamp,
+            "decision_latency_s": round(_decision_latency, 3),
+        },
     )
 
     # Signal the executor to resume (mission approvals only)
@@ -348,16 +382,48 @@ async def reject_item(
             details={"current_status": item.status},
         )
 
+    # ── Planner-trust: rubber-stamp approval audit (applies to reject too) ──
+    # (side-effect-safety-and-planner-trust skill) Flag sub-second resolutions
+    # for sample audit + observability alarm.
+    from datetime import UTC as _UTC
+    from datetime import datetime as _datetime
+
+    from app.services.nexus.observability import get_observability_service
+
+    _now = _datetime.now(_UTC)
+    _decision_latency = (_now - (item.created_at or _now)).total_seconds()
+    _rubber_stamp = _decision_latency < 1.0
+    if _rubber_stamp:
+        logger.warning(
+            "Rubber-stamp rejection detected for inbox item %s: "
+            "resolved after %.3fs (< 1.0s). Flagging for sample audit.",
+            item.id,
+            _decision_latency,
+        )
+        try:
+            obs = get_observability_service()
+            await obs.increment_counter(
+                "hitl_rubber_stamp_approval",
+                labels={"user_id": str(user.id), "item_id": str(item.id)},
+            )
+        except Exception:
+            logger.debug("observability_rubber_stamp_counter_failed", exc_info=True)
+
     # GOV-1.1: memory-write rejections reject the staged write, never abort a
     # mission. Skip the executor abort signal when this is a memory approval.
     is_memory = await _maybe_resolve_memory_write(item, db, approve=False, resolved_by=user.id)
 
+    _base_payload: dict = (body.resolution_payload if body else None) or {}
     resolved = await service.resolve_interrupt(
         item_id,
         resolved_by=user.id,
         status=InboxItemStatus.REJECTED,
         resolution_note=body.resolution_note if body else None,
-        resolution_payload=body.resolution_payload if body else None,
+        resolution_payload={
+            **_base_payload,
+            "rubber_stamp_audit": _rubber_stamp,
+            "decision_latency_s": round(_decision_latency, 3),
+        },
     )
 
     # Signal the executor — rejection means abort (mission approvals only)
