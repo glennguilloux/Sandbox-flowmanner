@@ -477,6 +477,47 @@ def blueprint_to_workflow(
     )
 
 
+def validate_blueprint_definition(snapshot: dict, blueprint_id: str = "") -> list[str]:
+    """Validate that every edge in a blueprint definition connects real nodes.
+
+    Returns a list of human-readable error strings. An empty list means the
+    graph is structurally sound. This function does NOT raise — callers turn
+    the returned errors into an appropriate 4xx response.
+
+    Sentinels: the frontend mission builder emits ``start``/``end`` sentinel
+    nodes (nodeType ``start``/``end``) that are bookkeeping, not executable
+    steps (see ``blueprint_to_workflow``). Edges that touch those sentinels are
+    ignored, exactly like the adapter does, so they never produce a false error.
+
+    Pure / read-only: no DB, no LLM.
+    """
+    errors: list[str] = []
+
+    # Skip start/end sentinels (bookkeeping, not executable nodes).
+    _SENTINEL = frozenset({"start", "end"})
+
+    real_ids = {
+        n.get("id")
+        for n in (snapshot.get("nodes", []) or [])
+        if (n.get("type") or (n.get("data", {}) or {}).get("nodeType")) not in _SENTINEL
+    }
+
+    for e in snapshot.get("edges", []) or []:
+        src, tgt = e.get("source"), e.get("target")
+        # Ignore edges that only touch sentinel nodes.
+        if src in _SENTINEL or tgt in _SENTINEL:
+            continue
+        if src is None or tgt is None:
+            errors.append(f"Edge missing source/target in blueprint {blueprint_id}")
+            continue
+        if src not in real_ids:
+            errors.append(f"Edge source '{src}' not found in nodes (blueprint {blueprint_id})")
+        if tgt not in real_ids:
+            errors.append(f"Edge target '{tgt}' not found in nodes (blueprint {blueprint_id})")
+
+    return errors
+
+
 def _resolve_deps(task: Any, all_tasks: list[Any]) -> list[str]:
     """Resolve task dependencies to node IDs.
 

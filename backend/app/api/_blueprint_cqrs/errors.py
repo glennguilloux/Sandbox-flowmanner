@@ -13,30 +13,40 @@ from app.core.exceptions import AppError
 
 
 class BlueprintError(AppError):
-    """Base error for blueprint operations."""
+    """Base error for blueprint operations.
 
-    pass
+    Subclasses ``AppError`` so these surface through the unified FastAPI
+    exception handler as a typed 4xx envelope (code + http_status) instead of
+    falling through to the generic 500 handler.
+    """
+
+    code = "BLUEPRINT_ERROR"
+    http_status = 400
 
 
 class BlueprintNotFoundError(BlueprintError):
     """Blueprint not found or access denied."""
 
-    pass
+    code = "BLUEPRINT_NOT_FOUND"
+    http_status = 404
 
 
 class RunNotFoundError(BlueprintError):
     """Run not found or access denied."""
 
-    pass
+    code = "RUN_NOT_FOUND"
+    http_status = 404
 
 
 class BlueprintValidationError(BlueprintError):
-    """Invalid blueprint operation."""
+    """Invalid blueprint operation (e.g. malformed graph, bad status transition)."""
 
-    pass
+    code = "BLUEPRINT_VALIDATION_ERROR"
+    http_status = 400
 
 
 class RunValidationError(BlueprintError):
     """Invalid run operation."""
 
-    pass
+    code = "RUN_VALIDATION_ERROR"
+    http_status = 400
