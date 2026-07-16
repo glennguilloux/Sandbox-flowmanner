@@ -298,3 +298,95 @@ class TestSandboxdClientHealth:
             result = await client.health_check()
 
         assert result["status"] == "ok"
+
+
+class TestSandboxdClientAuth:
+    """Bearer token auth is sourced from config and sent on requests.
+
+    Resolves self-audit finding SELF-AUDIT-HIGH-02: the client's Bearer
+    auth must be wired (not disabled) and the token must come from
+    SANDBOXD_AUTH_TOKEN — never hardcoded.
+    """
+
+    @pytest.mark.asyncio
+    async def test_auth_header_sent_when_token_configured(self, monkeypatch):
+        """With SANDBOXD_AUTH_TOKEN set, every request carries Bearer auth."""
+        import app.config as config_mod
+        from app.integrations.sandboxd_client import SandboxdClient
+
+        monkeypatch.setattr(config_mod.settings, "SANDBOXD_AUTH_TOKEN", "secret-token-123")
+
+        captured: dict = {}
+
+        def _capture_client(*args, **kwargs):
+            captured["headers"] = kwargs.get("headers", {})
+            mock_client = MagicMock()
+            mock_client.is_closed = False
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.raise_for_status = MagicMock()
+            mock_client.get = AsyncMock(return_value=mock_resp)
+            return mock_client
+
+        with patch("httpx.AsyncClient", side_effect=_capture_client):
+            client = SandboxdClient()
+            await client.health_check()
+
+        assert "Authorization" in captured["headers"]
+        assert captured["headers"]["Authorization"] == "Bearer secret-token-123"
+
+    @pytest.mark.asyncio
+    async def test_no_auth_header_when_token_empty(self, monkeypatch):
+        """With an empty token the client sends no Authorization header.
+
+        This is the same-host-only fallback; it must be explicit, not a
+        code defect.
+        """
+        import app.config as config_mod
+        from app.integrations.sandboxd_client import SandboxdClient
+
+        monkeypatch.setattr(config_mod.settings, "SANDBOXD_AUTH_TOKEN", "")
+
+        captured: dict = {}
+
+        def _capture_client(*args, **kwargs):
+            captured["headers"] = kwargs.get("headers", {})
+            mock_client = MagicMock()
+            mock_client.is_closed = False
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.raise_for_status = MagicMock()
+            mock_client.get = AsyncMock(return_value=mock_resp)
+            return mock_client
+
+        with patch("httpx.AsyncClient", side_effect=_capture_client):
+            client = SandboxdClient()
+            await client.health_check()
+
+        assert "Authorization" not in captured["headers"]
+
+    @pytest.mark.asyncio
+    async def test_explicit_auth_token_overrides_config(self, monkeypatch):
+        """An explicit constructor token wins over the config value."""
+        import app.config as config_mod
+        from app.integrations.sandboxd_client import SandboxdClient
+
+        monkeypatch.setattr(config_mod.settings, "SANDBOXD_AUTH_TOKEN", "config-token")
+
+        captured: dict = {}
+
+        def _capture_client(*args, **kwargs):
+            captured["headers"] = kwargs.get("headers", {})
+            mock_client = MagicMock()
+            mock_client.is_closed = False
+            mock_resp = MagicMock()
+            mock_resp.status_code = 200
+            mock_resp.raise_for_status = MagicMock()
+            mock_client.get = AsyncMock(return_value=mock_resp)
+            return mock_client
+
+        with patch("httpx.AsyncClient", side_effect=_capture_client):
+            client = SandboxdClient(auth_token="explicit-token")
+            await client.health_check()
+
+        assert captured["headers"]["Authorization"] == "Bearer explicit-token"

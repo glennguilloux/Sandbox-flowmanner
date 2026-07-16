@@ -2,7 +2,16 @@
 
 Wraps the public v1 endpoints for sandbox lifecycle, file I/O, coding
 agent tasks, and snapshot management.  Uses ``httpx.AsyncClient`` with
-optional Bearer token auth (currently disabled in sandboxd config).
+**Bearer token auth**, sourced from ``settings.SANDBOXD_AUTH_TOKEN``
+(never hardcoded).  When a token is configured, every request to the
+sandboxd control plane carries ``Authorization: Bearer <token>``.
+
+When ``SANDBOXD_AUTH_TOKEN`` is empty the client sends no auth header —
+this is only safe because FlowManner and sandboxd run on the same
+homelab host and the sandboxd control plane is not exposed off-host.  A
+warning is logged at client-build time so the unauthenticated state is
+never silent.  Operators MUST set ``SANDBOXD_AUTH_TOKEN`` to enable
+control-plane authentication; see the sandboxd deployment docs.
 
 FlowManner and sandboxd run on the same homelab host, so the internal
 exec endpoint (``POST /sandbox/{id}/exec``) is also available for
@@ -81,7 +90,19 @@ class SandboxdClient:
         auth_token: str | None = None,
     ) -> None:
         self.base_url = (base_url or settings.SANDBOXD_API_URL).rstrip("/")
+        # Bearer token is ALWAYS sourced from config (SANDBOXD_AUTH_TOKEN)
+        # or an explicit constructor arg — never hardcoded in source.
         self._auth = auth_token or settings.SANDBOXD_AUTH_TOKEN or None
+        self._auth_enabled = bool(self._auth)
+        if not self._auth_enabled:
+            # Not silent: an unauthenticated control-plane client is a
+            # security gap. Only safe because sandboxd is same-host and
+            # not exposed off-host. Operators must set SANDBOXD_AUTH_TOKEN.
+            logger.warning(
+                "SandboxdClient: SANDBOXD_AUTH_TOKEN is not configured — "
+                "requests to the sandboxd control plane will be sent WITHOUT "
+                "Bearer auth. Set SANDBOXD_AUTH_TOKEN to enable authentication."
+            )
         self._client: httpx.AsyncClient | None = None
 
     # ── Client lifecycle ───────────────────────────────────────────────
@@ -90,6 +111,8 @@ class SandboxdClient:
         if self._client is None or self._client.is_closed:
             headers: dict[str, str] = {"Content-Type": "application/json"}
             if self._auth:
+                # Bearer auth is wired and sent on every control-plane request
+                # whenever a token is configured (SANDBOXD_AUTH_TOKEN).
                 headers["Authorization"] = f"Bearer {self._auth}"
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
@@ -196,7 +219,7 @@ class SandboxdClient:
         _port_m = re.search(r"-(\d+)\.preview", _raw_preview_url)
         _port = _port_m.group(1) if _port_m else "(none)"
         logger.debug(
-            "SandboxdClient.get(%s): status=%s preview.status=%s " "preview.url=%r preview_port=%s",
+            "SandboxdClient.get(%s): status=%s preview.status=%s preview.url=%r preview_port=%s",
             sandbox_id,
             data.get("status"),
             _preview.get("status"),
