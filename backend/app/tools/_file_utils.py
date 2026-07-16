@@ -8,11 +8,75 @@ used by all file-handling and data-processing tools.
 from __future__ import annotations
 
 import base64
+import ipaddress
 import logging
+import socket
+from urllib.parse import urlparse
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+def validate_url_ssrf(url: str) -> str | None:
+    """Validate a URL for safe outbound fetching (SSRF protection).
+
+    Returns ``None`` if the URL is safe to fetch, otherwise a human-readable
+    reason string describing why it was rejected.
+
+    The check mirrors the substrate webhook SSRF guard (``node_executor._is_safe_url``):
+      * only ``http`` / ``https`` schemes are allowed;
+      * non-http schemes (``file``, ``ftp``, ``data``, ``gopher``, …) are rejected;
+      * the host is resolved via DNS and *every* resolved address must be public —
+        loopback, private (RFC1918), link-local, reserved, multicast and unspecified
+        addresses are all refused. This defeats both literal-IP and DNS-rebinding
+        style SSRF, since the connection still goes to one of the checked addresses.
+
+    Do NOT weaken this to string-prefix matching: hostnames like ``10.0.0.1``
+    resolve, and ``127.0.0.1`` / ``0.0.0.0`` / ``::1`` are caught by the
+    ``is_loopback`` / ``is_unspecified`` checks below.
+    """
+    try:
+        parsed = urlparse(url)
+    except Exception as e:  # pragma: no cover - urlparse is very defensive
+        return f"could not parse URL: {e}"
+
+    if parsed.scheme.lower() not in ("http", "https"):
+        return f"URL scheme '{parsed.scheme}://' is not allowed; only http/https may be fetched"
+
+    host = (parsed.hostname or "").lower()
+    if not host:
+        return "URL has no valid hostname"
+
+    candidates: list[str] = []
+    # IPv4 literal (all digits/dots) or IPv6 literal (contains ':').
+    if host.replace(".", "").isdigit() or ":" in host:
+        candidates.append(host)
+    else:
+        try:
+            infos = socket.getaddrinfo(host, None)
+        except socket.gaierror:
+            return f"cannot resolve host: {host}"
+        except Exception as e:  # pragma: no cover - defensive
+            return f"DNS lookup failed for {host}: {e}"
+        candidates = [str(info[4][0]) for info in infos]
+
+    for addr in candidates:
+        try:
+            ip = ipaddress.ip_address(addr)
+        except ValueError:
+            # Unparsable resolved address — treat as unsafe.
+            return f"host '{host}' resolved to an invalid address: {addr}"
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            return f"host '{host}' resolves to a non-public address ({ip})"
+    return None
 
 
 def decode_data(data: str) -> bytes:
