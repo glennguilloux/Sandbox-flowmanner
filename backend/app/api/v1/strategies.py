@@ -23,8 +23,14 @@ async def list_strategies():
     strategies that won't work with the current model.
     """
     strategies = StrategyRegistry.available_strategies()
+    deprecated = StrategyRegistry.deprecated_strategies()
     return {
+        # Primary list: only strategies that actually work. Deprecated
+        # strategies (0% success with the 27B model per 2026-07-04
+        # profiling) are excluded here so the UI never offers them as
+        # selectable — they remain reachable behind STRATEGY_ALLOW_DEPRECATED.
         "strategies": strategies,
-        "total": len(strategies),
-        "available": sum(1 for s in strategies if not s["deprecated"]),
+        "deprecated": deprecated,
+        "total": len(strategies) + len(deprecated),
+        "available": len(strategies),
     }

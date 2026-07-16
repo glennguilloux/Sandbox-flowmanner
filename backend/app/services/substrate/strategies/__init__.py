@@ -78,15 +78,50 @@ class StrategyRegistry:
 
         Used by ``GET /api/strategies`` so the frontend can surface
         deprecated / experimental strategies to the user.
+
+        Deprecated strategies (0% success with the 27B model per the
+        2026-07-04 profiling run) are NOT included here — they are
+        surfaced separately via :meth:`deprecated_strategies` so the
+        primary list only advertises strategies that actually work.
+        The executor still loads them (gated behind
+        ``STRATEGY_ALLOW_DEPRECATED``) so existing execution paths and
+        the opt-in escape hatch keep working.
         """
         cls._ensure_imported()
         result: list[dict[str, object]] = []
         for wf_type, strategy_cls in cls._strategies.items():
+            if getattr(strategy_cls, "DEPRECATED", False):
+                continue
             doc = (strategy_cls.__doc__ or "").strip().split("\n")[0]
             result.append(
                 {
                     "type": wf_type.value,
-                    "deprecated": getattr(strategy_cls, "DEPRECATED", False),
+                    "deprecated": False,
+                    "experimental": getattr(strategy_cls, "EXPERIMENTAL", False),
+                    "description": doc,
+                }
+            )
+        return result
+
+    @classmethod
+    def deprecated_strategies(cls) -> list[dict[str, object]]:
+        """Return metadata only for deprecated strategies.
+
+        Kept separate so the primary ``available_strategies()`` list does
+        not advertise broken strategies to users, while the deprecated
+        set remains discoverable (and executable behind the
+        ``STRATEGY_ALLOW_DEPRECATED`` flag) for operators who need it.
+        """
+        cls._ensure_imported()
+        result: list[dict[str, object]] = []
+        for wf_type, strategy_cls in cls._strategies.items():
+            if not getattr(strategy_cls, "DEPRECATED", False):
+                continue
+            doc = (strategy_cls.__doc__ or "").strip().split("\n")[0]
+            result.append(
+                {
+                    "type": wf_type.value,
+                    "deprecated": True,
                     "experimental": getattr(strategy_cls, "EXPERIMENTAL", False),
                     "description": doc,
                 }
