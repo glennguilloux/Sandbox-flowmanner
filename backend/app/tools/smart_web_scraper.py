@@ -15,6 +15,7 @@ from urllib.parse import urljoin, urlparse
 import httpx
 from pydantic import Field
 
+from app.tools._file_utils import validate_url_ssrf
 from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, register_tool
 
 logger = logging.getLogger(__name__)
@@ -177,6 +178,15 @@ class SmartWebScraperTool(BaseTool):
         parsed = urlparse(url)
         if not parsed.scheme or not parsed.netloc:
             return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid URL: {url}")
+
+        # SSRF protection: refuse non-public / internal targets (loopback,
+        # RFC1918 private ranges, link-local, reserved, metadata addresses).
+        ssrf_reason = validate_url_ssrf(url)
+        if ssrf_reason is not None:
+            return ToolResult.error_result(
+                tool_id=self.tool_id,
+                error=f"Refusing to fetch URL (SSRF guard): {ssrf_reason}",
+            )
 
         try:
             async with httpx.AsyncClient(
