@@ -148,7 +148,7 @@ class TestGraphExecute:
         db = AsyncMock()
         executor = _mock_executor()
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-graph")
 
         assert result.success is True
         assert result.status == "completed"
@@ -166,7 +166,7 @@ class TestGraphExecute:
         db = AsyncMock()
         executor = _mock_executor()
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-graph")
 
         assert result.success is True
         assert len(result.completed_nodes) == 1
@@ -181,7 +181,7 @@ class TestGraphExecute:
         db = AsyncMock()
         executor = _mock_executor(is_aborted=True)
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-graph")
 
         assert result.success is False
         assert result.status == "aborted"
@@ -203,7 +203,7 @@ class TestGraphExecute:
             }
         )
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-graph")
 
         assert result.success is False
         assert "a" in result.failed_nodes
@@ -220,7 +220,7 @@ class TestGraphExecute:
         executor = _mock_executor()
         executor.execute_node = AsyncMock(side_effect=RuntimeError("kaboom"))
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-graph")
 
         assert result.success is False
         assert "a" in result.failed_nodes
@@ -236,7 +236,7 @@ class TestGraphExecute:
         db = AsyncMock()
         executor = _mock_executor()
 
-        await s.execute(wf, {}, executor, db)
+        await s.execute(wf, {}, executor, db, run_id="custom-run")
 
         call_kwargs = executor.execute_node.call_args[1]
         assert call_kwargs["run_id"] == "custom-run"
@@ -263,7 +263,7 @@ class TestGraphExecute:
             }
         )
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-graph")
 
         assert result.success is False
         assert result.status == "paused"
@@ -281,7 +281,7 @@ class TestGraphExecute:
         db = AsyncMock()
         executor = _mock_executor()
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-graph")
 
         assert result.success is True
         assert len(result.completed_nodes) == 2
@@ -299,7 +299,7 @@ class TestGraphExecute:
         db = AsyncMock()
         executor = _mock_executor()
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-graph")
 
         assert result.success is True
         assert "gate" in result.completed_nodes
@@ -346,7 +346,7 @@ class TestGraphExecute:
 
         executor.execute_node = AsyncMock(side_effect=mock_execute)
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-graph")
 
         assert result.success is True
         assert "check" in result.completed_nodes
@@ -370,7 +370,7 @@ class TestGraphExecute:
         executor = _mock_executor()
 
         # Only run subgraph starting from b
-        result = await s.execute(wf, {"start_node_id": "b"}, executor, db)
+        result = await s.execute(wf, {"start_node_id": "b"}, executor, db, run_id="test-run-graph")
 
         assert result.success is True
         assert "b" in result.completed_nodes
@@ -386,7 +386,7 @@ class TestGraphExecute:
         db = AsyncMock()
         executor = _mock_executor()
 
-        result = await s.execute(wf, {"start_node_id": "nonexistent"}, executor, db)
+        result = await s.execute(wf, {"start_node_id": "nonexistent"}, executor, db, run_id="test-run-graph")
 
         assert result.success is True
         assert result.completed_nodes == []
@@ -407,6 +407,7 @@ class TestGraphExecute:
             {"previous_outputs": {"prior": {"text": "cached"}}, "start_node_id": None},
             executor,
             db,
+            run_id="test-run-graph",
         )
 
         assert result.success is True
@@ -431,7 +432,7 @@ class TestGraphExecute:
         db = AsyncMock()
         executor = _mock_executor()
 
-        result = await s.execute(wf, {}, executor, db)
+        result = await s.execute(wf, {}, executor, db, run_id="test-run-graph")
 
         assert result.success is True
         assert len(result.completed_nodes) == 4
