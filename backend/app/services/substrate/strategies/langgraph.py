@@ -19,7 +19,10 @@ import logging
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from app.services.substrate.strategies.base import ExecutionStrategy
+from app.services.substrate.strategies.base import (
+    ExecutionStrategy,
+    _validate_edge_endpoints,
+)
 from app.services.substrate.workflow_models import (
     StrategyResult,
     Workflow,
@@ -52,6 +55,8 @@ class LangGraphStrategy(ExecutionStrategy):
             graph_name = node.config.get("graph_name")
             if not graph_name:
                 errors.append(f"LangGraph node '{node.id}' missing 'graph_name' in config")
+
+        errors.extend(_validate_edge_endpoints(workflow))
 
         return errors
 

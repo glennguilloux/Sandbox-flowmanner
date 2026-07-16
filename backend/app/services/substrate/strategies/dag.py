@@ -28,7 +28,10 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from app.services.substrate.node_executor import _safe_eval
-from app.services.substrate.strategies.base import ExecutionStrategy
+from app.services.substrate.strategies.base import (
+    ExecutionStrategy,
+    _validate_edge_endpoints,
+)
 from app.services.substrate.workflow_models import (
     StrategyResult,
     Workflow,
@@ -55,16 +58,11 @@ class DAGStrategy(ExecutionStrategy):
 
     async def validate(self, workflow: Workflow) -> list[str]:
         errors: list[str] = []
-        node_ids = {n.id for n in workflow.nodes}
 
         if not workflow.nodes:
             errors.append("DAG workflow must have at least 1 node")
 
-        for edge in workflow.edges:
-            if edge.source not in node_ids:
-                errors.append(f"Edge source '{edge.source}' not found in nodes")
-            if edge.target not in node_ids:
-                errors.append(f"Edge target '{edge.target}' not found in nodes")
+        errors.extend(_validate_edge_endpoints(workflow))
 
         if self._has_cycle(workflow):
             errors.append("DAG contains a cycle")

@@ -14,7 +14,10 @@ import logging
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from app.services.substrate.strategies.base import ExecutionStrategy
+from app.services.substrate.strategies.base import (
+    ExecutionStrategy,
+    _validate_edge_endpoints,
+)
 from app.services.substrate.workflow_models import (
     NodeType,
     StrategyResult,
@@ -63,6 +66,8 @@ class PipelineStrategy(ExecutionStrategy):
         # Validate that all required phases have nodes
         phase_configs = {n.config.get("phase") for n in workflow.nodes}
         errors.extend(f"Pipeline missing required phase: '{phase}'" for phase in PHASES if phase not in phase_configs)
+
+        errors.extend(_validate_edge_endpoints(workflow))
 
         return errors
 

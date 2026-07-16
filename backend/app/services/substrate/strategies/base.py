@@ -32,6 +32,28 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _validate_edge_endpoints(workflow: Workflow) -> list[str]:
+    """Reject edges whose source or target names a non-existent node id.
+
+    Shared by every strategy so dangling edges fail validation uniformly
+    (parity). Previously only DAG/Graph checked this; Swarm/Pipeline/Meta/
+    LangGraph silently accepted dangling edges. This is now the single
+    source of truth.
+
+    The message strings are asserted by DAG validation tests, so they must
+    stay exactly: ``Edge source '<id>' not found in nodes`` /
+    ``Edge target '<id>' not found in nodes``.
+    """
+    node_ids = {n.id for n in workflow.nodes}
+    errors: list[str] = []
+    for edge in workflow.edges:
+        if edge.source not in node_ids:
+            errors.append(f"Edge source '{edge.source}' not found in nodes")
+        if edge.target not in node_ids:
+            errors.append(f"Edge target '{edge.target}' not found in nodes")
+    return errors
+
+
 class ExecutionStrategy(ABC):
     """Interface for all workflow execution strategies.
 

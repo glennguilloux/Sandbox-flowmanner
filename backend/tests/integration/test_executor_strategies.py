@@ -30,6 +30,8 @@ from app.services.substrate.executor import UnifiedExecutor, _find_resume_point
 from app.services.substrate.node_executor import NodeExecutor
 from app.services.substrate.strategies.dag import DAGStrategy
 from app.services.substrate.strategies.graph import GraphStrategy
+from app.services.substrate.strategies.langgraph import LangGraphStrategy
+from app.services.substrate.strategies.meta import MetaStrategy
 from app.services.substrate.strategies.pipeline import PipelineStrategy
 from app.services.substrate.strategies.solo import SoloStrategy
 from app.services.substrate.strategies.swarm import SwarmStrategy
@@ -180,6 +182,71 @@ def _make_dag_three_layer(
             max_depth=10,
         ),
         user_id=user_id,
+        metadata={"substrate_run_id": str(uuid4())},
+    )
+
+
+_PHASES = ["dispatch", "research", "draft", "debate", "consensus", "synthesis", "review"]
+
+
+def _make_valid_strategy_workflow(wf_type: WorkflowType) -> Workflow:
+    """Build a minimal VALID workflow of the given strategy type.
+
+    No dangling edges and no other validation errors, so that appending a
+    single dangling edge isolates the edge-endpoint check.  Used by the
+    edge-endpoint parity tests (F3 parity: every strategy must reject a
+    dangling edge source/target, not only DAG/Graph).
+    """
+    nodes: list[WorkflowNode] = []
+    edges: list[WorkflowEdge] = []
+
+    if wf_type == WorkflowType.DAG:
+        a = _make_llm_node(node_id="a")
+        b = _make_llm_node(node_id="b")
+        b.dependencies = ["a"]
+        nodes = [a, b]
+        edges = [WorkflowEdge(source="a", target="b")]
+    elif wf_type == WorkflowType.GRAPH:
+        a = _make_llm_node(node_id="a")
+        b = _make_llm_node(node_id="b")
+        nodes = [a, b]
+        edges = [WorkflowEdge(source="a", target="b")]
+    elif wf_type == WorkflowType.SWARM:
+        fo = WorkflowNode(id="fo", type=NodeType.FAN_OUT, title="Fan Out")
+        fi = WorkflowNode(id="fi", type=NodeType.FAN_IN, title="Fan In")
+        nodes = [fo, fi]
+        edges = [WorkflowEdge(source="fo", target="fi")]
+    elif wf_type == WorkflowType.PIPELINE:
+        nodes = [WorkflowNode(id=p, type=NodeType.PHASE_GATE, title=p, config={"phase": p}) for p in _PHASES]
+        edges = [WorkflowEdge(source=_PHASES[i], target=_PHASES[i + 1]) for i in range(len(_PHASES) - 1)]
+    elif wf_type == WorkflowType.META:
+        nodes = [WorkflowNode(id="sub", type=NodeType.SUB_WORKFLOW, title="Sub", config={})]
+    elif wf_type == WorkflowType.LANGGRAPH:
+        nodes = [
+            WorkflowNode(
+                id="g",
+                type=NodeType.LLM_CALL,
+                title="Graph",
+                config={"graph_name": "governance"},
+            )
+        ]
+    else:
+        raise ValueError(f"unsupported workflow type for helper: {wf_type}")
+
+    return Workflow(
+        id=str(uuid4()),
+        type=wf_type,
+        title=f"{wf_type.value} parity",
+        description="edge-endpoint parity workflow",
+        nodes=nodes,
+        edges=edges,
+        budget=Budget(
+            max_cost_usd=Decimal("5.00"),
+            max_wall_time_seconds=120,
+            max_iterations=50,
+            max_depth=5,
+        ),
+        user_id="42",
         metadata={"substrate_run_id": str(uuid4())},
     )
 
@@ -679,6 +746,85 @@ class TestDAGStrategyValidation:
         strategy = DAGStrategy()
         errors = await strategy.validate(workflow)
         assert any("cycle" in e.lower() for e in errors)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Edge-endpoint parity (F3): every strategy must reject dangling edges.
+# Previously only DAG/Graph checked this; Swarm/Pipeline/Meta/LangGraph
+# silently accepted a dangling edge (source or target names a missing node).
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestSwarmEdgeParity:
+    """SwarmStrategy must reject a dangling edge source/target."""
+
+    @pytest.mark.asyncio
+    async def test_validate_rejects_invalid_edge_source(self):
+        wf = _make_valid_strategy_workflow(WorkflowType.SWARM)
+        wf.edges.append(WorkflowEdge(source="nonexistent", target="fi"))
+        errors = await SwarmStrategy().validate(wf)
+        assert any("Edge source" in e and "nonexistent" in e for e in errors)
+
+    @pytest.mark.asyncio
+    async def test_validate_rejects_invalid_edge_target(self):
+        wf = _make_valid_strategy_workflow(WorkflowType.SWARM)
+        wf.edges.append(WorkflowEdge(source="fo", target="nonexistent"))
+        errors = await SwarmStrategy().validate(wf)
+        assert any("Edge target" in e and "nonexistent" in e for e in errors)
+
+
+class TestPipelineEdgeParity:
+    """PipelineStrategy must reject a dangling edge source/target."""
+
+    @pytest.mark.asyncio
+    async def test_validate_rejects_invalid_edge_source(self):
+        wf = _make_valid_strategy_workflow(WorkflowType.PIPELINE)
+        wf.edges.append(WorkflowEdge(source="nonexistent", target="research"))
+        errors = await PipelineStrategy().validate(wf)
+        assert any("Edge source" in e and "nonexistent" in e for e in errors)
+
+    @pytest.mark.asyncio
+    async def test_validate_rejects_invalid_edge_target(self):
+        wf = _make_valid_strategy_workflow(WorkflowType.PIPELINE)
+        wf.edges.append(WorkflowEdge(source="dispatch", target="nonexistent"))
+        errors = await PipelineStrategy().validate(wf)
+        assert any("Edge target" in e and "nonexistent" in e for e in errors)
+
+
+class TestMetaEdgeParity:
+    """MetaStrategy must reject a dangling edge source/target."""
+
+    @pytest.mark.asyncio
+    async def test_validate_rejects_invalid_edge_source(self):
+        wf = _make_valid_strategy_workflow(WorkflowType.META)
+        wf.edges.append(WorkflowEdge(source="nonexistent", target="sub"))
+        errors = await MetaStrategy().validate(wf)
+        assert any("Edge source" in e and "nonexistent" in e for e in errors)
+
+    @pytest.mark.asyncio
+    async def test_validate_rejects_invalid_edge_target(self):
+        wf = _make_valid_strategy_workflow(WorkflowType.META)
+        wf.edges.append(WorkflowEdge(source="sub", target="nonexistent"))
+        errors = await MetaStrategy().validate(wf)
+        assert any("Edge target" in e and "nonexistent" in e for e in errors)
+
+
+class TestLangGraphEdgeParity:
+    """LangGraphStrategy must reject a dangling edge source/target."""
+
+    @pytest.mark.asyncio
+    async def test_validate_rejects_invalid_edge_source(self):
+        wf = _make_valid_strategy_workflow(WorkflowType.LANGGRAPH)
+        wf.edges.append(WorkflowEdge(source="nonexistent", target="g"))
+        errors = await LangGraphStrategy().validate(wf)
+        assert any("Edge source" in e and "nonexistent" in e for e in errors)
+
+    @pytest.mark.asyncio
+    async def test_validate_rejects_invalid_edge_target(self):
+        wf = _make_valid_strategy_workflow(WorkflowType.LANGGRAPH)
+        wf.edges.append(WorkflowEdge(source="g", target="nonexistent"))
+        errors = await LangGraphStrategy().validate(wf)
+        assert any("Edge target" in e and "nonexistent" in e for e in errors)
 
 
 class TestDAGTopologicalSort:
