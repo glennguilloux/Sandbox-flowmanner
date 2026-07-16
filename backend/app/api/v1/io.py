@@ -15,7 +15,7 @@ import os
 import time
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app.api.deps import get_current_user
 from app.models.io_models import (
@@ -382,6 +382,7 @@ async def document_parse(
 @router.post("/code/execute", response_model=CodeExecuteResponse)
 async def code_execute(
     payload: CodeExecuteRequest,
+    response: Response,
     user: User = Depends(get_current_user),
 ):
     """Execute a code cell using the production sandbox tools (Python or Node.js).
@@ -429,6 +430,7 @@ async def code_execute(
     except Exception as e:
         elapsed_ms = (time.monotonic() - start) * 1000
         logger.exception("Sandbox execution failed for user %s", user.id)
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return CodeExecuteResponse(
             success=False,
             execution_time_ms=round(elapsed_ms, 1),
@@ -438,6 +440,7 @@ async def code_execute(
     elapsed_ms = (time.monotonic() - start) * 1000
 
     if not result.success:
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return CodeExecuteResponse(
             success=False,
             execution_time_ms=round(elapsed_ms, 1),
