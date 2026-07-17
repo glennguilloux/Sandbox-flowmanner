@@ -1804,7 +1804,7 @@ class NodeExecutor:
             service = get_search_service()
             request = SearchRequest(
                 query=query,
-                search_type=SearchType.GENERAL,  # type: ignore[attr-defined]
+                search_type=SearchType.QUICK,
                 max_results=5,
             )
             response = await service.search(request)
@@ -2903,7 +2903,7 @@ class NodeExecutor:
             service = get_search_service()
             request = SearchRequest(
                 query=query,
-                search_type=SearchType.GENERAL,  # type: ignore[attr-defined]
+                search_type=SearchType.QUICK,
                 max_results=5,
             )
             response = await service.search(request)

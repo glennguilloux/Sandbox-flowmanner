@@ -195,18 +195,18 @@ class TestWebSearchNodeInterpolation:
         node = _node("web_search", {"query": "latest news on {{ inputs.company }}"})
         context = {"inputs": {"company": "Flowmanner"}}
 
-        # Mock SearchRequest + SearchType so the test validates interpolation
-        # without depending on the unrelated SearchType.GENERAL enum reference
-        # in the handler (pre-existing bug; flagged separately).
         req_capture = {}
 
-        class _StubRequest:
-            def __init__(self, query, **kw):
-                self.query = query
-                req_capture["query"] = query
+        # Capture the real SearchRequest so we can assert the resolved query
+        # AND that the handler uses a valid SearchType member (regression guard
+        # for the SearchType.GENERAL AttributeError crash).
+        from app.services.web_search.models import SearchRequest
 
-        class _StubSearchType:
-            GENERAL = "general"
+        class _CaptureRequest(SearchRequest):
+            def __init__(self, query, **kw):
+                super().__init__(query=query, **kw)
+                req_capture["query"] = query
+                req_capture["search_type"] = self.search_type
 
         with (
             patch(
@@ -215,11 +215,7 @@ class TestWebSearchNodeInterpolation:
             ),
             patch(
                 "app.services.web_search.models.SearchRequest",
-                _StubRequest,
-            ),
-            patch(
-                "app.services.web_search.models.SearchType",
-                _StubSearchType,
+                _CaptureRequest,
             ),
         ):
             ex = _executor()
@@ -229,6 +225,10 @@ class TestWebSearchNodeInterpolation:
         service.search.assert_called_once()
         assert req_capture["query"] == "latest news on Flowmanner"
         assert "{{ inputs.company }}" not in req_capture["query"]
+        # Regression guard: the handler must reference a real SearchType member.
+        from app.services.web_search.models import SearchType
+
+        assert req_capture["search_type"] == SearchType.QUICK
 
 
 # ── Regression: sandbox path uses identical rendering ───────────────
