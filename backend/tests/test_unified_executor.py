@@ -77,8 +77,11 @@ class TestStrategyLoading:
     def test_all_workflow_types_have_strategies(self):
         executor, _, _ = _make_mock_executor()
         executor._load_strategies()
-        for wtype in WorkflowType:
+        # META is fully de-registered (Q8) and intentionally excluded.
+        live_types = [w for w in WorkflowType if w != WorkflowType.META]
+        for wtype in live_types:
             assert wtype in executor._strategies
+        assert WorkflowType.META not in executor._strategies
 
 
 class TestAbortAndRunningState:

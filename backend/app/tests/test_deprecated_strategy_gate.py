@@ -19,15 +19,28 @@ from app.services.substrate.workflow_models import WorkflowType
 class TestDeprecatedStrategyGate:
     """_get_strategy rejects deprecated strategies unless explicitly allowed."""
 
-    def test_meta_blocked_by_default(self):
+    def test_meta_not_registered(self):
+        """MetaStrategy is fully de-registered (Q8): not in the executor map
+        regardless of STRATEGY_ALLOW_DEPRECATED / STRATEGY_EXPERIMENTAL."""
         executor = UnifiedExecutor()
         with patch("app.config.settings") as mock_settings:
             mock_settings.STRATEGY_ALLOW_DEPRECATED = False
             mock_settings.STRATEGY_EXPERIMENTAL = False
-            with pytest.raises(ValueError, match="deprecated"):
+            executor._load_strategies()
+            assert WorkflowType.META not in executor._strategies
+            with pytest.raises(ValueError, match="No strategy registered"):
                 executor._get_strategy(WorkflowType.META)
 
-    def test_swarm_blocked_by_default(self):
+    def test_meta_not_registered_even_with_flags(self):
+        """Even with the gate flags enabled, META must stay de-registered."""
+        executor = UnifiedExecutor()
+        with patch("app.config.settings") as mock_settings:
+            mock_settings.STRATEGY_ALLOW_DEPRECATED = True
+            mock_settings.STRATEGY_EXPERIMENTAL = True
+            executor._load_strategies()
+            assert WorkflowType.META not in executor._strategies
+            with pytest.raises(ValueError, match="No strategy registered"):
+                executor._get_strategy(WorkflowType.META)
         executor = UnifiedExecutor()
         with patch("app.config.settings") as mock_settings:
             mock_settings.STRATEGY_ALLOW_DEPRECATED = False
@@ -50,14 +63,6 @@ class TestDeprecatedStrategyGate:
             mock_settings.STRATEGY_EXPERIMENTAL = False
             with pytest.raises(ValueError, match="deprecated"):
                 executor._get_strategy(WorkflowType.LANGGRAPH)
-
-    def test_meta_allowed_when_flag_set(self):
-        executor = UnifiedExecutor()
-        with patch("app.config.settings") as mock_settings:
-            mock_settings.STRATEGY_ALLOW_DEPRECATED = True
-            mock_settings.STRATEGY_EXPERIMENTAL = True  # META is also EXPERIMENTAL
-            strategy = executor._get_strategy(WorkflowType.META)
-            assert strategy is not None
 
     def test_solo_not_affected(self):
         """Non-deprecated strategies work regardless of the flag."""
@@ -83,11 +88,3 @@ class TestDeprecatedStrategyGate:
             mock_settings.STRATEGY_EXPERIMENTAL = False
             strategy = executor._get_strategy(WorkflowType.GRAPH)
             assert strategy is not None
-
-    def test_error_message_includes_strategy_name(self):
-        executor = UnifiedExecutor()
-        with patch("app.config.settings") as mock_settings:
-            mock_settings.STRATEGY_ALLOW_DEPRECATED = False
-            mock_settings.STRATEGY_EXPERIMENTAL = False
-            with pytest.raises(ValueError, match="meta"):
-                executor._get_strategy(WorkflowType.META)

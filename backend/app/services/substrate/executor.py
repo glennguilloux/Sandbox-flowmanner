@@ -100,7 +100,6 @@ class UnifiedExecutor:
         from app.services.substrate.strategies.dag import DAGStrategy
         from app.services.substrate.strategies.graph import GraphStrategy
         from app.services.substrate.strategies.langgraph import LangGraphStrategy
-        from app.services.substrate.strategies.meta import MetaStrategy
         from app.services.substrate.strategies.pipeline import PipelineStrategy
         from app.services.substrate.strategies.solo import SoloStrategy
         from app.services.substrate.strategies.swarm import SwarmStrategy
@@ -111,7 +110,6 @@ class UnifiedExecutor:
             WorkflowType.GRAPH: GraphStrategy(),
             WorkflowType.SWARM: SwarmStrategy(),
             WorkflowType.PIPELINE: PipelineStrategy(),
-            WorkflowType.META: MetaStrategy(),
             WorkflowType.LANGGRAPH: LangGraphStrategy(),
         }
         self._strategies_loaded = True

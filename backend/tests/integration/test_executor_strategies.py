@@ -1500,18 +1500,29 @@ class TestPostHooks:
 class TestStrategyRegistration:
     """Test strategy loading and routing."""
 
-    def test_all_seven_strategies_loaded(self):
+    def test_all_strategies_loaded(self):
         executor = UnifiedExecutor(event_log=AsyncMock(), replay_engine=AsyncMock())
         executor._load_strategies()
 
-        assert len(executor._strategies) == 7
+        # 6 live strategies; META is fully de-registered (Q8).
+        assert len(executor._strategies) == 6
         assert WorkflowType.SOLO in executor._strategies
         assert WorkflowType.DAG in executor._strategies
         assert WorkflowType.GRAPH in executor._strategies
         assert WorkflowType.SWARM in executor._strategies
         assert WorkflowType.PIPELINE in executor._strategies
-        assert WorkflowType.META in executor._strategies
+        assert WorkflowType.META not in executor._strategies
         assert WorkflowType.LANGGRAPH in executor._strategies
+
+    def test_meta_not_registered(self):
+        """Regression guard: MetaStrategy must be de-registered (Q8)."""
+        executor = UnifiedExecutor(event_log=AsyncMock(), replay_engine=AsyncMock())
+        executor._load_strategies()
+        assert WorkflowType.META not in executor._strategies
+        # Class still importable, just not wired into the executor.
+        from app.services.substrate.strategies.meta import MetaStrategy
+
+        assert MetaStrategy is not None
 
     def test_strategy_loading_is_idempotent(self):
         executor = UnifiedExecutor(event_log=AsyncMock(), replay_engine=AsyncMock())
