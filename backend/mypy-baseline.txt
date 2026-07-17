@@ -214,9 +214,7 @@ app/services/rag/vector_store.py:line: note: By default the bodies of untyped fu
 app/services/reliability_assertions.py:line: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
 app/services/run_service.py:line: error: Function "app.services.run_service.RunService.list" is not valid as a type  [valid-type]
 app/services/run_service.py:line: note: Perhaps you need "Callable[...]" or a callback protocol?
-app/services/runtime/anomaly_detector.py:line: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
-app/services/runtime/predictive_scaler.py:line: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
-app/services/runtime/self_healing.py:line: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+
 app/services/semantic/topology_manager.py:line: error: Incompatible return value type (got "dict[str, list[float]]", expected "dict[int, dict[Any, Any]]")  [return-value]
 app/services/semantic/topology_manager.py:line: error: Name "Any" is not defined  [name-defined]
 app/services/semantic/topology_manager.py:line: note: Did you forget to import it from "typing"? (Suggestion: "from typing import Any")

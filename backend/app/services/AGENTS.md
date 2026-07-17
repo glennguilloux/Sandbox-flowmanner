@@ -167,7 +167,7 @@ Until H5.1 ships, the 7 old executors (mission_executor, dag_executor, graph_exe
 - `usage_service.py` + `usage_tracking_service.py` (elsewhere) — Per-user usage + cost tracking.
 - `cost_tracker.py` + `cost_attribution_service.py` + `budget_enforcer.py` — Cost models, attribution, enforcement.
 - `circuit_breaker_service.py` + `app/core/circuit_breaker.py` — Circuit breaker (one per provider).
-- `runtime/` — `runtime_sdk.py` (public SDK), `health_monitor.py`, `predictive_scaler.py`, `anomaly_detector.py`, `recovery_strategies.py`, `self_healing.py`. Phase 4 runtime subsystem.
+- **Self-healing / auto-scaling is NOT operational.** The `runtime/` self-healing subsystem (Phase 4: `predictive_scaler`, `self_healing`, `health_monitor`, `anomaly_detector`, `recovery_strategies`, `runtime_sdk`) was **removed 2026-07-17** (R10) because it was fully orphaned — decorative `random.uniform` telemetry, `asyncio.sleep(0.5)` "recovery", in-memory-only history, and zero imports outside `runtime/`. No real scaling/self-healing exists in the backend yet. Do not claim 99.9% SLA from code that isn't there.
 
 ### 10. Self-improvement cluster
 
