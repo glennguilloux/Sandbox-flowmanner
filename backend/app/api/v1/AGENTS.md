@@ -7,7 +7,7 @@ This is the local contract for `backend/app/api/v1/` — the **legacy-stable HTT
 An agent landing here should be able to:
 
 1. Find the right router for a domain (auth, missions, chat, workspaces, integrations, etc.) without listing the directory.
-2. See, for each router, **whether it has migrated to `_mission_cqrs`**, **whether it inlines old executor logic** (`MissionExecutor`, `dag_executor`, `graph_executor`, `SwarmOrchestrator`, `langgraph/agent`, `nexus/meta_loop_orchestrator`), or **whether it is executor-free CRUD** (no migration needed).
+2. See, for each router, **whether it has migrated to `_mission_cqrs`**, **whether it inlines old executor logic** (`MissionExecutor`, `dag_executor`, `graph_executor`, `langgraph/agent`), or **whether it is executor-free CRUD** (no migration needed).
 3. Know the migration paths and the order in which routers should be rewritten.
 
 The companion documents are:
