@@ -25,6 +25,13 @@ async def lifespan(app):
     # === STARTUP ===
     logger.info("Application starting up...")
 
+    # ADR-002: warn (non-fatal) if the vestigial FLOWMANNER_UNIFIED_EXECUTOR var
+    # is still exported with a misleading value. The v1→substrate cutover is
+    # complete; this variable no longer selects an engine.
+    _executor_flag_warning = settings.warn_vestigial_executor_flag()
+    if _executor_flag_warning:
+        logger.warning("CONFIG: %s", _executor_flag_warning)
+
     _validate_production_secrets()
 
     # Comment 5: fail fast when an enabled model cannot be served (missing
