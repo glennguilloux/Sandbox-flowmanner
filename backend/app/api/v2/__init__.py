@@ -127,4 +127,9 @@ from app.api.v2.roadmap import router as roadmap_router
 api_v2_router.include_router(blog_router)
 api_v2_router.include_router(roadmap_router)
 
+# R9 — lightweight read-only Changelog router (release-notes credibility)
+from app.api.v2.changelog import router as changelog_router
+
+api_v2_router.include_router(changelog_router)
+
 logger.info("API v2 router initialized — %d sub-routers", len(api_v2_router.routes))
