@@ -1,8 +1,17 @@
+import os
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PLACEHOLDER_SECRETS = {"change-me-in-production", "changeme", "secret", "password"}
+
+# ADR-002 (v1 → substrate cutover): the FLOWMANNER_UNIFIED_EXECUTOR env var is
+# VESTIGIAL. The three-phase rollout it once gated is complete — all 7 legacy
+# executors (mission/dag/graph/swarm/pipeline/langgraph/meta) were deleted and
+# the UnifiedExecutor is the sole GA execution path. The var is intentionally
+# NOT a typed Settings field so it cannot be resurrected as live config; the
+# guard below only WARNS when a stale value is still exported.
+_UNIFIED_EXECUTOR_ENV = "FLOWMANNER_UNIFIED_EXECUTOR"
 
 
 class Settings(BaseSettings):
@@ -460,6 +469,34 @@ class Settings(BaseSettings):
                 if value in PLACEHOLDER_SECRETS:
                     warnings.append(f"{name} is using a placeholder value — set a strong secret in .env")
         return warnings
+
+    def warn_vestigial_executor_flag(self, env: dict[str, str] | None = None) -> str | None:
+        """ADR-002: warn if the vestigial FLOWMANNER_UNIFIED_EXECUTOR var is set to
+        a misleading value in a non-dev environment.
+
+        The var no longer gates anything (all legacy executors are deleted; the
+        UnifiedExecutor is the sole engine). Any value other than ``all`` (or
+        unset) is a config lie — an operator setting ``off``/``run`` would wrongly
+        believe the old engines still serve traffic. This method returns a
+        warning string in that case, else ``None``. It NEVER raises and NEVER
+        changes execution behavior.
+        """
+        source = os.environ if env is None else env
+        raw = source.get(_UNIFIED_EXECUTOR_ENV)
+        if raw is None:
+            return None  # unset is fine — the flag is dead
+        value = raw.strip().lower()
+        if value in ("", "all"):
+            return None
+        if self.APP_ENV == "development":
+            return None
+        return (
+            f"{_UNIFIED_EXECUTOR_ENV}={raw!r} is set but VESTIGIAL — the v1→substrate "
+            "cutover is complete and this variable no longer selects an execution "
+            "engine. Any value other than 'all' is misleading (the legacy executors "
+            "are deleted). Remove it from the environment. See "
+            "docs/adr/ADR-002-v1-substrate-cutover.md."
+        )
 
     def assert_production_ready(self) -> None:
         """Fail fast if production secrets are not set. Call from lifespan startup."""
