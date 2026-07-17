@@ -9,7 +9,6 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import get_current_user
-from app.api.envelope import envelope as _envelope
 from app.database import get_db
 from app.models.byok_models import UserAPIKey
 from app.utils.encryption import decrypt_api_key, encrypt_api_key, validate_provider
@@ -103,18 +102,16 @@ async def create_api_key(
 
     await log_event(uid, "byok_key_created", {"provider": provider_lower, "key_id": key.id})
 
-    return _envelope(
-        {
-            "id": key.id,
-            "provider": key.provider,
-            "key_label": key.key_label,
-            "is_active": key.is_active,
-            "created_at": key.created_at.isoformat(),
-            "updated_at": key.updated_at.isoformat(),
-            "models": key.get_models_list() or None,
-            "base_url": key.base_url,
-        }
-    )
+    return {
+        "id": key.id,
+        "provider": key.provider,
+        "key_label": key.key_label,
+        "is_active": key.is_active,
+        "created_at": key.created_at.isoformat(),
+        "updated_at": key.updated_at.isoformat(),
+        "models": key.get_models_list() or None,
+        "base_url": key.base_url,
+    }
 
 
 @router.get("/")

@@ -67,8 +67,8 @@ async def test_create_api_key():
             db=mock_db,
         )
 
-        assert result["data"]["provider"] == "openai"
-        assert result["data"]["key_label"] == "My OpenAI Key"
+        assert result["provider"] == "openai"
+        assert result["key_label"] == "My OpenAI Key"
         mock_db.add.assert_called_once()
         mock_db.commit.assert_awaited_once()
 
