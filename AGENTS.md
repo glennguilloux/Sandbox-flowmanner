@@ -13,7 +13,7 @@ This project spans two machines. Use the file that matches where your agent runs
 
 ## Docs
 
-- **Mission template catalog** (35 built-in templates, node types, categories, add-a-template guide) → [templates/README.md](./templates/README.md)
+- **Mission template catalog** (59 built-in templates, node types, categories, add-a-template guide) → [templates/README.md](./templates/README.md)
 - **`.sisyphus/` knowledge-substrate schema** (Timeline convention + "earn a kind" gate) → [.sisyphus/SCHEMA.md](./.sisyphus/SCHEMA.md)
 
 ## Quick Reference
