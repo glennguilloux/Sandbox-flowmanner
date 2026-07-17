@@ -67,6 +67,7 @@ class SwarmStrategy(ExecutionStrategy):
     """Multi-agent swarm strategy — decompose, dispatch, synthesize."""
 
     DEPRECATED = True  # 0% success with 27B model per strategy profiling 2026-07-04
+                      # (do not market as production-ready; 0% success on 27B per 2026-07-04 profiling)
     EXPERIMENTAL = True
 
     def can_handle(self, workflow_type: WorkflowType) -> bool:

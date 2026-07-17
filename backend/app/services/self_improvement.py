@@ -6,6 +6,11 @@ from app.models.mission_models import Mission, MissionImprovement
 
 
 class SelfImprovementEngine:
+    """Stores improvement suggestions for a mission.
+
+    (note: current implementation returns hardcoded template strings from
+    ``_analyze_failure`` — not LLM-driven and not an autonomous learner)
+    """
     def __init__(self, db, user_id: str):
         self.db = db
         self.user_id = user_id
