@@ -76,12 +76,16 @@ async def emit_integration_event(
     user_id: int | None = None,
     raw_body: dict[str, Any] | None = None,
     delivery_id: str | None = None,
-) -> int:
+) -> str:
     """Emit an integration event via the durable EventBus.
 
     This is a thin convenience wrapper over ``EventBus.publish()``.
     The event is persisted as an ``ExternalEvent`` row *before* any
     triggers are fired, giving durability, idempotency, and replay.
+
+    Dispatch (trigger matching, audit, failure alerts) runs OFF the request
+    path in the ``process_external_event`` Celery task, which the calling
+    webhook route enqueues after its DB transaction commits.
 
     Args:
         db: Database session (caller owns the transaction).
@@ -93,7 +97,9 @@ async def emit_integration_event(
         delivery_id: Idempotency key (e.g. Stripe event ID, GitHub delivery GUID).
 
     Returns:
-        Number of triggers fired.
+        The persisted ``ExternalEvent`` id (str).  Trigger dispatch is
+        asynchronous — callers must not assume ``triggers_fired`` is populated
+        on return.
     """
     # If no natural delivery_id was provided, generate a synthetic one
     # from HMAC(source:event_type:sorted_payload_json) so duplicate webhook
@@ -115,9 +121,9 @@ async def emit_integration_event(
         user_id=user_id,
     )
 
-    # The trigger matching consumer already ran inside publish().
-    # Return the count of triggers that were fired.
-    return event.triggers_fired
+    # Dispatch happens asynchronously in the Celery process_external_event task.
+    # Return the event id so callers can correlate / await if needed.
+    return str(event.id)
 
 
 # ── Synthetic delivery_id ───────────────────────────────────────────

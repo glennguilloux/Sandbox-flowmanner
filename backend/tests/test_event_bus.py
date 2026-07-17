@@ -1,12 +1,21 @@
 """Unit tests for the EventBus pipeline.
 
+Contract (post Q4/Q5/Q6 refactor):
+- ``publish()`` persists the ExternalEvent row (status ``"pending"``) and
+  returns it.  It does NOT run consumers and does NOT enqueue anything — the
+  webhook route enqueues ``process_external_event`` *after* commit.
+- ``process_event(db, event)`` runs the registered consumers + failure
+  handlers and sets the final status.  ``replay()`` and the Celery task both
+  use it.  These tests drive ``process_event`` directly (with synthetic
+  consumers) so they stay hermetic on SQLite.
+
 Covers:
-- publish: persists ExternalEvent, dispatches to consumers, sets status
-- idempotency: duplicate delivery_id returns existing event without re-processing
-- replay: resets status and re-dispatches to consumers
+- publish: persists ExternalEvent with status "pending", idempotency
+- process_event: dispatches to consumers, sets status, failure handlers
 - consumer failure isolation: one consumer failing doesn't prevent others
 - failure handler triggering: failure handlers run only on "failed" status
 - failure handler isolation: failure handler exceptions are swallowed
+- replay: resets status and re-dispatches to consumers via process_event
 - synthetic delivery_id generation
 """
 
@@ -93,6 +102,12 @@ def bus():
     return EventBus()
 
 
+async def _publish_and_process(bus, db, **kwargs) -> ExternalEvent:
+    """Helper: publish (persist, status pending) then run consumers via process_event."""
+    event = await bus.publish(db, **kwargs)
+    return await bus.process_event(db, event)
+
+
 # ── Helper consumers for testing ─────────────────────────────────────
 
 
@@ -125,11 +140,11 @@ async def _setting_consumer(db: AsyncSession, event: ExternalEvent) -> None:
 
 
 class TestPublish:
-    """Tests for EventBus.publish()."""
+    """Tests for EventBus.publish() — persist-only (dispatch is off-request-path)."""
 
     @pytest.mark.asyncio
     async def test_publish_persists_event(self, bus, db):
-        """publish() creates an ExternalEvent row in the database."""
+        """publish() creates an ExternalEvent row in the database (status pending)."""
         event = await bus.publish(
             db,
             source="github",
@@ -142,24 +157,33 @@ class TestPublish:
         assert event.event_type == "push"
         assert event.payload == {"ref": "main"}
         assert event.delivery_id == "gh-del-1"
+        # publish() no longer runs consumers — status is "pending" until the
+        # Celery task (process_event) runs.
+        assert event.status == "pending"
+        assert event.processed_at is None
+        assert event.id is not None
+
+        # Dispatch (off-request-path) sets the final status.
+        await bus.process_event(db, event)
         assert event.status == "processed"
         assert event.processed_at is not None
-        assert event.id is not None
 
     @pytest.mark.asyncio
     async def test_publish_no_consumers_sets_processed(self, bus, db):
-        """With no consumers registered, status is 'processed'."""
+        """With no consumers registered, process_event sets status 'processed'."""
         event = await bus.publish(
             db,
             source="stripe",
             event_type="charge.succeeded",
             delivery_id="evt-1",
         )
+        assert event.status == "pending"
+        await bus.process_event(db, event)
         assert event.status == "processed"
 
     @pytest.mark.asyncio
     async def test_publish_dispatches_to_consumers(self, bus, db):
-        """publish() calls all registered consumers."""
+        """process_event() calls all registered consumers."""
         consumer, calls = _tracking_consumer()
         bus.add_consumer(consumer)
 
@@ -169,14 +193,16 @@ class TestPublish:
             event_type="push",
             delivery_id="gh-1",
         )
+        assert event.status == "pending"
 
+        await bus.process_event(db, event)
         assert len(calls) == 1
         assert calls[0].id == event.id
         assert event.status == "processed"
 
     @pytest.mark.asyncio
     async def test_publish_multiple_consumers(self, bus, db):
-        """publish() calls consumers in registration order."""
+        """process_event() calls consumers in registration order."""
         consumer1, calls1 = _tracking_consumer()
         consumer2, calls2 = _tracking_consumer()
         bus.add_consumer(consumer1)
@@ -188,6 +214,7 @@ class TestPublish:
             event_type="push",
             delivery_id="gh-1",
         )
+        await bus.process_event(db, event)
 
         assert len(calls1) == 1
         assert len(calls2) == 1
@@ -202,8 +229,10 @@ class TestPublish:
             source="github",
             event_type="push",
         )
-        assert event.status == "processed"
+        assert event.status == "pending"
         assert event.delivery_id is None
+        await bus.process_event(db, event)
+        assert event.status == "processed"
 
     @pytest.mark.asyncio
     async def test_publish_with_user_id(self, bus, db):
@@ -241,8 +270,10 @@ class TestPublish:
             payload=None,
             delivery_id="gh-2",
         )
-        assert event.status == "processed"
+        assert event.status == "pending"
         assert event.payload is None
+        await bus.process_event(db, event)
+        assert event.status == "processed"
 
 
 # ── Idempotency tests ───────────────────────────────────────────────
@@ -270,7 +301,8 @@ class TestIdempotency:
         )
 
         assert event1.id == event2.id
-        assert event2.status == "processed"
+        # Neither is re-processed by publish(); status stays pending.
+        assert event2.status == "pending"
 
     @pytest.mark.asyncio
     async def test_same_delivery_id_different_source_not_duplicate(self, bus, db):
@@ -309,15 +341,17 @@ class TestIdempotency:
             delivery_id="evt-abc",
         )
 
-        # Consumer should only be called once
-        assert len(calls) == 1
+        # publish() never runs consumers; only one publish created a row, but
+        # even calling process_event would run once per event. Since publish
+        # returned the same existing row, consumers are never auto-run.
+        assert len(calls) == 0
 
 
 # ── Replay tests ────────────────────────────────────────────────────
 
 
 class TestReplay:
-    """Tests for EventBus.replay()."""
+    """Tests for EventBus.replay() (uses process_event internally)."""
 
     @pytest.mark.asyncio
     async def test_replay_resets_status(self, bus, db):
@@ -328,7 +362,7 @@ class TestReplay:
             event_type="push",
             delivery_id="gh-1",
         )
-        assert event.status == "processed"
+        assert event.status == "pending"
 
         replayed = await bus.replay(db, event.id)
 
@@ -354,6 +388,8 @@ class TestReplay:
             event_type="push",
             delivery_id="gh-1",
         )
+        # publish doesn't run consumers; simulate first dispatch.
+        await bus.process_event(db, event)
         assert len(calls) == 1
 
         await bus.replay(db, event.id)
@@ -376,6 +412,7 @@ class TestReplay:
             event_type="push",
             delivery_id="gh-1",
         )
+        await bus.process_event(db, event)
         assert event.triggers_fired == 42
         assert seen_values == [0]  # First call saw 0
 
@@ -402,6 +439,7 @@ class TestReplay:
             event_type="push",
             delivery_id="gh-1",
         )
+        await bus.process_event(db, event)
         assert event.status == "failed"
 
         replayed = await bus.replay(db, event.id)
@@ -420,8 +458,9 @@ class TestReplay:
             event_type="push",
             delivery_id="gh-1",
         )
+        await bus.process_event(db, event)
         assert event.status == "failed"
-        assert len(handler_calls) == 1  # Handler fired on publish
+        assert len(handler_calls) == 1  # Handler fired on process_event
 
         replayed = await bus.replay(db, event.id)
         assert replayed.status == "failed"  # Replay also fails
@@ -432,7 +471,7 @@ class TestReplay:
 
 
 class TestConsumerIsolation:
-    """Tests for consumer failure isolation."""
+    """Tests for consumer failure isolation (via process_event)."""
 
     @pytest.mark.asyncio
     async def test_failing_consumer_sets_failed_status(self, bus, db):
@@ -445,7 +484,7 @@ class TestConsumerIsolation:
             event_type="push",
             delivery_id="gh-1",
         )
-
+        await bus.process_event(db, event)
         assert event.status == "failed"
         assert "consumer exploded" in event.error_message
 
@@ -462,6 +501,7 @@ class TestConsumerIsolation:
             event_type="push",
             delivery_id="gh-1",
         )
+        await bus.process_event(db, event)
 
         # Both consumers ran — the tracking consumer got called
         assert len(calls) == 1
@@ -487,7 +527,7 @@ class TestConsumerIsolation:
             event_type="push",
             delivery_id="gh-1",
         )
-
+        await bus.process_event(db, event)
         assert event.status == "failed"
         assert "error A" in event.error_message
         assert "error B" in event.error_message
@@ -503,7 +543,7 @@ class TestConsumerIsolation:
             event_type="push",
             delivery_id="gh-1",
         )
-
+        await bus.process_event(db, event)
         assert event.triggers_fired == 42
 
 
@@ -511,7 +551,7 @@ class TestConsumerIsolation:
 
 
 class TestFailureHandlers:
-    """Tests for failure handler triggering."""
+    """Tests for failure handler triggering (via process_event)."""
 
     @pytest.mark.asyncio
     async def test_failure_handler_runs_on_failure(self, bus, db):
@@ -526,6 +566,7 @@ class TestFailureHandlers:
             event_type="push",
             delivery_id="gh-1",
         )
+        await bus.process_event(db, event)
 
         assert event.status == "failed"
         assert len(calls) == 1
@@ -544,6 +585,7 @@ class TestFailureHandlers:
             event_type="push",
             delivery_id="gh-1",
         )
+        await bus.process_event(db, event)
 
         assert event.status == "processed"
         assert len(calls) == 0
@@ -565,7 +607,7 @@ class TestFailureHandlers:
             event_type="push",
             delivery_id="gh-1",
         )
-
+        await bus.process_event(db, event)
         assert event.status == "failed"
 
     @pytest.mark.asyncio
@@ -579,12 +621,13 @@ class TestFailureHandlers:
         bus.add_consumer(_failing_consumer)
         bus.add_failure_handler(capturing_handler)
 
-        await bus.publish(
+        event = await bus.publish(
             db,
             source="github",
             event_type="push",
             delivery_id="gh-1",
         )
+        await bus.process_event(db, event)
 
         assert len(received_events) == 1
         assert received_events[0].status == "failed"
@@ -599,12 +642,13 @@ class TestFailureHandlers:
         bus.add_failure_handler(handler1)
         bus.add_failure_handler(handler2)
 
-        await bus.publish(
+        event = await bus.publish(
             db,
             source="github",
             event_type="push",
             delivery_id="gh-1",
         )
+        await bus.process_event(db, event)
 
         assert len(calls1) == 1
         assert len(calls2) == 1

@@ -165,6 +165,7 @@ def _register_custom_tasks() -> None:
         ("memory_extraction_tasks", "memory.extract_claims  (durable memory extraction)"),
         ("decay_memory", "memory.decay_entries  (Epic 3.3 retrieval-lifecycle decay)"),
         ("expire_paused_missions", "mission.expire_paused  (pause-timeout auto-fail)"),
+        ("event_bus_tasks", "event_bus.process_external_event  (Q4/Q5/Q6 off-request-path event dispatch)"),
     ]
 
     registered_modules: list[str] = []
