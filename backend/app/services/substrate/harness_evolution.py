@@ -38,14 +38,14 @@ import copy
 import itertools
 import json
 import random
+from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass, field
-from typing import Any, Awaitable, Callable
-
-from app.services.substrate.workflow_models import NodeType, Workflow, WorkflowNode, WorkflowEdge, WorkflowType
+from typing import Any
 
 # Local, fail-closed safety gate reused from the evaluator shim so the loop and
 # the single-candidate evaluator share ONE invariant set.
 from app.services.substrate.evaluate_harness import safety_check
+from app.services.substrate.workflow_models import NodeType, Workflow, WorkflowEdge, WorkflowNode, WorkflowType
 
 # ── Param space (bounded + safe) ────────────────────────────────────────────
 
@@ -53,11 +53,11 @@ from app.services.substrate.evaluate_harness import safety_check
 # budget fail-closed logic are deliberately absent -- a ParamSpace that declared
 # them would be rejected at construction time (see ParamSpace.validate).
 SAFE_AXES = (
-    "answer.temperature",          # LLM sampling temperature (node config)
-    "answer.top_k",                # retrieval breadth passed to RAGService
-    "budget.tolerance_pct",        # budget_enforcer headroom, NOT the hard cap
-    "assertion.cost_ceiling_mult", # multiplier applied to the cost-ceiling assertion
-    "routing.max_depth",           # graph strategy traversal depth bound
+    "answer.temperature",  # LLM sampling temperature (node config)
+    "answer.top_k",  # retrieval breadth passed to RAGService
+    "budget.tolerance_pct",  # budget_enforcer headroom, NOT the hard cap
+    "assertion.cost_ceiling_mult",  # multiplier applied to the cost-ceiling assertion
+    "routing.max_depth",  # graph strategy traversal depth bound
 )
 
 # Axes that map to node-level config (require a target node id -> "answer").
@@ -122,10 +122,7 @@ class ParamSpace:
         """
         names = list(self._axes)
         value_lists = [self._axes[n].choices for n in names]
-        out: list[dict[str, Any]] = []
-        for combo in itertools.product(*value_lists):
-            out.append(dict(zip(names, combo)))
-        return out
+        return [dict(zip(names, combo, strict=True)) for combo in itertools.product(*value_lists)]
 
     def mutate(self, base: dict[str, Any], rng: random.Random | None = None) -> dict[str, Any]:
         """Produce ONE neighbor of ``base`` by flipping exactly one axis.
@@ -149,6 +146,7 @@ class ParamSpace:
 
 
 # ── Candidate materialization ───────────────────────────────────────────────
+
 
 def apply_params_to_candidate(candidate: dict[str, Any], params: dict[str, Any]) -> dict[str, Any]:
     """Return a deep-copied candidate with ``params`` overlaid onto safe slots.
@@ -186,6 +184,7 @@ def _find_node(candidate: dict[str, Any], node_id: str) -> dict[str, Any]:
 
 # ── Scored ledger ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class LedgerEntry:
     """One scored trial. Fail-closed: ``promoted`` is False unless assertions pass."""
@@ -194,7 +193,7 @@ class LedgerEntry:
     params: dict[str, Any]
     passed: bool
     promoted: bool
-    score: dict[str, Any]              # metric deltas vs baseline
+    score: dict[str, Any]  # metric deltas vs baseline
     safety_pass: bool | None
     assertion_results: list[dict[str, Any]] = field(default_factory=list)
     error: str | None = None
@@ -258,9 +257,7 @@ RunOutcome = dict[str, Any]
 RunFn = Callable[[Workflow, dict[str, Any], dict[str, Any]], Awaitable[RunOutcome]]
 
 
-async def _default_run_candidate(
-    workflow: Workflow, candidate: dict[str, Any], run_ctx: dict[str, Any]
-) -> RunOutcome:
+async def _default_run_candidate(workflow: Workflow, candidate: dict[str, Any], run_ctx: dict[str, Any]) -> RunOutcome:
     """REAL run seam: execute the candidate through UnifiedExecutor.
 
     Mirrors ``evaluate_harness.run_executor`` -- the only production path. It is
@@ -305,9 +302,7 @@ async def _collect_events(db: Any, run_id: str) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for ev in raw:
         payload = ev.payload if isinstance(ev.payload, dict) else {}
-        out.append(
-            {"type": getattr(ev, "type", None) or payload.get("type"), "payload": payload}
-        )
+        out.append({"type": getattr(ev, "type", None) or payload.get("type"), "payload": payload})
     return out
 
 
@@ -326,6 +321,7 @@ def _extract_answer_output(events: list[dict[str, Any]], result: Any) -> dict[st
 
 
 # ── Scoring (reuses substrate assertion vocabulary) ──────────────────────────
+
 
 def score_run(
     candidate: dict[str, Any],
@@ -382,9 +378,7 @@ def score_run(
             elif kind == "task_completion":
                 actual = success
                 ok = success
-            assertion_results.append(
-                {"type": kind, "passed": bool(ok), "actual": actual, "threshold": threshold}
-            )
+            assertion_results.append({"type": kind, "passed": bool(ok), "actual": actual, "threshold": threshold})
             spec_pass = spec_pass and ok
 
     # A run that did not even complete cannot be "better".
@@ -413,6 +407,7 @@ def score_run(
 
 # ── The loop ─────────────────────────────────────────────────────────────────
 
+
 def build_workflow_for_candidate(candidate: dict[str, Any]) -> Workflow:
     """Materialize a real ``Workflow`` from a candidate (adapts evaluate_harness.build_workflow).
 
@@ -432,10 +427,7 @@ def build_workflow_for_candidate(candidate: dict[str, Any]) -> Workflow:
         # SAFE lookup: only construct NodeType from the raw value when no alias
         # exists. (Avoids eagerly evaluating NodeType(raw_type) as a default arg,
         # which would raise for alias keys like "llm".)
-        if raw_type in NODE_TYPE_ALIASES:
-            node_type = NODE_TYPE_ALIASES[raw_type]
-        else:
-            node_type = NodeType(raw_type)
+        node_type = NODE_TYPE_ALIASES[raw_type] if raw_type in NODE_TYPE_ALIASES else NodeType(raw_type)
         config = dict(node.get("config", {}))
         assigned_model = node.get("assigned_model")
         if assigned_model:
@@ -455,10 +447,7 @@ def build_workflow_for_candidate(candidate: dict[str, Any]) -> Workflow:
             )
         )
 
-    edges = [
-        WorkflowEdge(source=e["source"], target=e["target"], condition=e.get("condition"))
-        for e in raw_edges
-    ]
+    edges = [WorkflowEdge(source=e["source"], target=e["target"], condition=e.get("condition")) for e in raw_edges]
     return Workflow(
         id="00000000-0000-0000-0000-0000000000e0",
         type=WorkflowType.DAG if len(nodes) > 1 else WorkflowType.SOLO,
@@ -477,7 +466,7 @@ async def run_evolution(
     param_space: ParamSpace,
     *,
     assertion_spec: list[dict[str, Any]] | None = None,
-    mode: str = "grid",            # "grid" | "mutate"
+    mode: str = "grid",  # "grid" | "mutate"
     generations: int = 1,
     seed: int = 0,
     run_candidate: RunFn | None = None,
@@ -514,8 +503,10 @@ async def run_evolution(
     # Establish baseline metrics if not supplied (run the unmutated candidate).
     if baseline_metrics is None:
         base_wf = build_workflow_for_candidate(base_candidate)
-        base_run = await run(base_wf, base_candidate, {"blueprint_id": blueprint_id, "run_id": __import__("uuid").uuid4()})
-        _, base_score, _, _ = score_run(base_candidate, base_run, {"cost_usd": 0.0, "latency_ms": 0.0}, None)
+        base_run = await run(
+            base_wf, base_candidate, {"blueprint_id": blueprint_id, "run_id": __import__("uuid").uuid4()}
+        )
+        _, _base_score, _, _ = score_run(base_candidate, base_run, {"cost_usd": 0.0, "latency_ms": 0.0}, None)
         baseline_metrics = {
             "cost_usd": float(getattr(base_run["result"], "total_cost_usd", 0.0) or 0.0),
             "latency_ms": float(getattr(base_run["result"], "execution_time_ms", 0.0) or 0.0),

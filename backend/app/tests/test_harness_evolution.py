@@ -28,8 +28,8 @@ from app.services.substrate.harness_evolution import (
     score_run,
 )
 
-
 # ── Fixture blueprint / base candidate ──────────────────────────────────────
+
 
 def _base_candidate() -> dict[str, Any]:
     """A minimal fixture blueprint candidate the loop mutates over.
@@ -73,6 +73,7 @@ def _bounded_space() -> ParamSpace:
 
 # ── Fake run seam (returns the SAME shape as the real UnifiedExecutor path) ──
 
+
 def _make_fake_run(
     success: bool,
     *,
@@ -80,8 +81,9 @@ def _make_fake_run(
     latency_ms: float = 1200.0,
     forbidden_tool: bool = False,
 ) -> RunOutcome:
-    from app.models.substrate_models import SubstrateEventType
     from dataclasses import dataclass
+
+    from app.models.substrate_models import SubstrateEventType
 
     @dataclass
     class _R:
@@ -129,19 +131,20 @@ async def _fake_runner(workflow, candidate, run_ctx):
 
 # ── ParamSpace safety gate ───────────────────────────────────────────────────
 
+
 def test_param_space_rejects_unsafe_axis():
     # Any axis outside SAFE_AXES must be rejected at construction -- this is the
     # hard guard that keeps the loop from ever touching auth/tenancy/budget-cap.
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is not in the bounded safe set"):
         ParamSpace({"auth.api_key": ("x",)})  # not in SAFE_AXES
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is not in the bounded safe set"):
         ParamSpace({"tenant.id": ("t1",)})
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is not in the bounded safe set"):
         ParamSpace({"budget.hard_cap_usd": (10.0,)})  # the fail-closed cap
 
 
 def test_param_space_requires_at_least_one_axis():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="requires at least one bounded axis"):
         ParamSpace({})
 
 
@@ -167,11 +170,10 @@ def test_mutate_flips_exactly_one_safe_axis():
 
 # ── apply_params_to_candidate preserves everything but the safe slot ─────────
 
+
 def test_apply_params_overlays_only_safe_slot():
     candidate = _base_candidate()
-    mutated = apply_params_to_candidate(
-        candidate, {"answer.temperature": 0.4, "answer.top_k": 8}
-    )
+    mutated = apply_params_to_candidate(candidate, {"answer.temperature": 0.4, "answer.top_k": 8})
     # The safe slot changed on the target node.
     answer = next(n for n in mutated["workflow"]["nodes"] if n["id"] == "answer")
     assert answer["config"]["temperature"] == 0.4
@@ -185,18 +187,17 @@ def test_apply_params_overlays_only_safe_slot():
 
 
 def test_apply_params_refuses_out_of_scope_axis():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Refusing to apply out-of-scope axis"):
         apply_params_to_candidate(_base_candidate(), {"auth.secret": "x"})
 
 
 # ── score_run fail-closed ────────────────────────────────────────────────────
 
+
 def test_score_run_passes_clean_candidate():
     candidate = _base_candidate()
     run = _make_fake_run(True)
-    passed, score, results, safety = score_run(
-        candidate, run, {"cost_usd": 0.03, "latency_ms": 1200.0}, None
-    )
+    passed, _score, _results, safety = score_run(candidate, run, {"cost_usd": 0.03, "latency_ms": 1200.0}, None)
     assert safety is True
     assert passed is True
 
@@ -204,9 +205,7 @@ def test_score_run_passes_clean_candidate():
 def test_score_run_fails_on_forbidden_tool():
     candidate = _base_candidate()
     run = _make_fake_run(True, forbidden_tool=True)
-    passed, score, results, safety = score_run(
-        candidate, run, {"cost_usd": 0.03, "latency_ms": 1200.0}, None
-    )
+    passed, _score, _results, safety = score_run(candidate, run, {"cost_usd": 0.03, "latency_ms": 1200.0}, None)
     assert safety is False
     assert passed is False  # fail-closed: safety failure => not passed
 
@@ -215,9 +214,7 @@ def test_score_run_fails_on_cost_regression():
     candidate = _base_candidate()
     run = _make_fake_run(True, cost=0.10)  # 3.3x baseline
     spec = [{"type": "cost_ceiling", "multiplier": 1.2}]
-    passed, score, results, safety = score_run(
-        candidate, run, {"cost_usd": 0.03, "latency_ms": 1200.0}, spec
-    )
+    passed, _score, results, safety = score_run(candidate, run, {"cost_usd": 0.03, "latency_ms": 1200.0}, spec)
     # Safety is fine but the regression assertion fails => not passed.
     assert safety is True
     assert passed is False
@@ -225,6 +222,7 @@ def test_score_run_fails_on_cost_regression():
 
 
 # ── The loop: emits a scored ledger, fail-closed ────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_run_evolution_emits_scored_ledger_grid():
@@ -244,7 +242,9 @@ async def test_run_evolution_emits_scored_ledger_grid():
     blob = ledger.to_json()
     parsed = __import__("json").loads(blob)
     assert parsed["blueprint_id"] == "bp-fixture-001"
-    assert "api_key" not in blob and "tenant" not in blob and "secret" not in blob
+    assert "api_key" not in blob
+    assert "tenant" not in blob
+    assert "secret" not in blob
 
 
 @pytest.mark.asyncio
@@ -330,12 +330,14 @@ async def test_run_evolution_records_but_never_promotes_crashed_trial():
 def test_ledger_record_enforces_fail_closed_invariant():
     # Even if a caller tried to force promoted=True on a failing entry, the
     # ledger refuses to record it (the invariant lives in EvolutionLedger.record).
-    ledger = EvolutionLedger(
-        blueprint_id="bp-x", baseline_params={}, axis_names=["a"]
-    )
+    ledger = EvolutionLedger(blueprint_id="bp-x", baseline_params={}, axis_names=["a"])
     bad = LedgerEntry(
-        trial=0, params={"a": 1}, passed=False, promoted=True,
-        score={}, safety_pass=False,
+        trial=0,
+        params={"a": 1},
+        passed=False,
+        promoted=True,
+        score={},
+        safety_pass=False,
     )
     with pytest.raises(RuntimeError):
         ledger.record(bad)
