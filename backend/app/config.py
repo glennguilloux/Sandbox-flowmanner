@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "change-me-in-production"
 
     DATABASE_URL: str = "postgresql+asyncpg://flowmanner:flowmanner_dev_password@localhost:5432/flowmanner"
-    DATABASE_POOL_SIZE: int = 10
-    DATABASE_MAX_OVERFLOW: int = 20
+    DATABASE_POOL_SIZE: int = 5
+    DATABASE_MAX_OVERFLOW: int = 10
     DATABASE_POOL_TIMEOUT: int = 10
     DATABASE_POOL_RECYCLE: int = 1800
     DATABASE_STATEMENT_TIMEOUT_MS: int = 15000
