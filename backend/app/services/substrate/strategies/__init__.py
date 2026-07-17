@@ -33,7 +33,6 @@ class StrategyRegistry:
             ("graph", ".graph", "GraphStrategy"),
             ("swarm", ".swarm", "SwarmStrategy"),
             ("pipeline", ".pipeline", "PipelineStrategy"),
-            ("meta", ".meta", "MetaStrategy"),
             ("langgraph", ".langgraph", "LangGraphStrategy"),
         ]
 
