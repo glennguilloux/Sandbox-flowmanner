@@ -16,21 +16,22 @@ page gets you from zero to a working debate in under a minute.
 
 ```bash
 # 1. Grab two agent personality ids (the "swarm" is the product family name;
-#    these ids come from GET /api/agent-personalities).
+#    ids come from GET /api/agent-personalities — currently 215 personalities).
 curl -s https://flowmanner.com/api/agent-personalities \
   | python3 -m json.tool | head -40
 
-# 2. Start a debate. Replace the agent_*_id values with any two ids above.
-#    Export your key first:  export FLOWMANNER_API_KEY="sk-..."
+# 2. Start a debate. The two ids below are REAL personalities that exist in the
+#    live API (verified against GET /api/agent-personalities). Export your key
+#    first:  export FLOWMANNER_API_KEY="sk-..."
 curl -X POST https://flowmanner.com/api/swarm/protocol/debate \
   -H "Authorization: Bearer $FLOWMANNER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "topic": "Should we use GraphQL or REST for our new public API?",
-    "agent_a_id": "software-it/code-review-assistant",
+    "agent_a_id": "agent_personalities/software_it/code-review-assistant",
     "agent_a_name": "Code Review Assistant",
-    "agent_b_id": "legal/contract-reviewer",
-    "agent_b_name": "Contract Reviewer",
+    "agent_b_id": "engineering/engineering-software-architect",
+    "agent_b_name": "Software Architect",
     "max_rounds": 2
   }'
 ```
@@ -55,14 +56,15 @@ That's it — you just ran a multi-agent debate with an LLM judge in ~30 seconds
 ## Step 2 — Pick your agents
 
 List the available personalities and reuse their `id` directly in the debate
-body. The `id` format is `<domain>/<slug>` (e.g. `software-it/code-review-assistant`).
-Note the domain segment uses **hyphens** (`software-it`, not `software_it`) —
-that is how `GET /api/agent-personalities` returns ids.
+body. The `id` format is `<domain>/<slug>` (e.g. `engineering/engineering-software-architect`).
+Note the domain segment uses **underscores** (`software_it`, not `software-it`) —
+that is how `GET /api/agent-personalities` returns ids (verified live). Always
+copy the `id` verbatim from the API response rather than typing it.
 
 ```bash
 curl -s https://flowmanner.com/api/agent-personalities \
   -H "Authorization: Bearer $FLOWMANNER_API_KEY" \
-  | python3 -c "import sys,json;[print(p['id'],'—',p['name']) for p in json.load(sys.stdin)]"
+  | python3 -c "import sys,json; d=json.load(sys.stdin); items=d if isinstance(d,list) else d.get('data',[]); [print(p['id'],'—',p['name']) for p in items]"
 ```
 
 ## Step 3 — Inspect a finished debate

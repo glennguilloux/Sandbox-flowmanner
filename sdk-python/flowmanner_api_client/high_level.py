@@ -175,10 +175,10 @@ class FlowmannerClient:
             with FlowmannerClient("https://flowmanner.com") as fm:
                 result = fm.debate(
                     topic="GraphQL or REST for our public API?",
-                    agent_a_id="software_it/code-review-assistant",
+                    agent_a_id="agent_personalities/software_it/code-review-assistant",
                     agent_a_name="Code Review Assistant",
-                    agent_b_id="legal/contract-reviewer",
-                    agent_b_name="Contract Reviewer",
+                    agent_b_id="engineering/engineering-software-architect",
+                    agent_b_name="Software Architect",
                 )
                 print(result["consensus_synthesis"])
         """
