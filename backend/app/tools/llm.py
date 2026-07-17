@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 # Shared LLM caller
 # ---------------------------------------------------------------------------
 
-_DEFAULT_MODEL = "Qwen3.6-27B-Q5_K_M-mtp.gguf"
+_DEFAULT_MODEL = "ThinkingCap-Qwen3.6-27B-Q6_K-MTP.gguf"
 _TIMEOUT_SECONDS = 60
 
 

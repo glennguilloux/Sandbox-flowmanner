@@ -210,8 +210,8 @@ RAG_CASES = [
         "tags": ["rate-limiting", "redis"],
     },
     {
-        "input_prompt": "What is the llama.cpp server configuration in the homelab?\n\nContext: llama.cpp runs as a bare metal systemd service on port 11434. It uses 2x RTX 5060 Ti GPUs (16GB each, ~32GB total VRAM). The active model is Qwen3.6-27B-Q5_K_M-mtp.gguf with MTP (multi-token prediction) enabled, achieving ~38 tok/s.",
-        "expected_behavior": "States: systemd service, port 11434, 2x RTX 5060 Ti, Qwen3.6-27B, MTP enabled, ~38 tok/s. Correct model name and performance.",
+        "input_prompt": "What is the llama.cpp server configuration in the homelab?\n\nContext: llama.cpp runs as a bare metal systemd service on port 11434. It uses 2x RTX 5060 Ti GPUs (16GB each, ~32GB total VRAM). The active model is ThinkingCap-Qwen3.6-27B-Q6_K-MTP.gguf with MTP (multi-token prediction) enabled, achieving ~38 tok/s.",
+        "expected_behavior": "States: systemd service, port 11434, 2x RTX 5060 Ti, ThinkingCap-Qwen3.6-27B, MTP enabled, ~38 tok/s. Correct model name and performance.",
         "task_type": "rag_accuracy",
         "difficulty": "medium",
         "tags": ["llm", "llama.cpp", "gpu"],

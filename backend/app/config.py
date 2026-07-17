@@ -81,7 +81,7 @@ class Settings(BaseSettings):
 
     CHROMA_PERSIST_DIR: str = "./chroma_db"
 
-    DEFAULT_LOCAL_MODEL: str = "Qwen3.6-27B-Q5_K_M-mtp.gguf"
+    DEFAULT_LOCAL_MODEL: str = "ThinkingCap-Qwen3.6-27B-Q6_K-MTP.gguf"
     DEFAULT_CLOUD_MODEL: str = "deepseek/deepseek-v4-flash"
 
     LLM_MODEL_NAME: str = "deepseek/deepseek-v4-flash"

@@ -4,7 +4,7 @@
   "models": {
     "llamacpp-qwen3.6-27b": {
       "provider": "llamacpp",
-      "upstream_model_name": "Qwen3.6-27B-Q5_K_M-mtp.gguf",
+      "upstream_model_name": "ThinkingCap-Qwen3.6-27B-Q6_K-MTP.gguf",
       "api_style": "openai",
       "tier": "local",
       "local": true,

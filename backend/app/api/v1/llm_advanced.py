@@ -126,7 +126,7 @@ async def get_tradeoff(
     if llamacpp_url:
         models.append(
             {
-                "id": "llamacpp/Qwen3.6-27B",
+                "id": "llamacpp/ThinkingCap-Qwen3.6-27B-Q6_K-MTP",
                 "provider": "llamacpp",
                 "cost_per_1m": 0.0,
                 "quality": "good",
