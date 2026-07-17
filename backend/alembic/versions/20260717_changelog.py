@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 revision = "20260717_changelog"
-down_revision = "20260715_sandbox_run_context"
+down_revision = "20260717b_drop_legacy_changelog"
 branch_labels = None
 depends_on = None
 

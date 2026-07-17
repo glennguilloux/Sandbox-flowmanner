@@ -39,6 +39,20 @@ SEED_ENTRIES: list[dict] = [
         "sort_order": 90,
     },
     {
+        # Preserved from the legacy v1 changelog_entries row (id=1, version='0.2.0',
+        # "Platform Hardening", published 2026-05-21). That orphaned table is dropped by
+        # the 20260717b_drop_legacy_changelog migration; this re-seeds the one real
+        # historical note under R9's UUID schema so it is not lost.
+        "version": "0.2.0",
+        "title": "Platform Hardening",
+        "summary": "Phase 7-15 improvements: CI/CD pipeline, automated backups, Sentry error tracking, learning service, email delivery, full-text search, data export, feature flags, and developer experience improvements.",
+        "body": "Phase 7-15 improvements: CI/CD pipeline, automated backups, Sentry error tracking, learning service, email delivery, full-text search, data export, feature flags, and developer experience improvements.",
+        "category": "feature",
+        "is_featured": False,
+        "released_at": "2026-05-21",
+        "sort_order": 60,
+    },
+    {
         "version": "T1",
         "title": "Blog + Roadmap read-only APIs",
         "summary": "Public blog/case-study and roadmap read surfaces shipped (DB-backed).",
@@ -70,9 +84,7 @@ async def seed_changelog() -> dict:
     inserted = updated = 0
     async with AsyncSessionLocal() as db:
         for e in SEED_ENTRIES:
-            existing = await db.scalar(
-                select(ChangelogEntry).where(ChangelogEntry.version == e["version"])
-            )
+            existing = await db.scalar(select(ChangelogEntry).where(ChangelogEntry.version == e["version"]))
             released = datetime.fromisoformat(e["released_at"]).replace(tzinfo=UTC)
             if existing is None:
                 db.add(
@@ -110,7 +122,7 @@ def main() -> int:
             file=sys.stderr,
         )
         return 0
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"[seed-changelog] SKIPPED (error): {type(exc).__name__}: {exc}", file=sys.stderr)
         return 0  # never block container startup
 

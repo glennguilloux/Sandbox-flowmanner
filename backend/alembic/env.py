@@ -20,7 +20,6 @@ target_metadata = Base.metadata
 _RAW_SQL_TABLES = frozenset(
     {
         "agent_template_versions",
-        "changelog_entries",
         "mission_runs",
         "onboarding_state",
     }
