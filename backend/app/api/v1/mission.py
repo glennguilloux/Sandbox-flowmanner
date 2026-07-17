@@ -310,23 +310,13 @@ async def apply_improvement(
 
 
 # ── Event History & State (Phase 3.2 — CQRS DI) ─────────────────────────────
-
-
-@router.get("/{mission_id}/events")
-async def get_mission_events(
-    mission_id: uuid.UUID,
-    from_sequence: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
-    user: User = Depends(get_current_user),
-    q: MissionQueryHandlers = Depends(get_mission_queries),
-):
-    """Retrieve substrate event history for a mission.
-
-    Returns the append-only event log from the substrate_events table.
-    Events are ordered by sequence ascending.
-    """
-    events = await q.get_events(user.id, mission_id, from_sequence=from_sequence, limit=limit)
-    return {"mission_id": str(mission_id), "events": events, "count": len(events)}
+# NOTE: the substrate event-log / replay endpoint (GET /{mission_id}/events, with
+# event_type / to_sequence / after_sequence / run_id filtering) is owned by
+# app/api/v1/substrate.py (H5.2 replay surface). It is registered on the same
+# /missions/{mission_id}/events path and is the live handler — do NOT re-add a
+# colliding thin shell here. See SIGNOFF L2 (stale: the collision was already
+# resolved in favor of the rich replay handler; this route is intentionally absent
+# from the CQRS mission router to avoid a shadowed duplicate).
 
 
 @router.get("/{mission_id}/state")

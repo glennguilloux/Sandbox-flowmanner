@@ -589,7 +589,7 @@ def _mock_event_log_with_events(events: list[SubstrateEvent]):
         filtered = [event for event in events if str(event.run_id) == str(run_id) and event.sequence >= from_sequence]
         if to_sequence is not None:
             filtered = [event for event in filtered if event.sequence <= to_sequence]
-        if isinstance(event_type, (list, tuple, set)):
+        if isinstance(event_type, list | tuple | set):
             allowed_types = set(event_type)
             filtered = [event for event in filtered if event.type in allowed_types]
         elif event_type:
@@ -927,3 +927,54 @@ class TestSubstrateReplayApiHardening:
         assert {"status", "sequence", "completed_tasks", "failed_tasks", "total_tokens"} <= set(
             data["state_at_sequence"]
         )
+
+
+class TestMissionEventsRoutePrecedence:
+    """Regression guard for SIGNOFF L2 (route collision on /missions/{id}/events).
+
+    In production, mission_router and substrate_router are both mounted under
+    /missions (api/v1/__init__.py includes mission first, then substrate). Both
+    register GET /{mission_id}/events. The LIVE handler MUST be the rich replay
+    surface from substrate.py (returns ``total`` / ``next_after_sequence``), NOT
+    the thin CQRS shell that was removed from mission.py. This test reproduces the
+    production mount order on a local app and asserts the rich handler wins.
+    """
+
+    def _build_production_like_app(self):
+        from app.api.v1.mission import router as mission_router
+        from app.api.v1.substrate import router as substrate_router
+
+        app = FastAPI()
+        # Mirror production: api_v1_router = APIRouter(prefix="/api"), then mission
+        # and substrate are included (each carries its own internal /missions prefix
+        # and no extra prefix is added at include time).
+        api_router = APIRouter(prefix="/api")
+        api_router.include_router(mission_router)
+        api_router.include_router(substrate_router)
+        app.include_router(api_router)
+        return app
+
+    def test_events_route_resolves_to_rich_replay_handler(self, monkeypatch, mock_user):
+        events = [_make_api_event(1, SubstrateEventType.MISSION_STARTED)]
+        monkeypatch.setattr(
+            substrate_api,
+            "require_mission_access",
+            AsyncMock(return_value=_make_api_mission(mock_user.id)),
+        )
+        _install_replay_query_mock(monkeypatch, events)
+
+        app = self._build_production_like_app()
+        # Override deps so the app builds without a real DB / auth.
+        app.dependency_overrides[get_db] = lambda: AsyncMock()
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+
+        client = TestClient(app)
+        resp = client.get(f"/api/missions/{API_MISSION_ID}/events")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        # Rich replay handler shape — proves the substrate handler (not the removed
+        # thin shell) is what serves this path.
+        assert "total" in body, f"expected rich replay shape, got keys={list(body.keys())}"
+        assert "next_after_sequence" in body
+        assert "count" not in body, "thin CQRS shell must NOT win route precedence"
