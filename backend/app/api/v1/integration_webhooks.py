@@ -19,13 +19,14 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
 from app.services.event_bus import get_event_bus
+from app.tasks.event_bus_tasks import enqueue_event_processing
 
 logger = logging.getLogger(__name__)
 
@@ -472,6 +473,7 @@ def verify_webhook(
 async def handle_provider_webhook(
     provider: str,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
     """Generic inbound webhook endpoint for all integrated providers.
@@ -517,14 +519,22 @@ async def handle_provider_webhook(
     )
 
     # Route to the durable external_events bus. `EventBus.publish` persists the
-    # ExternalEvent row (idempotency via delivery_id) and dispatches to registered
-    # consumers (trigger matching, audit log). The caller owns the transaction:
-    # `get_db` commits on normal return, so the event is durable BEFORE the ack
-    # is sent. A bus failure raises and rolls back the transaction (no ack), so
-    # the provider retries — preserving at-least-once delivery.
+    # ExternalEvent row (status "pending", idempotency via delivery_id) and
+    # returns. The caller owns the transaction: `get_db` commits on normal
+    # return, so the event is durable BEFORE the ack is sent. A bus failure
+    # raises and rolls back the transaction (no ack), so the provider retries
+    # — preserving at-least-once delivery.
+    #
+    # Consumer dispatch (trigger matching, audit, failure alerts) runs OFF the
+    # request path: we enqueue `process_external_event` via BackgroundTasks,
+    # which FastAPI executes only AFTER the response is sent and the request
+    # transaction has committed (Q4). A crash between commit and enqueue leaves
+    # a durable "pending" row that a recovery sweep can re-enqueue. The Celery
+    # task is idempotent (Q5 claim-step), and the failure_alert consumer still
+    # fires on "failed" status (Q6).
     try:
         bus = get_event_bus()
-        await bus.publish(
+        event = await bus.publish(
             db,
             source=provider,
             event_type=event_type,
@@ -538,5 +548,8 @@ async def handle_provider_webhook(
             provider,
         )
         raise
+
+    # Enqueue durable async dispatch — runs post-commit (see docstring, Q4).
+    background_tasks.add_task(enqueue_event_processing, str(event.id))
 
     return {"status": "ok", "provider": provider, "event_type": event_type}

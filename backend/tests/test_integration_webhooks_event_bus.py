@@ -36,6 +36,12 @@ class FakeEventBus:
         self._raise = False
 
     async def publish(self, db, *, source, event_type, payload=None, raw_body=None, delivery_id=None, user_id=None):
+        # Mirror production: return an object with an ``id`` so the route's
+        # post-commit enqueue (enqueue_event_processing(str(event.id))) works.
+        from types import SimpleNamespace
+        from uuid import uuid4
+
+        event = SimpleNamespace(id=uuid4())
         self.published.append(
             {
                 "source": source,
@@ -44,10 +50,12 @@ class FakeEventBus:
                 "raw_body": raw_body,
                 "delivery_id": delivery_id,
                 "user_id": user_id,
+                "id": event.id,
             }
         )
         if self._raise:
             raise RuntimeError("bus write failed")
+        return event
 
 
 @pytest.fixture

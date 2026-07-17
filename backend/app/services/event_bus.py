@@ -18,15 +18,38 @@ Usage::
         payload={...},
         delivery_id="abc-123",
     )
-    # event.status is either "processed" (consumers ran) or "failed"
+    # event.status is "pending" until the post-commit Celery task
+    # (process_external_event) runs the consumers and sets it to
+    # "processed" or "failed".
+
+Durability / at-least-once (Q4 / Q5 / Q6):
+
+- ``publish()`` ONLY persists the ExternalEvent row (status ``"pending"``)
+  and returns.  It does NOT run consumers and does NOT enqueue anything.
+  This keeps the webhook request path free of side-effects: the caller
+  owns the transaction and commits the durable row.
+- The actual consumer dispatch (trigger matching, audit, failure alerts)
+  runs in the ``process_external_event`` Celery task, which is enqueued by
+  the webhook route via a FastAPI ``BackgroundTasks`` hook — i.e. AFTER the
+  request's DB transaction commits.  If the process crashes between commit
+  and enqueue, the row is already durable and a later recovery sweep (or a
+  redelivered webhook) re-enqueues it, preserving at-least-once delivery.
+- Idempotency (Q5): a duplicate ``delivery_id`` for the same source is
+  detected at publish time (returns the existing row) and at the DB level
+  via a ``UNIQUE(source, delivery_id)`` constraint.  The Celery task also
+  performs a claim-step so a redelivered task is a no-op.
+- Failure alerts (Q6): ``failure_alert_consumer`` still fires when an
+  event's status ends up ``"failed"`` — now inside the Celery task, gated
+  on the committed status, so Slack / PagerDuty are still notified.
 
 Design:
-- ``publish()`` persists the ExternalEvent, then dispatches to registered
-  consumers.  The caller owns the transaction (no internal commit).
-- Idempotency: if ``delivery_id`` matches an existing row for the same
-  source, the existing event is returned without re-processing.
-- Consumers are registered via ``add_consumer()``.  The default consumer
-  is the trigger-matching event router.
+- ``publish()`` persists the ExternalEvent and returns it.  The caller owns
+  the transaction (no internal commit).
+- ``process_event()`` runs the registered consumers + failure handlers and
+  updates the status.  It is the single source of dispatch behaviour,
+  shared by ``replay()`` and the Celery task.
+- Consumers are registered via ``add_consumer()``.  The default consumer is
+  the trigger-matching event router.
 - The append-only guarantee is enforced at the DB level (PostgreSQL trigger).
   The only permitted UPDATE is the status transition (pending → processed/failed).
 """
@@ -70,7 +93,8 @@ class EventBusConsumer(Protocol):
 class EventBus:
     """Durable event bus for inbound integration events.
 
-    Publishes events to the ``external_events`` table, then dispatches
+    Publishes events to the ``external_events`` table, then (off the
+    request path, via the Celery ``process_external_event`` task) dispatches
     to registered consumers.  Designed for future extensibility: add
     consumers for audit logging, analytics, AI learning loop, etc.
     """
@@ -109,7 +133,7 @@ class EventBus:
         delivery_id: str | None = None,
         user_id: int | None = None,
     ) -> ExternalEvent:
-        """Publish an inbound event and dispatch to consumers.
+        """Persist an inbound event and return it (dispatch happens off-request-path).
 
         Args:
             db: Database session (caller owns the transaction).
@@ -121,8 +145,15 @@ class EventBus:
             user_id: User ID if known from the webhook context.
 
         Returns:
-            The persisted ExternalEvent.  If a duplicate ``delivery_id``
-            was detected, returns the existing event without re-processing.
+            The persisted ExternalEvent with status ``"pending"``.  If a
+            duplicate ``delivery_id`` was detected, returns the existing
+            event without re-persisting.
+
+        Note:
+            This method only persists.  Consumer dispatch (trigger matching,
+            audit, failure alerts) runs in the ``process_external_event``
+            Celery task, which the webhook route enqueues *after* the request
+            transaction commits.  See module docstring (Q4/Q5/Q6).
         """
         # ── Idempotency check ──────────────────────────────────────
         if delivery_id:
@@ -136,7 +167,7 @@ class EventBus:
                 )
                 return existing
 
-        # ── Persist ─────────────────────────────────────────────────
+        # ── Persist (pending) ──────────────────────────────────────
         event = ExternalEvent(
             source=source,
             event_type=event_type,
@@ -151,23 +182,44 @@ class EventBus:
         await db.flush()  # Assign ID, make visible in this transaction
 
         logger.info(
-            "event_bus: persisted event %s (%s.%s, delivery=%s)",
+            "event_bus: persisted event %s (%s.%s, delivery=%s) — dispatch pending",
             event.id,
             source,
             event_type,
             delivery_id or "none",
         )
 
-        # ── Dispatch to consumers ──────────────────────────────────
-        triggers_fired = 0
+        return event
+
+    async def process_event(
+        self,
+        db: AsyncSession,
+        event: ExternalEvent,
+        *,
+        run_failure_handlers: bool = True,
+    ) -> ExternalEvent:
+        """Run registered consumers + failure handlers and update status.
+
+        This is the single dispatch entry point, shared by ``replay()`` and
+        the Celery ``process_external_event`` task.  It mutates ``event``
+        in-place (status, error_message, triggers_fired, processed_at) — the
+        caller owns the transaction and commits.
+
+        Consumer isolation: a failing consumer does not prevent subsequent
+        consumers from running; its error is recorded and the event status
+        becomes ``"failed"``.  Failure handlers run only when the final
+        status is ``"failed"``.
+
+        Args:
+            run_failure_handlers: when False, failure handlers are skipped.
+                Used by ``replay()`` so manual retries don't re-fire alerts
+                for an event that already alerted on its first failure.
+        """
         error_messages: list[str] = []
 
         for consumer in self._consumers:
             try:
                 await consumer(db, event)
-                # If the consumer is the trigger router, it returns int via
-                # a side-channel.  We count fires by inspecting the event
-                # after all consumers run.  For now, we just log.
             except Exception as exc:
                 msg = f"{consumer.__name__ if hasattr(consumer, '__name__') else consumer}: {exc}"
                 error_messages.append(msg)
@@ -180,10 +232,7 @@ class EventBus:
 
         # ── Update status ───────────────────────────────────────────
         now = datetime.now(UTC)
-        if error_messages and not self._consumers:
-            # No consumers registered — shouldn't happen, but handle gracefully
-            event.status = "processed"
-        elif error_messages:
+        if error_messages:
             event.status = "failed"
             event.error_message = "; ".join(error_messages)
         else:
@@ -193,7 +242,7 @@ class EventBus:
         # Note: we do NOT commit — the caller owns the transaction.
 
         # ── Post-processing: failure alerts ────────────────────────
-        if event.status == "failed" and self._on_failure:
+        if run_failure_handlers and event.status == "failed" and self._on_failure:
             for handler in self._on_failure:
                 try:
                     await handler(db, event)
@@ -228,30 +277,10 @@ class EventBus:
         event.processed_at = None
         await db.flush()
 
-        # Re-dispatch
-        error_messages: list[str] = []
-        for consumer in self._consumers:
-            try:
-                await consumer(db, event)
-            except Exception as exc:
-                msg = f"{consumer.__name__ if hasattr(consumer, '__name__') else consumer}: {exc}"
-                error_messages.append(msg)
-                logger.warning(
-                    "event_bus: replay consumer failed for event %s: %s",
-                    event.id,
-                    msg,
-                    exc_info=True,
-                )
-
-        now = datetime.now(UTC)
-        if error_messages:
-            event.status = "failed"
-            event.error_message = "; ".join(error_messages)
-        else:
-            event.status = "processed"
-
-        event.processed_at = now
-        return event
+        # Re-dispatch via the shared dispatch path.  Failure handlers are
+        # skipped on replay: an event that already alerted on its first
+        # failure should not re-fire alerts on a manual/automated retry.
+        return await self.process_event(db, event, run_failure_handlers=False)
 
     @staticmethod
     async def _find_existing(
