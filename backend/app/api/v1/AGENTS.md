@@ -91,7 +91,7 @@ Grouped by responsibility. **Bold** = has migration status worth tracking. Numbe
 | `graph.py` | `/graphs` | CRITICAL. Adds `Deprecation` headers via `_add_deprecation_headers`. Inlines graph logic — migration candidate. |
 | `orchestration.py` | `/orchestration` | Inlines orchestration. Migration candidate. |
 | **`flow_compat.py`** | `/flow` (via `__init__.py` prefix) | ❌ **Inlines `GraphInterpreter`** from `app.services.graph_executor` (old graph executor). Migration candidate (target: substrate `GraphStrategy`). |
-| **`swarm.py`** | `/swarm` | ❌ **Inlines `SwarmOrchestrator`** from `app.services.swarm.orchestrator`. Migration candidate (target: substrate `SwarmStrategy`). |
+| **`swarm_protocol.py`** | `/swarm` | ❌ **Inlines swarm logic** from `app.services.swarm.{debate,escalation,handoff}_protocol` + `app.services.substrate.strategies.swarm`. Migration candidate (target: substrate `SwarmStrategy`). |
 | **`swarm_protocol.py`** | `/swarm` (prefix `/protocol` then `__init__.py` `/swarm`) | ❌ **Inlines `DebateProtocol` / `EscalationChain` / `HandoffProtocol`** from `app.services.swarm.*`. Migration candidate. |
 | `templates.py` | `/templates` | Workflow templates. |
 | `triggers.py` | `/triggers` | Cron / event triggers. |
@@ -180,7 +180,7 @@ This is the load-bearing section. **Bolded** entries are the ones that still nee
 | `mission_decomposition_routes.py` | `app.services.decomposition_service.decompose_mission` + `execute_dag` (uses `dag_executor`) | `DAGStrategy` + `dag.SoloStrategy` decomposition | Medium — needs to convert request body to `Workflow` + `WorkflowNode` list, call `UnifiedExecutor.execute()` |
 | `flow_compat.py` | `app.services.graph_executor.GraphInterpreter` | `GraphStrategy` | Medium-High — graph nodes have `{{node_id.output.field}}` interpolation that needs to map to substrate context |
 | `graph.py` | `graph_executor` (via `graph_service`) | `GraphStrategy` | Medium |
-| `swarm.py` | `app.services.swarm.orchestrator.SwarmOrchestrator` | `SwarmStrategy` | High — swarm has its own debate/escalation/handoff protocols that need substrate-level mapping |
+| `swarm_protocol.py` | `app.services.swarm.{debate,escalation,handoff}_protocol` + `app.services.substrate.strategies.swarm` (`SwarmStrategy`) | `SwarmStrategy` | High — swarm has its own debate/escalation/handoff protocols that need substrate-level mapping |
 | `swarm_protocol.py` | `app.services.swarm.{debate,escalation,handoff}_protocol` | `SwarmStrategy` (or new strategy) | High — protocol semantics need preservation |
 | `orchestration.py` | `nexus/orchestrator.py` (nexus subsystem) | `MetaStrategy` (or new orchestration strategy) | High — orchestration has its own memory + observability integration |
 | `mission_advanced_routes.py` | Pure CRUD on `MissionTemplate`, `NodeGroup`, `MissionVersion` | Not executor-related; should become a v2 router with a CQRS-style split, or stay as standalone CRUD | Low (no executor to migrate, just needs an envelope + better tests) |
@@ -227,7 +227,7 @@ When picking the next router to migrate off inline executor logic, work in this 
    - Convert request body to `Workflow(type=DAG, nodes=[...], edges=[...])` using `decomposition_service` to produce the node list, then hand off to `UnifiedExecutor.execute()`.
    - The `decomposition_service` itself stays (it's the planner); only the executor path moves.
 3. **`flow_compat.py` + `graph.py`** — Graph path. Both inline `GraphInterpreter` / `graph_executor`. The `{{node_id.output.field}}` interpolation needs to be reproduced in substrate context. Migrate together (or in one PR) so the interpolation semantics are consistent.
-4. **`swarm.py` + `swarm_protocol.py`** — Swarm path. The debate / escalation / handoff protocols may need to live as substrate strategy helpers (mirroring the way `swarm_pipeline/phases/*.py` are preserved as helpers for `PipelineStrategy` in the H5.1 design).
+4. **`swarm_protocol.py`** — Swarm path. The debate / escalation / handoff protocols may need to live as substrate strategy helpers (mirroring the way `swarm_pipeline/phases/*.py` are preserved as helpers for `PipelineStrategy` in the H5.1 design).
 5. **`orchestration.py`** — Nexus orchestration. Last because it has the deepest integration with `nexus/` memory + observability.
 
 ### Migration recipe — `mission_advanced_routes.py` (the easiest first)
@@ -317,7 +317,7 @@ print('mission critical router OK')
 | `mission_decomposition_routes.py` | ❌ | DAG migration candidate. Promote after substrate migration. |
 | `flow_compat.py` | ❌ | Graph migration candidate. Promote after substrate migration. |
 | `graph.py` | ❌ | Same. |
-| `swarm.py` + `swarm_protocol.py` | ❌ | Swarm migration candidates. Promote together (or in one PR). |
+| `swarm_protocol.py` | ❌ | Swarm migration candidates. Promote together (or in one PR). |
 | `orchestration.py` | ❌ | Nexus orchestration migration candidate. Promote after the substrate has a `MetaStrategy`. |
 | `substrate.py` | ❌ | The replay/events API. Stable, no migration needed. Promote only if a new substrate read primitive is added. |
 | `plugins.py` | ❌ | Imports `ExecutionContext` from `graph_executor` (type-only). Promote to AGENTS.md if the type import is moved. |
