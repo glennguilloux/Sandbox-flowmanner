@@ -19,7 +19,7 @@ with FlowmannerClient("https://flowmanner.com") as fm:
     # Pick any two agent personalities from GET /api/agent-personalities.
     result = fm.debate(
         topic="Should we use GraphQL or REST for our new public API?",
-        agent_a_id="software_it/code-review-assistant",
+        agent_a_id="software-it/code-review-assistant",
         agent_a_name="Code Review Assistant",
         agent_b_id="legal/contract-reviewer",
         agent_b_name="Contract Reviewer",

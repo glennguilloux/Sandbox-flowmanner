@@ -171,7 +171,8 @@ class FlowmannerClient:
         Args:
             topic: The debate topic (1-5000 chars).
             agent_a_id: Personality id of the first agent (from
-                ``GET /api/agent-personalities``, format ``<domain>/<slug>``).
+                ``GET /api/agent-personalities``, format ``<domain>/<slug>``,
+                e.g. ``software-it/code-review-assistant``).
             agent_a_name: Display name for the first agent.
             agent_b_id: Personality id of the second agent.
             agent_b_name: Display name for the second agent.

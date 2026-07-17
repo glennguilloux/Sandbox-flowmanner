@@ -21,12 +21,13 @@ curl -s https://flowmanner.com/api/agent-personalities \
   | python3 -m json.tool | head -40
 
 # 2. Start a debate. Replace the agent_*_id values with any two ids above.
+#    Export your key first:  export FLOWMANNER_API_KEY="sk-..."
 curl -X POST https://flowmanner.com/api/swarm/protocol/debate \
   -H "Authorization: Bearer $FLOWMANNER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "topic": "Should we use GraphQL or REST for our new public API?",
-    "agent_a_id": "software_it/code-review-assistant",
+    "agent_a_id": "software-it/code-review-assistant",
     "agent_a_name": "Code Review Assistant",
     "agent_b_id": "legal/contract-reviewer",
     "agent_b_name": "Contract Reviewer",
@@ -54,7 +55,9 @@ That's it — you just ran a multi-agent debate with an LLM judge in ~30 seconds
 ## Step 2 — Pick your agents
 
 List the available personalities and reuse their `id` directly in the debate
-body. The `id` format is `<domain>/<slug>` (e.g. `software_it/code-review-assistant`).
+body. The `id` format is `<domain>/<slug>` (e.g. `software-it/code-review-assistant`).
+Note the domain segment uses **hyphens** (`software-it`, not `software_it`) —
+that is how `GET /api/agent-personalities` returns ids.
 
 ```bash
 curl -s https://flowmanner.com/api/agent-personalities \
@@ -106,7 +109,7 @@ from flowmanner_api_client import FlowmannerClient
 with FlowmannerClient("https://flowmanner.com") as fm:
     result = fm.debate(
         topic="Should we use GraphQL or REST for our new public API?",
-        agent_a_id="software_it/code-review-assistant",
+        agent_a_id="software-it/code-review-assistant",
         agent_a_name="Code Review Assistant",
         agent_b_id="legal/contract-reviewer",
         agent_b_name="Contract Reviewer",
