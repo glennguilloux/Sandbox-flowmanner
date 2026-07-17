@@ -3,9 +3,11 @@ from __future__ import annotations
 import asyncio
 import base64
 import contextlib
+import ipaddress
 import json
 import logging
 import os
+import socket
 import time
 from asyncio import timeout as _stream_timeout
 from collections import deque
@@ -13,6 +15,7 @@ from collections.abc import AsyncGenerator
 from datetime import UTC
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
+from urllib.parse import urlparse
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -67,6 +70,106 @@ async def _safe_fire_and_forget(coro, *, label: str) -> None:
         await coro
     except Exception:
         logger.exception("fire-and-forget task failed: %s", label)
+
+
+async def _safe_effective_base_url(
+    effective_base: str | None,
+    default_base_url: str | None,
+) -> str | None:
+    """SSRF-gate a user/stored ``base_url`` before it reaches AsyncOpenAI.
+
+    Mirrors the validation contract of ``_is_safe_outbound_url`` in
+    ``app/api/v1/api_keys.py`` (http/https only; resolved IP must be PUBLIC —
+    rejects loopback 127.0.0.0/8, link-local 169.254.0.0/16, reserved,
+    multicast, private RFC1918; DNS-rebinding guarded by validating the
+    resolved IP, not the literal host). Default-deny: on ANY doubt we fall
+    back to the provider/platform ``default_base_url`` and warn — never pass
+    an unvalidated, user-controlled URL to an outbound client.
+
+    Returns the URL to actually use (validated ``effective_base`` if safe,
+    else ``default_base_url``).
+    """
+    if not effective_base:
+        # No custom URL requested — use the platform default unchanged.
+        return default_base_url
+
+    try:
+        parsed = urlparse(effective_base)
+    except ValueError:
+        logger.warning("chat SSRF: base_url %r failed to parse; using platform default", effective_base)
+        return default_base_url
+
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in ("http", "https"):
+        logger.warning(
+            "chat SSRF: base_url scheme %r:// is not allowed; using platform default",
+            scheme,
+        )
+        return default_base_url
+
+    hostname = (parsed.hostname or "").lower()
+    if not hostname:
+        logger.warning("chat SSRF: base_url %r has no valid hostname; using platform default", effective_base)
+        return default_base_url
+
+    # Reject a literal private/loopback/link-local/reserved/multicast IP.
+    try:
+        addr = ipaddress.ip_address(hostname)
+    except ValueError:
+        # Not a literal IP — resolve it below.
+        pass
+    else:
+        if not addr.is_global or addr.is_loopback or addr.is_link_local or addr.is_reserved or addr.is_multicast:
+            logger.warning(
+                "chat SSRF: base_url host %r is not a public address; using platform default",
+                hostname,
+            )
+            return default_base_url
+        return effective_base
+
+    # Hostname: resolve and reject names pointing at non-public ranges.
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except (socket.gaierror, UnicodeError, OSError):
+        logger.warning(
+            "chat SSRF: base_url host %r could not be resolved; using platform default",
+            hostname,
+        )
+        return default_base_url
+
+    if not infos:
+        logger.warning(
+            "chat SSRF: base_url host %r resolved to no addresses; using platform default",
+            hostname,
+        )
+        return default_base_url
+
+    for _family, _type, _proto, _canon, sockaddr in infos:
+        ip_str = sockaddr[0]
+        try:
+            resolved = ipaddress.ip_address(ip_str)
+        except ValueError:
+            logger.warning(
+                "chat SSRF: base_url host %r resolved to invalid address %r; using platform default",
+                hostname,
+                ip_str,
+            )
+            return default_base_url
+        if (
+            not resolved.is_global
+            or resolved.is_loopback
+            or resolved.is_link_local
+            or resolved.is_reserved
+            or resolved.is_multicast
+        ):
+            logger.warning(
+                "chat SSRF: base_url host %r resolves to a non-public address %r; using platform default",
+                hostname,
+                ip_str,
+            )
+            return default_base_url
+
+    return effective_base
 
 
 async def _lookup_stored_byok_key(
@@ -464,6 +567,11 @@ async def _stream_message_to_llm_body(
 
     if effective_user_key:
         effective_base = effective_base_url or base_url
+        # SSRF guard: never hand a user/stored base_url to the outbound client
+        # without validating it resolves to a PUBLIC address (mirrors
+        # _is_safe_outbound_url in app/api/v1/api_keys.py). Fall back to the
+        # provider/platform default on any doubt.
+        effective_base = await _safe_effective_base_url(effective_base, base_url)
         client = AsyncOpenAI(api_key=effective_user_key, base_url=effective_base)
     elif base_url != _LLM_API_BASE or api_key != _LLM_API_KEY:
         client = AsyncOpenAI(api_key=api_key, base_url=base_url)
@@ -960,7 +1068,7 @@ async def _stream_message_to_llm_body(
             get_usage_service().record_usage(
                 user_id=str(user_id),
                 model_id=model,
-                provider="byok" if user_api_key else "system",
+                provider="byok" if effective_user_key else "system",
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 cost=total_tokens * 0.000002,
@@ -2189,6 +2297,11 @@ async def send_message_to_llm(
 
     if effective_user_key:
         effective_base = effective_base_url or base_url
+        # SSRF guard: never hand a user/stored base_url to the outbound client
+        # without validating it resolves to a PUBLIC address (mirrors
+        # _is_safe_outbound_url in app/api/v1/api_keys.py). Fall back to the
+        # provider/platform default on any doubt.
+        effective_base = await _safe_effective_base_url(effective_base, base_url)
         client = AsyncOpenAI(api_key=effective_user_key, base_url=effective_base)
     elif base_url != _LLM_API_BASE or api_key != _LLM_API_KEY:
         client = AsyncOpenAI(api_key=api_key, base_url=base_url)
@@ -2367,7 +2480,7 @@ async def send_message_to_llm(
             get_usage_service().record_usage(
                 user_id=str(user_id),
                 model_id=model,
-                provider="byok" if user_api_key else "system",
+                provider="byok" if effective_user_key else "system",
                 prompt_tokens=total_prompt_tokens,
                 completion_tokens=total_completion_tokens,
                 cost=total_total_tokens * 0.000002,
