@@ -8,11 +8,14 @@ Routes LLM requests to the appropriate provider/model:
 4. Support both dict-return (mission_executor) and LLMRouteResult (llm.py) interfaces
 """
 
+import ipaddress
 import logging
 import os
+import socket
 import time
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlparse
 
 from openai import AsyncOpenAI
 
@@ -21,6 +24,10 @@ from app.services.chat_service import (
     _get_provider_for_model,
     _normalize_provider,
     _resolve_provider,
+)
+from app.services.llm_providers import (
+    _detect_provider_from_key,
+    _providers_compatible,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,6 +52,103 @@ class ProviderStatus:
 
 def _make_client(base_url: str, api_key: str) -> AsyncOpenAI:
     return AsyncOpenAI(api_key=api_key, base_url=base_url)
+
+
+# Reject internal/reserved/private/multicast destinations for a BYOK custom
+# base_url. Mirrors app/api/v1/api_keys.py:_is_safe_outbound_url so the two
+# SSRF gates agree. http/https only; resolves host and rejects non-public IPs.
+_BLOCKED_SCHEMES = frozenset()
+_BLOCKED_HOSTNAMES = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
+
+
+def _is_safe_outbound_url(url: str) -> tuple[bool, str | None]:
+    """Validate a custom base_url against SSRF rules (default-deny).
+
+    Returns (ok, error). The destination must use http/https and resolve to a
+    publicly routable IP address. This blocks private/loopback/link-local/
+    metadata ranges and guards against DNS-rebinding by validating the
+    resolved IP, not just the literal host.
+    """
+    if not url:
+        return False, "base_url is required"
+    try:
+        parsed = urlparse(url)
+    except ValueError as exc:
+        return False, f"Invalid base_url: {exc}"
+
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in ("http", "https"):
+        return False, f"base_url scheme '{scheme}://' is not allowed (http/https only)"
+    if scheme in _BLOCKED_SCHEMES:
+        return False, f"base_url scheme '{scheme}://' is blocked"
+
+    hostname = (parsed.hostname or "").lower()
+    if not hostname:
+        return False, "base_url has no valid hostname"
+    if hostname in _BLOCKED_HOSTNAMES:
+        return False, f"base_url host '{hostname}' is blocked"
+
+    # Reject a literal private/loopback/link-local IP.
+    try:
+        addr = ipaddress.ip_address(hostname)
+    except ValueError:
+        # Not a literal IP — resolve it below.
+        pass
+    else:
+        if not addr.is_global or addr.is_loopback or addr.is_link_local or addr.is_reserved or addr.is_multicast:
+            return False, f"base_url host '{hostname}' is not a public address"
+        return True, None
+
+    # Hostname: resolve and reject names that point at non-public ranges.
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except (socket.gaierror, UnicodeError, OSError) as exc:
+        return False, f"base_url host '{hostname}' could not be resolved: {exc}"
+
+    if not infos:
+        return False, f"base_url host '{hostname}' resolved to no addresses"
+
+    for _family, _type, _proto, _canon, sockaddr in infos:
+        ip_str = sockaddr[0]
+        try:
+            resolved = ipaddress.ip_address(ip_str)
+        except ValueError:
+            return False, f"base_url host '{hostname}' resolved to an invalid address '{ip_str}'"
+        if (
+            not resolved.is_global
+            or resolved.is_loopback
+            or resolved.is_link_local
+            or resolved.is_reserved
+            or resolved.is_multicast
+        ):
+            return False, (f"base_url host '{hostname}' resolves to a non-public address '{ip_str}'")
+    return True, None
+
+
+def _validate_byok_key_matches_model(api_key: str | None, model_id: str) -> str | None:
+    """Validate that a resolved BYOK key matches the requested model provider.
+
+    Symmetric to app/services/chat_service.py:_validate_byok_key_matches_model.
+    Returns None if valid, else an error message. For llamacpp/* models keys are
+    ignored; for openai_compatible/* any OpenAI-family/unknown key is accepted.
+    """
+    if not api_key or not model_id:
+        return None
+
+    model_provider = _get_provider_for_model(model_id)
+
+    if model_provider == "llamacpp":
+        return None
+
+    key_provider = _detect_provider_from_key(api_key)
+
+    if not _providers_compatible(key_provider, model_provider):
+        return (
+            f"Provider mismatch: model '{model_id}' requires {model_provider.title()}, "
+            f"but the resolved BYOK key appears to be for {key_provider.title()}"
+        )
+
+    return None
 
 
 class ModelRouter:
@@ -238,6 +342,26 @@ class ModelRouter:
                     "BYOK llm_router: no stored key, using platform key for model=%s",
                     raw_model,
                 )
+
+        # ── Provider-mismatch guard (mirrors chat_service) ──
+        # A resolved/override BYOK key must match the requested model's provider.
+        # A wrong-provider key must NOT reach a provider. Surfaces a clear error
+        # instead of billing a key against the wrong model family.
+        mismatch_error = _validate_byok_key_matches_model(api_key, raw_model)
+        if mismatch_error:
+            logger.error(
+                "llm_router: BYOK provider mismatch for model=%s user=%s: %s",
+                raw_model,
+                effective_user_id,
+                mismatch_error,
+            )
+            result = LLMRouteResult(
+                model=raw_model,
+                content="",
+                success=False,
+                error=mismatch_error,
+            )
+            return self._maybe_dict_result(result, 0, effective_user_id, is_admin)
 
         # ── Hard validation: refuse to call with empty or placeholder API key ──
         # "not-needed" is a valid sentinel for local providers (llamacpp) that
@@ -544,7 +668,25 @@ class ModelRouter:
                             provider_hint,
                             k.id,
                         )
-                        return k.get_api_key(), k.base_url
+                        api_key = k.get_api_key()
+                        base_url = k.base_url
+                        # SSRF guard: reject internal/reserved/private base URLs.
+                        # On invalid use the provider default (None -> caller falls
+                        # back to platform key / resolved provider base_url).
+                        if base_url:
+                            ok, err = _is_safe_outbound_url(base_url)
+                            if not ok:
+                                logger.warning(
+                                    "BYOK key select: UNSAFE base_url user=%s provider=%s "
+                                    "key_id=%s base_url=%s error=%s -> using provider default",
+                                    uid,
+                                    provider_hint,
+                                    k.id,
+                                    base_url,
+                                    err,
+                                )
+                                base_url = None
+                        return api_key, base_url
 
             logger.warning(
                 "BYOK key select: NO MATCH user=%s target=%s available_providers=%s",
@@ -552,8 +694,12 @@ class ModelRouter:
                 provider_hint,
                 [k.provider for k in keys],
             )
-            # Fall back to the first active key
-            return keys[0].get_api_key(), keys[0].base_url
+            # Contract (app/services/AGENTS.md rule 4): the two BYOK key-resolution
+            # paths MUST agree. chat_service._lookup_stored_byok_key returns
+            # (None, None) on no provider match and refuses a wrong-provider key.
+            # Mirroring that here prevents a wrong-provider key from reaching a
+            # provider and being billed against the wrong model family.
+            return None, None
         except Exception as e:
             logger.error("BYOK key select: ERROR user=%s error=%s", user_id, e, exc_info=True)
 
