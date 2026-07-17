@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/agent-personalities", tags=["agent-personalities"])
 
 # Resolve the agent_definitions directory relative to this file.
-_DEFINITIONS_DIR = Path(__file__).resolve().parent.parent.parent / "agent_definitions" / "agent_personalities"
+# Scan the entire tree (all 16 domain subdirs), not just agent_personalities/.
+_DEFINITIONS_DIR = Path(__file__).resolve().parent.parent.parent / "agent_definitions"
 
 
 # ---------------------------------------------------------------------------
@@ -52,8 +53,15 @@ def _parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
     return meta, body.strip()
 
 
-def _load_personality(filepath: Path, domain_dir: str) -> dict[str, str] | None:
-    """Load a single agent personality from a markdown file."""
+def _load_personality(filepath: Path) -> dict[str, str] | None:
+    """Load a single agent personality from a markdown file.
+
+    The *id* is the file's path relative to ``_DEFINITIONS_DIR`` (without the
+    ``.md`` suffix), e.g. ``engineering/code-review-assistant`` or
+    ``game-development/unity/unity-architect``.  The *domain* is the
+    top-level domain directory (the first path segment), normalised to
+    hyphens to match the frontend ``DOMAIN_LABELS`` keys.
+    """
     try:
         text = filepath.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
@@ -61,15 +69,15 @@ def _load_personality(filepath: Path, domain_dir: str) -> dict[str, str] | None:
         return None
 
     meta, body = _parse_frontmatter(text)
-    slug = filepath.stem  # e.g. "code-review-assistant"
 
-    # Normalise domain to hyphens to match frontend DOMAIN_LABELS keys.
-    domain_key = domain_dir.replace("_", "-")
+    rel_parts = filepath.relative_to(_DEFINITIONS_DIR).with_suffix("").parts
+    domain_key = rel_parts[0].replace("_", "-")
+    persona_id = "/".join(rel_parts)
 
     return {
-        "id": f"{domain_key}/{slug}",
+        "id": persona_id,
         "domain": domain_key,
-        "name": meta.get("name", slug.replace("-", " ").title()),
+        "name": meta.get("name", rel_parts[-1].replace("-", " ").title()),
         "description": meta.get("description", ""),
         "color": meta.get("color", "gray"),
         "body": body,
@@ -82,7 +90,8 @@ _cache_mtime: float = 0.0
 
 
 def _load_all_personalities() -> list[dict[str, str]]:
-    """Scan all domain subdirectories and load every personality.
+    """Scan the whole definitions tree (all 16 domain subdirs, recursively)
+    and load every personality.
 
     Results are cached per-process and refreshed when the definitions
     directory mtime changes (i.e. after a deploy or file edit).
@@ -98,13 +107,12 @@ def _load_all_personalities() -> list[dict[str, str]]:
         return _cached_personalities
 
     personalities: list[dict[str, str]] = []
-    for domain_dir in sorted(_DEFINITIONS_DIR.iterdir()):
-        if not domain_dir.is_dir() or domain_dir.name.startswith(("_", ".")):
+    for md_file in sorted(_DEFINITIONS_DIR.rglob("*.md")):
+        if md_file.parent.name.startswith(("_", ".")):
             continue
-        for md_file in sorted(domain_dir.glob("*.md")):
-            entry = _load_personality(md_file, domain_dir.name)
-            if entry:
-                personalities.append(entry)
+        entry = _load_personality(md_file)
+        if entry:
+            personalities.append(entry)
 
     _cached_personalities = personalities
     _cache_mtime = current_mtime
@@ -117,9 +125,27 @@ def _load_all_personalities() -> list[dict[str, str]]:
 
 
 @router.get("")
-async def list_agent_personalities():
-    """Return all agent personalities across all domains."""
-    return _load_all_personalities()
+async def list_agent_personalities(domain: str | None = None, q: str | None = None):
+    """Return all agent personalities across all domains.
+
+    Optional filters:
+      - ``domain``: restrict to a single domain (hyphenated key, e.g. ``engineering``).
+      - ``q``: case-insensitive substring match against name/description.
+    """
+    personalities = _load_all_personalities()
+
+    if domain is not None:
+        personalities = [p for p in personalities if p["domain"] == domain]
+
+    if q is not None:
+        needle = q.lower()
+        personalities = [
+            p
+            for p in personalities
+            if needle in p["name"].lower() or needle in p["description"].lower()
+        ]
+
+    return personalities
 
 
 @router.get("/{path:path}")
@@ -143,7 +169,7 @@ async def get_agent_personality(path: str):
 
     md_file = domain_path / f"{slug}.md"
     if md_file.is_file():
-        entry = _load_personality(md_file, domain_dir)
+        entry = _load_personality(md_file)
         if entry:
             return entry
 

@@ -1,0 +1,155 @@
+--- a/src/data/agents.ts
++++ b/src/data/agents.ts
+@@ -12,6 +12,19 @@
+   "operations": "Operations",
+   "sales": "Sales",
+   "software-it": "Software & IT",
++  "academic": "Academic",
++  "agent-personalities": "Agent Personalities",
++  "browser": "Browser",
++  "design": "Design",
++  "engineering": "Engineering",
++  "game-development": "Game Development",
++  "paid-media": "Paid Media",
++  "product": "Product",
++  "project-management": "Project Management",
++  "spatial-computing": "Spatial Computing",
++  "specialized": "Specialized",
++  "support": "Support",
++  "testing": "Testing",
+ };
+ 
+ export const DOMAIN_COLORS: Record<string, string> = {
+@@ -25,4 +38,17 @@
+   "operations": "bg-orange-100 text-orange-700 border-orange-200",
+   "sales": "bg-teal-100 text-teal-700 border-teal-200",
+   "software-it": "bg-indigo-100 text-indigo-700 border-indigo-200",
++  "academic": "bg-violet-100 text-violet-700 border-violet-200",
++  "agent-personalities": "bg-rose-100 text-rose-700 border-rose-200",
++  "browser": "bg-lime-100 text-lime-700 border-lime-200",
++  "design": "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200",
++  "engineering": "bg-sky-100 text-sky-700 border-sky-200",
++  "game-development": "bg-red-100 text-red-700 border-red-200",
++  "paid-media": "bg-yellow-100 text-yellow-700 border-yellow-200",
++  "product": "bg-green-100 text-green-700 border-green-200",
++  "project-management": "bg-cyan-100 text-cyan-700 border-cyan-200",
++  "spatial-computing": "bg-teal-100 text-teal-700 border-teal-200",
++  "specialized": "bg-slate-100 text-slate-700 border-slate-200",
++  "support": "bg-orange-100 text-orange-700 border-orange-200",
++  "testing": "bg-indigo-100 text-indigo-700 border-indigo-200",
+ };
+
+--- a/src/app/[locale]/agents/agents-page-content.tsx
++++ b/src/app/[locale]/agents/agents-page-content.tsx
+@@ -45,6 +45,8 @@
+   const [stats, setStats] = useState<OrchestrationStats | null>(null);
+   const [loading, setLoading] = useState(true);
+   const [error, setError] = useState<string | null>(null);
++  const [query, setQuery] = useState("");
++  const [activeDomain, setActiveDomain] = useState<string | null>(null);
+ 
+   const fetchData = async () => {
+     setLoading(true);
+@@ -148,6 +150,25 @@
+ 
+   const totalAgents = domains.reduce((sum, d) => sum + d.agents.length, 0);
+ 
++  const needle = query.trim().toLowerCase();
++  const visibleDomains = domains
++    .filter((d) => activeDomain === null || d.domain === activeDomain)
++    .map((d) => ({
++      ...d,
++      agents: needle
++        ? d.agents.filter(
++            (a) =>
++              a.name.toLowerCase().includes(needle) ||
++              a.description.toLowerCase().includes(needle),
++          )
++        : d.agents,
++    }))
++    .filter((d) => d.agents.length > 0);
++
++  const recommended = domains
++    .flatMap((d) => d.agents)
++    .slice(0, 6);
++
+   return (
+     <>
+       <div className="max-w-section-wide mx-auto px-4 sm:px-6 lg:px-8 py-12">
+@@ -179,8 +200,75 @@
+           </div>
+         )}
+ 
++        {/* Search + domain filter chips */}
++        <div className="mb-8 space-y-4">
++          <input
++            type="search"
++            value={query}
++            onChange={(e) => setQuery(e.target.value)}
++            placeholder="Search agents..."
++            className="w-full max-w-md px-4 py-2 rounded-lg border border-white/10 bg-white/5 text-charcoal placeholder:text-charcoal/40 focus:outline-none focus:border-white/30"
++          />
++          <div className="flex flex-wrap gap-2">
++            <button
++              onClick={() => setActiveDomain(null)}
++              className={`px-3 py-1 rounded-full text-xs border transition-colors ${
++                activeDomain === null
++                  ? "bg-charcoal text-white border-charcoal"
++                  : "bg-white/5 text-charcoal/70 border-white/10 hover:border-white/20"
++              }`}
++            >
++              All
++            </button>
++            {domains.map((d) => (
++              <button
++                key={d.domain}
++                onClick={() => setActiveDomain(d.domain)}
++                className={`px-3 py-1 rounded-full text-xs border transition-colors ${
++                  activeDomain === d.domain
++                    ? "bg-charcoal text-white border-charcoal"
++                    : "bg-white/5 text-charcoal/70 border-white/10 hover:border-white/20"
++                }`}
++              >
++                {d.label}
++              </button>
++            ))}
++          </div>
++        </div>
++
++        {/* Recommended row */}
++        {activeDomain === null && !needle && (
++          <section className="mb-10">
++            <h2 className="text-lg font-semibold text-charcoal mb-4">Recommended</h2>
++            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
++              {recommended.map((agent) => (
++                <FadeIn key={agent.id}>
++                  <Link
++                    href={`/agents/${agent.id}`}
++                    className="group bg-white/5 rounded-xl border border-white/10 p-5 hover:border-white/20 hover:shadow-md hover:scale-[1.02] transition-all duration-200"
++                  >
++                    <div className="flex items-start gap-3">
++                      <div className="w-10 h-10 rounded-lg bg-charcoal/5 flex items-center justify-center flex-shrink-0">
++                        <Bot className="w-5 h-5 text-charcoal/60" />
++                      </div>
++                      <div className="min-w-0">
++                        <h3 className="font-semibold text-charcoal group-hover:text-charcoal/80 truncate">
++                          {agent.name}
++                        </h3>
++                        <p className="text-sm text-charcoal/50 mt-1 line-clamp-2">
++                          {agent.description}
++                        </p>
++                      </div>
++                    </div>
++                  </Link>
++                </FadeIn>
++              ))}
++            </div>
++          </section>
++        )}
++
+         {/* Domain sections */}
+-        {domains.map((d) => (
++        {visibleDomains.map((d) => (
+           <section key={d.domain} className="mb-10">
+             <div className="flex items-center gap-3 mb-4">
+               <h2 className="text-lg font-semibold text-charcoal">{d.label}</h2>
