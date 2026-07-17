@@ -16,6 +16,9 @@ What remains:
 
 The failure-type and causal-decomposer libraries (Phases 1–2) are
 preserved in sibling modules for reuse by the strategy profiling harness.
+
+(note: this is a dispatch hook, not an autonomous learner — no strategy
+evolution or learning occurs here)
 """
 
 from __future__ import annotations
@@ -32,6 +35,9 @@ class ImprovementLoopV2:
     Only responsibility: fire the background review Celery task after
     every mission completion.  All autonomous self-improvement logic
     (failure analysis, hypothesis testing, knob tuning) has been removed.
+
+    (note: not an autonomous learner — emits a templated review suggestion,
+    no learned/adaptive strategy)
     """
 
     def __init__(self, db_session: Any = None, **kwargs: Any) -> None:
