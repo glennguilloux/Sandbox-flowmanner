@@ -302,3 +302,58 @@ def test_test_key_uses_no_follow_redirects(monkeypatch):
 
     assert "follow_redirects" in captured, "httpx.AsyncClient called without follow_redirects kwarg"
     assert captured["follow_redirects"] is False
+
+
+# ── R5: discover_models must not bypass the SSRF guard (R-8 sibling gap) ────
+
+
+def test_discover_models_delegates_to_ssrf_safe_fetcher(authed_client, monkeypatch):
+    """discover_models must route through fetch_provider_models (the single
+    SSRF-safe source of truth) and must NOT open its own raw httpx.AsyncClient
+    to the provider. Any attempt to construct a real client here fails the test.
+    """
+    captured = {}
+
+    async def _fake_fetch(*, provider, api_key, base_url=None):
+        captured["called"] = True
+        captured["provider"] = provider
+        from app.api.v1.api_keys import ProviderModelsResult
+
+        return ProviderModelsResult("ok", ["gpt-4o", "gpt-4o-mini"], None)
+
+    monkeypatch.setattr(api_keys_module, "fetch_provider_models", _fake_fetch)
+    api_keys_module._model_cache.clear()  # avoid cross-test cache hits
+
+    # _ExplodingClient fails the test on any real outbound request.
+    with _patch_httpx():
+        resp = client.post(
+            "/api/api-keys/discover-models",
+            json={"provider": "openai", "api_key": "sk-test-123"},
+        )
+
+    assert resp.status_code == 200, resp.text
+    assert captured.get("called") is True, "discover_models did not call fetch_provider_models"
+    assert captured.get("provider") == "openai"
+
+
+def test_discover_models_surfaces_ssrf_unsafe_as_400(authed_client, monkeypatch):
+    """If the SSRF guard ever refuses the destination, discover_models must
+    surface that as a 4xx and must NOT send the user's key anywhere.
+    """
+
+    async def _fake_fetch(*, provider, api_key, base_url=None):
+        from app.api.v1.api_keys import ProviderModelsResult
+
+        return ProviderModelsResult("unsafe", [], "base_url resolves to a non-public address 10.0.0.99")
+
+    monkeypatch.setattr(api_keys_module, "fetch_provider_models", _fake_fetch)
+    api_keys_module._model_cache.clear()  # avoid cross-test cache hits
+
+    with _patch_httpx():
+        resp = client.post(
+            "/api/api-keys/discover-models",
+            json={"provider": "openai", "api_key": "sk-secret-key"},
+        )
+
+    assert resp.status_code == 400, resp.text
+    assert "Refusing" in resp.json().get("detail", "") or "non-public" in resp.text

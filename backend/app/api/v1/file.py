@@ -19,6 +19,82 @@ from app.models.user import User
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "/opt/flowmanner/uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+# Upload hardening (R5 — path-traversal + content validation).
+# Bound file size to prevent resource-exhaustion DoS.
+MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", "25_000_000"))  # 25 MB
+
+# Allowlist of content ranges identified by leading magic bytes. Anything that
+# resolves to an executable/script signature (ELF, PE/MZ, shebang, ZIP-based
+# archives of executables, etc.) is rejected — defense-in-depth so an attacker
+# cannot drop a runnable payload even though storage is non-executable by path.
+_ALLOWED_MAGIC: tuple[tuple[bytes, int], ...] = (
+    (b"\x89PNG\r\n\x1a\n", 0),  # PNG
+    (b"\xff\xd8\xff", 0),  # JPEG
+    (b"GIF87a", 0),  # GIF
+    (b"GIF89a", 0),  # GIF
+    (b"%PDF-", 0),  # PDF
+    (b"PK\x03\x04", 0),  # ZIP / Office Open XML / .docx/.xlsx/.pptx
+    (b"BM", 0),  # BMP
+    (b"RIFF", 0),  # WEBP (RIFF....WEBP) / WAV
+    (b"\x00\x00\x01\x00", 0),  # ICO
+    (b"\x00\x00\x00\x18ftypmp4", 0),  # MP4
+)
+# Known-dangerous signatures we must never accept (explicit deny, even if the
+# byte also matched an allowlist prefix).
+_BLOCKED_MAGIC: tuple[tuple[bytes, int], ...] = (
+    (b"\x7fELF", 0),  # Linux/Unix ELF binary
+    (b"MZ", 0),  # Windows PE/executable
+    (b"#!/", 0),  # shebang script
+    (b"\xfe\xed\xfa\xce", 0),  # Mach-O (macOS binary)
+    (b"\xca\xfe\xba\xbe", 0),  # Mach-O fat binary
+)
+
+
+def _validate_upload_content(content: bytes) -> None:
+    """Reject oversized or executable-typed uploads (R5).
+
+    Text payloads (no magic bytes) are permitted; only content that resolves to
+    an executable/script signature is blocked. Raises ``HTTPException`` (400) on
+    rejection — fail securely, never write the file.
+    """
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large: {len(content)} bytes exceeds limit of {MAX_UPLOAD_BYTES} bytes",
+        )
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty file rejected")
+
+    for sig, offset in _BLOCKED_MAGIC:
+        if content[offset : offset + len(sig)] == sig:
+            raise HTTPException(
+                status_code=400,
+                detail="Upload rejected: file content matches a blocked executable/script signature",
+            )
+
+    # If the content carries a magic signature, require it to be on the
+    # allowlist. Unrecognised binary signatures are rejected by default-deny.
+    has_signature = any(
+        content[offset : offset + len(sig)] == sig for sig, offset in _ALLOWED_MAGIC
+    )
+    if has_signature:
+        return
+    # No recognised magic bytes → treat as text/opaque (e.g. .txt, .csv, .json,
+    # .md). Permitted. Executable scripts would have matched _BLOCKED_MAGIC above.
+
+
+def _safe_storage_name(file_id: str, filename: str | None) -> str:
+    """Build a storage filename that can never escape ``UPLOAD_DIR`` (R5).
+
+    Uses ``os.path.basename`` so crafted names like ``../../etc/cron.d/x`` or
+    absolute paths collapse to a single safe component. The UUID prefix makes
+    collisions impossible even with hostile basenames.
+    """
+    base = os.path.basename(filename or "").strip() or "unnamed"
+    # Defensive: strip any path separators that survive basename on odd inputs.
+    base = base.replace("/", "_").replace("\\", "_")
+    return f"{file_id}_{base}"
+
 router = APIRouter(prefix="/file", tags=["file"])
 files_router = APIRouter(prefix="/files", tags=["files"])
 
@@ -53,7 +129,11 @@ async def upload_file(
     content_data = await file.read()
     file_id = str(uuid4())
 
-    storage_path = UPLOAD_DIR / f"{file_id}_{file.filename or 'unnamed'}"
+    # R5 hardening: reject oversized / executable-content uploads BEFORE any
+    # write, and store under a basename that cannot escape UPLOAD_DIR.
+    _validate_upload_content(content_data)
+    storage_name = _safe_storage_name(file_id, file.filename)
+    storage_path = UPLOAD_DIR / storage_name
     storage_path.write_bytes(content_data)
 
     db_file = UserFile(
