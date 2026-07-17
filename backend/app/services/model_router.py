@@ -10,20 +10,132 @@ Routes LLM requests based on:
 5. BYOK (Bring Your Own Key) support
 """
 
+import ipaddress
 import logging
 import os
+import socket
 import time
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
+from urllib.parse import urlparse
 
 from opentelemetry import trace
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from .langgraph.llm_config import get_llm_manager
 
 logger = logging.getLogger(__name__)
+
+# ── SSRF protection for user-supplied BYOK base_url ──────────────────────────
+# Default-deny: a custom base_url is only allowed when it uses an http(s)
+# scheme and resolves to a PUBLIC (globally routable) IP. This mirrors the
+# contract in app/api/v1/api_keys.py:_is_safe_outbound_url so the two BYOK
+# key-resolution paths agree (services AGENTS.md rule 4).
+_BLOCKED_SCHEMES = frozenset({"file", "ftp", "data", "javascript", "gopher", "dict"})
+_BLOCKED_HOSTNAMES = frozenset(
+    {
+        "localhost",
+        "0.0.0.0",
+        "::1",
+        "127.0.0.1",
+        "::",
+        "169.254.169.254",
+    }
+)
+_BLOCKED_NETWORKS = tuple(
+    ipaddress.ip_network(cidr)
+    for cidr in (
+        "0.0.0.0/8",
+        "10.0.0.0/8",
+        "100.64.0.0/10",
+        "127.0.0.0/8",
+        "169.254.0.0/16",
+        "172.16.0.0/12",
+        "192.0.0.0/24",
+        "192.168.0.0/16",
+        "198.18.0.0/15",
+        "198.51.100.0/24",
+        "203.0.113.0/24",
+        "224.0.0.0/4",
+        "240.0.0.0/4",
+        "255.255.255.255/32",
+        "::1/128",
+        "::/128",
+        "fc00::/7",
+        "fe80::/10",
+        "ff00::/8",
+    )
+)
+
+
+def _is_safe_outbound_url(url: str) -> tuple[bool, str | None]:
+    """Validate a custom BYOK base_url against SSRF rules (default-deny).
+
+    Mirrors ``app.api.v1.api_keys._is_safe_outbound_url`` so the two BYOK
+    key-resolution paths agree (services AGENTS.md rule 4). The destination
+    must use http/https, must not be a blocked hostname, and must resolve to a
+    publicly routable IP address (rejecting private/loopback/link-local/
+    reserved/multicast ranges). On a literal-IP host we check the IP directly;
+    for hostnames we resolve via ``socket.getaddrinfo`` and reject any address
+    that is not global.
+    """
+    if not url:
+        return False, "base_url is required"
+    try:
+        parsed = urlparse(url)
+    except ValueError as exc:
+        return False, f"Invalid base_url: {exc}"
+
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in ("http", "https"):
+        return False, f"base_url scheme '{scheme}://' is not allowed (http/https only)"
+    if scheme in _BLOCKED_SCHEMES:
+        return False, f"base_url scheme '{scheme}://' is blocked"
+
+    hostname = (parsed.hostname or "").lower()
+    if not hostname:
+        return False, "base_url has no valid hostname"
+    if hostname in _BLOCKED_HOSTNAMES:
+        return False, f"base_url host '{hostname}' is blocked"
+
+    # Reject a literal private/loopback/link-local/reserved/multicast IP.
+    try:
+        addr = ipaddress.ip_address(hostname)
+    except ValueError:
+        pass  # Not a literal IP — resolve it below.
+    else:
+        if not addr.is_global or addr.is_loopback or addr.is_link_local or addr.is_reserved or addr.is_multicast:
+            return False, f"base_url host '{hostname}' is not a public address"
+        return True, None
+
+    # Hostname: resolve and reject names that point at non-public ranges.
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except (socket.gaierror, UnicodeError, OSError) as exc:
+        return False, f"base_url host '{hostname}' could not be resolved: {exc}"
+
+    if not infos:
+        return False, f"base_url host '{hostname}' resolved to no addresses"
+
+    for _family, _type, _proto, _canon, sockaddr in infos:
+        ip_str = sockaddr[0]
+        try:
+            resolved = ipaddress.ip_address(ip_str)
+        except ValueError:
+            return False, f"base_url host '{hostname}' resolved to an invalid address '{ip_str}'"
+        if (
+            not resolved.is_global
+            or resolved.is_loopback
+            or resolved.is_link_local
+            or resolved.is_reserved
+            or resolved.is_multicast
+        ):
+            return False, (f"base_url host '{hostname}' resolves to a non-public address '{ip_str}'")
+    return True, None
 
 
 class RoutingStrategy(Enum):
@@ -158,7 +270,7 @@ class ModelRouter:
         # 1. Try user's BYOK key first
         if user_id is not None and db_session is not None:
             try:
-                byok_key = self._get_byok_key(model_id, user_id, db_session)
+                byok_key = await self._get_byok_key(model_id, user_id, db_session)
                 if byok_key:
                     model = llm_manager.get_model(model_id, user_id=user_id)
                     if model is not None:
@@ -176,8 +288,14 @@ class ModelRouter:
 
         return False
 
-    def _get_byok_key(self, model_id: str, user_id: int, db_session: Session):
-        """Look up user's BYOK key for a specific model."""
+    async def _get_byok_key(self, model_id: str, user_id: int, db_session: AsyncSession):
+        """Look up user's BYOK key for a specific model.
+
+        Async — operates on an AsyncSession via ``select()``/``await``. Returns
+        the matching ``UserAPIKey`` row, or ``None`` when no active key covers
+        ``model_id`` (the falsy return satisfies the ``if byok_key:`` guards at
+        the two call sites).
+        """
         logger.debug("BYOK model_router lookup: user=%s model=%s", user_id, model_id)
         try:
             from app.models.byok_models import UserAPIKey as UserApiKey
@@ -187,7 +305,6 @@ class ModelRouter:
             if model_id.startswith("byok_"):
                 parts = model_id.split("_", 2)  # Split into ['byok', '{user_id}', '{model_id}']
                 if len(parts) >= 3:
-                    byok_prefix_user = parts[1]
                     original_model_id = parts[2]
                     logger.info(
                         "BYOK lookup: parsed model_id=%s -> original=%s, user=%s",
@@ -202,50 +319,34 @@ class ModelRouter:
                 original_model_id,
             )
 
-            if self._get_db_backend() == "postgresql":
-                # PostgreSQL: Use JSON containment operator
-                result = (
-                    db_session.query(UserApiKey)
-                    .filter(
-                        UserApiKey.user_id == user_id,
-                        UserApiKey.is_active == True,
-                        UserApiKey.models.op("@>")(f'["{original_model_id}"]'),
-                    )
-                    .first()
-                )
-                if result:
+            # Single async path covering both PostgreSQL and SQLite: select the
+            # active keys for the user, then match the model in Python. This
+            # avoids the sync .query() call (AsyncSession has no .query) and the
+            # PostgreSQL-specific JSON containment operator on the async path.
+            stmt = select(UserApiKey).where(UserApiKey.user_id == user_id).where(UserApiKey.is_active == True)
+            result = await db_session.execute(stmt)
+            keys = result.scalars().all()
+
+            logger.info("BYOK lookup: found %s active keys for user", len(keys))
+            for key in keys:
+                logger.info("BYOK lookup: checking key %s, models=%s", key.id, key.models)
+                if key.models and original_model_id in key.get_models_list():
                     logger.info(
                         "BYOK model_router lookup: MATCH key_id=%s provider=%s",
-                        result.id,
-                        result.provider,
+                        key.id,
+                        key.provider,
                     )
-                else:
-                    logger.debug(
-                        "BYOK model_router lookup: NO MATCH for model=%s",
-                        original_model_id,
-                    )
-                return result
-            else:
-                # SQLite fallback: Iterate and check
-                keys = (
-                    db_session.query(UserApiKey)
-                    .filter(
-                        UserApiKey.user_id == user_id,
-                        UserApiKey.is_active == True,
-                        UserApiKey.models.isnot(None),
-                    )
-                    .all()
-                )
-                logger.info("BYOK lookup (sqlite): found %s active keys for user", len(keys))
-                for key in keys:
-                    logger.info("BYOK lookup: checking key %s, models=%s", key.id, key.models)
-                    if key.models and original_model_id in key.models:
-                        logger.info("BYOK lookup: MATCH found! key_id=%s", key.id)
-                        return key
-                logger.info("BYOK lookup: NO MATCH found for %s", original_model_id)
-                return None
-        except Exception as e:
-            logger.error("Error looking up BYOK key: %s", e)
+                    return key
+            logger.info("BYOK lookup: NO MATCH found for %s", original_model_id)
+            return None
+        except SQLAlchemyError as e:
+            logger.error(
+                "Error looking up BYOK key for user=%s model=%s: %s",
+                user_id,
+                model_id,
+                e,
+                exc_info=True,
+            )
             return None
 
     async def _execute_with_byok(
@@ -297,6 +398,24 @@ class ModelRouter:
                     "model_id": model_id,
                     "provider": "byok",
                 }
+
+            # SSRF guard: validate the (user-supplied) base_url before handing it
+            # to the LLM client. On failure, fall back to the provider default so
+            # execution still proceeds against the legitimate endpoint rather than
+            # an internal/metadata address. Mirrors app/api/v1/api_keys.py.
+            if base_url:
+                ok, err = _is_safe_outbound_url(base_url)
+                if not ok:
+                    fallback = self._get_default_base_url(
+                        original_model_id.split("/")[0] if "/" in original_model_id else ""
+                    )
+                    logger.warning(
+                        "BYOK execute: rejecting unsafe base_url=%s (%s); falling back to provider default=%s",
+                        base_url,
+                        err,
+                        fallback,
+                    )
+                    base_url = fallback
 
             llm = llm_manager.get_model_with_user_key(model_id=model_id, api_key=api_key, base_url=base_url)
 
@@ -463,7 +582,7 @@ class ModelRouter:
                 target_model,
                 user_id_int,
             )
-            byok_key = self._get_byok_key(target_model, user_id_int, db_session)
+            byok_key = await self._get_byok_key(target_model, user_id_int, db_session)
             if byok_key:
                 try:
                     decrypted_key = byok_key.get_api_key()
