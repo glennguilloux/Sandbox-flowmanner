@@ -9,18 +9,15 @@ from ...client import AuthenticatedClient, Client
 from ...models.chat_file_create import ChatFileCreate
 from ...models.chat_file_response import ChatFileResponse
 from ...models.http_validation_error import HTTPValidationError
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     thread_id: int,
     *,
     body: ChatFileCreate,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -72,13 +69,11 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: ChatFileCreate,
-    accept_version: str | Unset = "v1",
 ) -> Response[ChatFileResponse | HTTPValidationError]:
     """Create File
 
     Args:
         thread_id (int):
-        accept_version (str | Unset):  Default: 'v1'.
         body (ChatFileCreate):
 
     Raises:
@@ -92,7 +87,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         thread_id=thread_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -107,13 +101,11 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: ChatFileCreate,
-    accept_version: str | Unset = "v1",
 ) -> ChatFileResponse | HTTPValidationError | None:
     """Create File
 
     Args:
         thread_id (int):
-        accept_version (str | Unset):  Default: 'v1'.
         body (ChatFileCreate):
 
     Raises:
@@ -128,7 +120,6 @@ def sync(
         thread_id=thread_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -137,13 +128,11 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: ChatFileCreate,
-    accept_version: str | Unset = "v1",
 ) -> Response[ChatFileResponse | HTTPValidationError]:
     """Create File
 
     Args:
         thread_id (int):
-        accept_version (str | Unset):  Default: 'v1'.
         body (ChatFileCreate):
 
     Raises:
@@ -157,7 +146,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         thread_id=thread_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -170,13 +158,11 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: ChatFileCreate,
-    accept_version: str | Unset = "v1",
 ) -> ChatFileResponse | HTTPValidationError | None:
     """Create File
 
     Args:
         thread_id (int):
-        accept_version (str | Unset):  Default: 'v1'.
         body (ChatFileCreate):
 
     Raises:
@@ -192,6 +178,5 @@ async def asyncio(
             thread_id=thread_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

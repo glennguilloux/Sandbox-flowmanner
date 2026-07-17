@@ -9,15 +9,9 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.template_update_default_constraints_type_0 import (
-        TemplateUpdateDefaultConstraintsType0,
-    )
-    from ..models.template_update_default_plan_type_0 import (
-        TemplateUpdateDefaultPlanType0,
-    )
-    from ..models.template_update_default_tasks_type_0 import (
-        TemplateUpdateDefaultTasksType0,
-    )
+    from ..models.template_update_default_constraints_type_0 import TemplateUpdateDefaultConstraintsType0
+    from ..models.template_update_default_plan_type_0 import TemplateUpdateDefaultPlanType0
+    from ..models.template_update_default_tasks_type_0 import TemplateUpdateDefaultTasksType0
 
 
 T = TypeVar("T", bound="TemplateUpdate")
@@ -46,15 +40,9 @@ class TemplateUpdate:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.template_update_default_constraints_type_0 import (
-            TemplateUpdateDefaultConstraintsType0,
-        )
-        from ..models.template_update_default_plan_type_0 import (
-            TemplateUpdateDefaultPlanType0,
-        )
-        from ..models.template_update_default_tasks_type_0 import (
-            TemplateUpdateDefaultTasksType0,
-        )
+        from ..models.template_update_default_constraints_type_0 import TemplateUpdateDefaultConstraintsType0
+        from ..models.template_update_default_plan_type_0 import TemplateUpdateDefaultPlanType0
+        from ..models.template_update_default_tasks_type_0 import TemplateUpdateDefaultTasksType0
 
         name: None | str | Unset
         if isinstance(self.name, Unset):
@@ -126,15 +114,9 @@ class TemplateUpdate:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.template_update_default_constraints_type_0 import (
-            TemplateUpdateDefaultConstraintsType0,
-        )
-        from ..models.template_update_default_plan_type_0 import (
-            TemplateUpdateDefaultPlanType0,
-        )
-        from ..models.template_update_default_tasks_type_0 import (
-            TemplateUpdateDefaultTasksType0,
-        )
+        from ..models.template_update_default_constraints_type_0 import TemplateUpdateDefaultConstraintsType0
+        from ..models.template_update_default_plan_type_0 import TemplateUpdateDefaultPlanType0
+        from ..models.template_update_default_tasks_type_0 import TemplateUpdateDefaultTasksType0
 
         d = dict(src_dict)
 
@@ -174,9 +156,7 @@ class TemplateUpdate:
 
         is_public = _parse_is_public(d.pop("is_public", UNSET))
 
-        def _parse_default_plan(
-            data: object,
-        ) -> None | TemplateUpdateDefaultPlanType0 | Unset:
+        def _parse_default_plan(data: object) -> None | TemplateUpdateDefaultPlanType0 | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -193,9 +173,7 @@ class TemplateUpdate:
 
         default_plan = _parse_default_plan(d.pop("default_plan", UNSET))
 
-        def _parse_default_tasks(
-            data: object,
-        ) -> None | TemplateUpdateDefaultTasksType0 | Unset:
+        def _parse_default_tasks(data: object) -> None | TemplateUpdateDefaultTasksType0 | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -212,9 +190,7 @@ class TemplateUpdate:
 
         default_tasks = _parse_default_tasks(d.pop("default_tasks", UNSET))
 
-        def _parse_default_constraints(
-            data: object,
-        ) -> None | TemplateUpdateDefaultConstraintsType0 | Unset:
+        def _parse_default_constraints(data: object) -> None | TemplateUpdateDefaultConstraintsType0 | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):

@@ -9,18 +9,15 @@ from ...client import AuthenticatedClient, Client
 from ...models.feedback_report_response import FeedbackReportResponse
 from ...models.http_validation_error import HTTPValidationError
 from ...models.synthesize_request import SynthesizeRequest
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     mission_id: str,
     *,
     body: SynthesizeRequest,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -72,7 +69,6 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: SynthesizeRequest,
-    accept_version: str | Unset = "v1",
 ) -> Response[FeedbackReportResponse | HTTPValidationError]:
     """Synthesize Endpoint
 
@@ -80,7 +76,6 @@ def sync_detailed(
 
     Args:
         mission_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (SynthesizeRequest):
 
     Raises:
@@ -94,7 +89,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         mission_id=mission_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -109,7 +103,6 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: SynthesizeRequest,
-    accept_version: str | Unset = "v1",
 ) -> FeedbackReportResponse | HTTPValidationError | None:
     """Synthesize Endpoint
 
@@ -117,7 +110,6 @@ def sync(
 
     Args:
         mission_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (SynthesizeRequest):
 
     Raises:
@@ -132,7 +124,6 @@ def sync(
         mission_id=mission_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -141,7 +132,6 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: SynthesizeRequest,
-    accept_version: str | Unset = "v1",
 ) -> Response[FeedbackReportResponse | HTTPValidationError]:
     """Synthesize Endpoint
 
@@ -149,7 +139,6 @@ async def asyncio_detailed(
 
     Args:
         mission_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (SynthesizeRequest):
 
     Raises:
@@ -163,7 +152,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         mission_id=mission_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -176,7 +164,6 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: SynthesizeRequest,
-    accept_version: str | Unset = "v1",
 ) -> FeedbackReportResponse | HTTPValidationError | None:
     """Synthesize Endpoint
 
@@ -184,7 +171,6 @@ async def asyncio(
 
     Args:
         mission_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (SynthesizeRequest):
 
     Raises:
@@ -200,6 +186,5 @@ async def asyncio(
             mission_id=mission_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

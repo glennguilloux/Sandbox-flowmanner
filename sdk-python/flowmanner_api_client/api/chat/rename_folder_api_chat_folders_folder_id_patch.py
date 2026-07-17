@@ -9,18 +9,15 @@ from ...client import AuthenticatedClient, Client
 from ...models.chat_folder_response import ChatFolderResponse
 from ...models.chat_folder_update import ChatFolderUpdate
 from ...models.http_validation_error import HTTPValidationError
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     folder_id: int,
     *,
     body: ChatFolderUpdate,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "patch",
@@ -72,13 +69,11 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: ChatFolderUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Response[ChatFolderResponse | HTTPValidationError]:
     """Rename Folder
 
     Args:
         folder_id (int):
-        accept_version (str | Unset):  Default: 'v1'.
         body (ChatFolderUpdate):
 
     Raises:
@@ -92,7 +87,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         folder_id=folder_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -107,13 +101,11 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: ChatFolderUpdate,
-    accept_version: str | Unset = "v1",
 ) -> ChatFolderResponse | HTTPValidationError | None:
     """Rename Folder
 
     Args:
         folder_id (int):
-        accept_version (str | Unset):  Default: 'v1'.
         body (ChatFolderUpdate):
 
     Raises:
@@ -128,7 +120,6 @@ def sync(
         folder_id=folder_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -137,13 +128,11 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: ChatFolderUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Response[ChatFolderResponse | HTTPValidationError]:
     """Rename Folder
 
     Args:
         folder_id (int):
-        accept_version (str | Unset):  Default: 'v1'.
         body (ChatFolderUpdate):
 
     Raises:
@@ -157,7 +146,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         folder_id=folder_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -170,13 +158,11 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: ChatFolderUpdate,
-    accept_version: str | Unset = "v1",
 ) -> ChatFolderResponse | HTTPValidationError | None:
     """Rename Folder
 
     Args:
         folder_id (int):
-        accept_version (str | Unset):  Default: 'v1'.
         body (ChatFolderUpdate):
 
     Raises:
@@ -192,6 +178,5 @@ async def asyncio(
             folder_id=folder_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

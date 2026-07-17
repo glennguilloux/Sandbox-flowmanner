@@ -3,17 +3,15 @@ from __future__ import annotations
 import datetime
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar, cast
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.graph_workflow_response_graph_definition_type_0 import (
-        GraphWorkflowResponseGraphDefinitionType0,
-    )
+    from ..models.graph_workflow_response_graph_definition_type_0 import GraphWorkflowResponseGraphDefinitionType0
 
 
 T = TypeVar("T", bound="GraphWorkflowResponse")
@@ -23,7 +21,7 @@ T = TypeVar("T", bound="GraphWorkflowResponse")
 class GraphWorkflowResponse:
     """
     Attributes:
-        id (str):
+        id (str | UUID):
         name (str):
         created_at (datetime.datetime):
         updated_at (datetime.datetime):
@@ -33,7 +31,7 @@ class GraphWorkflowResponse:
         user_id (int | None | Unset):
     """
 
-    id: str
+    id: str | UUID
     name: str
     created_at: datetime.datetime
     updated_at: datetime.datetime
@@ -44,11 +42,13 @@ class GraphWorkflowResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.graph_workflow_response_graph_definition_type_0 import (
-            GraphWorkflowResponseGraphDefinitionType0,
-        )
+        from ..models.graph_workflow_response_graph_definition_type_0 import GraphWorkflowResponseGraphDefinitionType0
 
-        id = self.id
+        id: str
+        if isinstance(self.id, UUID):
+            id = str(self.id)
+        else:
+            id = self.id
 
         name = self.name
 
@@ -101,18 +101,28 @@ class GraphWorkflowResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.graph_workflow_response_graph_definition_type_0 import (
-            GraphWorkflowResponseGraphDefinitionType0,
-        )
+        from ..models.graph_workflow_response_graph_definition_type_0 import GraphWorkflowResponseGraphDefinitionType0
 
         d = dict(src_dict)
-        id = d.pop("id")
+
+        def _parse_id(data: object) -> str | UUID:
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                id_type_1 = UUID(data)
+
+                return id_type_1
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(str | UUID, data)
+
+        id = _parse_id(d.pop("id"))
 
         name = d.pop("name")
 
-        created_at = isoparse(d.pop("created_at"))
+        created_at = datetime.datetime.fromisoformat(d.pop("created_at"))
 
-        updated_at = isoparse(d.pop("updated_at"))
+        updated_at = datetime.datetime.fromisoformat(d.pop("updated_at"))
 
         def _parse_description(data: object) -> None | str | Unset:
             if data is None:
@@ -123,9 +133,7 @@ class GraphWorkflowResponse:
 
         description = _parse_description(d.pop("description", UNSET))
 
-        def _parse_graph_definition(
-            data: object,
-        ) -> GraphWorkflowResponseGraphDefinitionType0 | None | Unset:
+        def _parse_graph_definition(data: object) -> GraphWorkflowResponseGraphDefinitionType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):

@@ -7,12 +7,8 @@ from attrs import define as _attrs_define
 from attrs import field as _attrs_field
 
 if TYPE_CHECKING:
-    from ..models.feedback_compare_response_missions_item import (
-        FeedbackCompareResponseMissionsItem,
-    )
-    from ..models.feedback_compare_response_score_delta import (
-        FeedbackCompareResponseScoreDelta,
-    )
+    from ..models.feedback_compare_response_missions_item import FeedbackCompareResponseMissionsItem
+    from ..models.feedback_compare_response_score_delta import FeedbackCompareResponseScoreDelta
 
 
 T = TypeVar("T", bound="FeedbackCompareResponse")
@@ -61,12 +57,8 @@ class FeedbackCompareResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.feedback_compare_response_missions_item import (
-            FeedbackCompareResponseMissionsItem,
-        )
-        from ..models.feedback_compare_response_score_delta import (
-            FeedbackCompareResponseScoreDelta,
-        )
+        from ..models.feedback_compare_response_missions_item import FeedbackCompareResponseMissionsItem
+        from ..models.feedback_compare_response_score_delta import FeedbackCompareResponseScoreDelta
 
         d = dict(src_dict)
         missions = []

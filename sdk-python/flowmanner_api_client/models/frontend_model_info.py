@@ -23,6 +23,7 @@ class FrontendModelInfo:
         quantization (None | str | Unset):
         provider (None | str | Unset):
         description (None | str | Unset):
+        is_byok (bool | Unset):  Default: False.
     """
 
     model_id: str
@@ -33,6 +34,7 @@ class FrontendModelInfo:
     quantization: None | str | Unset = UNSET
     provider: None | str | Unset = UNSET
     description: None | str | Unset = UNSET
+    is_byok: bool | Unset = False
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -68,6 +70,8 @@ class FrontendModelInfo:
         else:
             description = self.description
 
+        is_byok = self.is_byok
+
         field_dict: dict[str, Any] = {}
         field_dict.update(self.additional_properties)
         field_dict.update(
@@ -88,6 +92,8 @@ class FrontendModelInfo:
             field_dict["provider"] = provider
         if description is not UNSET:
             field_dict["description"] = description
+        if is_byok is not UNSET:
+            field_dict["is_byok"] = is_byok
 
         return field_dict
 
@@ -138,6 +144,8 @@ class FrontendModelInfo:
 
         description = _parse_description(d.pop("description", UNSET))
 
+        is_byok = d.pop("is_byok", UNSET)
+
         frontend_model_info = cls(
             model_id=model_id,
             display_name=display_name,
@@ -147,6 +155,7 @@ class FrontendModelInfo:
             quantization=quantization,
             provider=provider,
             description=description,
+            is_byok=is_byok,
         )
 
         frontend_model_info.additional_properties = d

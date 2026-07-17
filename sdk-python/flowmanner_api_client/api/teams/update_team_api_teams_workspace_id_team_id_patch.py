@@ -8,7 +8,7 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
 from ...models.team_update import TeamUpdate
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
@@ -16,11 +16,8 @@ def _get_kwargs(
     team_id: str,
     *,
     body: TeamUpdate,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "patch",
@@ -73,14 +70,12 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: TeamUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Update Team
 
     Args:
         workspace_id (str):
         team_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (TeamUpdate):
 
     Raises:
@@ -95,7 +90,6 @@ def sync_detailed(
         workspace_id=workspace_id,
         team_id=team_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -111,14 +105,12 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: TeamUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Update Team
 
     Args:
         workspace_id (str):
         team_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (TeamUpdate):
 
     Raises:
@@ -134,7 +126,6 @@ def sync(
         team_id=team_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -144,14 +135,12 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: TeamUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Update Team
 
     Args:
         workspace_id (str):
         team_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (TeamUpdate):
 
     Raises:
@@ -166,7 +155,6 @@ async def asyncio_detailed(
         workspace_id=workspace_id,
         team_id=team_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -180,14 +168,12 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: TeamUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Update Team
 
     Args:
         workspace_id (str):
         team_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (TeamUpdate):
 
     Raises:
@@ -204,6 +190,5 @@ async def asyncio(
             team_id=team_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

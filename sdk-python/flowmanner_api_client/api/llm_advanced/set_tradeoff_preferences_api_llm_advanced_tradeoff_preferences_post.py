@@ -6,15 +6,15 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.set_tradeoff_preferences_api_llm_advanced_tradeoff_preferences_post_payload import (
-    SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload,
+from ...models.set_tradeoff_preferences_api_llm_advanced_tradeoff_preferences_post_payload_8 import (
+    SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload8,
 )
 from ...types import Response
 
 
 def _get_kwargs(
     *,
-    body: SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload,
+    body: SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload8,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -63,14 +63,14 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    body: SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload,
+    body: SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload8,
 ) -> Response[Any | HTTPValidationError]:
     """Set Tradeoff Preferences
 
      Set user tradeoff preferences.
 
     Args:
-        body (SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload):
+        body (SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload8):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -94,14 +94,14 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    body: SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload,
+    body: SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload8,
 ) -> Any | HTTPValidationError | None:
     """Set Tradeoff Preferences
 
      Set user tradeoff preferences.
 
     Args:
-        body (SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload):
+        body (SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload8):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -120,14 +120,14 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    body: SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload,
+    body: SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload8,
 ) -> Response[Any | HTTPValidationError]:
     """Set Tradeoff Preferences
 
      Set user tradeoff preferences.
 
     Args:
-        body (SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload):
+        body (SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload8):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -149,14 +149,14 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    body: SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload,
+    body: SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload8,
 ) -> Any | HTTPValidationError | None:
     """Set Tradeoff Preferences
 
      Set user tradeoff preferences.
 
     Args:
-        body (SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload):
+        body (SetTradeoffPreferencesApiLlmAdvancedTradeoffPreferencesPostPayload8):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

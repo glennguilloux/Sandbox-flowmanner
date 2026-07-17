@@ -9,18 +9,12 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
 from ...models.mission_log_response import MissionLogResponse
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     mission_id: UUID,
-    *,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/api/missions/{mission_id}/logs/".format(
@@ -28,7 +22,6 @@ def _get_kwargs(
         ),
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -71,13 +64,11 @@ def sync_detailed(
     mission_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | list[MissionLogResponse]]:
     """List Logs
 
     Args:
         mission_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -89,7 +80,6 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         mission_id=mission_id,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -103,13 +93,11 @@ def sync(
     mission_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | list[MissionLogResponse] | None:
     """List Logs
 
     Args:
         mission_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -122,7 +110,6 @@ def sync(
     return sync_detailed(
         mission_id=mission_id,
         client=client,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -130,13 +117,11 @@ async def asyncio_detailed(
     mission_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | list[MissionLogResponse]]:
     """List Logs
 
     Args:
         mission_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -148,7 +133,6 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         mission_id=mission_id,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -160,13 +144,11 @@ async def asyncio(
     mission_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | list[MissionLogResponse] | None:
     """List Logs
 
     Args:
         mission_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -180,6 +162,5 @@ async def asyncio(
         await asyncio_detailed(
             mission_id=mission_id,
             client=client,
-            accept_version=accept_version,
         )
     ).parsed

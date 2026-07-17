@@ -5,8 +5,8 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.create_feature_flag_api_admin_feature_flags_post_data import (
-    CreateFeatureFlagApiAdminFeatureFlagsPostData,
+from ...models.create_feature_flag_api_admin_feature_flags_post_data_11 import (
+    CreateFeatureFlagApiAdminFeatureFlagsPostData11,
 )
 from ...models.feature_flag import FeatureFlag
 from ...models.http_validation_error import HTTPValidationError
@@ -15,7 +15,7 @@ from ...types import Response
 
 def _get_kwargs(
     *,
-    body: CreateFeatureFlagApiAdminFeatureFlagsPostData,
+    body: CreateFeatureFlagApiAdminFeatureFlagsPostData11,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -65,12 +65,12 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    body: CreateFeatureFlagApiAdminFeatureFlagsPostData,
+    body: CreateFeatureFlagApiAdminFeatureFlagsPostData11,
 ) -> Response[FeatureFlag | HTTPValidationError]:
     """Create Feature Flag
 
     Args:
-        body (CreateFeatureFlagApiAdminFeatureFlagsPostData):
+        body (CreateFeatureFlagApiAdminFeatureFlagsPostData11):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -94,12 +94,12 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    body: CreateFeatureFlagApiAdminFeatureFlagsPostData,
+    body: CreateFeatureFlagApiAdminFeatureFlagsPostData11,
 ) -> FeatureFlag | HTTPValidationError | None:
     """Create Feature Flag
 
     Args:
-        body (CreateFeatureFlagApiAdminFeatureFlagsPostData):
+        body (CreateFeatureFlagApiAdminFeatureFlagsPostData11):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -118,12 +118,12 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    body: CreateFeatureFlagApiAdminFeatureFlagsPostData,
+    body: CreateFeatureFlagApiAdminFeatureFlagsPostData11,
 ) -> Response[FeatureFlag | HTTPValidationError]:
     """Create Feature Flag
 
     Args:
-        body (CreateFeatureFlagApiAdminFeatureFlagsPostData):
+        body (CreateFeatureFlagApiAdminFeatureFlagsPostData11):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -145,12 +145,12 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    body: CreateFeatureFlagApiAdminFeatureFlagsPostData,
+    body: CreateFeatureFlagApiAdminFeatureFlagsPostData11,
 ) -> FeatureFlag | HTTPValidationError | None:
     """Create Feature Flag
 
     Args:
-        body (CreateFeatureFlagApiAdminFeatureFlagsPostData):
+        body (CreateFeatureFlagApiAdminFeatureFlagsPostData11):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

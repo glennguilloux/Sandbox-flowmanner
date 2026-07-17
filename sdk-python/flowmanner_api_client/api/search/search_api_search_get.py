@@ -14,12 +14,7 @@ def _get_kwargs(
     q: str,
     type_: str | Unset = "",
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     params["q"] = q
@@ -36,7 +31,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -75,7 +69,6 @@ def sync_detailed(
     q: str,
     type_: str | Unset = "",
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Search
 
@@ -85,7 +78,6 @@ def sync_detailed(
         q (str):
         type_ (str | Unset): Comma-separated entity types: missions,agents,knowledge Default: ''.
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -99,7 +91,6 @@ def sync_detailed(
         q=q,
         type_=type_,
         limit=limit,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -115,7 +106,6 @@ def sync(
     q: str,
     type_: str | Unset = "",
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Search
 
@@ -125,7 +115,6 @@ def sync(
         q (str):
         type_ (str | Unset): Comma-separated entity types: missions,agents,knowledge Default: ''.
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -140,7 +129,6 @@ def sync(
         q=q,
         type_=type_,
         limit=limit,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -150,7 +138,6 @@ async def asyncio_detailed(
     q: str,
     type_: str | Unset = "",
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Search
 
@@ -160,7 +147,6 @@ async def asyncio_detailed(
         q (str):
         type_ (str | Unset): Comma-separated entity types: missions,agents,knowledge Default: ''.
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -174,7 +160,6 @@ async def asyncio_detailed(
         q=q,
         type_=type_,
         limit=limit,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -188,7 +173,6 @@ async def asyncio(
     q: str,
     type_: str | Unset = "",
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Search
 
@@ -198,7 +182,6 @@ async def asyncio(
         q (str):
         type_ (str | Unset): Comma-separated entity types: missions,agents,knowledge Default: ''.
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -214,6 +197,5 @@ async def asyncio(
             q=q,
             type_=type_,
             limit=limit,
-            accept_version=accept_version,
         )
     ).parsed

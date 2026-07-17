@@ -7,20 +7,13 @@ from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.template_response_default_constraints_type_0 import (
-        TemplateResponseDefaultConstraintsType0,
-    )
-    from ..models.template_response_default_plan_type_0 import (
-        TemplateResponseDefaultPlanType0,
-    )
-    from ..models.template_response_default_tasks_type_0 import (
-        TemplateResponseDefaultTasksType0,
-    )
+    from ..models.template_response_default_constraints_type_0 import TemplateResponseDefaultConstraintsType0
+    from ..models.template_response_default_plan_type_0 import TemplateResponseDefaultPlanType0
+    from ..models.template_response_default_tasks_type_0 import TemplateResponseDefaultTasksType0
 
 
 T = TypeVar("T", bound="TemplateResponse")
@@ -57,15 +50,9 @@ class TemplateResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.template_response_default_constraints_type_0 import (
-            TemplateResponseDefaultConstraintsType0,
-        )
-        from ..models.template_response_default_plan_type_0 import (
-            TemplateResponseDefaultPlanType0,
-        )
-        from ..models.template_response_default_tasks_type_0 import (
-            TemplateResponseDefaultTasksType0,
-        )
+        from ..models.template_response_default_constraints_type_0 import TemplateResponseDefaultConstraintsType0
+        from ..models.template_response_default_plan_type_0 import TemplateResponseDefaultPlanType0
+        from ..models.template_response_default_tasks_type_0 import TemplateResponseDefaultTasksType0
 
         id = str(self.id)
 
@@ -157,15 +144,9 @@ class TemplateResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.template_response_default_constraints_type_0 import (
-            TemplateResponseDefaultConstraintsType0,
-        )
-        from ..models.template_response_default_plan_type_0 import (
-            TemplateResponseDefaultPlanType0,
-        )
-        from ..models.template_response_default_tasks_type_0 import (
-            TemplateResponseDefaultTasksType0,
-        )
+        from ..models.template_response_default_constraints_type_0 import TemplateResponseDefaultConstraintsType0
+        from ..models.template_response_default_plan_type_0 import TemplateResponseDefaultPlanType0
+        from ..models.template_response_default_tasks_type_0 import TemplateResponseDefaultTasksType0
 
         d = dict(src_dict)
         id = UUID(d.pop("id"))
@@ -190,9 +171,7 @@ class TemplateResponse:
 
         user_id = d.pop("user_id")
 
-        def _parse_default_plan(
-            data: object,
-        ) -> list[Any] | None | TemplateResponseDefaultPlanType0 | Unset:
+        def _parse_default_plan(data: object) -> list[Any] | None | TemplateResponseDefaultPlanType0 | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -217,9 +196,7 @@ class TemplateResponse:
 
         default_plan = _parse_default_plan(d.pop("default_plan", UNSET))
 
-        def _parse_default_tasks(
-            data: object,
-        ) -> list[Any] | None | TemplateResponseDefaultTasksType0 | Unset:
+        def _parse_default_tasks(data: object) -> list[Any] | None | TemplateResponseDefaultTasksType0 | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -279,7 +256,7 @@ class TemplateResponse:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                created_at_type_0 = isoparse(data)
+                created_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return created_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -296,7 +273,7 @@ class TemplateResponse:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                updated_at_type_0 = isoparse(data)
+                updated_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return updated_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

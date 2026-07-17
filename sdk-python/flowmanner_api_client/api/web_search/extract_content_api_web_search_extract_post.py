@@ -13,12 +13,7 @@ def _get_kwargs(
     *,
     url_query: str,
     max_length: int | Unset = 5000,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     params["url"] = url_query
@@ -33,7 +28,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -71,7 +65,6 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     url_query: str,
     max_length: int | Unset = 5000,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Extract Content
 
@@ -80,7 +73,6 @@ def sync_detailed(
     Args:
         url_query (str): URL to extract content from
         max_length (int | Unset):  Default: 5000.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -93,7 +85,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         url_query=url_query,
         max_length=max_length,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -108,7 +99,6 @@ def sync(
     client: AuthenticatedClient | Client,
     url_query: str,
     max_length: int | Unset = 5000,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Extract Content
 
@@ -117,7 +107,6 @@ def sync(
     Args:
         url_query (str): URL to extract content from
         max_length (int | Unset):  Default: 5000.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -131,7 +120,6 @@ def sync(
         client=client,
         url_query=url_query,
         max_length=max_length,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -140,7 +128,6 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     url_query: str,
     max_length: int | Unset = 5000,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Extract Content
 
@@ -149,7 +136,6 @@ async def asyncio_detailed(
     Args:
         url_query (str): URL to extract content from
         max_length (int | Unset):  Default: 5000.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -162,7 +148,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         url_query=url_query,
         max_length=max_length,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -175,7 +160,6 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     url_query: str,
     max_length: int | Unset = 5000,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Extract Content
 
@@ -184,7 +168,6 @@ async def asyncio(
     Args:
         url_query (str): URL to extract content from
         max_length (int | Unset):  Default: 5000.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -199,6 +182,5 @@ async def asyncio(
             client=client,
             url_query=url_query,
             max_length=max_length,
-            accept_version=accept_version,
         )
     ).parsed

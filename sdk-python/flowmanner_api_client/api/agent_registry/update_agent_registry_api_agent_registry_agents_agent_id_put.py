@@ -8,21 +8,18 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.update_agent_registry_api_agent_registry_agents_agent_id_put_payload import (
-    UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload,
+from ...models.update_agent_registry_api_agent_registry_agents_agent_id_put_payload_3 import (
+    UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload3,
 )
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     agent_id: UUID,
     *,
-    body: UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload,
-    accept_version: str | Unset = "v1",
+    body: UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload3,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "put",
@@ -72,8 +69,7 @@ def sync_detailed(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload,
-    accept_version: str | Unset = "v1",
+    body: UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload3,
 ) -> Response[Any | HTTPValidationError]:
     """Update Agent Registry
 
@@ -81,8 +77,7 @@ def sync_detailed(
 
     Args:
         agent_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload):
+        body (UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload3):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -95,7 +90,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         agent_id=agent_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -109,8 +103,7 @@ def sync(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload,
-    accept_version: str | Unset = "v1",
+    body: UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload3,
 ) -> Any | HTTPValidationError | None:
     """Update Agent Registry
 
@@ -118,8 +111,7 @@ def sync(
 
     Args:
         agent_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload):
+        body (UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload3):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -133,7 +125,6 @@ def sync(
         agent_id=agent_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -141,8 +132,7 @@ async def asyncio_detailed(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload,
-    accept_version: str | Unset = "v1",
+    body: UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload3,
 ) -> Response[Any | HTTPValidationError]:
     """Update Agent Registry
 
@@ -150,8 +140,7 @@ async def asyncio_detailed(
 
     Args:
         agent_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload):
+        body (UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload3):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -164,7 +153,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         agent_id=agent_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -176,8 +164,7 @@ async def asyncio(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload,
-    accept_version: str | Unset = "v1",
+    body: UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload3,
 ) -> Any | HTTPValidationError | None:
     """Update Agent Registry
 
@@ -185,8 +172,7 @@ async def asyncio(
 
     Args:
         agent_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload):
+        body (UpdateAgentRegistryApiAgentRegistryAgentsAgentIdPutPayload3):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -201,6 +187,5 @@ async def asyncio(
             agent_id=agent_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

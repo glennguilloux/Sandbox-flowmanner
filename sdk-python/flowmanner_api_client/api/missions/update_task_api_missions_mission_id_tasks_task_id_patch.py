@@ -10,7 +10,7 @@ from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
 from ...models.mission_task_response import MissionTaskResponse
 from ...models.mission_task_update import MissionTaskUpdate
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
@@ -18,11 +18,8 @@ def _get_kwargs(
     task_id: UUID,
     *,
     body: MissionTaskUpdate,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "patch",
@@ -76,14 +73,12 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: MissionTaskUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | MissionTaskResponse]:
     """Update Task
 
     Args:
         mission_id (UUID):
         task_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (MissionTaskUpdate):
 
     Raises:
@@ -98,7 +93,6 @@ def sync_detailed(
         mission_id=mission_id,
         task_id=task_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -114,14 +108,12 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: MissionTaskUpdate,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | MissionTaskResponse | None:
     """Update Task
 
     Args:
         mission_id (UUID):
         task_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (MissionTaskUpdate):
 
     Raises:
@@ -137,7 +129,6 @@ def sync(
         task_id=task_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -147,14 +138,12 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: MissionTaskUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | MissionTaskResponse]:
     """Update Task
 
     Args:
         mission_id (UUID):
         task_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (MissionTaskUpdate):
 
     Raises:
@@ -169,7 +158,6 @@ async def asyncio_detailed(
         mission_id=mission_id,
         task_id=task_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -183,14 +171,12 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: MissionTaskUpdate,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | MissionTaskResponse | None:
     """Update Task
 
     Args:
         mission_id (UUID):
         task_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (MissionTaskUpdate):
 
     Raises:
@@ -207,6 +193,5 @@ async def asyncio(
             task_id=task_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

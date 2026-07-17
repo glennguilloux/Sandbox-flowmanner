@@ -17,12 +17,7 @@ def _get_kwargs(
     state: None | str | Unset = UNSET,
     error: None | str | Unset = UNSET,
     error_description: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     json_code: None | str | Unset
@@ -63,7 +58,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -104,7 +98,6 @@ def sync_detailed(
     state: None | str | Unset = UNSET,
     error: None | str | Unset = UNSET,
     error_description: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Oidc Callback
 
@@ -126,7 +119,6 @@ def sync_detailed(
         state (None | str | Unset):
         error (None | str | Unset):
         error_description (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -142,7 +134,6 @@ def sync_detailed(
         state=state,
         error=error,
         error_description=error_description,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -160,7 +151,6 @@ def sync(
     state: None | str | Unset = UNSET,
     error: None | str | Unset = UNSET,
     error_description: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Oidc Callback
 
@@ -182,7 +172,6 @@ def sync(
         state (None | str | Unset):
         error (None | str | Unset):
         error_description (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -199,7 +188,6 @@ def sync(
         state=state,
         error=error,
         error_description=error_description,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -211,7 +199,6 @@ async def asyncio_detailed(
     state: None | str | Unset = UNSET,
     error: None | str | Unset = UNSET,
     error_description: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Oidc Callback
 
@@ -233,7 +220,6 @@ async def asyncio_detailed(
         state (None | str | Unset):
         error (None | str | Unset):
         error_description (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -249,7 +235,6 @@ async def asyncio_detailed(
         state=state,
         error=error,
         error_description=error_description,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -265,7 +250,6 @@ async def asyncio(
     state: None | str | Unset = UNSET,
     error: None | str | Unset = UNSET,
     error_description: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Oidc Callback
 
@@ -287,7 +271,6 @@ async def asyncio(
         state (None | str | Unset):
         error (None | str | Unset):
         error_description (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -305,6 +288,5 @@ async def asyncio(
             state=state,
             error=error,
             error_description=error_description,
-            accept_version=accept_version,
         )
     ).parsed

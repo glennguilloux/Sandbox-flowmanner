@@ -14,12 +14,7 @@ def _get_kwargs(
     limit: int | Unset = 50,
     offset: int | Unset = 0,
     action: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     params["limit"] = limit
@@ -41,7 +36,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -80,7 +74,6 @@ def sync_detailed(
     limit: int | Unset = 50,
     offset: int | Unset = 0,
     action: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Get User Audit Log
 
@@ -90,7 +83,6 @@ def sync_detailed(
         limit (int | Unset):  Default: 50.
         offset (int | Unset):  Default: 0.
         action (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -104,7 +96,6 @@ def sync_detailed(
         limit=limit,
         offset=offset,
         action=action,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -120,7 +111,6 @@ def sync(
     limit: int | Unset = 50,
     offset: int | Unset = 0,
     action: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Get User Audit Log
 
@@ -130,7 +120,6 @@ def sync(
         limit (int | Unset):  Default: 50.
         offset (int | Unset):  Default: 0.
         action (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -145,7 +134,6 @@ def sync(
         limit=limit,
         offset=offset,
         action=action,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -155,7 +143,6 @@ async def asyncio_detailed(
     limit: int | Unset = 50,
     offset: int | Unset = 0,
     action: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Get User Audit Log
 
@@ -165,7 +152,6 @@ async def asyncio_detailed(
         limit (int | Unset):  Default: 50.
         offset (int | Unset):  Default: 0.
         action (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -179,7 +165,6 @@ async def asyncio_detailed(
         limit=limit,
         offset=offset,
         action=action,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -193,7 +178,6 @@ async def asyncio(
     limit: int | Unset = 50,
     offset: int | Unset = 0,
     action: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Get User Audit Log
 
@@ -203,7 +187,6 @@ async def asyncio(
         limit (int | Unset):  Default: 50.
         offset (int | Unset):  Default: 0.
         action (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -219,6 +202,5 @@ async def asyncio(
             limit=limit,
             offset=offset,
             action=action,
-            accept_version=accept_version,
         )
     ).parsed

@@ -6,7 +6,6 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.api_key_create import APIKeyCreate
-from ...models.api_key_response import APIKeyResponse
 from ...models.http_validation_error import HTTPValidationError
 from ...types import Response
 
@@ -32,10 +31,9 @@ def _get_kwargs(
 
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> APIKeyResponse | HTTPValidationError | None:
+) -> Any | HTTPValidationError | None:
     if response.status_code == 201:
-        response_201 = APIKeyResponse.from_dict(response.json())
-
+        response_201 = response.json()
         return response_201
 
     if response.status_code == 422:
@@ -51,7 +49,7 @@ def _parse_response(
 
 def _build_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
-) -> Response[APIKeyResponse | HTTPValidationError]:
+) -> Response[Any | HTTPValidationError]:
     return Response(
         status_code=HTTPStatus(response.status_code),
         content=response.content,
@@ -64,7 +62,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: APIKeyCreate,
-) -> Response[APIKeyResponse | HTTPValidationError]:
+) -> Response[Any | HTTPValidationError]:
     """Create Api Key
 
     Args:
@@ -75,7 +73,7 @@ def sync_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[APIKeyResponse | HTTPValidationError]
+        Response[Any | HTTPValidationError]
     """
 
     kwargs = _get_kwargs(
@@ -93,7 +91,7 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: APIKeyCreate,
-) -> APIKeyResponse | HTTPValidationError | None:
+) -> Any | HTTPValidationError | None:
     """Create Api Key
 
     Args:
@@ -104,7 +102,7 @@ def sync(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        APIKeyResponse | HTTPValidationError
+        Any | HTTPValidationError
     """
 
     return sync_detailed(
@@ -117,7 +115,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: APIKeyCreate,
-) -> Response[APIKeyResponse | HTTPValidationError]:
+) -> Response[Any | HTTPValidationError]:
     """Create Api Key
 
     Args:
@@ -128,7 +126,7 @@ async def asyncio_detailed(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        Response[APIKeyResponse | HTTPValidationError]
+        Response[Any | HTTPValidationError]
     """
 
     kwargs = _get_kwargs(
@@ -144,7 +142,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: APIKeyCreate,
-) -> APIKeyResponse | HTTPValidationError | None:
+) -> Any | HTTPValidationError | None:
     """Create Api Key
 
     Args:
@@ -155,7 +153,7 @@ async def asyncio(
         httpx.TimeoutException: If the request takes longer than Client.timeout.
 
     Returns:
-        APIKeyResponse | HTTPValidationError
+        Any | HTTPValidationError
     """
 
     return (

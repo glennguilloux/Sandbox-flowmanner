@@ -9,9 +9,7 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.agent_template_create_config_data_type_0 import (
-        AgentTemplateCreateConfigDataType0,
-    )
+    from ..models.agent_template_create_config_data_type_0 import AgentTemplateCreateConfigDataType0
 
 
 T = TypeVar("T", bound="AgentTemplateCreate")
@@ -38,9 +36,7 @@ class AgentTemplateCreate:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.agent_template_create_config_data_type_0 import (
-            AgentTemplateCreateConfigDataType0,
-        )
+        from ..models.agent_template_create_config_data_type_0 import AgentTemplateCreateConfigDataType0
 
         name = self.name
 
@@ -90,9 +86,7 @@ class AgentTemplateCreate:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.agent_template_create_config_data_type_0 import (
-            AgentTemplateCreateConfigDataType0,
-        )
+        from ..models.agent_template_create_config_data_type_0 import AgentTemplateCreateConfigDataType0
 
         d = dict(src_dict)
         name = d.pop("name")
@@ -117,9 +111,7 @@ class AgentTemplateCreate:
 
         agent_type = d.pop("agent_type", UNSET)
 
-        def _parse_config_data(
-            data: object,
-        ) -> AgentTemplateCreateConfigDataType0 | None | Unset:
+        def _parse_config_data(data: object) -> AgentTemplateCreateConfigDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):

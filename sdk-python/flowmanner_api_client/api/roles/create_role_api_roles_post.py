@@ -14,21 +14,18 @@ from ...types import UNSET, Response, Unset
 def _get_kwargs(
     *,
     body: RoleCreate,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     params: dict[str, Any] = {}
 
-    json_tenant_id: None | str | Unset
-    if isinstance(tenant_id, Unset):
-        json_tenant_id = UNSET
+    json_workspace_id: None | str | Unset
+    if isinstance(workspace_id, Unset):
+        json_workspace_id = UNSET
     else:
-        json_tenant_id = tenant_id
-    params["tenant_id"] = json_tenant_id
+        json_workspace_id = workspace_id
+    params["workspace_id"] = json_workspace_id
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -80,16 +77,14 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: RoleCreate,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> Response[HTTPValidationError | RoleResponse]:
     """Create Role
 
      Create a custom role with optional initial permissions.
 
     Args:
-        tenant_id (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        workspace_id (None | str | Unset):
         body (RoleCreate):
 
     Raises:
@@ -102,8 +97,7 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         body=body,
-        tenant_id=tenant_id,
-        accept_version=accept_version,
+        workspace_id=workspace_id,
     )
 
     response = client.get_httpx_client().request(
@@ -117,16 +111,14 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: RoleCreate,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> HTTPValidationError | RoleResponse | None:
     """Create Role
 
      Create a custom role with optional initial permissions.
 
     Args:
-        tenant_id (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        workspace_id (None | str | Unset):
         body (RoleCreate):
 
     Raises:
@@ -140,8 +132,7 @@ def sync(
     return sync_detailed(
         client=client,
         body=body,
-        tenant_id=tenant_id,
-        accept_version=accept_version,
+        workspace_id=workspace_id,
     ).parsed
 
 
@@ -149,16 +140,14 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: RoleCreate,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> Response[HTTPValidationError | RoleResponse]:
     """Create Role
 
      Create a custom role with optional initial permissions.
 
     Args:
-        tenant_id (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        workspace_id (None | str | Unset):
         body (RoleCreate):
 
     Raises:
@@ -171,8 +160,7 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         body=body,
-        tenant_id=tenant_id,
-        accept_version=accept_version,
+        workspace_id=workspace_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -184,16 +172,14 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: RoleCreate,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> HTTPValidationError | RoleResponse | None:
     """Create Role
 
      Create a custom role with optional initial permissions.
 
     Args:
-        tenant_id (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        workspace_id (None | str | Unset):
         body (RoleCreate):
 
     Raises:
@@ -208,7 +194,6 @@ async def asyncio(
         await asyncio_detailed(
             client=client,
             body=body,
-            tenant_id=tenant_id,
-            accept_version=accept_version,
+            workspace_id=workspace_id,
         )
     ).parsed

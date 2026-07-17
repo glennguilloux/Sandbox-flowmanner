@@ -1,0 +1,237 @@
+from http import HTTPStatus
+from typing import Any
+from urllib.parse import quote
+from uuid import UUID
+
+import httpx
+
+from ... import errors
+from ...client import AuthenticatedClient, Client
+from ...models.http_validation_error import HTTPValidationError
+from ...types import UNSET, Response, Unset
+
+
+def _get_kwargs(
+    mission_id: UUID,
+    *,
+    at_sequence: int | None | Unset = UNSET,
+) -> dict[str, Any]:
+    params: dict[str, Any] = {}
+
+    json_at_sequence: int | None | Unset
+    if isinstance(at_sequence, Unset):
+        json_at_sequence = UNSET
+    else:
+        json_at_sequence = at_sequence
+    params["at_sequence"] = json_at_sequence
+
+    params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
+
+    _kwargs: dict[str, Any] = {
+        "method": "get",
+        "url": "/api/missions/{mission_id}/replay-state".format(
+            mission_id=quote(str(mission_id), safe=""),
+        ),
+        "params": params,
+    }
+
+    return _kwargs
+
+
+def _parse_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Any | HTTPValidationError | None:
+    if response.status_code == 200:
+        response_200 = response.json()
+        return response_200
+
+    if response.status_code == 422:
+        response_422 = HTTPValidationError.from_dict(response.json())
+
+        return response_422
+
+    if client.raise_on_unexpected_status:
+        raise errors.UnexpectedStatus(response.status_code, response.content)
+    else:
+        return None
+
+
+def _build_response(
+    *, client: AuthenticatedClient | Client, response: httpx.Response
+) -> Response[Any | HTTPValidationError]:
+    return Response(
+        status_code=HTTPStatus(response.status_code),
+        content=response.content,
+        headers=response.headers,
+        parsed=_parse_response(client=client, response=response),
+    )
+
+
+def sync_detailed(
+    mission_id: UUID,
+    *,
+    client: AuthenticatedClient,
+    at_sequence: int | None | Unset = UNSET,
+) -> Response[Any | HTTPValidationError]:
+    r"""Get Mission Replay State
+
+     Rebuild the run state from the event log.
+
+    This enables time-travel debugging: \"what did mission X look like
+    after event 42?\"
+
+    Args:
+        mission_id: Mission UUID.
+        at_sequence: If set, rebuild state as of this sequence.
+                     If None, rebuild to the latest state.
+
+    Returns:
+        dict with run state: status, sequence, completed_tasks, etc.
+
+    Args:
+        mission_id (UUID):
+        at_sequence (int | None | Unset):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Response[Any | HTTPValidationError]
+    """
+
+    kwargs = _get_kwargs(
+        mission_id=mission_id,
+        at_sequence=at_sequence,
+    )
+
+    response = client.get_httpx_client().request(
+        **kwargs,
+    )
+
+    return _build_response(client=client, response=response)
+
+
+def sync(
+    mission_id: UUID,
+    *,
+    client: AuthenticatedClient,
+    at_sequence: int | None | Unset = UNSET,
+) -> Any | HTTPValidationError | None:
+    r"""Get Mission Replay State
+
+     Rebuild the run state from the event log.
+
+    This enables time-travel debugging: \"what did mission X look like
+    after event 42?\"
+
+    Args:
+        mission_id: Mission UUID.
+        at_sequence: If set, rebuild state as of this sequence.
+                     If None, rebuild to the latest state.
+
+    Returns:
+        dict with run state: status, sequence, completed_tasks, etc.
+
+    Args:
+        mission_id (UUID):
+        at_sequence (int | None | Unset):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Any | HTTPValidationError
+    """
+
+    return sync_detailed(
+        mission_id=mission_id,
+        client=client,
+        at_sequence=at_sequence,
+    ).parsed
+
+
+async def asyncio_detailed(
+    mission_id: UUID,
+    *,
+    client: AuthenticatedClient,
+    at_sequence: int | None | Unset = UNSET,
+) -> Response[Any | HTTPValidationError]:
+    r"""Get Mission Replay State
+
+     Rebuild the run state from the event log.
+
+    This enables time-travel debugging: \"what did mission X look like
+    after event 42?\"
+
+    Args:
+        mission_id: Mission UUID.
+        at_sequence: If set, rebuild state as of this sequence.
+                     If None, rebuild to the latest state.
+
+    Returns:
+        dict with run state: status, sequence, completed_tasks, etc.
+
+    Args:
+        mission_id (UUID):
+        at_sequence (int | None | Unset):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Response[Any | HTTPValidationError]
+    """
+
+    kwargs = _get_kwargs(
+        mission_id=mission_id,
+        at_sequence=at_sequence,
+    )
+
+    response = await client.get_async_httpx_client().request(**kwargs)
+
+    return _build_response(client=client, response=response)
+
+
+async def asyncio(
+    mission_id: UUID,
+    *,
+    client: AuthenticatedClient,
+    at_sequence: int | None | Unset = UNSET,
+) -> Any | HTTPValidationError | None:
+    r"""Get Mission Replay State
+
+     Rebuild the run state from the event log.
+
+    This enables time-travel debugging: \"what did mission X look like
+    after event 42?\"
+
+    Args:
+        mission_id: Mission UUID.
+        at_sequence: If set, rebuild state as of this sequence.
+                     If None, rebuild to the latest state.
+
+    Returns:
+        dict with run state: status, sequence, completed_tasks, etc.
+
+    Args:
+        mission_id (UUID):
+        at_sequence (int | None | Unset):
+
+    Raises:
+        errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
+        httpx.TimeoutException: If the request takes longer than Client.timeout.
+
+    Returns:
+        Any | HTTPValidationError
+    """
+
+    return (
+        await asyncio_detailed(
+            mission_id=mission_id,
+            client=client,
+            at_sequence=at_sequence,
+        )
+    ).parsed

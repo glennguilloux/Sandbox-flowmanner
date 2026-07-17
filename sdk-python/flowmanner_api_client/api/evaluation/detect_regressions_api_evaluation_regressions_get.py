@@ -15,12 +15,7 @@ def _get_kwargs(
     dataset_id: None | str | Unset = UNSET,
     threshold: float | Unset = 0.5,
     limit: int | Unset = 10,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     json_model_name: None | str | Unset
@@ -49,7 +44,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -89,7 +83,6 @@ def sync_detailed(
     dataset_id: None | str | Unset = UNSET,
     threshold: float | Unset = 0.5,
     limit: int | Unset = 10,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Detect Regressions
 
@@ -100,7 +93,6 @@ def sync_detailed(
         dataset_id (None | str | Unset):
         threshold (float | Unset):  Default: 0.5.
         limit (int | Unset):  Default: 10.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -115,7 +107,6 @@ def sync_detailed(
         dataset_id=dataset_id,
         threshold=threshold,
         limit=limit,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -132,7 +123,6 @@ def sync(
     dataset_id: None | str | Unset = UNSET,
     threshold: float | Unset = 0.5,
     limit: int | Unset = 10,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Detect Regressions
 
@@ -143,7 +133,6 @@ def sync(
         dataset_id (None | str | Unset):
         threshold (float | Unset):  Default: 0.5.
         limit (int | Unset):  Default: 10.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -159,7 +148,6 @@ def sync(
         dataset_id=dataset_id,
         threshold=threshold,
         limit=limit,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -170,7 +158,6 @@ async def asyncio_detailed(
     dataset_id: None | str | Unset = UNSET,
     threshold: float | Unset = 0.5,
     limit: int | Unset = 10,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Detect Regressions
 
@@ -181,7 +168,6 @@ async def asyncio_detailed(
         dataset_id (None | str | Unset):
         threshold (float | Unset):  Default: 0.5.
         limit (int | Unset):  Default: 10.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -196,7 +182,6 @@ async def asyncio_detailed(
         dataset_id=dataset_id,
         threshold=threshold,
         limit=limit,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -211,7 +196,6 @@ async def asyncio(
     dataset_id: None | str | Unset = UNSET,
     threshold: float | Unset = 0.5,
     limit: int | Unset = 10,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Detect Regressions
 
@@ -222,7 +206,6 @@ async def asyncio(
         dataset_id (None | str | Unset):
         threshold (float | Unset):  Default: 0.5.
         limit (int | Unset):  Default: 10.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -239,6 +222,5 @@ async def asyncio(
             dataset_id=dataset_id,
             threshold=threshold,
             limit=limit,
-            accept_version=accept_version,
         )
     ).parsed

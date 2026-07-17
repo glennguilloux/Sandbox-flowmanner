@@ -12,12 +12,8 @@ from ...types import UNSET, Response, Unset
 def _get_kwargs(
     *,
     category: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    q: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     json_category: None | str | Unset
@@ -27,6 +23,13 @@ def _get_kwargs(
         json_category = category
     params["category"] = json_category
 
+    json_q: None | str | Unset
+    if isinstance(q, Unset):
+        json_q = UNSET
+    else:
+        json_q = q
+    params["q"] = json_q
+
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
     _kwargs: dict[str, Any] = {
@@ -35,7 +38,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -72,13 +74,13 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     category: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    q: None | str | Unset = UNSET,
 ) -> Response[Any | HTTPValidationError]:
     """List Templates
 
     Args:
-        category (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        category (None | str | Unset): Filter by category
+        q (None | str | Unset): Search query for name/description
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -90,7 +92,7 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         category=category,
-        accept_version=accept_version,
+        q=q,
     )
 
     response = client.get_httpx_client().request(
@@ -104,13 +106,13 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
     category: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    q: None | str | Unset = UNSET,
 ) -> Any | HTTPValidationError | None:
     """List Templates
 
     Args:
-        category (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        category (None | str | Unset): Filter by category
+        q (None | str | Unset): Search query for name/description
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -123,7 +125,7 @@ def sync(
     return sync_detailed(
         client=client,
         category=category,
-        accept_version=accept_version,
+        q=q,
     ).parsed
 
 
@@ -131,13 +133,13 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
     category: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    q: None | str | Unset = UNSET,
 ) -> Response[Any | HTTPValidationError]:
     """List Templates
 
     Args:
-        category (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        category (None | str | Unset): Filter by category
+        q (None | str | Unset): Search query for name/description
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -149,7 +151,7 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         category=category,
-        accept_version=accept_version,
+        q=q,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -161,13 +163,13 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
     category: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    q: None | str | Unset = UNSET,
 ) -> Any | HTTPValidationError | None:
     """List Templates
 
     Args:
-        category (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        category (None | str | Unset): Filter by category
+        q (None | str | Unset): Search query for name/description
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -181,6 +183,6 @@ async def asyncio(
         await asyncio_detailed(
             client=client,
             category=category,
-            accept_version=accept_version,
+            q=q,
         )
     ).parsed

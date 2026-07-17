@@ -15,12 +15,7 @@ def _get_kwargs(
     provider: str,
     *,
     redirect_uri: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     json_redirect_uri: None | str | Unset
@@ -40,7 +35,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -79,7 +73,6 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     redirect_uri: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | OIDCLoginResponse]:
     """Oidc Login
 
@@ -94,7 +87,6 @@ def sync_detailed(
     Args:
         provider (str):
         redirect_uri (None | str | Unset): Custom redirect URI after callback
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -107,7 +99,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         provider=provider,
         redirect_uri=redirect_uri,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -122,7 +113,6 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
     redirect_uri: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | OIDCLoginResponse | None:
     """Oidc Login
 
@@ -137,7 +127,6 @@ def sync(
     Args:
         provider (str):
         redirect_uri (None | str | Unset): Custom redirect URI after callback
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -151,7 +140,6 @@ def sync(
         provider=provider,
         client=client,
         redirect_uri=redirect_uri,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -160,7 +148,6 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
     redirect_uri: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | OIDCLoginResponse]:
     """Oidc Login
 
@@ -175,7 +162,6 @@ async def asyncio_detailed(
     Args:
         provider (str):
         redirect_uri (None | str | Unset): Custom redirect URI after callback
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -188,7 +174,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         provider=provider,
         redirect_uri=redirect_uri,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -201,7 +186,6 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
     redirect_uri: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | OIDCLoginResponse | None:
     """Oidc Login
 
@@ -216,7 +200,6 @@ async def asyncio(
     Args:
         provider (str):
         redirect_uri (None | str | Unset): Custom redirect URI after callback
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -231,6 +214,5 @@ async def asyncio(
             provider=provider,
             client=client,
             redirect_uri=redirect_uri,
-            accept_version=accept_version,
         )
     ).parsed

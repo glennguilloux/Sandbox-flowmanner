@@ -6,18 +6,17 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
+from ...models.connect_request import ConnectRequest
 from ...models.http_validation_error import HTTPValidationError
-from ...types import Response, Unset
+from ...types import UNSET, Response, Unset
 
 
 def _get_kwargs(
     slug: str,
     *,
-    accept_version: str | Unset = "v1",
+    body: ConnectRequest | None | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -25,6 +24,13 @@ def _get_kwargs(
             slug=quote(str(slug), safe=""),
         ),
     }
+
+    if isinstance(body, ConnectRequest):
+        _kwargs["json"] = body.to_dict()
+    else:
+        _kwargs["json"] = body
+
+    headers["Content-Type"] = "application/json"
 
     _kwargs["headers"] = headers
     return _kwargs
@@ -63,13 +69,13 @@ def sync_detailed(
     slug: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
+    body: ConnectRequest | None | Unset = UNSET,
 ) -> Response[Any | HTTPValidationError]:
     """Connect Integration
 
     Args:
         slug (str):
-        accept_version (str | Unset):  Default: 'v1'.
+        body (ConnectRequest | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -81,7 +87,7 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         slug=slug,
-        accept_version=accept_version,
+        body=body,
     )
 
     response = client.get_httpx_client().request(
@@ -95,13 +101,13 @@ def sync(
     slug: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
+    body: ConnectRequest | None | Unset = UNSET,
 ) -> Any | HTTPValidationError | None:
     """Connect Integration
 
     Args:
         slug (str):
-        accept_version (str | Unset):  Default: 'v1'.
+        body (ConnectRequest | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -114,7 +120,7 @@ def sync(
     return sync_detailed(
         slug=slug,
         client=client,
-        accept_version=accept_version,
+        body=body,
     ).parsed
 
 
@@ -122,13 +128,13 @@ async def asyncio_detailed(
     slug: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
+    body: ConnectRequest | None | Unset = UNSET,
 ) -> Response[Any | HTTPValidationError]:
     """Connect Integration
 
     Args:
         slug (str):
-        accept_version (str | Unset):  Default: 'v1'.
+        body (ConnectRequest | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -140,7 +146,7 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         slug=slug,
-        accept_version=accept_version,
+        body=body,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -152,13 +158,13 @@ async def asyncio(
     slug: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
+    body: ConnectRequest | None | Unset = UNSET,
 ) -> Any | HTTPValidationError | None:
     """Connect Integration
 
     Args:
         slug (str):
-        accept_version (str | Unset):  Default: 'v1'.
+        body (ConnectRequest | None | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -172,6 +178,6 @@ async def asyncio(
         await asyncio_detailed(
             slug=slug,
             client=client,
-            accept_version=accept_version,
+            body=body,
         )
     ).parsed

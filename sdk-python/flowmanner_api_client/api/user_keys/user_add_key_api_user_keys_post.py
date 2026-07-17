@@ -6,13 +6,13 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.user_add_key_api_user_keys_post_data import UserAddKeyApiUserKeysPostData
+from ...models.user_add_key_api_user_keys_post_data_4 import UserAddKeyApiUserKeysPostData4
 from ...types import Response
 
 
 def _get_kwargs(
     *,
-    body: UserAddKeyApiUserKeysPostData,
+    body: UserAddKeyApiUserKeysPostData4,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -61,12 +61,12 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    body: UserAddKeyApiUserKeysPostData,
+    body: UserAddKeyApiUserKeysPostData4,
 ) -> Response[Any | HTTPValidationError]:
     """User Add Key
 
     Args:
-        body (UserAddKeyApiUserKeysPostData):
+        body (UserAddKeyApiUserKeysPostData4):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -90,12 +90,12 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    body: UserAddKeyApiUserKeysPostData,
+    body: UserAddKeyApiUserKeysPostData4,
 ) -> Any | HTTPValidationError | None:
     """User Add Key
 
     Args:
-        body (UserAddKeyApiUserKeysPostData):
+        body (UserAddKeyApiUserKeysPostData4):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -114,12 +114,12 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    body: UserAddKeyApiUserKeysPostData,
+    body: UserAddKeyApiUserKeysPostData4,
 ) -> Response[Any | HTTPValidationError]:
     """User Add Key
 
     Args:
-        body (UserAddKeyApiUserKeysPostData):
+        body (UserAddKeyApiUserKeysPostData4):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -141,12 +141,12 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    body: UserAddKeyApiUserKeysPostData,
+    body: UserAddKeyApiUserKeysPostData4,
 ) -> Any | HTTPValidationError | None:
     """User Add Key
 
     Args:
-        body (UserAddKeyApiUserKeysPostData):
+        body (UserAddKeyApiUserKeysPostData4):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

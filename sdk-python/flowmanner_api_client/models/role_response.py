@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
 from ..types import UNSET, Unset
 
@@ -22,7 +21,7 @@ class RoleResponse:
     """
     Attributes:
         id (str):
-        tenant_id (None | str):
+        workspace_id (None | str):
         name (str):
         description (None | str):
         is_system (bool):
@@ -33,7 +32,7 @@ class RoleResponse:
     """
 
     id: str
-    tenant_id: None | str
+    workspace_id: None | str
     name: str
     description: None | str
     is_system: bool
@@ -46,8 +45,8 @@ class RoleResponse:
     def to_dict(self) -> dict[str, Any]:
         id = self.id
 
-        tenant_id: None | str
-        tenant_id = self.tenant_id
+        workspace_id: None | str
+        workspace_id = self.workspace_id
 
         name = self.name
 
@@ -75,7 +74,7 @@ class RoleResponse:
         field_dict.update(
             {
                 "id": id,
-                "tenant_id": tenant_id,
+                "workspace_id": workspace_id,
                 "name": name,
                 "description": description,
                 "is_system": is_system,
@@ -96,12 +95,12 @@ class RoleResponse:
         d = dict(src_dict)
         id = d.pop("id")
 
-        def _parse_tenant_id(data: object) -> None | str:
+        def _parse_workspace_id(data: object) -> None | str:
             if data is None:
                 return data
             return cast(None | str, data)
 
-        tenant_id = _parse_tenant_id(d.pop("tenant_id"))
+        workspace_id = _parse_workspace_id(d.pop("workspace_id"))
 
         name = d.pop("name")
 
@@ -121,9 +120,9 @@ class RoleResponse:
 
         created_by = _parse_created_by(d.pop("created_by"))
 
-        created_at = isoparse(d.pop("created_at"))
+        created_at = datetime.datetime.fromisoformat(d.pop("created_at"))
 
-        updated_at = isoparse(d.pop("updated_at"))
+        updated_at = datetime.datetime.fromisoformat(d.pop("updated_at"))
 
         _permissions = d.pop("permissions", UNSET)
         permissions: list[RolePermissionResponse] | Unset = UNSET
@@ -136,7 +135,7 @@ class RoleResponse:
 
         role_response = cls(
             id=id,
-            tenant_id=tenant_id,
+            workspace_id=workspace_id,
             name=name,
             description=description,
             is_system=is_system,

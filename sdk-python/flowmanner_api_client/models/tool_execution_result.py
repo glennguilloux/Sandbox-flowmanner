@@ -9,9 +9,7 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.tool_execution_result_result_type_0 import (
-        ToolExecutionResultResultType0,
-    )
+    from ..models.tool_execution_result_result_type_0 import ToolExecutionResultResultType0
 
 
 T = TypeVar("T", bound="ToolExecutionResult")
@@ -40,9 +38,7 @@ class ToolExecutionResult:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.tool_execution_result_result_type_0 import (
-            ToolExecutionResultResultType0,
-        )
+        from ..models.tool_execution_result_result_type_0 import ToolExecutionResultResultType0
 
         tool_id = self.tool_id
 
@@ -91,18 +87,14 @@ class ToolExecutionResult:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.tool_execution_result_result_type_0 import (
-            ToolExecutionResultResultType0,
-        )
+        from ..models.tool_execution_result_result_type_0 import ToolExecutionResultResultType0
 
         d = dict(src_dict)
         tool_id = d.pop("tool_id")
 
         success = d.pop("success")
 
-        def _parse_result(
-            data: object,
-        ) -> None | ToolExecutionResultResultType0 | Unset:
+        def _parse_result(data: object) -> None | ToolExecutionResultResultType0 | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):

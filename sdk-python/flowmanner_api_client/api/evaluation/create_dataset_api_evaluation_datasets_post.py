@@ -60,7 +60,7 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: CreateDatasetRequest,
 ) -> Response[Any | HTTPValidationError]:
     """Create Dataset
@@ -89,7 +89,7 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: CreateDatasetRequest,
 ) -> Any | HTTPValidationError | None:
     """Create Dataset
@@ -113,7 +113,7 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: CreateDatasetRequest,
 ) -> Response[Any | HTTPValidationError]:
     """Create Dataset
@@ -140,7 +140,7 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: CreateDatasetRequest,
 ) -> Any | HTTPValidationError | None:
     """Create Dataset

@@ -14,12 +14,7 @@ def _get_kwargs(
     *,
     period: str | Unset = "30d",
     provider: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     params["period"] = period
@@ -39,7 +34,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -83,14 +77,12 @@ def sync_detailed(
     client: AuthenticatedClient,
     period: str | Unset = "30d",
     provider: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | list[UsageBreakdown]]:
     """Get Usage Breakdown
 
     Args:
         period (str | Unset): Time period: 7d, 30d, 90d Default: '30d'.
         provider (None | str | Unset): Filter by provider
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -103,7 +95,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         period=period,
         provider=provider,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -118,14 +109,12 @@ def sync(
     client: AuthenticatedClient,
     period: str | Unset = "30d",
     provider: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | list[UsageBreakdown] | None:
     """Get Usage Breakdown
 
     Args:
         period (str | Unset): Time period: 7d, 30d, 90d Default: '30d'.
         provider (None | str | Unset): Filter by provider
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -139,7 +128,6 @@ def sync(
         client=client,
         period=period,
         provider=provider,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -148,14 +136,12 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     period: str | Unset = "30d",
     provider: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | list[UsageBreakdown]]:
     """Get Usage Breakdown
 
     Args:
         period (str | Unset): Time period: 7d, 30d, 90d Default: '30d'.
         provider (None | str | Unset): Filter by provider
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -168,7 +154,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         period=period,
         provider=provider,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -181,14 +166,12 @@ async def asyncio(
     client: AuthenticatedClient,
     period: str | Unset = "30d",
     provider: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | list[UsageBreakdown] | None:
     """Get Usage Breakdown
 
     Args:
         period (str | Unset): Time period: 7d, 30d, 90d Default: '30d'.
         provider (None | str | Unset): Filter by provider
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -203,6 +186,5 @@ async def asyncio(
             client=client,
             period=period,
             provider=provider,
-            accept_version=accept_version,
         )
     ).parsed

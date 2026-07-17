@@ -14,12 +14,7 @@ def _get_kwargs(
     template_id: str,
     *,
     name: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     json_name: None | str | Unset
@@ -39,7 +34,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -75,9 +69,8 @@ def _build_response(
 def sync_detailed(
     template_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     name: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Create Dataset From Template
 
@@ -86,7 +79,6 @@ def sync_detailed(
     Args:
         template_id (str):
         name (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -99,7 +91,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         template_id=template_id,
         name=name,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -112,9 +103,8 @@ def sync_detailed(
 def sync(
     template_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     name: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Create Dataset From Template
 
@@ -123,7 +113,6 @@ def sync(
     Args:
         template_id (str):
         name (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -137,16 +126,14 @@ def sync(
         template_id=template_id,
         client=client,
         name=name,
-        accept_version=accept_version,
     ).parsed
 
 
 async def asyncio_detailed(
     template_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     name: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Create Dataset From Template
 
@@ -155,7 +142,6 @@ async def asyncio_detailed(
     Args:
         template_id (str):
         name (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -168,7 +154,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         template_id=template_id,
         name=name,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -179,9 +164,8 @@ async def asyncio_detailed(
 async def asyncio(
     template_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     name: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Create Dataset From Template
 
@@ -190,7 +174,6 @@ async def asyncio(
     Args:
         template_id (str):
         name (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -205,6 +188,5 @@ async def asyncio(
             template_id=template_id,
             client=client,
             name=name,
-            accept_version=accept_version,
         )
     ).parsed

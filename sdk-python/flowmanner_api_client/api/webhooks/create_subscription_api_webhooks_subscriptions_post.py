@@ -5,8 +5,8 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.create_subscription_api_webhooks_subscriptions_post_payload import (
-    CreateSubscriptionApiWebhooksSubscriptionsPostPayload,
+from ...models.create_subscription_api_webhooks_subscriptions_post_payload_14 import (
+    CreateSubscriptionApiWebhooksSubscriptionsPostPayload14,
 )
 from ...models.http_validation_error import HTTPValidationError
 from ...types import Response
@@ -14,7 +14,7 @@ from ...types import Response
 
 def _get_kwargs(
     *,
-    body: CreateSubscriptionApiWebhooksSubscriptionsPostPayload,
+    body: CreateSubscriptionApiWebhooksSubscriptionsPostPayload14,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -63,12 +63,12 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    body: CreateSubscriptionApiWebhooksSubscriptionsPostPayload,
+    body: CreateSubscriptionApiWebhooksSubscriptionsPostPayload14,
 ) -> Response[Any | HTTPValidationError]:
     """Create Subscription
 
     Args:
-        body (CreateSubscriptionApiWebhooksSubscriptionsPostPayload):
+        body (CreateSubscriptionApiWebhooksSubscriptionsPostPayload14):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -92,12 +92,12 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    body: CreateSubscriptionApiWebhooksSubscriptionsPostPayload,
+    body: CreateSubscriptionApiWebhooksSubscriptionsPostPayload14,
 ) -> Any | HTTPValidationError | None:
     """Create Subscription
 
     Args:
-        body (CreateSubscriptionApiWebhooksSubscriptionsPostPayload):
+        body (CreateSubscriptionApiWebhooksSubscriptionsPostPayload14):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -116,12 +116,12 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    body: CreateSubscriptionApiWebhooksSubscriptionsPostPayload,
+    body: CreateSubscriptionApiWebhooksSubscriptionsPostPayload14,
 ) -> Response[Any | HTTPValidationError]:
     """Create Subscription
 
     Args:
-        body (CreateSubscriptionApiWebhooksSubscriptionsPostPayload):
+        body (CreateSubscriptionApiWebhooksSubscriptionsPostPayload14):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -143,12 +143,12 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    body: CreateSubscriptionApiWebhooksSubscriptionsPostPayload,
+    body: CreateSubscriptionApiWebhooksSubscriptionsPostPayload14,
 ) -> Any | HTTPValidationError | None:
     """Create Subscription
 
     Args:
-        body (CreateSubscriptionApiWebhooksSubscriptionsPostPayload):
+        body (CreateSubscriptionApiWebhooksSubscriptionsPostPayload14):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

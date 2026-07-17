@@ -33,9 +33,7 @@ class RestoreResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.restore_response_snapshot_type_0 import (
-            RestoreResponseSnapshotType0,
-        )
+        from ..models.restore_response_snapshot_type_0 import RestoreResponseSnapshotType0
 
         message = self.message
 
@@ -67,9 +65,7 @@ class RestoreResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.restore_response_snapshot_type_0 import (
-            RestoreResponseSnapshotType0,
-        )
+        from ..models.restore_response_snapshot_type_0 import RestoreResponseSnapshotType0
 
         d = dict(src_dict)
         message = d.pop("message")
@@ -78,9 +74,7 @@ class RestoreResponse:
 
         version_number = d.pop("version_number")
 
-        def _parse_snapshot(
-            data: object,
-        ) -> None | RestoreResponseSnapshotType0 | Unset:
+        def _parse_snapshot(data: object) -> None | RestoreResponseSnapshotType0 | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):

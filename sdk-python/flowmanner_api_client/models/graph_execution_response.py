@@ -3,20 +3,16 @@ from __future__ import annotations
 import datetime
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar, cast
+from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.graph_execution_response_input_data_type_0 import (
-        GraphExecutionResponseInputDataType0,
-    )
-    from ..models.graph_execution_response_output_data_type_0 import (
-        GraphExecutionResponseOutputDataType0,
-    )
+    from ..models.graph_execution_response_input_data_type_0 import GraphExecutionResponseInputDataType0
+    from ..models.graph_execution_response_output_data_type_0 import GraphExecutionResponseOutputDataType0
 
 
 T = TypeVar("T", bound="GraphExecutionResponse")
@@ -26,8 +22,8 @@ T = TypeVar("T", bound="GraphExecutionResponse")
 class GraphExecutionResponse:
     """
     Attributes:
-        id (str):
-        workflow_id (str):
+        id (str | UUID):
+        workflow_id (str | UUID):
         status (str):
         created_at (datetime.datetime):
         input_data (GraphExecutionResponseInputDataType0 | None | Unset):
@@ -37,8 +33,8 @@ class GraphExecutionResponse:
         completed_at (datetime.datetime | None | Unset):
     """
 
-    id: str
-    workflow_id: str
+    id: str | UUID
+    workflow_id: str | UUID
     status: str
     created_at: datetime.datetime
     input_data: GraphExecutionResponseInputDataType0 | None | Unset = UNSET
@@ -49,16 +45,20 @@ class GraphExecutionResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.graph_execution_response_input_data_type_0 import (
-            GraphExecutionResponseInputDataType0,
-        )
-        from ..models.graph_execution_response_output_data_type_0 import (
-            GraphExecutionResponseOutputDataType0,
-        )
+        from ..models.graph_execution_response_input_data_type_0 import GraphExecutionResponseInputDataType0
+        from ..models.graph_execution_response_output_data_type_0 import GraphExecutionResponseOutputDataType0
 
-        id = self.id
+        id: str
+        if isinstance(self.id, UUID):
+            id = str(self.id)
+        else:
+            id = self.id
 
-        workflow_id = self.workflow_id
+        workflow_id: str
+        if isinstance(self.workflow_id, UUID):
+            workflow_id = str(self.workflow_id)
+        else:
+            workflow_id = self.workflow_id
 
         status = self.status
 
@@ -127,25 +127,42 @@ class GraphExecutionResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.graph_execution_response_input_data_type_0 import (
-            GraphExecutionResponseInputDataType0,
-        )
-        from ..models.graph_execution_response_output_data_type_0 import (
-            GraphExecutionResponseOutputDataType0,
-        )
+        from ..models.graph_execution_response_input_data_type_0 import GraphExecutionResponseInputDataType0
+        from ..models.graph_execution_response_output_data_type_0 import GraphExecutionResponseOutputDataType0
 
         d = dict(src_dict)
-        id = d.pop("id")
 
-        workflow_id = d.pop("workflow_id")
+        def _parse_id(data: object) -> str | UUID:
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                id_type_1 = UUID(data)
+
+                return id_type_1
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(str | UUID, data)
+
+        id = _parse_id(d.pop("id"))
+
+        def _parse_workflow_id(data: object) -> str | UUID:
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                workflow_id_type_1 = UUID(data)
+
+                return workflow_id_type_1
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(str | UUID, data)
+
+        workflow_id = _parse_workflow_id(d.pop("workflow_id"))
 
         status = d.pop("status")
 
-        created_at = isoparse(d.pop("created_at"))
+        created_at = datetime.datetime.fromisoformat(d.pop("created_at"))
 
-        def _parse_input_data(
-            data: object,
-        ) -> GraphExecutionResponseInputDataType0 | None | Unset:
+        def _parse_input_data(data: object) -> GraphExecutionResponseInputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -162,9 +179,7 @@ class GraphExecutionResponse:
 
         input_data = _parse_input_data(d.pop("input_data", UNSET))
 
-        def _parse_output_data(
-            data: object,
-        ) -> GraphExecutionResponseOutputDataType0 | None | Unset:
+        def _parse_output_data(data: object) -> GraphExecutionResponseOutputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -198,7 +213,7 @@ class GraphExecutionResponse:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                started_at_type_0 = isoparse(data)
+                started_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return started_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -215,7 +230,7 @@ class GraphExecutionResponse:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                completed_at_type_0 = isoparse(data)
+                completed_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return completed_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

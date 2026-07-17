@@ -6,15 +6,13 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.update_settings_api_auth_settings_patch_data import (
-    UpdateSettingsApiAuthSettingsPatchData,
-)
+from ...models.update_settings_api_auth_settings_patch_data_2 import UpdateSettingsApiAuthSettingsPatchData2
 from ...types import Response
 
 
 def _get_kwargs(
     *,
-    body: UpdateSettingsApiAuthSettingsPatchData,
+    body: UpdateSettingsApiAuthSettingsPatchData2,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -63,14 +61,14 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    body: UpdateSettingsApiAuthSettingsPatchData,
+    body: UpdateSettingsApiAuthSettingsPatchData2,
 ) -> Response[Any | HTTPValidationError]:
     """Update Settings
 
      Update user settings (theme, language, email_notifications).
 
     Args:
-        body (UpdateSettingsApiAuthSettingsPatchData):
+        body (UpdateSettingsApiAuthSettingsPatchData2):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -94,14 +92,14 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    body: UpdateSettingsApiAuthSettingsPatchData,
+    body: UpdateSettingsApiAuthSettingsPatchData2,
 ) -> Any | HTTPValidationError | None:
     """Update Settings
 
      Update user settings (theme, language, email_notifications).
 
     Args:
-        body (UpdateSettingsApiAuthSettingsPatchData):
+        body (UpdateSettingsApiAuthSettingsPatchData2):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -120,14 +118,14 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    body: UpdateSettingsApiAuthSettingsPatchData,
+    body: UpdateSettingsApiAuthSettingsPatchData2,
 ) -> Response[Any | HTTPValidationError]:
     """Update Settings
 
      Update user settings (theme, language, email_notifications).
 
     Args:
-        body (UpdateSettingsApiAuthSettingsPatchData):
+        body (UpdateSettingsApiAuthSettingsPatchData2):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -149,14 +147,14 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    body: UpdateSettingsApiAuthSettingsPatchData,
+    body: UpdateSettingsApiAuthSettingsPatchData2,
 ) -> Any | HTTPValidationError | None:
     """Update Settings
 
      Update user settings (theme, language, email_notifications).
 
     Args:
-        body (UpdateSettingsApiAuthSettingsPatchData):
+        body (UpdateSettingsApiAuthSettingsPatchData2):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

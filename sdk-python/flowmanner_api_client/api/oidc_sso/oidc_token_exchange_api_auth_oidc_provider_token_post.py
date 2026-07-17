@@ -17,12 +17,7 @@ def _get_kwargs(
     code: str,
     redirect_uri: str,
     state: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     params["code"] = code
@@ -46,7 +41,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -87,7 +81,6 @@ def sync_detailed(
     code: str,
     redirect_uri: str,
     state: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | OIDCCallbackResponse]:
     """Oidc Token Exchange
 
@@ -106,7 +99,6 @@ def sync_detailed(
         code (str):
         redirect_uri (str):
         state (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -121,7 +113,6 @@ def sync_detailed(
         code=code,
         redirect_uri=redirect_uri,
         state=state,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -138,7 +129,6 @@ def sync(
     code: str,
     redirect_uri: str,
     state: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | OIDCCallbackResponse | None:
     """Oidc Token Exchange
 
@@ -157,7 +147,6 @@ def sync(
         code (str):
         redirect_uri (str):
         state (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -173,7 +162,6 @@ def sync(
         code=code,
         redirect_uri=redirect_uri,
         state=state,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -184,7 +172,6 @@ async def asyncio_detailed(
     code: str,
     redirect_uri: str,
     state: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | OIDCCallbackResponse]:
     """Oidc Token Exchange
 
@@ -203,7 +190,6 @@ async def asyncio_detailed(
         code (str):
         redirect_uri (str):
         state (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -218,7 +204,6 @@ async def asyncio_detailed(
         code=code,
         redirect_uri=redirect_uri,
         state=state,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -233,7 +218,6 @@ async def asyncio(
     code: str,
     redirect_uri: str,
     state: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | OIDCCallbackResponse | None:
     """Oidc Token Exchange
 
@@ -252,7 +236,6 @@ async def asyncio(
         code (str):
         redirect_uri (str):
         state (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -269,6 +252,5 @@ async def asyncio(
             code=code,
             redirect_uri=redirect_uri,
             state=state,
-            accept_version=accept_version,
         )
     ).parsed

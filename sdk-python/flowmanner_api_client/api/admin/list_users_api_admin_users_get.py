@@ -17,12 +17,7 @@ def _get_kwargs(
     role: None | str | Unset = UNSET,
     is_active: bool | None | Unset = UNSET,
     search: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     params["page"] = page
@@ -58,7 +53,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -100,7 +94,6 @@ def sync_detailed(
     role: None | str | Unset = UNSET,
     is_active: bool | None | Unset = UNSET,
     search: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | UserListResponse]:
     """List Users
 
@@ -110,7 +103,6 @@ def sync_detailed(
         role (None | str | Unset):
         is_active (bool | None | Unset):
         search (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -126,7 +118,6 @@ def sync_detailed(
         role=role,
         is_active=is_active,
         search=search,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -144,7 +135,6 @@ def sync(
     role: None | str | Unset = UNSET,
     is_active: bool | None | Unset = UNSET,
     search: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | UserListResponse | None:
     """List Users
 
@@ -154,7 +144,6 @@ def sync(
         role (None | str | Unset):
         is_active (bool | None | Unset):
         search (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -171,7 +160,6 @@ def sync(
         role=role,
         is_active=is_active,
         search=search,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -183,7 +171,6 @@ async def asyncio_detailed(
     role: None | str | Unset = UNSET,
     is_active: bool | None | Unset = UNSET,
     search: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | UserListResponse]:
     """List Users
 
@@ -193,7 +180,6 @@ async def asyncio_detailed(
         role (None | str | Unset):
         is_active (bool | None | Unset):
         search (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -209,7 +195,6 @@ async def asyncio_detailed(
         role=role,
         is_active=is_active,
         search=search,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -225,7 +210,6 @@ async def asyncio(
     role: None | str | Unset = UNSET,
     is_active: bool | None | Unset = UNSET,
     search: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | UserListResponse | None:
     """List Users
 
@@ -235,7 +219,6 @@ async def asyncio(
         role (None | str | Unset):
         is_active (bool | None | Unset):
         search (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -253,6 +236,5 @@ async def asyncio(
             role=role,
             is_active=is_active,
             search=search,
-            accept_version=accept_version,
         )
     ).parsed

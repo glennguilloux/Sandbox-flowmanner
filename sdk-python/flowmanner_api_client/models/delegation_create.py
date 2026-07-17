@@ -6,7 +6,6 @@ from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
 from ..types import UNSET, Unset
 
@@ -19,7 +18,7 @@ class DelegationCreate:
     Attributes:
         delegatee_id (int):
         role_id (str):
-        tenant_id (None | str | Unset):
+        workspace_id (None | str | Unset):
         reason (None | str | Unset):
         starts_at (datetime.datetime | None | Unset):
         ends_at (datetime.datetime | None | Unset):
@@ -27,7 +26,7 @@ class DelegationCreate:
 
     delegatee_id: int
     role_id: str
-    tenant_id: None | str | Unset = UNSET
+    workspace_id: None | str | Unset = UNSET
     reason: None | str | Unset = UNSET
     starts_at: datetime.datetime | None | Unset = UNSET
     ends_at: datetime.datetime | None | Unset = UNSET
@@ -38,11 +37,11 @@ class DelegationCreate:
 
         role_id = self.role_id
 
-        tenant_id: None | str | Unset
-        if isinstance(self.tenant_id, Unset):
-            tenant_id = UNSET
+        workspace_id: None | str | Unset
+        if isinstance(self.workspace_id, Unset):
+            workspace_id = UNSET
         else:
-            tenant_id = self.tenant_id
+            workspace_id = self.workspace_id
 
         reason: None | str | Unset
         if isinstance(self.reason, Unset):
@@ -74,8 +73,8 @@ class DelegationCreate:
                 "role_id": role_id,
             }
         )
-        if tenant_id is not UNSET:
-            field_dict["tenant_id"] = tenant_id
+        if workspace_id is not UNSET:
+            field_dict["workspace_id"] = workspace_id
         if reason is not UNSET:
             field_dict["reason"] = reason
         if starts_at is not UNSET:
@@ -92,14 +91,14 @@ class DelegationCreate:
 
         role_id = d.pop("role_id")
 
-        def _parse_tenant_id(data: object) -> None | str | Unset:
+        def _parse_workspace_id(data: object) -> None | str | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
             return cast(None | str | Unset, data)
 
-        tenant_id = _parse_tenant_id(d.pop("tenant_id", UNSET))
+        workspace_id = _parse_workspace_id(d.pop("workspace_id", UNSET))
 
         def _parse_reason(data: object) -> None | str | Unset:
             if data is None:
@@ -118,7 +117,7 @@ class DelegationCreate:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                starts_at_type_0 = isoparse(data)
+                starts_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return starts_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -135,7 +134,7 @@ class DelegationCreate:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                ends_at_type_0 = isoparse(data)
+                ends_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return ends_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -147,7 +146,7 @@ class DelegationCreate:
         delegation_create = cls(
             delegatee_id=delegatee_id,
             role_id=role_id,
-            tenant_id=tenant_id,
+            workspace_id=workspace_id,
             reason=reason,
             starts_at=starts_at,
             ends_at=ends_at,

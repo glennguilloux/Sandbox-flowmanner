@@ -6,23 +6,20 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.add_team_member_api_teams_workspace_id_team_id_members_post_payload import (
-    AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload,
+from ...models.add_team_member_api_teams_workspace_id_team_id_members_post_payload_18 import (
+    AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload18,
 )
 from ...models.http_validation_error import HTTPValidationError
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     workspace_id: str,
     team_id: str,
     *,
-    body: AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload,
-    accept_version: str | Unset = "v1",
+    body: AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload18,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -74,16 +71,14 @@ def sync_detailed(
     team_id: str,
     *,
     client: AuthenticatedClient,
-    body: AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload,
-    accept_version: str | Unset = "v1",
+    body: AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload18,
 ) -> Response[Any | HTTPValidationError]:
     """Add Team Member
 
     Args:
         workspace_id (str):
         team_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload):
+        body (AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload18):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -97,7 +92,6 @@ def sync_detailed(
         workspace_id=workspace_id,
         team_id=team_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -112,16 +106,14 @@ def sync(
     team_id: str,
     *,
     client: AuthenticatedClient,
-    body: AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload,
-    accept_version: str | Unset = "v1",
+    body: AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload18,
 ) -> Any | HTTPValidationError | None:
     """Add Team Member
 
     Args:
         workspace_id (str):
         team_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload):
+        body (AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload18):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -136,7 +128,6 @@ def sync(
         team_id=team_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -145,16 +136,14 @@ async def asyncio_detailed(
     team_id: str,
     *,
     client: AuthenticatedClient,
-    body: AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload,
-    accept_version: str | Unset = "v1",
+    body: AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload18,
 ) -> Response[Any | HTTPValidationError]:
     """Add Team Member
 
     Args:
         workspace_id (str):
         team_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload):
+        body (AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload18):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -168,7 +157,6 @@ async def asyncio_detailed(
         workspace_id=workspace_id,
         team_id=team_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -181,16 +169,14 @@ async def asyncio(
     team_id: str,
     *,
     client: AuthenticatedClient,
-    body: AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload,
-    accept_version: str | Unset = "v1",
+    body: AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload18,
 ) -> Any | HTTPValidationError | None:
     """Add Team Member
 
     Args:
         workspace_id (str):
         team_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload):
+        body (AddTeamMemberApiTeamsWorkspaceIdTeamIdMembersPostPayload18):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -206,6 +192,5 @@ async def asyncio(
             team_id=team_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

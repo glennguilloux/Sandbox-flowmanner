@@ -6,23 +6,18 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.execute_tool_api_tools_tool_id_execute_post_body import (
-    ExecuteToolApiToolsToolIdExecutePostBody,
-)
+from ...models.execute_tool_api_tools_tool_id_execute_post_body_4 import ExecuteToolApiToolsToolIdExecutePostBody4
 from ...models.http_validation_error import HTTPValidationError
 from ...models.tool_execution_result import ToolExecutionResult
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     tool_id: str,
     *,
-    body: ExecuteToolApiToolsToolIdExecutePostBody,
-    accept_version: str | Unset = "v1",
+    body: ExecuteToolApiToolsToolIdExecutePostBody4,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -73,8 +68,7 @@ def sync_detailed(
     tool_id: str,
     *,
     client: AuthenticatedClient,
-    body: ExecuteToolApiToolsToolIdExecutePostBody,
-    accept_version: str | Unset = "v1",
+    body: ExecuteToolApiToolsToolIdExecutePostBody4,
 ) -> Response[HTTPValidationError | ToolExecutionResult]:
     """Execute Tool
 
@@ -85,8 +79,7 @@ def sync_detailed(
 
     Args:
         tool_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (ExecuteToolApiToolsToolIdExecutePostBody):
+        body (ExecuteToolApiToolsToolIdExecutePostBody4):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -99,7 +92,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         tool_id=tool_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -113,8 +105,7 @@ def sync(
     tool_id: str,
     *,
     client: AuthenticatedClient,
-    body: ExecuteToolApiToolsToolIdExecutePostBody,
-    accept_version: str | Unset = "v1",
+    body: ExecuteToolApiToolsToolIdExecutePostBody4,
 ) -> HTTPValidationError | ToolExecutionResult | None:
     """Execute Tool
 
@@ -125,8 +116,7 @@ def sync(
 
     Args:
         tool_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (ExecuteToolApiToolsToolIdExecutePostBody):
+        body (ExecuteToolApiToolsToolIdExecutePostBody4):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -140,7 +130,6 @@ def sync(
         tool_id=tool_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -148,8 +137,7 @@ async def asyncio_detailed(
     tool_id: str,
     *,
     client: AuthenticatedClient,
-    body: ExecuteToolApiToolsToolIdExecutePostBody,
-    accept_version: str | Unset = "v1",
+    body: ExecuteToolApiToolsToolIdExecutePostBody4,
 ) -> Response[HTTPValidationError | ToolExecutionResult]:
     """Execute Tool
 
@@ -160,8 +148,7 @@ async def asyncio_detailed(
 
     Args:
         tool_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (ExecuteToolApiToolsToolIdExecutePostBody):
+        body (ExecuteToolApiToolsToolIdExecutePostBody4):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -174,7 +161,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         tool_id=tool_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -186,8 +172,7 @@ async def asyncio(
     tool_id: str,
     *,
     client: AuthenticatedClient,
-    body: ExecuteToolApiToolsToolIdExecutePostBody,
-    accept_version: str | Unset = "v1",
+    body: ExecuteToolApiToolsToolIdExecutePostBody4,
 ) -> HTTPValidationError | ToolExecutionResult | None:
     """Execute Tool
 
@@ -198,8 +183,7 @@ async def asyncio(
 
     Args:
         tool_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (ExecuteToolApiToolsToolIdExecutePostBody):
+        body (ExecuteToolApiToolsToolIdExecutePostBody4):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -214,6 +198,5 @@ async def asyncio(
             tool_id=tool_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

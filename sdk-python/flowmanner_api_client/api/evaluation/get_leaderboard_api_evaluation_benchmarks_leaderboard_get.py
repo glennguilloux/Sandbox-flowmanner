@@ -13,12 +13,7 @@ def _get_kwargs(
     *,
     dataset_id: None | str | Unset = UNSET,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     json_dataset_id: None | str | Unset
@@ -38,7 +33,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -76,7 +70,6 @@ def sync_detailed(
     client: AuthenticatedClient | Client,
     dataset_id: None | str | Unset = UNSET,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Get Leaderboard
 
@@ -85,7 +78,6 @@ def sync_detailed(
     Args:
         dataset_id (None | str | Unset):
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -98,7 +90,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         dataset_id=dataset_id,
         limit=limit,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -113,7 +104,6 @@ def sync(
     client: AuthenticatedClient | Client,
     dataset_id: None | str | Unset = UNSET,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Get Leaderboard
 
@@ -122,7 +112,6 @@ def sync(
     Args:
         dataset_id (None | str | Unset):
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -136,7 +125,6 @@ def sync(
         client=client,
         dataset_id=dataset_id,
         limit=limit,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -145,7 +133,6 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
     dataset_id: None | str | Unset = UNSET,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Get Leaderboard
 
@@ -154,7 +141,6 @@ async def asyncio_detailed(
     Args:
         dataset_id (None | str | Unset):
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -167,7 +153,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         dataset_id=dataset_id,
         limit=limit,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -180,7 +165,6 @@ async def asyncio(
     client: AuthenticatedClient | Client,
     dataset_id: None | str | Unset = UNSET,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Get Leaderboard
 
@@ -189,7 +173,6 @@ async def asyncio(
     Args:
         dataset_id (None | str | Unset):
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -204,6 +187,5 @@ async def asyncio(
             client=client,
             dataset_id=dataset_id,
             limit=limit,
-            accept_version=accept_version,
         )
     ).parsed

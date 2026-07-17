@@ -7,18 +7,15 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
 from ...models.invitation_create import InvitationCreate
-from ...types import UNSET, Response, Unset
+from ...types import UNSET, Response
 
 
 def _get_kwargs(
     *,
     body: InvitationCreate,
     workspace_id: str,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     params: dict[str, Any] = {}
 
@@ -74,13 +71,11 @@ def sync_detailed(
     client: AuthenticatedClient,
     body: InvitationCreate,
     workspace_id: str,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Create Invite Link
 
     Args:
         workspace_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (InvitationCreate):
 
     Raises:
@@ -94,7 +89,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         body=body,
         workspace_id=workspace_id,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -109,13 +103,11 @@ def sync(
     client: AuthenticatedClient,
     body: InvitationCreate,
     workspace_id: str,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Create Invite Link
 
     Args:
         workspace_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (InvitationCreate):
 
     Raises:
@@ -130,7 +122,6 @@ def sync(
         client=client,
         body=body,
         workspace_id=workspace_id,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -139,13 +130,11 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     body: InvitationCreate,
     workspace_id: str,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Create Invite Link
 
     Args:
         workspace_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (InvitationCreate):
 
     Raises:
@@ -159,7 +148,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         body=body,
         workspace_id=workspace_id,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -172,13 +160,11 @@ async def asyncio(
     client: AuthenticatedClient,
     body: InvitationCreate,
     workspace_id: str,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Create Invite Link
 
     Args:
         workspace_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (InvitationCreate):
 
     Raises:
@@ -194,6 +180,5 @@ async def asyncio(
             client=client,
             body=body,
             workspace_id=workspace_id,
-            accept_version=accept_version,
         )
     ).parsed

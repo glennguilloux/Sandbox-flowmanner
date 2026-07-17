@@ -16,21 +16,18 @@ def _get_kwargs(
     role_id: str,
     *,
     body: PermissionAdd,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     params: dict[str, Any] = {}
 
-    json_tenant_id: None | str | Unset
-    if isinstance(tenant_id, Unset):
-        json_tenant_id = UNSET
+    json_workspace_id: None | str | Unset
+    if isinstance(workspace_id, Unset):
+        json_workspace_id = UNSET
     else:
-        json_tenant_id = tenant_id
-    params["tenant_id"] = json_tenant_id
+        json_workspace_id = workspace_id
+    params["workspace_id"] = json_workspace_id
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -85,8 +82,7 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: PermissionAdd,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> Response[HTTPValidationError | RoleResponse]:
     """Add Permission
 
@@ -94,8 +90,7 @@ def sync_detailed(
 
     Args:
         role_id (str):
-        tenant_id (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        workspace_id (None | str | Unset):
         body (PermissionAdd):
 
     Raises:
@@ -109,8 +104,7 @@ def sync_detailed(
     kwargs = _get_kwargs(
         role_id=role_id,
         body=body,
-        tenant_id=tenant_id,
-        accept_version=accept_version,
+        workspace_id=workspace_id,
     )
 
     response = client.get_httpx_client().request(
@@ -125,8 +119,7 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: PermissionAdd,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> HTTPValidationError | RoleResponse | None:
     """Add Permission
 
@@ -134,8 +127,7 @@ def sync(
 
     Args:
         role_id (str):
-        tenant_id (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        workspace_id (None | str | Unset):
         body (PermissionAdd):
 
     Raises:
@@ -150,8 +142,7 @@ def sync(
         role_id=role_id,
         client=client,
         body=body,
-        tenant_id=tenant_id,
-        accept_version=accept_version,
+        workspace_id=workspace_id,
     ).parsed
 
 
@@ -160,8 +151,7 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: PermissionAdd,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> Response[HTTPValidationError | RoleResponse]:
     """Add Permission
 
@@ -169,8 +159,7 @@ async def asyncio_detailed(
 
     Args:
         role_id (str):
-        tenant_id (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        workspace_id (None | str | Unset):
         body (PermissionAdd):
 
     Raises:
@@ -184,8 +173,7 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         role_id=role_id,
         body=body,
-        tenant_id=tenant_id,
-        accept_version=accept_version,
+        workspace_id=workspace_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -198,8 +186,7 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: PermissionAdd,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> HTTPValidationError | RoleResponse | None:
     """Add Permission
 
@@ -207,8 +194,7 @@ async def asyncio(
 
     Args:
         role_id (str):
-        tenant_id (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        workspace_id (None | str | Unset):
         body (PermissionAdd):
 
     Raises:
@@ -224,7 +210,6 @@ async def asyncio(
             role_id=role_id,
             client=client,
             body=body,
-            tenant_id=tenant_id,
-            accept_version=accept_version,
+            workspace_id=workspace_id,
         )
     ).parsed

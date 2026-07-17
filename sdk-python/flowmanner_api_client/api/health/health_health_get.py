@@ -45,6 +45,11 @@ def sync_detailed(
 ) -> Response[HealthResponse]:
     """Health
 
+     Lightweight liveness probe — returns cached component status.
+
+    Cache TTL is 5 seconds. For real-time deep diagnostics use
+    ``GET /health/full``.
+
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
@@ -68,6 +73,11 @@ def sync(
 ) -> HealthResponse | None:
     """Health
 
+     Lightweight liveness probe — returns cached component status.
+
+    Cache TTL is 5 seconds. For real-time deep diagnostics use
+    ``GET /health/full``.
+
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
@@ -86,6 +96,11 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
 ) -> Response[HealthResponse]:
     """Health
+
+     Lightweight liveness probe — returns cached component status.
+
+    Cache TTL is 5 seconds. For real-time deep diagnostics use
+    ``GET /health/full``.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -107,6 +122,11 @@ async def asyncio(
     client: AuthenticatedClient | Client,
 ) -> HealthResponse | None:
     """Health
+
+     Lightweight liveness probe — returns cached component status.
+
+    Cache TTL is 5 seconds. For real-time deep diagnostics use
+    ``GET /health/full``.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

@@ -6,15 +6,13 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.search_memories_api_memory_search_post_payload import (
-    SearchMemoriesApiMemorySearchPostPayload,
-)
+from ...models.search_memories_api_memory_search_post_payload_10 import SearchMemoriesApiMemorySearchPostPayload10
 from ...types import Response
 
 
 def _get_kwargs(
     *,
-    body: SearchMemoriesApiMemorySearchPostPayload,
+    body: SearchMemoriesApiMemorySearchPostPayload10,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -63,14 +61,14 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    body: SearchMemoriesApiMemorySearchPostPayload,
+    body: SearchMemoriesApiMemorySearchPostPayload10,
 ) -> Response[Any | HTTPValidationError]:
     """Search Memories
 
      Search memories by text query (simple LIKE search).
 
     Args:
-        body (SearchMemoriesApiMemorySearchPostPayload):
+        body (SearchMemoriesApiMemorySearchPostPayload10):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -94,14 +92,14 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    body: SearchMemoriesApiMemorySearchPostPayload,
+    body: SearchMemoriesApiMemorySearchPostPayload10,
 ) -> Any | HTTPValidationError | None:
     """Search Memories
 
      Search memories by text query (simple LIKE search).
 
     Args:
-        body (SearchMemoriesApiMemorySearchPostPayload):
+        body (SearchMemoriesApiMemorySearchPostPayload10):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -120,14 +118,14 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    body: SearchMemoriesApiMemorySearchPostPayload,
+    body: SearchMemoriesApiMemorySearchPostPayload10,
 ) -> Response[Any | HTTPValidationError]:
     """Search Memories
 
      Search memories by text query (simple LIKE search).
 
     Args:
-        body (SearchMemoriesApiMemorySearchPostPayload):
+        body (SearchMemoriesApiMemorySearchPostPayload10):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -149,14 +147,14 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    body: SearchMemoriesApiMemorySearchPostPayload,
+    body: SearchMemoriesApiMemorySearchPostPayload10,
 ) -> Any | HTTPValidationError | None:
     """Search Memories
 
      Search memories by text query (simple LIKE search).
 
     Args:
-        body (SearchMemoriesApiMemorySearchPostPayload):
+        body (SearchMemoriesApiMemorySearchPostPayload10):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

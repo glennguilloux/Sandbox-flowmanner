@@ -4,8 +4,8 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
-from attrs import field as _attrs_field
 
+from ..models.mission_status import MissionStatus
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
@@ -21,7 +21,7 @@ class MissionUpdate:
     Attributes:
         title (None | str | Unset):
         description (None | str | Unset):
-        status (None | str | Unset):
+        status (MissionStatus | None | Unset):
         priority (None | str | Unset):
         mission_type (None | str | Unset):
         error_message (None | str | Unset):
@@ -32,14 +32,13 @@ class MissionUpdate:
 
     title: None | str | Unset = UNSET
     description: None | str | Unset = UNSET
-    status: None | str | Unset = UNSET
+    status: MissionStatus | None | Unset = UNSET
     priority: None | str | Unset = UNSET
     mission_type: None | str | Unset = UNSET
     error_message: None | str | Unset = UNSET
     results: MissionUpdateResultsType0 | None | Unset = UNSET
     tokens_used: int | None | Unset = UNSET
     actual_cost: float | None | Unset = UNSET
-    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         from ..models.mission_update_results_type_0 import MissionUpdateResultsType0
@@ -59,6 +58,8 @@ class MissionUpdate:
         status: None | str | Unset
         if isinstance(self.status, Unset):
             status = UNSET
+        elif isinstance(self.status, MissionStatus):
+            status = self.status.value
         else:
             status = self.status
 
@@ -101,7 +102,7 @@ class MissionUpdate:
             actual_cost = self.actual_cost
 
         field_dict: dict[str, Any] = {}
-        field_dict.update(self.additional_properties)
+
         field_dict.update({})
         if title is not UNSET:
             field_dict["title"] = title
@@ -148,12 +149,20 @@ class MissionUpdate:
 
         description = _parse_description(d.pop("description", UNSET))
 
-        def _parse_status(data: object) -> None | str | Unset:
+        def _parse_status(data: object) -> MissionStatus | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
-            return cast(None | str | Unset, data)
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                status_type_0 = MissionStatus(data)
+
+                return status_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(MissionStatus | None | Unset, data)
 
         status = _parse_status(d.pop("status", UNSET))
 
@@ -231,21 +240,4 @@ class MissionUpdate:
             actual_cost=actual_cost,
         )
 
-        mission_update.additional_properties = d
         return mission_update
-
-    @property
-    def additional_keys(self) -> list[str]:
-        return list(self.additional_properties.keys())
-
-    def __getitem__(self, key: str) -> Any:
-        return self.additional_properties[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.additional_properties[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        del self.additional_properties[key]
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.additional_properties

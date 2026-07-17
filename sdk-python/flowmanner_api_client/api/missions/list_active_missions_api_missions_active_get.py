@@ -52,6 +52,8 @@ def sync_detailed(
 ) -> Response[list[MissionResponse]]:
     """List Active Missions
 
+     Active missions with progress/ETA (pro required).
+
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
@@ -75,6 +77,8 @@ def sync(
 ) -> list[MissionResponse] | None:
     """List Active Missions
 
+     Active missions with progress/ETA (pro required).
+
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
@@ -93,6 +97,8 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
 ) -> Response[list[MissionResponse]]:
     """List Active Missions
+
+     Active missions with progress/ETA (pro required).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -114,6 +120,8 @@ async def asyncio(
     client: AuthenticatedClient,
 ) -> list[MissionResponse] | None:
     """List Active Missions
+
+     Active missions with progress/ETA (pro required).
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

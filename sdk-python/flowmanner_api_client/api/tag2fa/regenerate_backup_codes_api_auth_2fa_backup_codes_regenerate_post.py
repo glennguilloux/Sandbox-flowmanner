@@ -6,9 +6,7 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.totp_regenerate_backup_codes_request import (
-    TOTPRegenerateBackupCodesRequest,
-)
+from ...models.totp_regenerate_backup_codes_request import TOTPRegenerateBackupCodesRequest
 from ...models.totp_regenerate_response import TOTPRegenerateResponse
 from ...types import Response
 

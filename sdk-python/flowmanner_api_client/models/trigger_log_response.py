@@ -6,7 +6,6 @@ from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
 from ..types import UNSET, Unset
 
@@ -158,7 +157,7 @@ class TriggerLogResponse:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                fired_at_type_0 = isoparse(data)
+                fired_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return fired_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

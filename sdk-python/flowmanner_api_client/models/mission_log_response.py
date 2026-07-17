@@ -7,7 +7,6 @@ from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
 from ..types import UNSET, Unset
 
@@ -41,9 +40,7 @@ class MissionLogResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.mission_log_response_data_type_0 import (
-            MissionLogResponseDataType0,
-        )
+        from ..models.mission_log_response_data_type_0 import MissionLogResponseDataType0
 
         id = str(self.id)
 
@@ -103,9 +100,7 @@ class MissionLogResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.mission_log_response_data_type_0 import (
-            MissionLogResponseDataType0,
-        )
+        from ..models.mission_log_response_data_type_0 import MissionLogResponseDataType0
 
         d = dict(src_dict)
         id = UUID(d.pop("id"))
@@ -165,7 +160,7 @@ class MissionLogResponse:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                timestamp_type_0 = isoparse(data)
+                timestamp_type_0 = datetime.datetime.fromisoformat(data)
 
                 return timestamp_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

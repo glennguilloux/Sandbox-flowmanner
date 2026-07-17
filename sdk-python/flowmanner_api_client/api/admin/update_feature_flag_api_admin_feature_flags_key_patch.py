@@ -8,21 +8,18 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.feature_flag import FeatureFlag
 from ...models.http_validation_error import HTTPValidationError
-from ...models.update_feature_flag_api_admin_feature_flags_key_patch_data import (
-    UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData,
+from ...models.update_feature_flag_api_admin_feature_flags_key_patch_data_12 import (
+    UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData12,
 )
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     key: str,
     *,
-    body: UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData,
-    accept_version: str | Unset = "v1",
+    body: UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData12,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "patch",
@@ -73,15 +70,13 @@ def sync_detailed(
     key: str,
     *,
     client: AuthenticatedClient,
-    body: UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData,
-    accept_version: str | Unset = "v1",
+    body: UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData12,
 ) -> Response[FeatureFlag | HTTPValidationError]:
     """Update Feature Flag
 
     Args:
         key (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData):
+        body (UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData12):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -94,7 +89,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         key=key,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -108,15 +102,13 @@ def sync(
     key: str,
     *,
     client: AuthenticatedClient,
-    body: UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData,
-    accept_version: str | Unset = "v1",
+    body: UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData12,
 ) -> FeatureFlag | HTTPValidationError | None:
     """Update Feature Flag
 
     Args:
         key (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData):
+        body (UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData12):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -130,7 +122,6 @@ def sync(
         key=key,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -138,15 +129,13 @@ async def asyncio_detailed(
     key: str,
     *,
     client: AuthenticatedClient,
-    body: UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData,
-    accept_version: str | Unset = "v1",
+    body: UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData12,
 ) -> Response[FeatureFlag | HTTPValidationError]:
     """Update Feature Flag
 
     Args:
         key (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData):
+        body (UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData12):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -159,7 +148,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         key=key,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -171,15 +159,13 @@ async def asyncio(
     key: str,
     *,
     client: AuthenticatedClient,
-    body: UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData,
-    accept_version: str | Unset = "v1",
+    body: UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData12,
 ) -> FeatureFlag | HTTPValidationError | None:
     """Update Feature Flag
 
     Args:
         key (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData):
+        body (UpdateFeatureFlagApiAdminFeatureFlagsKeyPatchData12):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -194,6 +180,5 @@ async def asyncio(
             key=key,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

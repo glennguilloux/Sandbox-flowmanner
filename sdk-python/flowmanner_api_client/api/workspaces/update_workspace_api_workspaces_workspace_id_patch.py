@@ -8,18 +8,15 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
 from ...models.workspace_update import WorkspaceUpdate
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     workspace_id: str,
     *,
     body: WorkspaceUpdate,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "patch",
@@ -70,7 +67,6 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: WorkspaceUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Update Workspace
 
@@ -78,7 +74,6 @@ def sync_detailed(
 
     Args:
         workspace_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (WorkspaceUpdate):
 
     Raises:
@@ -92,7 +87,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         workspace_id=workspace_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -107,7 +101,6 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: WorkspaceUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Update Workspace
 
@@ -115,7 +108,6 @@ def sync(
 
     Args:
         workspace_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (WorkspaceUpdate):
 
     Raises:
@@ -130,7 +122,6 @@ def sync(
         workspace_id=workspace_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -139,7 +130,6 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: WorkspaceUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Update Workspace
 
@@ -147,7 +137,6 @@ async def asyncio_detailed(
 
     Args:
         workspace_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (WorkspaceUpdate):
 
     Raises:
@@ -161,7 +150,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         workspace_id=workspace_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -174,7 +162,6 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: WorkspaceUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Update Workspace
 
@@ -182,7 +169,6 @@ async def asyncio(
 
     Args:
         workspace_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (WorkspaceUpdate):
 
     Raises:
@@ -198,6 +184,5 @@ async def asyncio(
             workspace_id=workspace_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

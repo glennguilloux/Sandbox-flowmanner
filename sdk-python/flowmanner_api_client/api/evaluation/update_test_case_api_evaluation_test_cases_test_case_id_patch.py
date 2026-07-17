@@ -8,18 +8,15 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
 from ...models.update_test_case_request import UpdateTestCaseRequest
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     test_case_id: str,
     *,
     body: UpdateTestCaseRequest,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "patch",
@@ -68,15 +65,13 @@ def _build_response(
 def sync_detailed(
     test_case_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: UpdateTestCaseRequest,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Update Test Case
 
     Args:
         test_case_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (UpdateTestCaseRequest):
 
     Raises:
@@ -90,7 +85,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         test_case_id=test_case_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -103,15 +97,13 @@ def sync_detailed(
 def sync(
     test_case_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: UpdateTestCaseRequest,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Update Test Case
 
     Args:
         test_case_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (UpdateTestCaseRequest):
 
     Raises:
@@ -126,22 +118,19 @@ def sync(
         test_case_id=test_case_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
 async def asyncio_detailed(
     test_case_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: UpdateTestCaseRequest,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Update Test Case
 
     Args:
         test_case_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (UpdateTestCaseRequest):
 
     Raises:
@@ -155,7 +144,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         test_case_id=test_case_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -166,15 +154,13 @@ async def asyncio_detailed(
 async def asyncio(
     test_case_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: UpdateTestCaseRequest,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Update Test Case
 
     Args:
         test_case_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (UpdateTestCaseRequest):
 
     Raises:
@@ -190,6 +176,5 @@ async def asyncio(
             test_case_id=test_case_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

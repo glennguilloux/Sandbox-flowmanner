@@ -10,18 +10,15 @@ from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
 from ...models.template_response import TemplateResponse
 from ...models.template_update import TemplateUpdate
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     template_id: UUID,
     *,
     body: TemplateUpdate,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "patch",
@@ -73,13 +70,11 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: TemplateUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | TemplateResponse]:
     """Update Template
 
     Args:
         template_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (TemplateUpdate):
 
     Raises:
@@ -93,7 +88,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         template_id=template_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -108,13 +102,11 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: TemplateUpdate,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | TemplateResponse | None:
     """Update Template
 
     Args:
         template_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (TemplateUpdate):
 
     Raises:
@@ -129,7 +121,6 @@ def sync(
         template_id=template_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -138,13 +129,11 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: TemplateUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | TemplateResponse]:
     """Update Template
 
     Args:
         template_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (TemplateUpdate):
 
     Raises:
@@ -158,7 +147,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         template_id=template_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -171,13 +159,11 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: TemplateUpdate,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | TemplateResponse | None:
     """Update Template
 
     Args:
         template_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (TemplateUpdate):
 
     Raises:
@@ -193,6 +179,5 @@ async def asyncio(
             template_id=template_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

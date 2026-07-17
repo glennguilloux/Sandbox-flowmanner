@@ -5,9 +5,7 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.body_upload_file_api_file_upload_post import (
-    BodyUploadFileApiFileUploadPost,
-)
+from ...models.body_upload_file_api_file_upload_post import BodyUploadFileApiFileUploadPost
 from ...models.file_response import FileResponse
 from ...models.http_validation_error import HTTPValidationError
 from ...types import Response
@@ -25,6 +23,8 @@ def _get_kwargs(
     }
 
     _kwargs["files"] = body.to_multipart()
+
+    headers["Content-Type"] = "multipart/form-data; boundary=+++"
 
     _kwargs["headers"] = headers
     return _kwargs

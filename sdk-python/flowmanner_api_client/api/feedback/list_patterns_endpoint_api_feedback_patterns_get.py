@@ -16,12 +16,7 @@ def _get_kwargs(
     status: None | str | Unset = UNSET,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     json_pattern_type: None | str | Unset
@@ -50,7 +45,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -96,7 +90,6 @@ def sync_detailed(
     status: None | str | Unset = UNSET,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | list[FeedbackPatternResponse]]:
     """List Patterns Endpoint
 
@@ -107,7 +100,6 @@ def sync_detailed(
         status (None | str | Unset):
         offset (int | Unset):  Default: 0.
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -122,7 +114,6 @@ def sync_detailed(
         status=status,
         offset=offset,
         limit=limit,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -139,7 +130,6 @@ def sync(
     status: None | str | Unset = UNSET,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | list[FeedbackPatternResponse] | None:
     """List Patterns Endpoint
 
@@ -150,7 +140,6 @@ def sync(
         status (None | str | Unset):
         offset (int | Unset):  Default: 0.
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -166,7 +155,6 @@ def sync(
         status=status,
         offset=offset,
         limit=limit,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -177,7 +165,6 @@ async def asyncio_detailed(
     status: None | str | Unset = UNSET,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | list[FeedbackPatternResponse]]:
     """List Patterns Endpoint
 
@@ -188,7 +175,6 @@ async def asyncio_detailed(
         status (None | str | Unset):
         offset (int | Unset):  Default: 0.
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -203,7 +189,6 @@ async def asyncio_detailed(
         status=status,
         offset=offset,
         limit=limit,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -218,7 +203,6 @@ async def asyncio(
     status: None | str | Unset = UNSET,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | list[FeedbackPatternResponse] | None:
     """List Patterns Endpoint
 
@@ -229,7 +213,6 @@ async def asyncio(
         status (None | str | Unset):
         offset (int | Unset):  Default: 0.
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -246,6 +229,5 @@ async def asyncio(
             status=status,
             offset=offset,
             limit=limit,
-            accept_version=accept_version,
         )
     ).parsed

@@ -4,7 +4,6 @@ from collections.abc import Mapping
 from typing import Any, TypeVar, cast
 
 from attrs import define as _attrs_define
-from attrs import field as _attrs_field
 
 from ..types import UNSET, Unset
 
@@ -16,10 +15,11 @@ class MissionExecuteRequest:
     """
     Attributes:
         model_preference (None | str | Unset):
+        selected_plan_id (None | str | Unset):
     """
 
     model_preference: None | str | Unset = UNSET
-    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
+    selected_plan_id: None | str | Unset = UNSET
 
     def to_dict(self) -> dict[str, Any]:
         model_preference: None | str | Unset
@@ -28,11 +28,19 @@ class MissionExecuteRequest:
         else:
             model_preference = self.model_preference
 
+        selected_plan_id: None | str | Unset
+        if isinstance(self.selected_plan_id, Unset):
+            selected_plan_id = UNSET
+        else:
+            selected_plan_id = self.selected_plan_id
+
         field_dict: dict[str, Any] = {}
-        field_dict.update(self.additional_properties)
+
         field_dict.update({})
         if model_preference is not UNSET:
             field_dict["model_preference"] = model_preference
+        if selected_plan_id is not UNSET:
+            field_dict["selected_plan_id"] = selected_plan_id
 
         return field_dict
 
@@ -49,25 +57,18 @@ class MissionExecuteRequest:
 
         model_preference = _parse_model_preference(d.pop("model_preference", UNSET))
 
+        def _parse_selected_plan_id(data: object) -> None | str | Unset:
+            if data is None:
+                return data
+            if isinstance(data, Unset):
+                return data
+            return cast(None | str | Unset, data)
+
+        selected_plan_id = _parse_selected_plan_id(d.pop("selected_plan_id", UNSET))
+
         mission_execute_request = cls(
             model_preference=model_preference,
+            selected_plan_id=selected_plan_id,
         )
 
-        mission_execute_request.additional_properties = d
         return mission_execute_request
-
-    @property
-    def additional_keys(self) -> list[str]:
-        return list(self.additional_properties.keys())
-
-    def __getitem__(self, key: str) -> Any:
-        return self.additional_properties[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.additional_properties[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        del self.additional_properties[key]
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.additional_properties

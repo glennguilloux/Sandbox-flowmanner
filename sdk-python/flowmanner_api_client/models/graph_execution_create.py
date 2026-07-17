@@ -9,9 +9,7 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.graph_execution_create_input_data_type_0 import (
-        GraphExecutionCreateInputDataType0,
-    )
+    from ..models.graph_execution_create_input_data_type_0 import GraphExecutionCreateInputDataType0
 
 
 T = TypeVar("T", bound="GraphExecutionCreate")
@@ -28,9 +26,7 @@ class GraphExecutionCreate:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.graph_execution_create_input_data_type_0 import (
-            GraphExecutionCreateInputDataType0,
-        )
+        from ..models.graph_execution_create_input_data_type_0 import GraphExecutionCreateInputDataType0
 
         input_data: dict[str, Any] | None | Unset
         if isinstance(self.input_data, Unset):
@@ -50,15 +46,11 @@ class GraphExecutionCreate:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.graph_execution_create_input_data_type_0 import (
-            GraphExecutionCreateInputDataType0,
-        )
+        from ..models.graph_execution_create_input_data_type_0 import GraphExecutionCreateInputDataType0
 
         d = dict(src_dict)
 
-        def _parse_input_data(
-            data: object,
-        ) -> GraphExecutionCreateInputDataType0 | None | Unset:
+        def _parse_input_data(data: object) -> GraphExecutionCreateInputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):

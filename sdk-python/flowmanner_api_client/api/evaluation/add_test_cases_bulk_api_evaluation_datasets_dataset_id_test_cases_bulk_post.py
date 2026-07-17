@@ -8,18 +8,15 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.bulk_create_test_cases_request import BulkCreateTestCasesRequest
 from ...models.http_validation_error import HTTPValidationError
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     dataset_id: str,
     *,
     body: BulkCreateTestCasesRequest,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -68,15 +65,13 @@ def _build_response(
 def sync_detailed(
     dataset_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: BulkCreateTestCasesRequest,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Add Test Cases Bulk
 
     Args:
         dataset_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (BulkCreateTestCasesRequest):
 
     Raises:
@@ -90,7 +85,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         dataset_id=dataset_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -103,15 +97,13 @@ def sync_detailed(
 def sync(
     dataset_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: BulkCreateTestCasesRequest,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Add Test Cases Bulk
 
     Args:
         dataset_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (BulkCreateTestCasesRequest):
 
     Raises:
@@ -126,22 +118,19 @@ def sync(
         dataset_id=dataset_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
 async def asyncio_detailed(
     dataset_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: BulkCreateTestCasesRequest,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Add Test Cases Bulk
 
     Args:
         dataset_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (BulkCreateTestCasesRequest):
 
     Raises:
@@ -155,7 +144,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         dataset_id=dataset_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -166,15 +154,13 @@ async def asyncio_detailed(
 async def asyncio(
     dataset_id: str,
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: BulkCreateTestCasesRequest,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Add Test Cases Bulk
 
     Args:
         dataset_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (BulkCreateTestCasesRequest):
 
     Raises:
@@ -190,6 +176,5 @@ async def asyncio(
             dataset_id=dataset_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

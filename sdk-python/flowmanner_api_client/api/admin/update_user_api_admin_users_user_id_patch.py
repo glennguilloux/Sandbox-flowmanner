@@ -7,21 +7,16 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.update_user_api_admin_users_user_id_patch_data import (
-    UpdateUserApiAdminUsersUserIdPatchData,
-)
-from ...types import Response, Unset
+from ...models.update_user_api_admin_users_user_id_patch_data_10 import UpdateUserApiAdminUsersUserIdPatchData10
+from ...types import Response
 
 
 def _get_kwargs(
     user_id: int,
     *,
-    body: UpdateUserApiAdminUsersUserIdPatchData,
-    accept_version: str | Unset = "v1",
+    body: UpdateUserApiAdminUsersUserIdPatchData10,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "patch",
@@ -71,15 +66,13 @@ def sync_detailed(
     user_id: int,
     *,
     client: AuthenticatedClient,
-    body: UpdateUserApiAdminUsersUserIdPatchData,
-    accept_version: str | Unset = "v1",
+    body: UpdateUserApiAdminUsersUserIdPatchData10,
 ) -> Response[Any | HTTPValidationError]:
     """Update User
 
     Args:
         user_id (int):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateUserApiAdminUsersUserIdPatchData):
+        body (UpdateUserApiAdminUsersUserIdPatchData10):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -92,7 +85,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         user_id=user_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -106,15 +98,13 @@ def sync(
     user_id: int,
     *,
     client: AuthenticatedClient,
-    body: UpdateUserApiAdminUsersUserIdPatchData,
-    accept_version: str | Unset = "v1",
+    body: UpdateUserApiAdminUsersUserIdPatchData10,
 ) -> Any | HTTPValidationError | None:
     """Update User
 
     Args:
         user_id (int):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateUserApiAdminUsersUserIdPatchData):
+        body (UpdateUserApiAdminUsersUserIdPatchData10):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -128,7 +118,6 @@ def sync(
         user_id=user_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -136,15 +125,13 @@ async def asyncio_detailed(
     user_id: int,
     *,
     client: AuthenticatedClient,
-    body: UpdateUserApiAdminUsersUserIdPatchData,
-    accept_version: str | Unset = "v1",
+    body: UpdateUserApiAdminUsersUserIdPatchData10,
 ) -> Response[Any | HTTPValidationError]:
     """Update User
 
     Args:
         user_id (int):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateUserApiAdminUsersUserIdPatchData):
+        body (UpdateUserApiAdminUsersUserIdPatchData10):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -157,7 +144,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         user_id=user_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -169,15 +155,13 @@ async def asyncio(
     user_id: int,
     *,
     client: AuthenticatedClient,
-    body: UpdateUserApiAdminUsersUserIdPatchData,
-    accept_version: str | Unset = "v1",
+    body: UpdateUserApiAdminUsersUserIdPatchData10,
 ) -> Any | HTTPValidationError | None:
     """Update User
 
     Args:
         user_id (int):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateUserApiAdminUsersUserIdPatchData):
+        body (UpdateUserApiAdminUsersUserIdPatchData10):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -192,6 +176,5 @@ async def asyncio(
             user_id=user_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

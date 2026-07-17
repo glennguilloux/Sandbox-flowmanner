@@ -42,6 +42,11 @@ def sync_detailed(
 ) -> Response[Any]:
     """Get Stats
 
+     Return system-wide aggregate execution stats from the database.
+
+    Falls back to zeros if the database is unavailable — the endpoint
+    must never 500 from a transient DB issue.
+
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
         httpx.TimeoutException: If the request takes longer than Client.timeout.
@@ -64,6 +69,11 @@ async def asyncio_detailed(
     client: AuthenticatedClient | Client,
 ) -> Response[Any]:
     """Get Stats
+
+     Return system-wide aggregate execution stats from the database.
+
+    Falls back to zeros if the database is unavailable — the endpoint
+    must never 500 from a transient DB issue.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

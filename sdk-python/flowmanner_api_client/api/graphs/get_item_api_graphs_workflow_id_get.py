@@ -9,18 +9,12 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.graph_workflow_response import GraphWorkflowResponse
 from ...models.http_validation_error import HTTPValidationError
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     workflow_id: UUID,
-    *,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/api/graphs/{workflow_id}".format(
@@ -28,7 +22,6 @@ def _get_kwargs(
         ),
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -66,13 +59,11 @@ def sync_detailed(
     workflow_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Response[GraphWorkflowResponse | HTTPValidationError]:
     """Get Item
 
     Args:
         workflow_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -84,7 +75,6 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         workflow_id=workflow_id,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -98,13 +88,11 @@ def sync(
     workflow_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> GraphWorkflowResponse | HTTPValidationError | None:
     """Get Item
 
     Args:
         workflow_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -117,7 +105,6 @@ def sync(
     return sync_detailed(
         workflow_id=workflow_id,
         client=client,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -125,13 +112,11 @@ async def asyncio_detailed(
     workflow_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Response[GraphWorkflowResponse | HTTPValidationError]:
     """Get Item
 
     Args:
         workflow_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -143,7 +128,6 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         workflow_id=workflow_id,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -155,13 +139,11 @@ async def asyncio(
     workflow_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> GraphWorkflowResponse | HTTPValidationError | None:
     """Get Item
 
     Args:
         workflow_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -175,6 +157,5 @@ async def asyncio(
         await asyncio_detailed(
             workflow_id=workflow_id,
             client=client,
-            accept_version=accept_version,
         )
     ).parsed

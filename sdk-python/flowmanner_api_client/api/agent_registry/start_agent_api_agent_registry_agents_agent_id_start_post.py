@@ -17,12 +17,9 @@ from ...types import UNSET, Response, Unset
 def _get_kwargs(
     agent_id: UUID,
     *,
-    body: (None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset) = UNSET,
-    accept_version: str | Unset = "v1",
+    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -75,8 +72,7 @@ def sync_detailed(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: (None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset) = UNSET,
-    accept_version: str | Unset = "v1",
+    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
 ) -> Response[Any | HTTPValidationError]:
     """Start Agent
 
@@ -84,7 +80,6 @@ def sync_detailed(
 
     Args:
         agent_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset):
 
     Raises:
@@ -98,7 +93,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         agent_id=agent_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -112,8 +106,7 @@ def sync(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: (None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset) = UNSET,
-    accept_version: str | Unset = "v1",
+    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
 ) -> Any | HTTPValidationError | None:
     """Start Agent
 
@@ -121,7 +114,6 @@ def sync(
 
     Args:
         agent_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset):
 
     Raises:
@@ -136,7 +128,6 @@ def sync(
         agent_id=agent_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -144,8 +135,7 @@ async def asyncio_detailed(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: (None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset) = UNSET,
-    accept_version: str | Unset = "v1",
+    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
 ) -> Response[Any | HTTPValidationError]:
     """Start Agent
 
@@ -153,7 +143,6 @@ async def asyncio_detailed(
 
     Args:
         agent_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset):
 
     Raises:
@@ -167,7 +156,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         agent_id=agent_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -179,8 +167,7 @@ async def asyncio(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    body: (None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset) = UNSET,
-    accept_version: str | Unset = "v1",
+    body: None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset = UNSET,
 ) -> Any | HTTPValidationError | None:
     """Start Agent
 
@@ -188,7 +175,6 @@ async def asyncio(
 
     Args:
         agent_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (None | StartAgentApiAgentRegistryAgentsAgentIdStartPostBodyType0 | Unset):
 
     Raises:
@@ -204,6 +190,5 @@ async def asyncio(
             agent_id=agent_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

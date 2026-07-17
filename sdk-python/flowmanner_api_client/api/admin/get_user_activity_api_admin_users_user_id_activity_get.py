@@ -14,12 +14,7 @@ def _get_kwargs(
     user_id: int,
     *,
     limit: int | Unset = 50,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     params["limit"] = limit
@@ -34,7 +29,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -72,14 +66,12 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 50,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Get User Activity
 
     Args:
         user_id (int):
         limit (int | Unset):  Default: 50.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -92,7 +84,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         user_id=user_id,
         limit=limit,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -107,14 +98,12 @@ def sync(
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 50,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Get User Activity
 
     Args:
         user_id (int):
         limit (int | Unset):  Default: 50.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -128,7 +117,6 @@ def sync(
         user_id=user_id,
         client=client,
         limit=limit,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -137,14 +125,12 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 50,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Get User Activity
 
     Args:
         user_id (int):
         limit (int | Unset):  Default: 50.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -157,7 +143,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         user_id=user_id,
         limit=limit,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -170,14 +155,12 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     limit: int | Unset = 50,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Get User Activity
 
     Args:
         user_id (int):
         limit (int | Unset):  Default: 50.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -192,6 +175,5 @@ async def asyncio(
             user_id=user_id,
             client=client,
             limit=limit,
-            accept_version=accept_version,
         )
     ).parsed

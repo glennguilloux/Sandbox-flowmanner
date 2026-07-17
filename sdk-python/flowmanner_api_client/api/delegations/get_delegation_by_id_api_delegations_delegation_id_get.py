@@ -8,18 +8,12 @@ from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.delegation_response import DelegationResponse
 from ...models.http_validation_error import HTTPValidationError
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     delegation_id: str,
-    *,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/api/delegations/{delegation_id}".format(
@@ -27,7 +21,6 @@ def _get_kwargs(
         ),
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -65,7 +58,6 @@ def sync_detailed(
     delegation_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Response[DelegationResponse | HTTPValidationError]:
     """Get Delegation By Id
 
@@ -73,7 +65,6 @@ def sync_detailed(
 
     Args:
         delegation_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -85,7 +76,6 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         delegation_id=delegation_id,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -99,7 +89,6 @@ def sync(
     delegation_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> DelegationResponse | HTTPValidationError | None:
     """Get Delegation By Id
 
@@ -107,7 +96,6 @@ def sync(
 
     Args:
         delegation_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -120,7 +108,6 @@ def sync(
     return sync_detailed(
         delegation_id=delegation_id,
         client=client,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -128,7 +115,6 @@ async def asyncio_detailed(
     delegation_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Response[DelegationResponse | HTTPValidationError]:
     """Get Delegation By Id
 
@@ -136,7 +122,6 @@ async def asyncio_detailed(
 
     Args:
         delegation_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -148,7 +133,6 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         delegation_id=delegation_id,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -160,7 +144,6 @@ async def asyncio(
     delegation_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> DelegationResponse | HTTPValidationError | None:
     """Get Delegation By Id
 
@@ -168,7 +151,6 @@ async def asyncio(
 
     Args:
         delegation_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -182,6 +164,5 @@ async def asyncio(
         await asyncio_detailed(
             delegation_id=delegation_id,
             client=client,
-            accept_version=accept_version,
         )
     ).parsed

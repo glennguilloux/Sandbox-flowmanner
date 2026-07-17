@@ -6,15 +6,15 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.push_unsubscribe_api_users_me_notifications_push_unsubscribe_post_payload import (
-    PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload,
+from ...models.push_unsubscribe_api_users_me_notifications_push_unsubscribe_post_payload_17 import (
+    PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload17,
 )
 from ...types import Response
 
 
 def _get_kwargs(
     *,
-    body: PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload,
+    body: PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload17,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -63,12 +63,12 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    body: PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload,
+    body: PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload17,
 ) -> Response[Any | HTTPValidationError]:
     """Push Unsubscribe
 
     Args:
-        body (PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload):
+        body (PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload17):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -92,12 +92,12 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    body: PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload,
+    body: PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload17,
 ) -> Any | HTTPValidationError | None:
     """Push Unsubscribe
 
     Args:
-        body (PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload):
+        body (PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload17):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -116,12 +116,12 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    body: PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload,
+    body: PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload17,
 ) -> Response[Any | HTTPValidationError]:
     """Push Unsubscribe
 
     Args:
-        body (PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload):
+        body (PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload17):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -143,12 +143,12 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    body: PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload,
+    body: PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload17,
 ) -> Any | HTTPValidationError | None:
     """Push Unsubscribe
 
     Args:
-        body (PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload):
+        body (PushUnsubscribeApiUsersMeNotificationsPushUnsubscribePostPayload17):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

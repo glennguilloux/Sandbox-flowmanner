@@ -16,11 +16,8 @@ def _get_kwargs(
     mission_id: UUID,
     *,
     body: MissionExecuteRequest | None | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "post",
@@ -74,13 +71,11 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: MissionExecuteRequest | None | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Execute Mission Async
 
     Args:
         mission_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (MissionExecuteRequest | None | Unset):
 
     Raises:
@@ -94,7 +89,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         mission_id=mission_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -109,13 +103,11 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: MissionExecuteRequest | None | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Execute Mission Async
 
     Args:
         mission_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (MissionExecuteRequest | None | Unset):
 
     Raises:
@@ -130,7 +122,6 @@ def sync(
         mission_id=mission_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -139,13 +130,11 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: MissionExecuteRequest | None | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Execute Mission Async
 
     Args:
         mission_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (MissionExecuteRequest | None | Unset):
 
     Raises:
@@ -159,7 +148,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         mission_id=mission_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -172,13 +160,11 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: MissionExecuteRequest | None | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Execute Mission Async
 
     Args:
         mission_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
         body (MissionExecuteRequest | None | Unset):
 
     Raises:
@@ -194,6 +180,5 @@ async def asyncio(
             mission_id=mission_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

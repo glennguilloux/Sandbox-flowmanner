@@ -9,12 +9,8 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.feedback_analytics_response_score_trend_item import (
-        FeedbackAnalyticsResponseScoreTrendItem,
-    )
-    from ..models.feedback_analytics_response_top_patterns_item import (
-        FeedbackAnalyticsResponseTopPatternsItem,
-    )
+    from ..models.feedback_analytics_response_score_trend_item import FeedbackAnalyticsResponseScoreTrendItem
+    from ..models.feedback_analytics_response_top_patterns_item import FeedbackAnalyticsResponseTopPatternsItem
 
 
 T = TypeVar("T", bound="FeedbackAnalyticsResponse")
@@ -92,12 +88,8 @@ class FeedbackAnalyticsResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.feedback_analytics_response_score_trend_item import (
-            FeedbackAnalyticsResponseScoreTrendItem,
-        )
-        from ..models.feedback_analytics_response_top_patterns_item import (
-            FeedbackAnalyticsResponseTopPatternsItem,
-        )
+        from ..models.feedback_analytics_response_score_trend_item import FeedbackAnalyticsResponseScoreTrendItem
+        from ..models.feedback_analytics_response_top_patterns_item import FeedbackAnalyticsResponseTopPatternsItem
 
         d = dict(src_dict)
         total_reports = d.pop("total_reports")

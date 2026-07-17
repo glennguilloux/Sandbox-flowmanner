@@ -7,8 +7,8 @@ from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
+from ..models.mission_status import MissionStatus
 from ..types import UNSET, Unset
 
 T = TypeVar("T", bound="MissionExecutionStatus")
@@ -19,7 +19,7 @@ class MissionExecutionStatus:
     """
     Attributes:
         mission_id (None | Unset | UUID):
-        status (None | str | Unset):
+        status (MissionStatus | None | Unset):
         current_task_index (int | None | Unset):
         total_tasks (int | Unset):  Default: 0.
         completed_tasks (int | Unset):  Default: 0.
@@ -30,7 +30,7 @@ class MissionExecutionStatus:
     """
 
     mission_id: None | Unset | UUID = UNSET
-    status: None | str | Unset = UNSET
+    status: MissionStatus | None | Unset = UNSET
     current_task_index: int | None | Unset = UNSET
     total_tasks: int | Unset = 0
     completed_tasks: int | Unset = 0
@@ -52,6 +52,8 @@ class MissionExecutionStatus:
         status: None | str | Unset
         if isinstance(self.status, Unset):
             status = UNSET
+        elif isinstance(self.status, MissionStatus):
+            status = self.status.value
         else:
             status = self.status
 
@@ -130,12 +132,20 @@ class MissionExecutionStatus:
 
         mission_id = _parse_mission_id(d.pop("mission_id", UNSET))
 
-        def _parse_status(data: object) -> None | str | Unset:
+        def _parse_status(data: object) -> MissionStatus | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
-            return cast(None | str | Unset, data)
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                status_type_0 = MissionStatus(data)
+
+                return status_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(MissionStatus | None | Unset, data)
 
         status = _parse_status(d.pop("status", UNSET))
 
@@ -164,7 +174,7 @@ class MissionExecutionStatus:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                started_at_type_0 = isoparse(data)
+                started_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return started_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -173,9 +183,7 @@ class MissionExecutionStatus:
 
         started_at = _parse_started_at(d.pop("started_at", UNSET))
 
-        def _parse_estimated_completion(
-            data: object,
-        ) -> datetime.datetime | None | Unset:
+        def _parse_estimated_completion(data: object) -> datetime.datetime | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -183,7 +191,7 @@ class MissionExecutionStatus:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                estimated_completion_type_0 = isoparse(data)
+                estimated_completion_type_0 = datetime.datetime.fromisoformat(data)
 
                 return estimated_completion_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

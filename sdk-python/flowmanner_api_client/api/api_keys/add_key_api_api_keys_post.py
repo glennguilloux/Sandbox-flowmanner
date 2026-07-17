@@ -5,14 +5,14 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.add_key_api_api_keys_post_data import AddKeyApiApiKeysPostData
+from ...models.add_key_api_api_keys_post_data_3 import AddKeyApiApiKeysPostData3
 from ...models.http_validation_error import HTTPValidationError
 from ...types import Response
 
 
 def _get_kwargs(
     *,
-    body: AddKeyApiApiKeysPostData,
+    body: AddKeyApiApiKeysPostData3,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -61,12 +61,12 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    body: AddKeyApiApiKeysPostData,
+    body: AddKeyApiApiKeysPostData3,
 ) -> Response[Any | HTTPValidationError]:
     """Add Key
 
     Args:
-        body (AddKeyApiApiKeysPostData):
+        body (AddKeyApiApiKeysPostData3):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -90,12 +90,12 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    body: AddKeyApiApiKeysPostData,
+    body: AddKeyApiApiKeysPostData3,
 ) -> Any | HTTPValidationError | None:
     """Add Key
 
     Args:
-        body (AddKeyApiApiKeysPostData):
+        body (AddKeyApiApiKeysPostData3):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -114,12 +114,12 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    body: AddKeyApiApiKeysPostData,
+    body: AddKeyApiApiKeysPostData3,
 ) -> Response[Any | HTTPValidationError]:
     """Add Key
 
     Args:
-        body (AddKeyApiApiKeysPostData):
+        body (AddKeyApiApiKeysPostData3):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -141,12 +141,12 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    body: AddKeyApiApiKeysPostData,
+    body: AddKeyApiApiKeysPostData3,
 ) -> Any | HTTPValidationError | None:
     """Add Key
 
     Args:
-        body (AddKeyApiApiKeysPostData):
+        body (AddKeyApiApiKeysPostData3):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

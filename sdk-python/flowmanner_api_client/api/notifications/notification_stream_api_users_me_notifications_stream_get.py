@@ -12,12 +12,7 @@ from ...types import UNSET, Response, Unset
 def _get_kwargs(
     *,
     token: str | Unset = "",
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     params["token"] = token
@@ -30,7 +25,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -67,7 +61,6 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     token: str | Unset = "",
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Notification Stream
 
@@ -79,7 +72,6 @@ def sync_detailed(
 
     Args:
         token (str | Unset):  Default: ''.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -91,7 +83,6 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         token=token,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -105,7 +96,6 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
     token: str | Unset = "",
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Notification Stream
 
@@ -117,7 +107,6 @@ def sync(
 
     Args:
         token (str | Unset):  Default: ''.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -130,7 +119,6 @@ def sync(
     return sync_detailed(
         client=client,
         token=token,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -138,7 +126,6 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
     token: str | Unset = "",
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Notification Stream
 
@@ -150,7 +137,6 @@ async def asyncio_detailed(
 
     Args:
         token (str | Unset):  Default: ''.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -162,7 +148,6 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         token=token,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -174,7 +159,6 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
     token: str | Unset = "",
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Notification Stream
 
@@ -186,7 +170,6 @@ async def asyncio(
 
     Args:
         token (str | Unset):  Default: ''.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -200,6 +183,5 @@ async def asyncio(
         await asyncio_detailed(
             client=client,
             token=token,
-            accept_version=accept_version,
         )
     ).parsed

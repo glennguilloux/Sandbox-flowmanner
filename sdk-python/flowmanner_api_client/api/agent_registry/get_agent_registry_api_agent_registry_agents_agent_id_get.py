@@ -8,18 +8,12 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     agent_id: UUID,
-    *,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/api/agent-registry/agents/{agent_id}".format(
@@ -27,7 +21,6 @@ def _get_kwargs(
         ),
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -64,7 +57,6 @@ def sync_detailed(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Get Agent Registry
 
@@ -72,7 +64,6 @@ def sync_detailed(
 
     Args:
         agent_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -84,7 +75,6 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         agent_id=agent_id,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -98,7 +88,6 @@ def sync(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Get Agent Registry
 
@@ -106,7 +95,6 @@ def sync(
 
     Args:
         agent_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -119,7 +107,6 @@ def sync(
     return sync_detailed(
         agent_id=agent_id,
         client=client,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -127,7 +114,6 @@ async def asyncio_detailed(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Get Agent Registry
 
@@ -135,7 +121,6 @@ async def asyncio_detailed(
 
     Args:
         agent_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -147,7 +132,6 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         agent_id=agent_id,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -159,7 +143,6 @@ async def asyncio(
     agent_id: UUID,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Get Agent Registry
 
@@ -167,7 +150,6 @@ async def asyncio(
 
     Args:
         agent_id (UUID):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -181,6 +163,5 @@ async def asyncio(
         await asyncio_detailed(
             agent_id=agent_id,
             client=client,
-            accept_version=accept_version,
         )
     ).parsed

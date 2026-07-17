@@ -14,16 +14,11 @@ def _get_kwargs(
     *,
     delegator_id: int | None | Unset = UNSET,
     delegatee_id: int | None | Unset = UNSET,
-    tenant_id: None | str | Unset = UNSET,
+    workspace_id: None | str | Unset = UNSET,
     active_only: bool | Unset = True,
     offset: int | Unset = 0,
     limit: int | Unset = 50,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     json_delegator_id: int | None | Unset
@@ -40,12 +35,12 @@ def _get_kwargs(
         json_delegatee_id = delegatee_id
     params["delegatee_id"] = json_delegatee_id
 
-    json_tenant_id: None | str | Unset
-    if isinstance(tenant_id, Unset):
-        json_tenant_id = UNSET
+    json_workspace_id: None | str | Unset
+    if isinstance(workspace_id, Unset):
+        json_workspace_id = UNSET
     else:
-        json_tenant_id = tenant_id
-    params["tenant_id"] = json_tenant_id
+        json_workspace_id = workspace_id
+    params["workspace_id"] = json_workspace_id
 
     params["active_only"] = active_only
 
@@ -61,7 +56,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -100,11 +94,10 @@ def sync_detailed(
     client: AuthenticatedClient,
     delegator_id: int | None | Unset = UNSET,
     delegatee_id: int | None | Unset = UNSET,
-    tenant_id: None | str | Unset = UNSET,
+    workspace_id: None | str | Unset = UNSET,
     active_only: bool | Unset = True,
     offset: int | Unset = 0,
     limit: int | Unset = 50,
-    accept_version: str | Unset = "v1",
 ) -> Response[DelegationListResponse | HTTPValidationError]:
     """List All Delegations
 
@@ -116,11 +109,10 @@ def sync_detailed(
     Args:
         delegator_id (int | None | Unset): Filter by delegator user ID
         delegatee_id (int | None | Unset): Filter by delegatee user ID
-        tenant_id (None | str | Unset): Filter by tenant ID
+        workspace_id (None | str | Unset): Filter by workspace ID
         active_only (bool | Unset): Only return active delegations Default: True.
         offset (int | Unset):  Default: 0.
         limit (int | Unset):  Default: 50.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -133,11 +125,10 @@ def sync_detailed(
     kwargs = _get_kwargs(
         delegator_id=delegator_id,
         delegatee_id=delegatee_id,
-        tenant_id=tenant_id,
+        workspace_id=workspace_id,
         active_only=active_only,
         offset=offset,
         limit=limit,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -152,11 +143,10 @@ def sync(
     client: AuthenticatedClient,
     delegator_id: int | None | Unset = UNSET,
     delegatee_id: int | None | Unset = UNSET,
-    tenant_id: None | str | Unset = UNSET,
+    workspace_id: None | str | Unset = UNSET,
     active_only: bool | Unset = True,
     offset: int | Unset = 0,
     limit: int | Unset = 50,
-    accept_version: str | Unset = "v1",
 ) -> DelegationListResponse | HTTPValidationError | None:
     """List All Delegations
 
@@ -168,11 +158,10 @@ def sync(
     Args:
         delegator_id (int | None | Unset): Filter by delegator user ID
         delegatee_id (int | None | Unset): Filter by delegatee user ID
-        tenant_id (None | str | Unset): Filter by tenant ID
+        workspace_id (None | str | Unset): Filter by workspace ID
         active_only (bool | Unset): Only return active delegations Default: True.
         offset (int | Unset):  Default: 0.
         limit (int | Unset):  Default: 50.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -186,11 +175,10 @@ def sync(
         client=client,
         delegator_id=delegator_id,
         delegatee_id=delegatee_id,
-        tenant_id=tenant_id,
+        workspace_id=workspace_id,
         active_only=active_only,
         offset=offset,
         limit=limit,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -199,11 +187,10 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     delegator_id: int | None | Unset = UNSET,
     delegatee_id: int | None | Unset = UNSET,
-    tenant_id: None | str | Unset = UNSET,
+    workspace_id: None | str | Unset = UNSET,
     active_only: bool | Unset = True,
     offset: int | Unset = 0,
     limit: int | Unset = 50,
-    accept_version: str | Unset = "v1",
 ) -> Response[DelegationListResponse | HTTPValidationError]:
     """List All Delegations
 
@@ -215,11 +202,10 @@ async def asyncio_detailed(
     Args:
         delegator_id (int | None | Unset): Filter by delegator user ID
         delegatee_id (int | None | Unset): Filter by delegatee user ID
-        tenant_id (None | str | Unset): Filter by tenant ID
+        workspace_id (None | str | Unset): Filter by workspace ID
         active_only (bool | Unset): Only return active delegations Default: True.
         offset (int | Unset):  Default: 0.
         limit (int | Unset):  Default: 50.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -232,11 +218,10 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         delegator_id=delegator_id,
         delegatee_id=delegatee_id,
-        tenant_id=tenant_id,
+        workspace_id=workspace_id,
         active_only=active_only,
         offset=offset,
         limit=limit,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -249,11 +234,10 @@ async def asyncio(
     client: AuthenticatedClient,
     delegator_id: int | None | Unset = UNSET,
     delegatee_id: int | None | Unset = UNSET,
-    tenant_id: None | str | Unset = UNSET,
+    workspace_id: None | str | Unset = UNSET,
     active_only: bool | Unset = True,
     offset: int | Unset = 0,
     limit: int | Unset = 50,
-    accept_version: str | Unset = "v1",
 ) -> DelegationListResponse | HTTPValidationError | None:
     """List All Delegations
 
@@ -265,11 +249,10 @@ async def asyncio(
     Args:
         delegator_id (int | None | Unset): Filter by delegator user ID
         delegatee_id (int | None | Unset): Filter by delegatee user ID
-        tenant_id (None | str | Unset): Filter by tenant ID
+        workspace_id (None | str | Unset): Filter by workspace ID
         active_only (bool | Unset): Only return active delegations Default: True.
         offset (int | Unset):  Default: 0.
         limit (int | Unset):  Default: 50.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -284,10 +267,9 @@ async def asyncio(
             client=client,
             delegator_id=delegator_id,
             delegatee_id=delegatee_id,
-            tenant_id=tenant_id,
+            workspace_id=workspace_id,
             active_only=active_only,
             offset=offset,
             limit=limit,
-            accept_version=accept_version,
         )
     ).parsed

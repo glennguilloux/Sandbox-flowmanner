@@ -7,18 +7,12 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     test_case_id: str,
-    *,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     _kwargs: dict[str, Any] = {
         "method": "delete",
         "url": "/api/evaluation/test-cases/{test_case_id}".format(
@@ -26,7 +20,6 @@ def _get_kwargs(
         ),
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -62,14 +55,12 @@ def _build_response(
 def sync_detailed(
     test_case_id: str,
     *,
-    client: AuthenticatedClient | Client,
-    accept_version: str | Unset = "v1",
+    client: AuthenticatedClient,
 ) -> Response[Any | HTTPValidationError]:
     """Delete Test Case
 
     Args:
         test_case_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -81,7 +72,6 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         test_case_id=test_case_id,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -94,14 +84,12 @@ def sync_detailed(
 def sync(
     test_case_id: str,
     *,
-    client: AuthenticatedClient | Client,
-    accept_version: str | Unset = "v1",
+    client: AuthenticatedClient,
 ) -> Any | HTTPValidationError | None:
     """Delete Test Case
 
     Args:
         test_case_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -114,21 +102,18 @@ def sync(
     return sync_detailed(
         test_case_id=test_case_id,
         client=client,
-        accept_version=accept_version,
     ).parsed
 
 
 async def asyncio_detailed(
     test_case_id: str,
     *,
-    client: AuthenticatedClient | Client,
-    accept_version: str | Unset = "v1",
+    client: AuthenticatedClient,
 ) -> Response[Any | HTTPValidationError]:
     """Delete Test Case
 
     Args:
         test_case_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -140,7 +125,6 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         test_case_id=test_case_id,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -151,14 +135,12 @@ async def asyncio_detailed(
 async def asyncio(
     test_case_id: str,
     *,
-    client: AuthenticatedClient | Client,
-    accept_version: str | Unset = "v1",
+    client: AuthenticatedClient,
 ) -> Any | HTTPValidationError | None:
     """Delete Test Case
 
     Args:
         test_case_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -172,6 +154,5 @@ async def asyncio(
         await asyncio_detailed(
             test_case_id=test_case_id,
             client=client,
-            accept_version=accept_version,
         )
     ).parsed

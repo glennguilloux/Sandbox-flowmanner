@@ -13,12 +13,7 @@ from ...types import UNSET, Response, Unset
 def _get_kwargs(
     *,
     category: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     json_category: None | str | Unset
@@ -36,7 +31,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -79,7 +73,6 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     category: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | list[ToolSummary]]:
     """List Tools
 
@@ -87,7 +80,6 @@ def sync_detailed(
 
     Args:
         category (None | str | Unset): Filter by category
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -99,7 +91,6 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         category=category,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -113,7 +104,6 @@ def sync(
     *,
     client: AuthenticatedClient,
     category: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | list[ToolSummary] | None:
     """List Tools
 
@@ -121,7 +111,6 @@ def sync(
 
     Args:
         category (None | str | Unset): Filter by category
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -134,7 +123,6 @@ def sync(
     return sync_detailed(
         client=client,
         category=category,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -142,7 +130,6 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     category: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | list[ToolSummary]]:
     """List Tools
 
@@ -150,7 +137,6 @@ async def asyncio_detailed(
 
     Args:
         category (None | str | Unset): Filter by category
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -162,7 +148,6 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         category=category,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -174,7 +159,6 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     category: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | list[ToolSummary] | None:
     """List Tools
 
@@ -182,7 +166,6 @@ async def asyncio(
 
     Args:
         category (None | str | Unset): Filter by category
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -196,6 +179,5 @@ async def asyncio(
         await asyncio_detailed(
             client=client,
             category=category,
-            accept_version=accept_version,
         )
     ).parsed

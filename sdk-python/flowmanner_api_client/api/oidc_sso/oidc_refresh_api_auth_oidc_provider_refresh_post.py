@@ -7,18 +7,12 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     provider: str,
-    *,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     _kwargs: dict[str, Any] = {
         "method": "post",
         "url": "/api/auth/oidc/{provider}/refresh".format(
@@ -26,7 +20,6 @@ def _get_kwargs(
         ),
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -63,7 +56,6 @@ def sync_detailed(
     provider: str,
     *,
     client: AuthenticatedClient | Client,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Oidc Refresh
 
@@ -73,7 +65,6 @@ def sync_detailed(
 
     Args:
         provider (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -85,7 +76,6 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         provider=provider,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -99,7 +89,6 @@ def sync(
     provider: str,
     *,
     client: AuthenticatedClient | Client,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Oidc Refresh
 
@@ -109,7 +98,6 @@ def sync(
 
     Args:
         provider (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -122,7 +110,6 @@ def sync(
     return sync_detailed(
         provider=provider,
         client=client,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -130,7 +117,6 @@ async def asyncio_detailed(
     provider: str,
     *,
     client: AuthenticatedClient | Client,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Oidc Refresh
 
@@ -140,7 +126,6 @@ async def asyncio_detailed(
 
     Args:
         provider (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -152,7 +137,6 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         provider=provider,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -164,7 +148,6 @@ async def asyncio(
     provider: str,
     *,
     client: AuthenticatedClient | Client,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Oidc Refresh
 
@@ -174,7 +157,6 @@ async def asyncio(
 
     Args:
         provider (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -188,6 +170,5 @@ async def asyncio(
         await asyncio_detailed(
             provider=provider,
             client=client,
-            accept_version=accept_version,
         )
     ).parsed

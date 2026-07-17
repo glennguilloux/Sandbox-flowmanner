@@ -9,9 +9,7 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.import_langfuse_request_traces_item import (
-        ImportLangfuseRequestTracesItem,
-    )
+    from ..models.import_langfuse_request_traces_item import ImportLangfuseRequestTracesItem
 
 
 T = TypeVar("T", bound="ImportLangfuseRequest")
@@ -56,9 +54,7 @@ class ImportLangfuseRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.import_langfuse_request_traces_item import (
-            ImportLangfuseRequestTracesItem,
-        )
+        from ..models.import_langfuse_request_traces_item import ImportLangfuseRequestTracesItem
 
         d = dict(src_dict)
         dataset_name = d.pop("dataset_name")

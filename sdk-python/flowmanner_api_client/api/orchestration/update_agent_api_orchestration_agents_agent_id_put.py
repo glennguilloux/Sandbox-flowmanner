@@ -7,21 +7,18 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...models.update_agent_api_orchestration_agents_agent_id_put_data import (
-    UpdateAgentApiOrchestrationAgentsAgentIdPutData,
+from ...models.update_agent_api_orchestration_agents_agent_id_put_data_6 import (
+    UpdateAgentApiOrchestrationAgentsAgentIdPutData6,
 )
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     agent_id: str,
     *,
-    body: UpdateAgentApiOrchestrationAgentsAgentIdPutData,
-    accept_version: str | Unset = "v1",
+    body: UpdateAgentApiOrchestrationAgentsAgentIdPutData6,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "put",
@@ -71,15 +68,13 @@ def sync_detailed(
     agent_id: str,
     *,
     client: AuthenticatedClient,
-    body: UpdateAgentApiOrchestrationAgentsAgentIdPutData,
-    accept_version: str | Unset = "v1",
+    body: UpdateAgentApiOrchestrationAgentsAgentIdPutData6,
 ) -> Response[Any | HTTPValidationError]:
     """Update Agent
 
     Args:
         agent_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateAgentApiOrchestrationAgentsAgentIdPutData):
+        body (UpdateAgentApiOrchestrationAgentsAgentIdPutData6):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -92,7 +87,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         agent_id=agent_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -106,15 +100,13 @@ def sync(
     agent_id: str,
     *,
     client: AuthenticatedClient,
-    body: UpdateAgentApiOrchestrationAgentsAgentIdPutData,
-    accept_version: str | Unset = "v1",
+    body: UpdateAgentApiOrchestrationAgentsAgentIdPutData6,
 ) -> Any | HTTPValidationError | None:
     """Update Agent
 
     Args:
         agent_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateAgentApiOrchestrationAgentsAgentIdPutData):
+        body (UpdateAgentApiOrchestrationAgentsAgentIdPutData6):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -128,7 +120,6 @@ def sync(
         agent_id=agent_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -136,15 +127,13 @@ async def asyncio_detailed(
     agent_id: str,
     *,
     client: AuthenticatedClient,
-    body: UpdateAgentApiOrchestrationAgentsAgentIdPutData,
-    accept_version: str | Unset = "v1",
+    body: UpdateAgentApiOrchestrationAgentsAgentIdPutData6,
 ) -> Response[Any | HTTPValidationError]:
     """Update Agent
 
     Args:
         agent_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateAgentApiOrchestrationAgentsAgentIdPutData):
+        body (UpdateAgentApiOrchestrationAgentsAgentIdPutData6):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -157,7 +146,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         agent_id=agent_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -169,15 +157,13 @@ async def asyncio(
     agent_id: str,
     *,
     client: AuthenticatedClient,
-    body: UpdateAgentApiOrchestrationAgentsAgentIdPutData,
-    accept_version: str | Unset = "v1",
+    body: UpdateAgentApiOrchestrationAgentsAgentIdPutData6,
 ) -> Any | HTTPValidationError | None:
     """Update Agent
 
     Args:
         agent_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
-        body (UpdateAgentApiOrchestrationAgentsAgentIdPutData):
+        body (UpdateAgentApiOrchestrationAgentsAgentIdPutData6):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -192,6 +178,5 @@ async def asyncio(
             agent_id=agent_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

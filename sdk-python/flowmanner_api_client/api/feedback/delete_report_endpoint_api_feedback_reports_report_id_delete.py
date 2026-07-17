@@ -7,18 +7,12 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     report_id: str,
-    *,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     _kwargs: dict[str, Any] = {
         "method": "delete",
         "url": "/api/feedback/reports/{report_id}".format(
@@ -26,7 +20,6 @@ def _get_kwargs(
         ),
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -63,7 +56,6 @@ def sync_detailed(
     report_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Delete Report Endpoint
 
@@ -71,7 +63,6 @@ def sync_detailed(
 
     Args:
         report_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -83,7 +74,6 @@ def sync_detailed(
 
     kwargs = _get_kwargs(
         report_id=report_id,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -97,7 +87,6 @@ def sync(
     report_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Delete Report Endpoint
 
@@ -105,7 +94,6 @@ def sync(
 
     Args:
         report_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -118,7 +106,6 @@ def sync(
     return sync_detailed(
         report_id=report_id,
         client=client,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -126,7 +113,6 @@ async def asyncio_detailed(
     report_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Delete Report Endpoint
 
@@ -134,7 +120,6 @@ async def asyncio_detailed(
 
     Args:
         report_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -146,7 +131,6 @@ async def asyncio_detailed(
 
     kwargs = _get_kwargs(
         report_id=report_id,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -158,7 +142,6 @@ async def asyncio(
     report_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Delete Report Endpoint
 
@@ -166,7 +149,6 @@ async def asyncio(
 
     Args:
         report_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -180,6 +162,5 @@ async def asyncio(
         await asyncio_detailed(
             report_id=report_id,
             client=client,
-            accept_version=accept_version,
         )
     ).parsed

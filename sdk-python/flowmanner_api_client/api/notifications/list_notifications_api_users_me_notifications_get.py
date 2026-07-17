@@ -14,12 +14,7 @@ def _get_kwargs(
     unread_only: bool | Unset = False,
     limit: int | Unset = 50,
     offset: int | Unset = 0,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     params["unread_only"] = unread_only
@@ -36,7 +31,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -75,7 +69,6 @@ def sync_detailed(
     unread_only: bool | Unset = False,
     limit: int | Unset = 50,
     offset: int | Unset = 0,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """List Notifications
 
@@ -83,7 +76,6 @@ def sync_detailed(
         unread_only (bool | Unset):  Default: False.
         limit (int | Unset):  Default: 50.
         offset (int | Unset):  Default: 0.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -97,7 +89,6 @@ def sync_detailed(
         unread_only=unread_only,
         limit=limit,
         offset=offset,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -113,7 +104,6 @@ def sync(
     unread_only: bool | Unset = False,
     limit: int | Unset = 50,
     offset: int | Unset = 0,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """List Notifications
 
@@ -121,7 +111,6 @@ def sync(
         unread_only (bool | Unset):  Default: False.
         limit (int | Unset):  Default: 50.
         offset (int | Unset):  Default: 0.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -136,7 +125,6 @@ def sync(
         unread_only=unread_only,
         limit=limit,
         offset=offset,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -146,7 +134,6 @@ async def asyncio_detailed(
     unread_only: bool | Unset = False,
     limit: int | Unset = 50,
     offset: int | Unset = 0,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """List Notifications
 
@@ -154,7 +141,6 @@ async def asyncio_detailed(
         unread_only (bool | Unset):  Default: False.
         limit (int | Unset):  Default: 50.
         offset (int | Unset):  Default: 0.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -168,7 +154,6 @@ async def asyncio_detailed(
         unread_only=unread_only,
         limit=limit,
         offset=offset,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -182,7 +167,6 @@ async def asyncio(
     unread_only: bool | Unset = False,
     limit: int | Unset = 50,
     offset: int | Unset = 0,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """List Notifications
 
@@ -190,7 +174,6 @@ async def asyncio(
         unread_only (bool | Unset):  Default: False.
         limit (int | Unset):  Default: 50.
         offset (int | Unset):  Default: 0.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -206,6 +189,5 @@ async def asyncio(
             unread_only=unread_only,
             limit=limit,
             offset=offset,
-            accept_version=accept_version,
         )
     ).parsed

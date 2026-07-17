@@ -7,19 +7,13 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     mission_id: str,
     improvement_id: str,
-    *,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     _kwargs: dict[str, Any] = {
         "method": "post",
         "url": "/api/feedback/missions/{mission_id}/improvements/{improvement_id}/apply".format(
@@ -28,7 +22,6 @@ def _get_kwargs(
         ),
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -66,7 +59,6 @@ def sync_detailed(
     improvement_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Apply Improvement Endpoint
 
@@ -75,7 +67,6 @@ def sync_detailed(
     Args:
         mission_id (str):
         improvement_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -88,7 +79,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         mission_id=mission_id,
         improvement_id=improvement_id,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -103,7 +93,6 @@ def sync(
     improvement_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Apply Improvement Endpoint
 
@@ -112,7 +101,6 @@ def sync(
     Args:
         mission_id (str):
         improvement_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -126,7 +114,6 @@ def sync(
         mission_id=mission_id,
         improvement_id=improvement_id,
         client=client,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -135,7 +122,6 @@ async def asyncio_detailed(
     improvement_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Apply Improvement Endpoint
 
@@ -144,7 +130,6 @@ async def asyncio_detailed(
     Args:
         mission_id (str):
         improvement_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -157,7 +142,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         mission_id=mission_id,
         improvement_id=improvement_id,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -170,7 +154,6 @@ async def asyncio(
     improvement_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Apply Improvement Endpoint
 
@@ -179,7 +162,6 @@ async def asyncio(
     Args:
         mission_id (str):
         improvement_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -194,6 +176,5 @@ async def asyncio(
             mission_id=mission_id,
             improvement_id=improvement_id,
             client=client,
-            accept_version=accept_version,
         )
     ).parsed

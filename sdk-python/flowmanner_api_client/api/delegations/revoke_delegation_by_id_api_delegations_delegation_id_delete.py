@@ -14,12 +14,7 @@ def _get_kwargs(
     delegation_id: str,
     *,
     audit_notes: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     json_audit_notes: None | str | Unset
@@ -39,7 +34,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -77,7 +71,6 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     audit_notes: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Revoke Delegation By Id
 
@@ -88,7 +81,6 @@ def sync_detailed(
     Args:
         delegation_id (str):
         audit_notes (None | str | Unset): Reason for revocation
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -101,7 +93,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         delegation_id=delegation_id,
         audit_notes=audit_notes,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -116,7 +107,6 @@ def sync(
     *,
     client: AuthenticatedClient,
     audit_notes: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Revoke Delegation By Id
 
@@ -127,7 +117,6 @@ def sync(
     Args:
         delegation_id (str):
         audit_notes (None | str | Unset): Reason for revocation
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -141,7 +130,6 @@ def sync(
         delegation_id=delegation_id,
         client=client,
         audit_notes=audit_notes,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -150,7 +138,6 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     audit_notes: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """Revoke Delegation By Id
 
@@ -161,7 +148,6 @@ async def asyncio_detailed(
     Args:
         delegation_id (str):
         audit_notes (None | str | Unset): Reason for revocation
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -174,7 +160,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         delegation_id=delegation_id,
         audit_notes=audit_notes,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -187,7 +172,6 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     audit_notes: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """Revoke Delegation By Id
 
@@ -198,7 +182,6 @@ async def asyncio(
     Args:
         delegation_id (str):
         audit_notes (None | str | Unset): Reason for revocation
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -213,6 +196,5 @@ async def asyncio(
             delegation_id=delegation_id,
             client=client,
             audit_notes=audit_notes,
-            accept_version=accept_version,
         )
     ).parsed

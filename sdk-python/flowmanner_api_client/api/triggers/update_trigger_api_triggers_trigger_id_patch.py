@@ -9,18 +9,15 @@ from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
 from ...models.trigger_response import TriggerResponse
 from ...models.trigger_update import TriggerUpdate
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     trigger_id: str,
     *,
     body: TriggerUpdate,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
 
     _kwargs: dict[str, Any] = {
         "method": "patch",
@@ -72,13 +69,11 @@ def sync_detailed(
     *,
     client: AuthenticatedClient,
     body: TriggerUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | TriggerResponse]:
     """Update Trigger
 
     Args:
         trigger_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (TriggerUpdate):
 
     Raises:
@@ -92,7 +87,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         trigger_id=trigger_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -107,13 +101,11 @@ def sync(
     *,
     client: AuthenticatedClient,
     body: TriggerUpdate,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | TriggerResponse | None:
     """Update Trigger
 
     Args:
         trigger_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (TriggerUpdate):
 
     Raises:
@@ -128,7 +120,6 @@ def sync(
         trigger_id=trigger_id,
         client=client,
         body=body,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -137,13 +128,11 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
     body: TriggerUpdate,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | TriggerResponse]:
     """Update Trigger
 
     Args:
         trigger_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (TriggerUpdate):
 
     Raises:
@@ -157,7 +146,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         trigger_id=trigger_id,
         body=body,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -170,13 +158,11 @@ async def asyncio(
     *,
     client: AuthenticatedClient,
     body: TriggerUpdate,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | TriggerResponse | None:
     """Update Trigger
 
     Args:
         trigger_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
         body (TriggerUpdate):
 
     Raises:
@@ -192,6 +178,5 @@ async def asyncio(
             trigger_id=trigger_id,
             client=client,
             body=body,
-            accept_version=accept_version,
         )
     ).parsed

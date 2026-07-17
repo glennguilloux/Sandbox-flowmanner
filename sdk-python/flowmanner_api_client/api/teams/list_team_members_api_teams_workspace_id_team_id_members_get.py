@@ -7,19 +7,13 @@ import httpx
 from ... import errors
 from ...client import AuthenticatedClient, Client
 from ...models.http_validation_error import HTTPValidationError
-from ...types import Response, Unset
+from ...types import Response
 
 
 def _get_kwargs(
     workspace_id: str,
     team_id: str,
-    *,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     _kwargs: dict[str, Any] = {
         "method": "get",
         "url": "/api/teams/{workspace_id}/{team_id}/members".format(
@@ -28,7 +22,6 @@ def _get_kwargs(
         ),
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -66,14 +59,12 @@ def sync_detailed(
     team_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """List Team Members
 
     Args:
         workspace_id (str):
         team_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -86,7 +77,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         workspace_id=workspace_id,
         team_id=team_id,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -101,14 +91,12 @@ def sync(
     team_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """List Team Members
 
     Args:
         workspace_id (str):
         team_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -122,7 +110,6 @@ def sync(
         workspace_id=workspace_id,
         team_id=team_id,
         client=client,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -131,14 +118,12 @@ async def asyncio_detailed(
     team_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """List Team Members
 
     Args:
         workspace_id (str):
         team_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -151,7 +136,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         workspace_id=workspace_id,
         team_id=team_id,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -164,14 +148,12 @@ async def asyncio(
     team_id: str,
     *,
     client: AuthenticatedClient,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """List Team Members
 
     Args:
         workspace_id (str):
         team_id (str):
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -186,6 +168,5 @@ async def asyncio(
             workspace_id=workspace_id,
             team_id=team_id,
             client=client,
-            accept_version=accept_version,
         )
     ).parsed

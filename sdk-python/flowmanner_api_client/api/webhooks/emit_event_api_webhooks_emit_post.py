@@ -5,16 +5,14 @@ import httpx
 
 from ... import errors
 from ...client import AuthenticatedClient, Client
-from ...models.emit_event_api_webhooks_emit_post_payload import (
-    EmitEventApiWebhooksEmitPostPayload,
-)
+from ...models.emit_event_api_webhooks_emit_post_payload_15 import EmitEventApiWebhooksEmitPostPayload15
 from ...models.http_validation_error import HTTPValidationError
 from ...types import Response
 
 
 def _get_kwargs(
     *,
-    body: EmitEventApiWebhooksEmitPostPayload,
+    body: EmitEventApiWebhooksEmitPostPayload15,
 ) -> dict[str, Any]:
     headers: dict[str, Any] = {}
 
@@ -63,16 +61,17 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    body: EmitEventApiWebhooksEmitPostPayload,
+    body: EmitEventApiWebhooksEmitPostPayload15,
 ) -> Response[Any | HTTPValidationError]:
     """Emit Event
 
-     Emit a webhook event to all active subscriptions matching the event type.
+     Emit a webhook event to all active subscriptions.
 
-    Dispatches delivery to Celery for reliable async processing with retries.
+    Phase 8.5: Dispatches via Celery task for reliable delivery with
+    HMAC-SHA256 signing, exponential backoff retries, and DLQ.
 
     Args:
-        body (EmitEventApiWebhooksEmitPostPayload):
+        body (EmitEventApiWebhooksEmitPostPayload15):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -96,16 +95,17 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    body: EmitEventApiWebhooksEmitPostPayload,
+    body: EmitEventApiWebhooksEmitPostPayload15,
 ) -> Any | HTTPValidationError | None:
     """Emit Event
 
-     Emit a webhook event to all active subscriptions matching the event type.
+     Emit a webhook event to all active subscriptions.
 
-    Dispatches delivery to Celery for reliable async processing with retries.
+    Phase 8.5: Dispatches via Celery task for reliable delivery with
+    HMAC-SHA256 signing, exponential backoff retries, and DLQ.
 
     Args:
-        body (EmitEventApiWebhooksEmitPostPayload):
+        body (EmitEventApiWebhooksEmitPostPayload15):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -124,16 +124,17 @@ def sync(
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    body: EmitEventApiWebhooksEmitPostPayload,
+    body: EmitEventApiWebhooksEmitPostPayload15,
 ) -> Response[Any | HTTPValidationError]:
     """Emit Event
 
-     Emit a webhook event to all active subscriptions matching the event type.
+     Emit a webhook event to all active subscriptions.
 
-    Dispatches delivery to Celery for reliable async processing with retries.
+    Phase 8.5: Dispatches via Celery task for reliable delivery with
+    HMAC-SHA256 signing, exponential backoff retries, and DLQ.
 
     Args:
-        body (EmitEventApiWebhooksEmitPostPayload):
+        body (EmitEventApiWebhooksEmitPostPayload15):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -155,16 +156,17 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    body: EmitEventApiWebhooksEmitPostPayload,
+    body: EmitEventApiWebhooksEmitPostPayload15,
 ) -> Any | HTTPValidationError | None:
     """Emit Event
 
-     Emit a webhook event to all active subscriptions matching the event type.
+     Emit a webhook event to all active subscriptions.
 
-    Dispatches delivery to Celery for reliable async processing with retries.
+    Phase 8.5: Dispatches via Celery task for reliable delivery with
+    HMAC-SHA256 signing, exponential backoff retries, and DLQ.
 
     Args:
-        body (EmitEventApiWebhooksEmitPostPayload):
+        body (EmitEventApiWebhooksEmitPostPayload15):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.

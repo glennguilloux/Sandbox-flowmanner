@@ -9,15 +9,9 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.template_create_default_constraints_type_0 import (
-        TemplateCreateDefaultConstraintsType0,
-    )
-    from ..models.template_create_default_plan_type_0 import (
-        TemplateCreateDefaultPlanType0,
-    )
-    from ..models.template_create_default_tasks_type_0 import (
-        TemplateCreateDefaultTasksType0,
-    )
+    from ..models.template_create_default_constraints_type_0 import TemplateCreateDefaultConstraintsType0
+    from ..models.template_create_default_plan_type_0 import TemplateCreateDefaultPlanType0
+    from ..models.template_create_default_tasks_type_0 import TemplateCreateDefaultTasksType0
 
 
 T = TypeVar("T", bound="TemplateCreate")
@@ -46,15 +40,9 @@ class TemplateCreate:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.template_create_default_constraints_type_0 import (
-            TemplateCreateDefaultConstraintsType0,
-        )
-        from ..models.template_create_default_plan_type_0 import (
-            TemplateCreateDefaultPlanType0,
-        )
-        from ..models.template_create_default_tasks_type_0 import (
-            TemplateCreateDefaultTasksType0,
-        )
+        from ..models.template_create_default_constraints_type_0 import TemplateCreateDefaultConstraintsType0
+        from ..models.template_create_default_plan_type_0 import TemplateCreateDefaultPlanType0
+        from ..models.template_create_default_tasks_type_0 import TemplateCreateDefaultTasksType0
 
         name = self.name
 
@@ -120,15 +108,9 @@ class TemplateCreate:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.template_create_default_constraints_type_0 import (
-            TemplateCreateDefaultConstraintsType0,
-        )
-        from ..models.template_create_default_plan_type_0 import (
-            TemplateCreateDefaultPlanType0,
-        )
-        from ..models.template_create_default_tasks_type_0 import (
-            TemplateCreateDefaultTasksType0,
-        )
+        from ..models.template_create_default_constraints_type_0 import TemplateCreateDefaultConstraintsType0
+        from ..models.template_create_default_plan_type_0 import TemplateCreateDefaultPlanType0
+        from ..models.template_create_default_tasks_type_0 import TemplateCreateDefaultTasksType0
 
         d = dict(src_dict)
         name = d.pop("name")
@@ -153,9 +135,7 @@ class TemplateCreate:
 
         is_public = d.pop("is_public", UNSET)
 
-        def _parse_default_plan(
-            data: object,
-        ) -> None | TemplateCreateDefaultPlanType0 | Unset:
+        def _parse_default_plan(data: object) -> None | TemplateCreateDefaultPlanType0 | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -172,9 +152,7 @@ class TemplateCreate:
 
         default_plan = _parse_default_plan(d.pop("default_plan", UNSET))
 
-        def _parse_default_tasks(
-            data: object,
-        ) -> None | TemplateCreateDefaultTasksType0 | Unset:
+        def _parse_default_tasks(data: object) -> None | TemplateCreateDefaultTasksType0 | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -191,9 +169,7 @@ class TemplateCreate:
 
         default_tasks = _parse_default_tasks(d.pop("default_tasks", UNSET))
 
-        def _parse_default_constraints(
-            data: object,
-        ) -> None | TemplateCreateDefaultConstraintsType0 | Unset:
+        def _parse_default_constraints(data: object) -> None | TemplateCreateDefaultConstraintsType0 | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):

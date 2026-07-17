@@ -12,21 +12,16 @@ from ...types import UNSET, Response, Unset
 
 def _get_kwargs(
     *,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
-    json_tenant_id: None | str | Unset
-    if isinstance(tenant_id, Unset):
-        json_tenant_id = UNSET
+    json_workspace_id: None | str | Unset
+    if isinstance(workspace_id, Unset):
+        json_workspace_id = UNSET
     else:
-        json_tenant_id = tenant_id
-    params["tenant_id"] = json_tenant_id
+        json_workspace_id = workspace_id
+    params["workspace_id"] = json_workspace_id
 
     params = {k: v for k, v in params.items() if v is not UNSET and v is not None}
 
@@ -36,7 +31,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -73,16 +67,14 @@ def _build_response(
 def sync_detailed(
     *,
     client: AuthenticatedClient,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> Response[HTTPValidationError | RoleListResponse]:
     """List Roles
 
-     List roles for the current tenant (system + custom).
+     List roles for the current workspace (system + custom).
 
     Args:
-        tenant_id (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        workspace_id (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -93,8 +85,7 @@ def sync_detailed(
     """
 
     kwargs = _get_kwargs(
-        tenant_id=tenant_id,
-        accept_version=accept_version,
+        workspace_id=workspace_id,
     )
 
     response = client.get_httpx_client().request(
@@ -107,16 +98,14 @@ def sync_detailed(
 def sync(
     *,
     client: AuthenticatedClient,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> HTTPValidationError | RoleListResponse | None:
     """List Roles
 
-     List roles for the current tenant (system + custom).
+     List roles for the current workspace (system + custom).
 
     Args:
-        tenant_id (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        workspace_id (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -128,24 +117,21 @@ def sync(
 
     return sync_detailed(
         client=client,
-        tenant_id=tenant_id,
-        accept_version=accept_version,
+        workspace_id=workspace_id,
     ).parsed
 
 
 async def asyncio_detailed(
     *,
     client: AuthenticatedClient,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> Response[HTTPValidationError | RoleListResponse]:
     """List Roles
 
-     List roles for the current tenant (system + custom).
+     List roles for the current workspace (system + custom).
 
     Args:
-        tenant_id (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        workspace_id (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -156,8 +142,7 @@ async def asyncio_detailed(
     """
 
     kwargs = _get_kwargs(
-        tenant_id=tenant_id,
-        accept_version=accept_version,
+        workspace_id=workspace_id,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -168,16 +153,14 @@ async def asyncio_detailed(
 async def asyncio(
     *,
     client: AuthenticatedClient,
-    tenant_id: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
+    workspace_id: None | str | Unset = UNSET,
 ) -> HTTPValidationError | RoleListResponse | None:
     """List Roles
 
-     List roles for the current tenant (system + custom).
+     List roles for the current workspace (system + custom).
 
     Args:
-        tenant_id (None | str | Unset):
-        accept_version (str | Unset):  Default: 'v1'.
+        workspace_id (None | str | Unset):
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -190,7 +173,6 @@ async def asyncio(
     return (
         await asyncio_detailed(
             client=client,
-            tenant_id=tenant_id,
-            accept_version=accept_version,
+            workspace_id=workspace_id,
         )
     ).parsed

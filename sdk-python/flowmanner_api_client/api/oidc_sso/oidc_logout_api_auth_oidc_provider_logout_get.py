@@ -15,12 +15,7 @@ def _get_kwargs(
     provider: str,
     *,
     id_token_hint: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     json_id_token_hint: None | str | Unset
@@ -40,7 +35,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -79,7 +73,6 @@ def sync_detailed(
     *,
     client: AuthenticatedClient | Client,
     id_token_hint: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | OIDCLogoutResponse]:
     """Oidc Logout
 
@@ -93,7 +86,6 @@ def sync_detailed(
     Args:
         provider (str):
         id_token_hint (None | str | Unset): ID token hint for logout
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -106,7 +98,6 @@ def sync_detailed(
     kwargs = _get_kwargs(
         provider=provider,
         id_token_hint=id_token_hint,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -121,7 +112,6 @@ def sync(
     *,
     client: AuthenticatedClient | Client,
     id_token_hint: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | OIDCLogoutResponse | None:
     """Oidc Logout
 
@@ -135,7 +125,6 @@ def sync(
     Args:
         provider (str):
         id_token_hint (None | str | Unset): ID token hint for logout
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -149,7 +138,6 @@ def sync(
         provider=provider,
         client=client,
         id_token_hint=id_token_hint,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -158,7 +146,6 @@ async def asyncio_detailed(
     *,
     client: AuthenticatedClient | Client,
     id_token_hint: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | OIDCLogoutResponse]:
     """Oidc Logout
 
@@ -172,7 +159,6 @@ async def asyncio_detailed(
     Args:
         provider (str):
         id_token_hint (None | str | Unset): ID token hint for logout
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -185,7 +171,6 @@ async def asyncio_detailed(
     kwargs = _get_kwargs(
         provider=provider,
         id_token_hint=id_token_hint,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -198,7 +183,6 @@ async def asyncio(
     *,
     client: AuthenticatedClient | Client,
     id_token_hint: None | str | Unset = UNSET,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | OIDCLogoutResponse | None:
     """Oidc Logout
 
@@ -212,7 +196,6 @@ async def asyncio(
     Args:
         provider (str):
         id_token_hint (None | str | Unset): ID token hint for logout
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -227,6 +210,5 @@ async def asyncio(
             provider=provider,
             client=client,
             id_token_hint=id_token_hint,
-            accept_version=accept_version,
         )
     ).parsed

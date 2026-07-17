@@ -15,12 +15,7 @@ def _get_kwargs(
     include_public: bool | Unset = True,
     page: int | Unset = 1,
     per_page: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     json_category: None | str | Unset
@@ -44,7 +39,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -84,7 +78,6 @@ def sync_detailed(
     include_public: bool | Unset = True,
     page: int | Unset = 1,
     per_page: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """List Node Groups
 
@@ -93,7 +86,6 @@ def sync_detailed(
         include_public (bool | Unset):  Default: True.
         page (int | Unset):  Default: 1.
         per_page (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -108,7 +100,6 @@ def sync_detailed(
         include_public=include_public,
         page=page,
         per_page=per_page,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -125,7 +116,6 @@ def sync(
     include_public: bool | Unset = True,
     page: int | Unset = 1,
     per_page: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """List Node Groups
 
@@ -134,7 +124,6 @@ def sync(
         include_public (bool | Unset):  Default: True.
         page (int | Unset):  Default: 1.
         per_page (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -150,7 +139,6 @@ def sync(
         include_public=include_public,
         page=page,
         per_page=per_page,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -161,7 +149,6 @@ async def asyncio_detailed(
     include_public: bool | Unset = True,
     page: int | Unset = 1,
     per_page: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Response[Any | HTTPValidationError]:
     """List Node Groups
 
@@ -170,7 +157,6 @@ async def asyncio_detailed(
         include_public (bool | Unset):  Default: True.
         page (int | Unset):  Default: 1.
         per_page (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -185,7 +171,6 @@ async def asyncio_detailed(
         include_public=include_public,
         page=page,
         per_page=per_page,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -200,7 +185,6 @@ async def asyncio(
     include_public: bool | Unset = True,
     page: int | Unset = 1,
     per_page: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Any | HTTPValidationError | None:
     """List Node Groups
 
@@ -209,7 +193,6 @@ async def asyncio(
         include_public (bool | Unset):  Default: True.
         page (int | Unset):  Default: 1.
         per_page (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -226,6 +209,5 @@ async def asyncio(
             include_public=include_public,
             page=page,
             per_page=per_page,
-            accept_version=accept_version,
         )
     ).parsed

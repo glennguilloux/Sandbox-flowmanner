@@ -18,7 +18,7 @@ def _get_kwargs(
 
     _kwargs: dict[str, Any] = {
         "method": "post",
-        "url": "/api/graphs",
+        "url": "/api/graphs/",
     }
 
     _kwargs["json"] = body.to_dict()
@@ -32,9 +32,9 @@ def _get_kwargs(
 def _parse_response(
     *, client: AuthenticatedClient | Client, response: httpx.Response
 ) -> Any | HTTPValidationError | None:
-    if response.status_code == 200:
-        response_200 = response.json()
-        return response_200
+    if response.status_code == 201:
+        response_201 = response.json()
+        return response_201
 
     if response.status_code == 422:
         response_422 = HTTPValidationError.from_dict(response.json())

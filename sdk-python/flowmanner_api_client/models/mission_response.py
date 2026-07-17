@@ -7,8 +7,8 @@ from uuid import UUID
 
 from attrs import define as _attrs_define
 from attrs import field as _attrs_field
-from dateutil.parser import isoparse
 
+from ..models.mission_status import MissionStatus
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ class MissionResponse:
         title (str):
         description (str):
         mission_type (None | str | Unset):
-        status (None | str | Unset):
+        status (MissionStatus | None | Unset):
         priority (None | str | Unset):
         plan (MissionResponsePlanType0 | None | Unset):
         results (MissionResponseResultsType0 | None | Unset):
@@ -49,7 +49,7 @@ class MissionResponse:
     title: str
     description: str
     mission_type: None | str | Unset = UNSET
-    status: None | str | Unset = UNSET
+    status: MissionStatus | None | Unset = UNSET
     priority: None | str | Unset = UNSET
     plan: MissionResponsePlanType0 | None | Unset = UNSET
     results: MissionResponseResultsType0 | None | Unset = UNSET
@@ -86,6 +86,8 @@ class MissionResponse:
         status: None | str | Unset
         if isinstance(self.status, Unset):
             status = UNSET
+        elif isinstance(self.status, MissionStatus):
+            status = self.status.value
         else:
             status = self.status
 
@@ -247,12 +249,20 @@ class MissionResponse:
 
         mission_type = _parse_mission_type(d.pop("mission_type", UNSET))
 
-        def _parse_status(data: object) -> None | str | Unset:
+        def _parse_status(data: object) -> MissionStatus | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
-            return cast(None | str | Unset, data)
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                status_type_0 = MissionStatus(data)
+
+                return status_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(MissionStatus | None | Unset, data)
 
         status = _parse_status(d.pop("status", UNSET))
 
@@ -343,7 +353,7 @@ class MissionResponse:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                started_at_type_0 = isoparse(data)
+                started_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return started_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -360,7 +370,7 @@ class MissionResponse:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                completed_at_type_0 = isoparse(data)
+                completed_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return completed_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -377,7 +387,7 @@ class MissionResponse:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                created_at_type_0 = isoparse(data)
+                created_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return created_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -394,7 +404,7 @@ class MissionResponse:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                updated_at_type_0 = isoparse(data)
+                updated_at_type_0 = datetime.datetime.fromisoformat(data)
 
                 return updated_at_type_0
             except (TypeError, ValueError, AttributeError, KeyError):
@@ -420,7 +430,7 @@ class MissionResponse:
             try:
                 if not isinstance(data, str):
                     raise TypeError()
-                eta_type_0 = isoparse(data)
+                eta_type_0 = datetime.datetime.fromisoformat(data)
 
                 return eta_type_0
             except (TypeError, ValueError, AttributeError, KeyError):

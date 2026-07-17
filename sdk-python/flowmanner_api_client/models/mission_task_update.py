@@ -4,14 +4,12 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from attrs import define as _attrs_define
-from attrs import field as _attrs_field
 
+from ..models.mission_task_status import MissionTaskStatus
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.mission_task_update_output_data_type_0 import (
-        MissionTaskUpdateOutputDataType0,
-    )
+    from ..models.mission_task_update_output_data_type_0 import MissionTaskUpdateOutputDataType0
 
 
 T = TypeVar("T", bound="MissionTaskUpdate")
@@ -23,7 +21,7 @@ class MissionTaskUpdate:
     Attributes:
         title (None | str | Unset):
         description (None | str | Unset):
-        status (None | str | Unset):
+        status (MissionTaskStatus | None | Unset):
         output_data (MissionTaskUpdateOutputDataType0 | None | Unset):
         error_message (None | str | Unset):
         tokens_used (int | None | Unset):
@@ -32,17 +30,14 @@ class MissionTaskUpdate:
 
     title: None | str | Unset = UNSET
     description: None | str | Unset = UNSET
-    status: None | str | Unset = UNSET
+    status: MissionTaskStatus | None | Unset = UNSET
     output_data: MissionTaskUpdateOutputDataType0 | None | Unset = UNSET
     error_message: None | str | Unset = UNSET
     tokens_used: int | None | Unset = UNSET
     cost: float | None | Unset = UNSET
-    additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.mission_task_update_output_data_type_0 import (
-            MissionTaskUpdateOutputDataType0,
-        )
+        from ..models.mission_task_update_output_data_type_0 import MissionTaskUpdateOutputDataType0
 
         title: None | str | Unset
         if isinstance(self.title, Unset):
@@ -59,6 +54,8 @@ class MissionTaskUpdate:
         status: None | str | Unset
         if isinstance(self.status, Unset):
             status = UNSET
+        elif isinstance(self.status, MissionTaskStatus):
+            status = self.status.value
         else:
             status = self.status
 
@@ -89,7 +86,7 @@ class MissionTaskUpdate:
             cost = self.cost
 
         field_dict: dict[str, Any] = {}
-        field_dict.update(self.additional_properties)
+
         field_dict.update({})
         if title is not UNSET:
             field_dict["title"] = title
@@ -110,9 +107,7 @@ class MissionTaskUpdate:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.mission_task_update_output_data_type_0 import (
-            MissionTaskUpdateOutputDataType0,
-        )
+        from ..models.mission_task_update_output_data_type_0 import MissionTaskUpdateOutputDataType0
 
         d = dict(src_dict)
 
@@ -134,18 +129,24 @@ class MissionTaskUpdate:
 
         description = _parse_description(d.pop("description", UNSET))
 
-        def _parse_status(data: object) -> None | str | Unset:
+        def _parse_status(data: object) -> MissionTaskStatus | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
                 return data
-            return cast(None | str | Unset, data)
+            try:
+                if not isinstance(data, str):
+                    raise TypeError()
+                status_type_0 = MissionTaskStatus(data)
+
+                return status_type_0
+            except (TypeError, ValueError, AttributeError, KeyError):
+                pass
+            return cast(MissionTaskStatus | None | Unset, data)
 
         status = _parse_status(d.pop("status", UNSET))
 
-        def _parse_output_data(
-            data: object,
-        ) -> MissionTaskUpdateOutputDataType0 | None | Unset:
+        def _parse_output_data(data: object) -> MissionTaskUpdateOutputDataType0 | None | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):
@@ -199,21 +200,4 @@ class MissionTaskUpdate:
             cost=cost,
         )
 
-        mission_task_update.additional_properties = d
         return mission_task_update
-
-    @property
-    def additional_keys(self) -> list[str]:
-        return list(self.additional_properties.keys())
-
-    def __getitem__(self, key: str) -> Any:
-        return self.additional_properties[key]
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        self.additional_properties[key] = value
-
-    def __delitem__(self, key: str) -> None:
-        del self.additional_properties[key]
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.additional_properties

@@ -16,12 +16,7 @@ def _get_kwargs(
     *,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> dict[str, Any]:
-    headers: dict[str, Any] = {}
-    if not isinstance(accept_version, Unset):
-        headers["Accept-Version"] = accept_version
-
     params: dict[str, Any] = {}
 
     params["offset"] = offset
@@ -38,7 +33,6 @@ def _get_kwargs(
         "params": params,
     }
 
-    _kwargs["headers"] = headers
     return _kwargs
 
 
@@ -83,7 +77,6 @@ def sync_detailed(
     client: AuthenticatedClient,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | list[FeedbackReportResponse]]:
     """List Reports Endpoint
 
@@ -93,7 +86,6 @@ def sync_detailed(
         mission_id (str):
         offset (int | Unset):  Default: 0.
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -107,7 +99,6 @@ def sync_detailed(
         mission_id=mission_id,
         offset=offset,
         limit=limit,
-        accept_version=accept_version,
     )
 
     response = client.get_httpx_client().request(
@@ -123,7 +114,6 @@ def sync(
     client: AuthenticatedClient,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | list[FeedbackReportResponse] | None:
     """List Reports Endpoint
 
@@ -133,7 +123,6 @@ def sync(
         mission_id (str):
         offset (int | Unset):  Default: 0.
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -148,7 +137,6 @@ def sync(
         client=client,
         offset=offset,
         limit=limit,
-        accept_version=accept_version,
     ).parsed
 
 
@@ -158,7 +146,6 @@ async def asyncio_detailed(
     client: AuthenticatedClient,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> Response[HTTPValidationError | list[FeedbackReportResponse]]:
     """List Reports Endpoint
 
@@ -168,7 +155,6 @@ async def asyncio_detailed(
         mission_id (str):
         offset (int | Unset):  Default: 0.
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -182,7 +168,6 @@ async def asyncio_detailed(
         mission_id=mission_id,
         offset=offset,
         limit=limit,
-        accept_version=accept_version,
     )
 
     response = await client.get_async_httpx_client().request(**kwargs)
@@ -196,7 +181,6 @@ async def asyncio(
     client: AuthenticatedClient,
     offset: int | Unset = 0,
     limit: int | Unset = 20,
-    accept_version: str | Unset = "v1",
 ) -> HTTPValidationError | list[FeedbackReportResponse] | None:
     """List Reports Endpoint
 
@@ -206,7 +190,6 @@ async def asyncio(
         mission_id (str):
         offset (int | Unset):  Default: 0.
         limit (int | Unset):  Default: 20.
-        accept_version (str | Unset):  Default: 'v1'.
 
     Raises:
         errors.UnexpectedStatus: If the server returns an undocumented status code and Client.raise_on_unexpected_status is True.
@@ -222,6 +205,5 @@ async def asyncio(
             client=client,
             offset=offset,
             limit=limit,
-            accept_version=accept_version,
         )
     ).parsed

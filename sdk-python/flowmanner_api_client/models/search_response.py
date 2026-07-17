@@ -9,9 +9,7 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.search_response_query_analysis_type_0 import (
-        SearchResponseQueryAnalysisType0,
-    )
+    from ..models.search_response_query_analysis_type_0 import SearchResponseQueryAnalysisType0
     from ..models.search_response_results_item import SearchResponseResultsItem
 
 
@@ -42,9 +40,7 @@ class SearchResponse:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.search_response_query_analysis_type_0 import (
-            SearchResponseQueryAnalysisType0,
-        )
+        from ..models.search_response_query_analysis_type_0 import SearchResponseQueryAnalysisType0
 
         query = self.query
 
@@ -88,9 +84,7 @@ class SearchResponse:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.search_response_query_analysis_type_0 import (
-            SearchResponseQueryAnalysisType0,
-        )
+        from ..models.search_response_query_analysis_type_0 import SearchResponseQueryAnalysisType0
         from ..models.search_response_results_item import SearchResponseResultsItem
 
         d = dict(src_dict)
@@ -111,9 +105,7 @@ class SearchResponse:
 
         providers_used = cast(list[str], d.pop("providers_used"))
 
-        def _parse_query_analysis(
-            data: object,
-        ) -> None | SearchResponseQueryAnalysisType0 | Unset:
+        def _parse_query_analysis(data: object) -> None | SearchResponseQueryAnalysisType0 | Unset:
             if data is None:
                 return data
             if isinstance(data, Unset):

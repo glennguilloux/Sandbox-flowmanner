@@ -9,9 +9,7 @@ from attrs import field as _attrs_field
 from ..types import UNSET, Unset
 
 if TYPE_CHECKING:
-    from ..models.update_test_case_request_rubric_type_0 import (
-        UpdateTestCaseRequestRubricType0,
-    )
+    from ..models.update_test_case_request_rubric_type_0 import UpdateTestCaseRequestRubricType0
 
 
 T = TypeVar("T", bound="UpdateTestCaseRequest")
@@ -38,9 +36,7 @@ class UpdateTestCaseRequest:
     additional_properties: dict[str, Any] = _attrs_field(init=False, factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        from ..models.update_test_case_request_rubric_type_0 import (
-            UpdateTestCaseRequestRubricType0,
-        )
+        from ..models.update_test_case_request_rubric_type_0 import UpdateTestCaseRequestRubricType0
 
         input_prompt: None | str | Unset
         if isinstance(self.input_prompt, Unset):
@@ -103,9 +99,7 @@ class UpdateTestCaseRequest:
 
     @classmethod
     def from_dict(cls: type[T], src_dict: Mapping[str, Any]) -> T:
-        from ..models.update_test_case_request_rubric_type_0 import (
-            UpdateTestCaseRequestRubricType0,
-        )
+        from ..models.update_test_case_request_rubric_type_0 import UpdateTestCaseRequestRubricType0
 
         d = dict(src_dict)
 
@@ -162,9 +156,7 @@ class UpdateTestCaseRequest:
 
         tags = _parse_tags(d.pop("tags", UNSET))
 
-        def _parse_rubric(
-            data: object,
-        ) -> None | Unset | UpdateTestCaseRequestRubricType0:
+        def _parse_rubric(data: object) -> None | Unset | UpdateTestCaseRequestRubricType0:
             if data is None:
                 return data
             if isinstance(data, Unset):

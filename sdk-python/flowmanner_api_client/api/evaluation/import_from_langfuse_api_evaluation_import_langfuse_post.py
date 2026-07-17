@@ -60,7 +60,7 @@ def _build_response(
 
 def sync_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: ImportLangfuseRequest,
 ) -> Response[Any | HTTPValidationError]:
     """Import From Langfuse
@@ -89,7 +89,7 @@ def sync_detailed(
 
 def sync(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: ImportLangfuseRequest,
 ) -> Any | HTTPValidationError | None:
     """Import From Langfuse
@@ -113,7 +113,7 @@ def sync(
 
 async def asyncio_detailed(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: ImportLangfuseRequest,
 ) -> Response[Any | HTTPValidationError]:
     """Import From Langfuse
@@ -140,7 +140,7 @@ async def asyncio_detailed(
 
 async def asyncio(
     *,
-    client: AuthenticatedClient | Client,
+    client: AuthenticatedClient,
     body: ImportLangfuseRequest,
 ) -> Any | HTTPValidationError | None:
     """Import From Langfuse
