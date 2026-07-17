@@ -440,6 +440,14 @@ async def get_provider_models(provider: str) -> list[ModelInfo]:
 
 @router.post("/discover-models", response_model=list[ModelInfo])
 async def discover_models(request: BYOKValidateRequest) -> list[ModelInfo]:
+    """Discover chat-capable models for a provider.
+
+    Routes through ``fetch_provider_models`` — the single SSRF-safe source of
+    truth — so this endpoint cannot bypass the ``_is_safe_outbound_url`` check
+    or the ``_PinnedNetworkBackend`` DNS-rebinding guard that the sibling
+    ``test_key`` path uses (R5). The user's real provider API key is never sent
+    to a non-public host, and redirects are never followed.
+    """
     provider = request.provider.lower()
     cache_key = provider
     if cache_key in _model_cache:
@@ -447,57 +455,35 @@ async def discover_models(request: BYOKValidateRequest) -> list[ModelInfo]:
         if time.time() - ts < _CACHE_TTL:
             return models
 
-    base_url = _get_base_url(provider)
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
-                f"{base_url}/models",
-                headers={"Authorization": f"Bearer {request.api_key}"},
-            )
-    except httpx.TimeoutException:
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Request timed out while fetching models",
-        )
-    except httpx.RequestError as exc:
-        logger.warning("HTTP request error during model discovery: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Network error: {exc}",
-        )
+    result = await fetch_provider_models(provider=provider, api_key=request.api_key)
+    if result.kind == "ok":
+        models = [
+            ModelInfo(id=mid, name=mid, provider=provider, context_window=None)
+            for mid in result.models
+        ]
+        _model_cache[cache_key] = (time.time(), models)
+        return models
 
-    if response.status_code in (401, 403):
+    # Map the structured failure kinds to fail-secure HTTP responses.
+    if result.kind == "invalid_key":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API key",
         )
-
-    if not response.is_success:
+    if result.kind == "unsafe":
+        # SSRF guard refused the destination — never leak the request.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Refusing model discovery: {result.error}",
+        )
+    if result.kind == "http_error":
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Provider returned HTTP {response.status_code}",
+            detail="Provider returned an error while fetching models",
         )
-
-    filtered_models: list[ModelInfo] = []
-    try:
-        data = response.json()
-        for m in data.get("data", []):
-            model_id = m.get("id", "")
-            if model_id and _is_chat_model(model_id):
-                filtered_models.append(
-                    ModelInfo(
-                        id=model_id,
-                        name=model_id,
-                        provider=provider,
-                        context_window=None,
-                    )
-                )
-    except Exception as exc:
-        logger.warning("Failed to parse models from provider response: %s", exc)
-        return []
-
-    _model_cache[cache_key] = (time.time(), filtered_models)
-    return filtered_models
+    # network_error / parse failure: degrade to empty list (no 5xx on transient).
+    logger.warning("discover_models: provider=%s kind=%s err=%s", provider, result.kind, result.error)
+    return []
 
 
 @router.get("")
