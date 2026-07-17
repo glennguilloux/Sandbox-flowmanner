@@ -1,5 +1,5 @@
 """
-Autonomous Self-Improvement System — Slim Version.
+Improvement Module — Slim Dispatch-Only Version (experimental; not an autonomous learner).
 
 Phases 1–3 (failure_types, causal_decomposer, hypothesis testing) have
 been pruned.  They were never wired into production — 107 missions ran
