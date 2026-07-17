@@ -141,6 +141,82 @@ class FlowmannerClient:
 
         delete_item_api_missions_mission_id_delete.sync(mission_id=UUID(mission_id), client=self._client)
 
+    # ── Swarm debate (the most differentiated call) ───────────────
+
+    def debate(
+        self,
+        topic: str,
+        agent_a_id: str,
+        agent_a_name: str,
+        agent_b_id: str,
+        agent_b_name: str,
+        max_rounds: int = 2,
+    ) -> dict[str, Any]:
+        """Start a multi-agent debate with an LLM judge.
+
+        This is Flowmanner's most distinctive call: two agents argue a topic,
+        an LLM judge scores each side, and a consensus synthesis is produced.
+
+        Args:
+            topic: The debate topic (1-5000 chars).
+            agent_a_id: Personality id of the first agent (from
+                ``GET /api/agent-personalities``, format ``<domain>/<slug>``).
+            agent_a_name: Display name for the first agent.
+            agent_b_id: Personality id of the second agent.
+            agent_b_name: Display name for the second agent.
+            max_rounds: Number of debate rounds (1-5, default 2).
+
+        Returns:
+            Dict with debate_id, judge_verdict, judge_score_a/b,
+            consensus_reached, consensus_synthesis, status.
+
+        Example::
+
+            with FlowmannerClient("https://flowmanner.com") as fm:
+                result = fm.debate(
+                    topic="GraphQL or REST for our public API?",
+                    agent_a_id="software_it/code-review-assistant",
+                    agent_a_name="Code Review Assistant",
+                    agent_b_id="legal/contract-reviewer",
+                    agent_b_name="Contract Reviewer",
+                )
+                print(result["consensus_synthesis"])
+        """
+        import httpx
+
+        resp = httpx.post(
+            f"{self._client.base_url}/api/swarm/protocol/debate",
+            headers={"Authorization": f"Bearer {self._client.token}"},
+            json={
+                "topic": topic,
+                "agent_a_id": agent_a_id,
+                "agent_a_name": agent_a_name,
+                "agent_b_id": agent_b_id,
+                "agent_b_name": agent_b_name,
+                "max_rounds": max_rounds,
+            },
+            timeout=60,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def list_agent_personalities(self) -> list[dict[str, Any]]:
+        """List available agent personalities for use in debates.
+
+        Returns:
+            List of dicts with ``id`` (``<domain>/<slug>``), ``name``,
+            ``domain``, ``description``, ``color``.
+        """
+        import httpx
+
+        resp = httpx.get(
+            f"{self._client.base_url}/api/agent-personalities",
+            headers={"Authorization": f"Bearer {self._client.token}"},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     # ── Execution ──────────────────────────────────────────────────
 
     def execute_mission(self, mission_id: str, input: str | None = None) -> Any:
