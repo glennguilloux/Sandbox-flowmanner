@@ -44,9 +44,30 @@ def test_v2_route_404_uses_v2_envelope_without_trace_id():
     assert code == "NOT_FOUND", resp.text
 
 
-def test_v3_route_404_uses_v3_envelope_with_trace_id():
+def test_v3_route_unauthenticated_returns_401():
+    """R2 fail-closed middleware: an unauthenticated /api/v3/* request must be
+    rejected with 401 BEFORE reaching the router (no silent pass-through)."""
     with TestClient(app) as client:
         resp = client.get("/api/v3/this/path/does/not/exist/zzz")
+    assert resp.status_code == 401, resp.text
+    shape, _, code = _classify(resp)
+    assert shape == "ENVELOPE", resp.text
+    assert code == "UNAUTHENTICATED", resp.text
+
+
+def test_v3_route_404_uses_v3_envelope_with_trace_id():
+    """With a valid Bearer token, an unmatched /api/v3/* path still resolves to
+    the router and returns the v3 404 envelope (WITH trace_id)."""
+    import jwt
+
+    from app.config import settings
+
+    token = jwt.encode({"sub": 1, "scopes": []}, settings.JWT_SECRET_KEY, algorithm="HS256")
+    with TestClient(app) as client:
+        resp = client.get(
+            "/api/v3/this/path/does/not/exist/zzz",
+            headers={"Authorization": f"Bearer {token}"},
+        )
     shape, has_trace, code = _classify(resp)
     assert resp.status_code == 404, resp.text
     assert shape == "ENVELOPE", resp.text
