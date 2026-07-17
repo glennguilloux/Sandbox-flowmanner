@@ -152,6 +152,57 @@ class FlowmannerClient:
         """Check API health."""
         return self._get("/api/health")
 
+    # ── Swarm debate (the most differentiated call) ───────────────
+
+    def debate(
+        self,
+        topic: str,
+        agent_a_id: str,
+        agent_a_name: str,
+        agent_b_id: str,
+        agent_b_name: str,
+        max_rounds: int = 2,
+    ) -> dict:
+        """Start a multi-agent debate with an LLM judge.
+
+        Flowmanner's most distinctive call: two agents argue a topic, an LLM
+        judge scores each side, and a consensus synthesis is produced.
+
+        Args:
+            topic: The debate topic (1-5000 chars).
+            agent_a_id: Personality id of the first agent (from
+                ``GET /api/agent-personalities``, format ``<domain>/<slug>``,
+                e.g. ``software-it/code-review-assistant``).
+            agent_a_name: Display name for the first agent.
+            agent_b_id: Personality id of the second agent.
+            agent_b_name: Display name for the second agent.
+            max_rounds: Number of debate rounds (1-5, default 2).
+
+        Returns:
+            Dict with debate_id, judge_verdict, judge_score_a/b,
+            consensus_reached, consensus_synthesis, status.
+        """
+        return self._post(
+            "/api/swarm/protocol/debate",
+            json={
+                "topic": topic,
+                "agent_a_id": agent_a_id,
+                "agent_a_name": agent_a_name,
+                "agent_b_id": agent_b_id,
+                "agent_b_name": agent_b_name,
+                "max_rounds": max_rounds,
+            },
+        )
+
+    def list_agent_personalities(self) -> list[dict]:
+        """List available agent personalities for use in debates.
+
+        Returns:
+            List of dicts with ``id`` (``<domain>/<slug>``), ``name``,
+            ``domain``, ``description``, ``color``.
+        """
+        return self._get("/api/agent-personalities")
+
     # ── Agents ───────────────────────────────────────────────────────
 
     def list_agents(self) -> list[dict]:

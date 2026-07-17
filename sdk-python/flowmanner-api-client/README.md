@@ -15,6 +15,27 @@ from flowmanner_api_client import FlowmannerClient
 
 # Uses FLOWMANNER_API_KEY env var, or pass api_key explicitly
 with FlowmannerClient("https://flowmanner.com") as fm:
+    # ⭐ The most differentiated call: a multi-agent debate, scored by an LLM judge.
+    # Pick any two agent personalities from GET /api/agent-personalities.
+    result = fm.debate(
+        topic="Should we use GraphQL or REST for our new public API?",
+        agent_a_id="software-it/code-review-assistant",
+        agent_a_name="Code Review Assistant",
+        agent_b_id="legal/contract-reviewer",
+        agent_b_name="Contract Reviewer",
+        max_rounds=2,
+    )
+    print(result["consensus_synthesis"])
+
+    # See which agents you can use in a debate:
+    for p in fm.list_agent_personalities():
+        print(p["id"], "—", p["name"])
+```
+
+Prefer the live debate example above. A mission is the heavier workflow:
+
+```python
+with FlowmannerClient("https://flowmanner.com") as fm:
     # Create and run a mission
     mission = fm.create_mission("Summarize the docs")
     print(f"Created: {mission.id}")
