@@ -47,6 +47,21 @@ try:
 except Exception as _e:
     sys.stderr.write(f"[entrypoint] builtin-template reload skipped: {_e}\n")
 
+# R9 — Seed the marketplace catalog (built-in templates + in-repo personas)
+# and the lightweight changelog. Best-effort boot hooks; failures are
+# swallowed so they never block container startup (same contract as the
+# builtin-template reload above).
+for _hook in ("seed_marketplace.py", "seed_changelog.py"):
+    try:
+        _sp.run(
+            [sys.executable, f"/app/scripts/{_hook}"],
+            env={**os.environ, "APP_DIR": "/app", "PYTHONPATH": "/app"},
+            check=False,
+            timeout=120,
+        )
+    except Exception as _e:
+        sys.stderr.write(f"[entrypoint] {_hook} skipped: {_e}\n")
+
 
 # Exec the CMD (args passed via sys.argv[1:])
 if len(sys.argv) > 1:
