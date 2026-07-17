@@ -92,14 +92,28 @@ R1's *code* is done. The only open items are process/deploy decisions:
 ### DECISION 1 (primary) — Deploy the frontend gallery half?
 The 215-persona backend is live in prod, but users still see the OLD 10-domain gallery until the
 frontend is deployed. Deploying is **your** call and your `deploy-frontend.sh` (~4 min).
-- **Option 1a:** Approve frontend deploy now (merge `agent/2026-07-14-chat-bin-byok-fixes` — or
-  cherry-pick `ca975ce5` onto the deploy branch — then `deploy-frontend.sh`). ⚠️ that branch also
-  carries unrelated "chat-bin-byok-fixes" work; deploying it ships more than R1.
-- **Option 1b:** Cherry-pick ONLY `ca975ce5` onto a clean deploy branch, then deploy (ships R1 alone).
-- **Option 1c:** Defer — leave R1 frontend un-deployed, bundle with the next frontend release.
 
-**My recommendation:** **1b** — isolate `ca975ce5`, deploy R1 by itself, so the gallery ships
-without dragging in the in-progress BYOK/chat branch.
+⚠️ **Deploy mechanism note:** `deploy-frontend.sh` **rsyncs the working tree** of
+`/home/glenn/FlowmannerV2-frontend/` (line 134-137) — it does NOT deploy a named git branch.
+"What's deployed" = "what's checked out in that dir." Currently that's
+`agent/2026-07-14-chat-bin-byok-fixes` (which already contains R1 + BYOK/chat work).
+
+- **Option 1a:** Deploy the current checkout as-is (ships R1 **plus** the in-progress BYOK/chat
+  branch). Simplest, but ships more than R1.
+- **Option 1b (RECOMMENDED, prepared):** Deploy R1 alone. A clean **R1-only branch is ready**:
+  `deploy/r1-gallery-only` @ `a71fb421` (worktree `.worktrees/r1-only`), cherry-picked from
+  `ca975ce5` onto `main`, **tsc-clean (0 errors)**. To ship: `git checkout deploy/r1-gallery-only`
+  in the frontend dir (or point the rsync at the worktree), then `deploy-frontend.sh`.
+  - **⚠️ Isolation caught a real bug:** `ca975ce5` in isolation FAILS to compile — it uses
+    `<FadeIn>` (lines 244, 263) but the *import* was added by a **sibling** commit
+    (`6a7a92e7 feat(animation)…`) on the byok branch, not by `ca975ce5` itself. The `FadeIn`
+    component file (`src/components/ui/motion/FadeIn.tsx`) IS on `main`, so the fix was a
+    one-line import add (`import { FadeIn } from "@/components/ui/motion/FadeIn";`), folded into
+    `a71fb421`. **Implication:** deploying the current byok checkout (1a) is fine (import present
+    there); deploying `ca975ce5` un-fixed would have broken the build. The prepared branch is safe.
+- **Option 1c:** Defer — bundle with the next frontend release.
+
+**My recommendation:** **1b** using the prepared `deploy/r1-gallery-only` branch.
 
 ### DECISION 2 (bookkeeping) — Retire the stale R1 task artifacts?
 `REPORT.md:102` still lists R1 as an open recommendation, and `impl/task-R1.md` is written as
