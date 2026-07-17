@@ -31,6 +31,7 @@ from app.services.sandbox_service import SandboxService
 from app.services.substrate.context_manager import ContextManager
 from app.services.substrate.event_log import _compute_idempotency_key, get_event_log
 from app.services.substrate.hitl_pause import HITLPaused
+from app.services.substrate.interpolate import interpolate_inputs
 from app.services.substrate.workflow_models import (
     EffectClass,
     NodeType,
@@ -1285,6 +1286,13 @@ class NodeExecutor:
             logger.debug("Failed to record depth.decided event: %s", e)
 
         prompt = node.config.get("prompt", node.description or node.title)
+        # Render {{ inputs.<key> }} from the run's input values (blueprint
+        # parameterization) so non-sandbox nodes are parameterized too.
+        inputs = context.get("inputs") or {}
+        prompt = interpolate_inputs(prompt, inputs)
+        system_prompt = node.config.get("system_prompt")
+        if system_prompt:
+            system_prompt = interpolate_inputs(system_prompt, inputs)
 
         replay_key = _compute_idempotency_key(
             run_id,
@@ -1313,7 +1321,6 @@ class NodeExecutor:
 
         enforcer = get_budget_enforcer()
 
-        system_prompt = node.config.get("system_prompt")
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
@@ -1757,7 +1764,9 @@ class NodeExecutor:
         workflow: Workflow | None = None,
     ) -> dict[str, Any]:
         """Execute a RAG query."""
+        inputs = context.get("inputs") or {}
         query = node.config.get("query") or context.get("query") or node.description or node.title
+        query = interpolate_inputs(query, inputs)
         collection = node.config.get("collection", "default")
         user_id = workflow.user_id if workflow else None
 
@@ -1781,7 +1790,9 @@ class NodeExecutor:
 
     async def _handle_web_search(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
         """Execute a web search."""
+        inputs = context.get("inputs") or {}
         query = node.config.get("query") or context.get("query") or node.description
+        query = interpolate_inputs(query, inputs)
 
         if not query:
             return {"success": False, "error": "No query provided"}
