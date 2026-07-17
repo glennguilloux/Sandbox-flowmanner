@@ -180,7 +180,7 @@ class TestToUtcAware:
         aware_now = datetime.now(UTC)
         # The original bug: naive_past < aware_now raises TypeError.
         with pytest.raises(TypeError):
-            naive_past < aware_now
+            naive_past < aware_now  # noqa: B015  (raises inside pytest.raises)
         # After normalization: comparison works and reports "expired".
         normalized = _to_utc_aware(naive_past)
         assert normalized is not None
@@ -214,3 +214,85 @@ class TestToUtcNaive:
         naive = datetime(2026, 6, 15, 12, 0, 0)
         result = _to_utc_naive(naive)
         assert result is naive  # identity preserved, no rewrap
+
+
+# ═══════════════════════════════════════════════
+# R2 — fail-closed v3 auth
+# ═══════════════════════════════════════════════
+# get_current_session must DENY (401) when token decode or the session lookup
+# raises an unexpected exception — never fall through to an unhandled 500.
+# These are DB-free: the db stub's execute() raises on purpose.
+
+
+class _StubState:
+    trace_id = None
+
+
+class _StubRequest:
+    """Minimal Request stand-in for get_current_session."""
+
+    def __init__(self, *, cookie: object | None = None, bearer: str | None = None):
+        self.cookies = {"fm_refresh_token": cookie} if cookie else {}
+        headers = {}
+        if bearer:
+            headers["Authorization"] = f"Bearer {bearer}"
+        self.headers = headers
+        self.state = _StubState()
+
+
+class _RaisingDB:
+    """AsyncSession stub whose execute() always raises."""
+
+    async def execute(self, *args, **kwargs):
+        raise RuntimeError("simulated session-store failure")
+
+
+class TestGetCurrentSessionFailClosed:
+    @pytest.mark.asyncio
+    async def test_decode_exception_raises_401_not_500(self):
+        from fastapi import HTTPException
+
+        from app.api.deps import get_current_session
+
+        # A truthy, non-str token makes jwt.decode raise TypeError — which is
+        # OUTSIDE the (ExpiredSignatureError, InvalidTokenError) pair caught by
+        # decode_access_token, so it would have escaped to a 500 before R2.
+        req = _StubRequest(cookie=123, bearer=None)
+
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_session(req, _RaisingDB())
+        assert exc_info.value.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_session_lookup_exception_raises_401(self):
+        from fastapi import HTTPException
+
+        from app.config import settings
+        from app.services.auth_v3_service import create_access_token
+
+        settings.JWT_SECRET_KEY = "test-secret-key-for-unit-tests-32chars!!"
+        token = create_access_token(user_id=1, session_id="sess_x")
+
+        from app.api.deps import get_current_session
+
+        req = _StubRequest(bearer=token)
+        # db.execute raises AFTER a valid decode (during session lookup)
+        with pytest.raises(HTTPException) as exc_info:
+            await get_current_session(req, _RaisingDB())
+        assert exc_info.value.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_flag_false_still_denies_401(self):
+        from fastapi import HTTPException
+
+        from app.api.deps import get_current_session
+        from app.config import settings
+
+        settings.FLOWMANNER_CIRCUIT_BREAKER_FAIL_CLOSED = False
+        try:
+            req = _StubRequest(cookie=123, bearer=None)
+            with pytest.raises(HTTPException) as exc_info:
+                await get_current_session(req, _RaisingDB())
+            assert exc_info.value.status_code == 401
+        finally:
+            settings.FLOWMANNER_CIRCUIT_BREAKER_FAIL_CLOSED = True

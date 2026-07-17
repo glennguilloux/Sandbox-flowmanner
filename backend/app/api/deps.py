@@ -34,6 +34,48 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+def _fail_closed_deny(stage: str, exc: Exception, request: Request) -> None:
+    """R2 fail-closed v3 auth — convert a verification fault into a 401 DENY.
+
+    Called from ``get_current_session`` when token decode or the session
+    lookup raises an *unexpected* exception (anything outside the JWTError
+    cases already handled by ``decode_access_token``). A guardrail that cannot
+    verify the request must DENY, never fall through to an unhandled 500.
+
+    Posture is governed by the same platform knob as the substrate breaker
+    (``FLOWMANNER_CIRCUIT_BREAKER_FAIL_CLOSED``, default True). The outcome is
+    always a 401 deny; only the log level differs:
+      - True  (default, fail-closed): ERROR — a guardrail failed closed.
+      - False (explicit opt-out):     WARNING — still denies, but records that
+        the operator deliberately chose fail-open-if-broken behaviour.
+
+    Always raises ``HTTPException(401)``; the return type is ``NoReturn`` but
+    callers follow with ``raise`` for type-checker clarity.
+    """
+    fail_closed = True
+    try:
+        from app.config import settings as _settings
+
+        fail_closed = getattr(_settings, "FLOWMANNER_CIRCUIT_BREAKER_FAIL_CLOSED", True)
+    except Exception:
+        # If we cannot even read the flag, fail closed by default.
+        fail_closed = True
+
+    log = logger.error if fail_closed else logger.warning
+    log(
+        "v3 auth verification FAILED (%s) — denying request fail-closed: %s",
+        stage,
+        exc,
+        extra={"trace_id": getattr(request.state, "trace_id", None)},
+        exc_info=True,
+    )
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication failed — please log in again",
+    )
+
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 
@@ -308,16 +350,29 @@ async def get_current_session(
     """
     token_payload: dict | None = None
 
-    # 1. Try httpOnly refresh cookie
-    refresh_token = request.cookies.get("fm_refresh_token")
-    if refresh_token:
-        token_payload = v3_decode_access_token(refresh_token)
+    # R2 (fail-closed v3 auth): any unexpected exception during token decode or
+    # session lookup MUST become an explicit 401 DENY — never an unhandled 500.
+    # A guardrail that cannot verify the request must deny, not crash into a
+    # generic 500 that is indistinguishable from a real server fault and is not
+    # surfaced as a security event. Mirrors the substrate breaker's posture
+    # (app/services/substrate/executor.py:866-911) and reuses the same config
+    # knob (FLOWMANNER_CIRCUIT_BREAKER_FAIL_CLOSED) so v3 auth shares the
+    # platform-wide fail-closed policy. Default is True → fail-closed.
+    try:
+        # 1. Try httpOnly refresh cookie
+        refresh_token = request.cookies.get("fm_refresh_token")
+        if refresh_token:
+            token_payload = v3_decode_access_token(refresh_token)
 
-    # 2. Fall back to Bearer token header
-    if token_payload is None:
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token_payload = v3_decode_access_token(auth_header[7:])
+        # 2. Fall back to Bearer token header
+        if token_payload is None:
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token_payload = v3_decode_access_token(auth_header[7:])
+    except Exception as e:
+        _fail_closed_deny("v3_auth_decode", e, request)
+        # _fail_closed_deny always raises; this is just for the type checker.
+        raise  # pragma: no cover
 
     if token_payload is None:
         raise HTTPException(
@@ -342,7 +397,11 @@ async def get_current_session(
     query = query.where(AuthSession.id == session_id) if session_id else query.where(AuthSession.revoked_at.is_(None))
 
     query = query.order_by(AuthSession.created_at.desc()).limit(1)
-    result = await db.execute(query)
+    try:
+        result = await db.execute(query)
+    except Exception as e:
+        _fail_closed_deny("v3_auth_session_lookup", e, request)
+        raise  # pragma: no cover
     session = result.scalars().first()
 
     if session is None:
