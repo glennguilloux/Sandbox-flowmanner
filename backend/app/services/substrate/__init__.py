@@ -19,6 +19,13 @@ from .circuit_breaker import (
 )
 from .event_log import EventLog, get_event_log
 from .executor import LeaseLostError, UnifiedExecutor, get_unified_executor
+from .harness_evolution import (
+    EvolutionLedger,
+    ParamSpace,
+    apply_params_to_candidate,
+    run_evolution,
+    score_run,
+)
 from .hitl_pause import HITLPaused, HITLResolution, check_hitl_resolution
 from .lease_reclaimer import LeaseReclaimer, find_expired_leases, reclaim_one
 from .leases import (
@@ -76,6 +83,11 @@ __all__ = [
     "get_replay_engine",
     "get_unified_executor",
     "graph_to_workflow",
+    "EvolutionLedger",
+    "ParamSpace",
+    "apply_params_to_candidate",
+    "run_evolution",
+    "score_run",
     "mission_to_workflow",
     "reclaim_one",
     "record_failure",
