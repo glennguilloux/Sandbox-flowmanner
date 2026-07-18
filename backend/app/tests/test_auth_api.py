@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -46,6 +46,7 @@ def test_register_success(test_client, mock_db_session):
             "app.services.auth_service.create_user",
             return_value=MagicMock(id=1, role="user"),
         ),
+        patch("app.api.v1.auth.store_refresh_token", new=AsyncMock()),
     ):
         response = test_client.post(
             "/api/auth/register",
@@ -94,6 +95,8 @@ def test_login_success(test_client, mock_db_session, sample_user):
         patch("app.api.v1.auth.verify_password", return_value=True),
         patch("app.api.v1.auth.create_access_token", return_value="acc-test-123"),
         patch("app.api.v1.auth.create_refresh_token_value", return_value="ref-test-456"),
+        patch("app.api.v1.auth.store_refresh_token", new=AsyncMock()),
+        patch("app.api.v1.auth.track_login", new=AsyncMock()),
     ):
         response = test_client.post(
             "/api/auth/login",
@@ -147,7 +150,7 @@ def test_logout(test_client, sample_user):
     """POST /api/auth/logout returns 204."""
     app.dependency_overrides[get_current_user] = lambda: sample_user
     try:
-        with patch("app.api.v1.auth.revoke_refresh_token", return_value=None):
+        with patch("app.api.v1.auth.revoke_refresh_token", new=AsyncMock()):
             response = test_client.post(
                 "/api/auth/logout",
                 json={"refresh_token": "test-refresh"},
