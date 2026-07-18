@@ -26,9 +26,37 @@ _RAW_SQL_TABLES = frozenset(
     }
 )
 
+# Tables whose DROP is explicitly permitted (hand-authored reviewed migrations
+# only). Empty by default: autogenerate must NEVER emit DROP TABLE for live
+# tables.
+#
+# Validation note (2026-07-18): the handoff sketch suggested
+# ``getattr(object, "drop", False)`` to detect drop candidates, but the
+# actually-installed Alembic (1.13.1) passes NO ``object.drop`` attribute for
+# table drops.  Inspecting ``alembic/autogenerate/compare.py::_compare_tables``
+# shows a DROP candidate is signalled by ``reflected=True`` (table came from the
+# DB) AND ``compare_to is None`` (no model-defined table to compare against).
+# That signal is used below.  When ``reflected=False`` the table is
+# model-defined and autogenerate wants to CREATE it, so the allow-list does not
+# apply.
+_DROP_TABLE_ALLOWLIST = frozenset(
+    {
+        # Tables reviewed and approved for DROP via a hand-authored migration.
+        "p1_probe",  # orphan diagnostic table; reviewed 2026-07-18 (a1p1probe00)
+    }
+)
+
 
 def include_object(object, name, type_, reflected, compare_to):
-    return not (type_ == "table" and name in _RAW_SQL_TABLES)
+    # Always suppress raw-SQL tables (both create and drop directions).
+    if type_ == "table" and name in _RAW_SQL_TABLES:
+        return False
+    # A table DROP candidate is a table present in the DB (reflected=True)
+    # with no model-defined counterpart (compare_to is None).  Never let
+    # autogenerate drop such a table unless it is on the explicit allow-list.
+    if type_ == "table" and reflected and compare_to is None:
+        return name in _DROP_TABLE_ALLOWLIST
+    return True
 
 
 def compare_type(context, inspected_column, metadata_column, inspected_type, metadata_type):

@@ -47,3 +47,10 @@ repos:
         language: system
         pass_filenames: false
         files: ^backend/app/.*\.py$
+      - id: guard-alembic-drift
+        name: guard-alembic-drift
+        description: Fail if an autogenerate probe would drop a table not on the explicit allow-list (prevents destroying live tables).
+        entry: python backend/scripts/guard_alembic_drift.py
+        language: system
+        pass_filenames: false
+        files: ^backend/alembic/.*$
