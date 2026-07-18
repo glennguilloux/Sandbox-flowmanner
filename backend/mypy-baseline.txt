@@ -1,5 +1,4 @@
 app/api/deps.py:line: error: "AuthSession" has no attribute "scopes"  [attr-defined]
-app/api/deps.py:line: error: "User" has no attribute "is_superuser"  [attr-defined]
 app/api/_mission_cqrs/base.py:line: error: Argument "mission_id" to "MissionExecutionStatus" has incompatible type "str"; expected "UUID"  [arg-type]
 app/api/_mission_cqrs/commands.py:line: error: Argument "mission_id" to "mission_aborted" of "AuditService" has incompatible type "str"; expected "UUID"  [arg-type]
 app/api/_mission_cqrs/compat.py:line: error: "type[SubstrateEvent]" has no attribute "event_type"  [attr-defined]
@@ -39,7 +38,6 @@ app/services/critic.py:line: error: Argument "max_cost_usd" to "Budget" has inco
 app/services/flow/flow_service.py:line: error: Incompatible types in assignment (expression has type "datetime", target has type "str")  [assignment]
 app/services/langgraph/tool_handlers/comfyui_handler.py:line: error: Incompatible types in assignment (expression has type "ClientSession", variable has type "None")  [assignment]
 app/services/langgraph/tool_handlers/n8n_handler.py:line: error: Incompatible types in assignment (expression has type "ClientSession", variable has type "None")  [assignment]
-app/services/memory/background_review_service.py:line: error: Incompatible types in assignment (expression has type "TransportError", variable has type "TimeoutException")  [assignment]
 app/services/memory_citation_service.py:line: error: "DateTime" has no attribute "isoformat"  [attr-defined]
 app/services/memory_digest_service.py:line: error: Argument "id" to "DigestClaimSummary" has incompatible type "str"; expected "UUID"  [arg-type]
 app/services/mission_cache.py:line: error: Variable "app.services.mission_cache.AsyncRedis" is not valid as a type  [valid-type]

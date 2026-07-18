@@ -2451,7 +2451,7 @@ async def send_message_to_llm(
                     "send_message_to_llm: empty response with tools for %s, retrying without tools",
                     raw_model,
                 )
-                no_tools_response = await client.chat.completions.create(model=model, messages=messages_for_llm)
+                no_tools_response = await client.chat.completions.create(model=model, messages=messages_for_llm)  # type: ignore[arg-type]
                 if no_tools_response.choices:
                     assistant_message = no_tools_response.choices[0].message
                     response = no_tools_response

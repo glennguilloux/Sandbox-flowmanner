@@ -307,7 +307,7 @@ def require_permission(permission_key: str) -> Callable:
         db: AsyncSession = Depends(get_db),
     ) -> User:
         # Superuser / admin bypass
-        if user.is_superuser or user.is_admin:
+        if getattr(user, "is_superuser", False) or user.is_admin:
             return user
 
         # Resolve workspace from query param or header (backward compat: also check tenant_id)

@@ -82,7 +82,7 @@ class SearchCache:
             try:
                 cached = await asyncio.get_event_loop().run_in_executor(None, lambda: redis_client.get(cache_key))
                 if cached:
-                    response = self._deserialize_response(cached)
+                    response = self._deserialize_response(cached)  # type: ignore[arg-type]
                     self._memory_cache[cache_key] = response
                     self._access_times[cache_key] = time.time()
                     self._hits += 1

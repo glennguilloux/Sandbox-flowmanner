@@ -3,10 +3,7 @@ import os
 import random
 import sys
 from functools import wraps
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from config.canary_config import get_routing_backend
+from typing import Any
 
 from flask import g, request
 

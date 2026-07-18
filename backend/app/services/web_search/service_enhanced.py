@@ -138,6 +138,7 @@ class EnhancedWebSearchService:
                     results=cached,  # type: ignore[arg-type]
                     latency_ms=(time.time() - start_time) * 1000,
                     cached=True,
+                    providers_used=[],
                     query_understanding=query_understanding,
                 )
 

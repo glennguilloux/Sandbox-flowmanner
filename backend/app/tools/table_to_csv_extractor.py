@@ -16,6 +16,7 @@ import re
 from typing import Any, Literal
 
 from bs4 import BeautifulSoup
+from bs4.element import AttributeValueList
 from pydantic import Field
 
 from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, register_tool
@@ -120,7 +121,9 @@ class TableToCsvExtractorTool(BaseTool):
 
         try:
             soup = BeautifulSoup(validated.html, "lxml", from_encoding=validated.encoding)
-            tables = soup.find_all("table") if not validated.selector else soup.select(validated.selector)
+            tables = list(
+                soup.find_all("table") if not validated.selector else soup.select(validated.selector)
+            )
 
             if not tables:
                 return ToolResult.error_result(tool_id=self.tool_id, error="No tables found in HTML")
@@ -152,7 +155,7 @@ class TableToCsvExtractorTool(BaseTool):
                         "caption": (table.find("caption").get_text(strip=True) if table.find("caption") else None),
                         "summary": table.get("summary", ""),
                         "id": table.get("id", ""),
-                        "class": table.get("class", []),
+                        "class": table.get("class", AttributeValueList()),
                     }
                 all_table_results.append(entry)
 

@@ -61,7 +61,7 @@ class SelfImprovementEngine:
         elif failure_type == "rag_query":
             return "RAG query failed. Consider expanding document corpus, improving query preprocessing, or using semantic search with better embedding models."
         elif failure_type == "timeout":
-            return f"Task timed out after {mission.timeout_seconds or 30}s. Increase timeout, break task into smaller subtasks, or optimize the operation."
+            return f"Task timed out after {getattr(mission, 'timeout_seconds', 30) or 30}s. Increase timeout, break task into smaller subtasks, or optimize the operation."
         elif failure_type == "validation_error":
             return f"Input validation failed: {failure_context[:100] if failure_context else 'Invalid data'}. Add schema validation before task execution or provide clearer error messages to users."
         else:

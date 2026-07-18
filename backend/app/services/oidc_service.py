@@ -216,7 +216,7 @@ async def get_authorization_url(
     state: str | None = None,
     nonce: str | None = None,
     extra_params: dict[str, str] | None = None,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """
     Generate the OIDC authorization URL with PKCE.
 
@@ -421,8 +421,8 @@ async def find_or_create_user(
     # Try to find by email (link existing account)
     email = userinfo.get("email")
     if email:
-        result = await db.execute(select(User).where(User.email == email))
-        user = result.scalar_one_or_none()
+        email_result = await db.execute(select(User).where(User.email == email))
+        user = email_result.scalar_one_or_none()
 
         if user:
             # Create OIDC account link

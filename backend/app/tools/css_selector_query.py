@@ -122,7 +122,7 @@ class CssSelectorQueryTool(BaseTool):
             total_matches = 0
 
             for selector in validated.selectors:
-                elements = soup.select(selector)
+                elements = list(soup.select(selector))
 
                 if validated.max_results_per_selector:
                     elements = elements[: validated.max_results_per_selector]

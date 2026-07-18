@@ -1859,10 +1859,10 @@ class NodeExecutor:
     async def _handle_browser(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
         """Execute a browser action through the tool registry."""
         try:
-            from app.tools.base import ToolRegistry
+            from app.tools.base import get_tool_registry
 
             tool_name = node.type.value
-            tool = ToolRegistry.get(tool_name)  # type: ignore[arg-type]
+            tool = get_tool_registry().get(tool_name)
             if tool is None:
                 return {
                     "success": False,

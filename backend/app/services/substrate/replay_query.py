@@ -129,7 +129,7 @@ class ReplayQueryService:
             limit=limit,
         )
         has_next = len(events) > limit
-        page_events = events[:limit]
+        page_events = [ReplayEvent(**serialize_replay_event(e)) for e in events[:limit]]
         return ReplayPage(
             events=page_events,
             total=len(page_events),

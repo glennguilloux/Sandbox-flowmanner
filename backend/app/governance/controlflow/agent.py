@@ -34,6 +34,7 @@ from typing import Any
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from .state import (
     AgentState,
@@ -118,7 +119,7 @@ class ControlFlowAgent:
         self.tool_handlers[tool_id] = handler
         logger.debug("Registered handler for tool: %s", tool_id)
 
-    def _build_graph(self) -> StateGraph:
+    def _build_graph(self) -> CompiledStateGraph:
         """Build the LangGraph state machine"""
         workflow = StateGraph(AgentState)
 
