@@ -49,7 +49,7 @@ class SandboxdFileReadTool(BaseTool):
             },
             tags=["sandbox", "file", "read"],
             requires_auth=False,
-            requires_sandbox=False,
+            requires_sandbox=True,
             rate_limit_key=None,
             timeout_seconds=30,
         )

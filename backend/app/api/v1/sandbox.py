@@ -150,12 +150,9 @@ async def _run_javascript(code: str, timeout: int) -> dict[str, Any]:
             suffix = ".ts"
             tmp.close()
             tmp_path = tmp_path.replace(".mjs", ".ts")
-            with open(tmp_path, "w") as ts_file:
-                ts_file.write(code)
-                ts_file.flush()
-        else:
-            tmp.write(code)
-            tmp.flush()
+            tmp = open(tmp_path, "w")  # type: ignore[assignment]
+        tmp.write(code)
+        tmp.flush()
 
     start = time.monotonic()
     try:

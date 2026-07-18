@@ -270,8 +270,8 @@ async def delete_pattern_endpoint(
 
     from app.models.feedback_models import FeedbackPattern
 
-    pattern_row = await db.execute(select(FeedbackPattern).where(FeedbackPattern.id == pattern_id))
-    pattern = pattern_row.scalar_one_or_none()
+    pattern_result = await db.execute(select(FeedbackPattern).where(FeedbackPattern.id == pattern_id))
+    pattern = pattern_result.scalar_one_or_none()
     if pattern is None or pattern.user_id != user.id:
         raise _not_found()
     await db.execute(sa_delete(FeedbackPattern).where(FeedbackPattern.id == pattern_id))

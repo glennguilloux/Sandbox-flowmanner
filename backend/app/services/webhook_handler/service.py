@@ -162,7 +162,7 @@ class WebhookHandlerService:
 
         # Special handling for Slack which needs timestamp
         if source.lower() == "slack" and timestamp:
-            return verifier.verify(payload, signature, secret, timestamp=timestamp)
+            return verifier.verify(payload, signature, secret, timestamp=timestamp)  # type: ignore[call-arg]
 
         return verifier.verify(payload, signature, secret)
 

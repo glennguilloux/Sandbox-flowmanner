@@ -73,7 +73,7 @@ class RAGService:
 
             search_result = self.client.search(
                 collection_name=self._collection_name,
-                query_text=query,
+                query_text=query,  # type: ignore[call-arg]  # qdrant-client 1.12 search() routes query_text via **kwargs
                 limit=n_results,
                 score_threshold=threshold,
                 query_filter=query_filter,

@@ -54,12 +54,12 @@ async def purge_sandboxes_by_user(
         count += 1
 
     # Purge mission sandboxes for this user
-    result = await db.execute(
+    ms_result = await db.execute(
         select(MissionSandbox).where(
             MissionSandbox.status != "purged",
         )
     )
-    for ms in result.scalars().all():
+    for ms in ms_result.scalars().all():
         if ms.metadata_ and str(user_id) in str(ms.metadata_):
             try:
                 await client.delete(ms.sandbox_id)

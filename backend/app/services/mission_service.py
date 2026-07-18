@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from sqlalchemy import func, select
 
-from app.models.mission_models import Mission, MissionLog, MissionTask
+from app.models.mission_models import Mission, MissionLog, MissionTask, MissionStatus, MissionTaskStatus
 from app.services.mission_errors import MissionNotFoundError
 
 if TYPE_CHECKING:
@@ -217,7 +217,7 @@ async def update_mission(
     if description is not None:
         mission.description = description
     if status is not None:
-        mission.status = status
+        mission.status = MissionStatus(status)
         if status == "running" and mission.started_at is None:
             mission.started_at = datetime.now(UTC)
         if status in ("completed", "failed", "cancelled"):
@@ -322,7 +322,7 @@ async def update_mission_task(
     if description is not None:
         task.description = description
     if status is not None:
-        task.status = status
+        task.status = MissionTaskStatus(status)
         if status == "running" and task.started_at is None:
             task.started_at = datetime.now(UTC)
         if status in ("completed", "failed", "cancelled"):

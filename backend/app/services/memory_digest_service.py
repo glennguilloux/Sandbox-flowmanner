@@ -23,7 +23,6 @@ import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from uuid import UUID
 
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -86,7 +85,7 @@ class DigestClaimSummary:
     raw claim internals.
     """
 
-    id: UUID
+    id: str
     subject: str
     predicate: str
     claim_type: str
@@ -248,7 +247,7 @@ class MemoryDigestService:
 
         summaries = [
             DigestClaimSummary(
-                id=UUID(c.id),
+                id=c.id,
                 subject=c.subject,
                 predicate=c.predicate,
                 claim_type=c.claim_type,

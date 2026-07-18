@@ -11,6 +11,7 @@ Handles the core logic for /flow/run endpoint:
 import logging
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -172,7 +173,7 @@ class FlowService:
 
     async def _update_run_status(self, run_id: str, status: str):
         """Update run status."""
-        updates: dict[str, object] = {"status": status}
+        updates: dict[str, Any] = {"status": status}
         if status == "running":
             updates["started_at"] = datetime.now(UTC)
 

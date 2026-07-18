@@ -104,7 +104,7 @@ async def update_circuit_breaker(
     if body.destructive_actions_require_approval is not None:
         breaker.destructive_actions_require_approval = body.destructive_actions_require_approval
     if body.destructive_actions is not None:
-        breaker.destructive_actions = body.destructive_actions
+        breaker.destructive_actions = body.destructive_actions  # type: ignore[assignment]
 
     await db.flush()
     return _breaker_to_dict(breaker)

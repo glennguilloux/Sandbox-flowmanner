@@ -117,7 +117,7 @@ class VersionResponse(BaseModel):
 class RestoreResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
     message: str
-    version_id: uuid.UUID
+    version_id: str
     version: int = Field(serialization_alias="version_number")
     snapshot: dict | None = None
 
@@ -503,7 +503,7 @@ async def restore_version(
     await db.commit()
     return RestoreResponse(
         message=f"Restored to version {version.version}",
-        version_id=uuid.UUID(version.id),
+        version_id=str(version.id),
         version=version.version,
         snapshot=version.snapshot,
     )

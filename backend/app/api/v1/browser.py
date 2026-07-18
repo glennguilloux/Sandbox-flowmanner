@@ -34,10 +34,10 @@ async def ping(
     request: PingRequest,
     current_user: User = Depends(get_current_user),
 ):
-    from app.tools.base import ToolRegistry
+    from app.tools.base import get_tool_registry
     from app.tools.browser_ping import BrowserPingInput
 
-    tool = ToolRegistry.get("browser_ping")  # type: ignore[call-arg]
+    tool = get_tool_registry().get("browser_ping")  # type: ignore[arg-type]
     if tool is None:
         raise HTTPException(status_code=500, detail="browser_ping tool not registered")
 

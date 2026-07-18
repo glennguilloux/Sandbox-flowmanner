@@ -96,7 +96,7 @@ async def _probe_health() -> HealthResponse:
         from app.services.langfuse_service import get_langfuse_service
 
         lf = get_langfuse_service()
-        circuit_state = lf.circuit_state if lf.circuit_state else "CLOSED"
+        circuit_state = lf.circuit_state
     except Exception:
         logger.debug("circuit_breaker_state_failed", exc_info=True)
 
