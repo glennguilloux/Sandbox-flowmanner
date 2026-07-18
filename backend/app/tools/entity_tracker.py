@@ -13,6 +13,7 @@ import logging
 import os
 import re
 import uuid
+from typing import cast
 
 import redis
 from pydantic import ConfigDict, Field
@@ -214,7 +215,7 @@ class EntityTrackerTool(BaseTool):
                     rk = f"{prefix}:{namespace}:{key}"
                     value = redis_client.get(rk)
                     if value:
-                        return value, f"redis:{prefix}"
+                        return cast("str | None", value), f"redis:{prefix}"
                 except Exception:
                     continue
 

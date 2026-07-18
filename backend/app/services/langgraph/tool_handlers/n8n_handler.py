@@ -26,7 +26,7 @@ class N8nToolHandler(BaseToolHandler):
         super().__init__("execute_n8n_workflow", "Execute n8n Workflow")
         self.n8n_base_url = n8n_base_url.rstrip("/")
         self.api_key = api_key
-        self.session = None
+        self.session: aiohttp.ClientSession | None = None
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session"""

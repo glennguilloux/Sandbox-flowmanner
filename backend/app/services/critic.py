@@ -43,6 +43,7 @@ import re
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Any
 
 from app.models.capability_models import Budget, BudgetExhausted
@@ -71,7 +72,7 @@ RED_TEAM_DEFAULT_TEMPERATURE: float = 0.4
 
 #: Default per-call budget. ``$0.10`` is plenty for a single
 #: ``deepseek-chat`` JSON-shape call.
-CRITIC_DEFAULT_BUDGET_USD: float = 0.10
+CRITIC_DEFAULT_BUDGET_USD: Decimal = Decimal("0.10")
 
 
 # ── Prompts (module-level so tests can introspect them) ────────────────────

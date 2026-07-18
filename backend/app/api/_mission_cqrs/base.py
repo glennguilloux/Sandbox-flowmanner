@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
+from uuid import UUID
 
 import structlog
 
@@ -41,7 +42,7 @@ def _schedule_fire_and_forget(coro) -> None:
 
 def _make_execution_status(mission: Mission, tasks: list[MissionTask]) -> MissionExecutionStatus:
     return MissionExecutionStatus(
-        mission_id=mission.id,
+        mission_id=cast(UUID, mission.id),
         status=mission.status,
         total_tasks=len(tasks),
         completed_tasks=sum(1 for t in tasks if t.status == MissionTaskStatus.COMPLETED),

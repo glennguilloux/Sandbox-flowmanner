@@ -20,7 +20,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from app.models.tool_routing_models import (
     ToolRouteDecidedEvent,
@@ -290,7 +290,9 @@ class ToolRouter:
 
         # Determine mode based on top score vs min_confidence
         top_score = scores[0].score if scores else 0.0
-        mode: str = "sparse" if top_score >= self._min_confidence else "fallback-full-registry"
+        mode: Literal["sparse", "fallback-full-registry"] = (
+            "sparse" if top_score >= self._min_confidence else "fallback-full-registry"
+        )
 
         # Build the candidate set
         reasons: dict[str, str] = {}

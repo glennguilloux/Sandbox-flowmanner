@@ -108,7 +108,7 @@ def _fill_missing_column(
         # Try mean/median for numeric, mode for strings
         numeric_vals = [v for v in non_nulls if isinstance(v, (int, float))]
         if numeric_vals and len(numeric_vals) > len(non_nulls) * 0.5:
-            fill = sum(numeric_vals) / len(numeric_vals)
+            fill: float | str = sum(numeric_vals) / len(numeric_vals)
             return [fill if v is None else v for v in values]
         elif non_nulls:
             # Mode

@@ -11,7 +11,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 # Import semantic layer
 from app.services.semantic.topology_manager import (
@@ -209,7 +209,7 @@ class AIExecutionPlanner:
         step_id = 0
 
         # Find best matching agents using attention
-        matches = await self._topology_manager.find_best_agent(query=goal, max_results=5)
+        matches = await cast("Any", self._topology_manager).find_best_agent(query=goal, max_results=5)
 
         # Filter by available agents if specified
         if available_agents:

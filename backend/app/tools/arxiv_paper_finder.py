@@ -207,7 +207,7 @@ class ArxivPaperFinderTool(BaseTool):
         if not validated.query:
             return {"error": "query is required for search"}
 
-        params = {
+        params: dict[str, Any] = {
             "search_query": validated.query,
             "max_results": validated.max_results,
             "start": validated.start,
@@ -250,7 +250,7 @@ class ArxivPaperFinderTool(BaseTool):
         pid = validated.paper_id.strip()
         pid = pid.replace("http://arxiv.org/abs/", "").rstrip("/")
 
-        params = {
+        params: dict[str, Any] = {
             "id_list": pid,
             "max_results": 1,
         }

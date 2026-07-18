@@ -389,7 +389,7 @@ async def active_missions_from_blueprints(
                 func.count(SubstrateEvent.id).label("all_events"),
                 func.sum(
                     case(
-                        (SubstrateEvent.event_type == SubstrateEventType.TASK_COMPLETED, 1),
+                        (SubstrateEvent.type == SubstrateEventType.TASK_COMPLETED, 1),
                         else_=0,
                     )
                 ).label("completed"),

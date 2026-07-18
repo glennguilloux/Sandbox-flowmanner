@@ -66,7 +66,7 @@ def _claim(
         importance=importance,
     )
     c.created_at = created_at
-    c.id = uuid.uuid4()
+    c.id = str(uuid.uuid4())
     if source_priority is not None:
         c.source_priority = source_priority
     else:

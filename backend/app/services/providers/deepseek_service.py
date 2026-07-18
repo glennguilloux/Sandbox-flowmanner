@@ -136,7 +136,7 @@ class DeepSeekService:
         payload.update(kwargs)
 
         # Make request with retry logic
-        last_error = None
+        last_error: Exception | None = None
         for attempt in range(self.max_retries):
             try:
                 response = await self._make_request(payload, request_id)

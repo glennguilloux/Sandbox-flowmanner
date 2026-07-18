@@ -40,7 +40,8 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import TYPE_CHECKING, Any
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, cast
 
 from app.services.personal_memory_service import PersonalMemoryService
 
@@ -383,7 +384,7 @@ def build_citation_event(
     if mission_number is not None:
         payload["mission_number"] = int(mission_number)
     if claim.expires_at is not None:
-        payload["expires_at"] = claim.expires_at.isoformat()
+        payload["expires_at"] = cast(datetime, claim.expires_at).isoformat()
     return payload
 
 
