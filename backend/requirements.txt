@@ -106,7 +106,7 @@ librosa>=0.10,<1
 # Code Quality
 black==24.3.0
 flake8==7.0.0
-mypy==1.8.0
+mypy==1.11.2
 isort==5.13.2
 pylint==3.0.3
 

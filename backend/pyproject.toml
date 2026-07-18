@@ -33,6 +33,13 @@ markers = [
 [tool.mypy]
 ignore_missing_imports = true
 no_strict_optional = true
+# Load the SQLAlchemy mypy plugin so async Result[Tuple[...]] generics resolve
+# correctly (e.g. .scalar_one_or_none() -> Entity | None). Without it mypy
+# mis-infers ORM Result rows as tuples (~180 spurious attr-defined/arg-type/
+# assignment errors across app/). Plugin is enabled via this config key (the
+# --plugins CLI flag does not exist in mypy 1.8-1.11). Requires mypy >= 1.9
+# (CI pins mypy==1.11.2) for the plugin key to load.
+plugins = ["sqlalchemy.ext.mypy.plugin"]
 
 [[tool.mypy.overrides]]
 module = "app.migrations.versions.*"

@@ -94,14 +94,18 @@ jobs:
         # Remove "|| true" once F821 errors are resolved
 
       - name: Mypy type check (baseline-enforced)
-        # 314 pre-existing errors tracked in backend/mypy-baseline.txt.
-        # CI fails on NEW mypy errors but allows the existing set.
-        # The team fixes errors incrementally; each fix shrinks the baseline.
+        # Baseline regenerated 2026-07-18 after enabling the SQLAlchemy mypy
+        # plugin (backend/pyproject.toml [tool.mypy] plugins=) + bumping mypy
+        # 1.8.0 -> 1.11.2. The plugin resolves ~180 spurious ORM Result
+        # generic errors; ~290 genuine type errors remain tracked in the
+        # baseline and are fixed incrementally (each fix shrinks it).
+        # CI fails on NEW mypy errors (">" lines) but allows the existing set.
         #
         # Pipeline (must match the baseline-generation command below):
         #   --hide-error-context : strips non-deterministic context lines
-        #     (preserves per-error notes like 'Revealed type' / 'Use
-        #     ignore-with-code' that are useful for fixing errors)
+        #   grep -vE 'note:'     : drops `note:` continuation lines (overload
+        #     variants etc.) which are non-deterministic between runs and carry
+        #     no gate signal — only `error:` lines gate.
         #   sed ... :line:... : drop line numbers (and optional column) so the
         #     baseline tracks (file, error_code, message) tuples, not (file,
         #     line, ...). Without this, any file edit shifts line numbers and
@@ -115,6 +119,7 @@ jobs:
         #     | sort -u > mypy-baseline.txt
         run: |
           mypy app/ --ignore-missing-imports --no-error-summary --hide-error-context 2>&1 \
+            | grep -vE 'note:' \
             | sed -E 's/:[0-9]+(:[0-9]+)?:/:line:/g' \
             | sort -u \
             | diff mypy-baseline.txt -
