@@ -56,9 +56,9 @@ class _PluginHandlerAdapter(BaseNodeHandler):
         self._permissions = set(permissions)
         self._config = config or {}
         # Copy the node_type_id from the wrapped handler
-        self.node_type_id = plugin_handler.node_type_id
+        self.node_type_id = plugin_handler.node_type_id  # type: ignore[misc]
 
-    async def execute(self, node: dict, context: Any, interpreter: Any = None) -> dict:
+    async def execute(self, node: dict, context: Any, interpreter: Any = None) -> dict:  # type: ignore[override]
         """Bridge: convert graph executor context to PluginContext, run handler."""
         data = node.get("data", {})
         inputs = data.get("inputs") or data.get("params") or {}
@@ -117,7 +117,7 @@ class _PluginHandlerAdapter(BaseNodeHandler):
             logger.exception("Plugin '%s' handler execution failed", self._plugin_name)
             return {"success": False, "error": str(e), "plugin": self._plugin_name}
 
-    async def validate(self, node: dict) -> list[str]:
+    async def validate(self, context: PluginContext) -> list[str]:
         return []
 
 

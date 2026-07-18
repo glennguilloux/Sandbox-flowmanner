@@ -14,7 +14,7 @@ Handles:
 import json
 import logging
 import os
-from typing import Any
+from typing import Any, cast
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -471,7 +471,7 @@ class ToolConverter:
             )
 
             # Format messages
-            messages = []
+            messages: list[Any] = []
             if conversation_history:
                 for msg in conversation_history:
                     if msg["role"] == "user":
@@ -645,7 +645,6 @@ Response Format:
         # Get from LLM manager
         return self.llm_manager.get_model(
             model_id=model_id or self.default_model_id,
-            use_fallback=True,
         )
 
     def _extract_workflow_file_info(self, message: str) -> tuple[str | None, dict[str, Any] | None]:
@@ -975,7 +974,7 @@ Respond with JSON:
 
         try:
             result = await llm.ainvoke(prompt)
-            response = json.loads(result.content)
+            response = json.loads(cast(str, result.content))
 
             if response.get("config_id") and response.get("confidence", 0) > 0.7:
                 return response

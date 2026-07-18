@@ -41,7 +41,7 @@ async def get_current_user_profile(user: User = Depends(get_current_user)):
         email=user.email,
         username=user.username,
         full_name=user.full_name,
-        role=user.role.value,
+        role=user.role,
         is_admin=user.is_admin,
         is_active=user.is_active,
         created_at=user.created_at,
@@ -59,7 +59,7 @@ async def update_current_user_profile(
     if payload.full_name is not None:
         user.full_name = payload.full_name
     if payload.password is not None:
-        user.password_hash = hash_password(payload.password)
+        user.hashed_password = hash_password(payload.password)
     await db.flush()
     await db.refresh(user)
     return UserResponse(
@@ -67,7 +67,7 @@ async def update_current_user_profile(
         email=user.email,
         username=user.username,
         full_name=user.full_name,
-        role=user.role.value,
+        role=user.role,
         is_admin=user.is_admin,
         is_active=user.is_active,
         created_at=user.created_at,

@@ -3,6 +3,8 @@ import threading
 from collections import OrderedDict
 from typing import Any
 
+from pydantic import SecretStr
+
 logger = logging.getLogger(__name__)
 
 MAX_CACHE_SIZE = 10
@@ -10,7 +12,7 @@ MAX_CACHE_SIZE = 10
 try:
     from langchain_openai import ChatOpenAI
 except ImportError:
-    ChatOpenAI = None
+    ChatOpenAI = None  # type: ignore[misc]
 
 
 # Per-model base URL overrides for llamacpp variants served by separate
@@ -100,12 +102,12 @@ class LLMManager:
             return ChatOpenAI(
                 model=mapped,
                 base_url=base_url,
-                api_key="not-needed",
+                api_key=SecretStr("not-needed"),
             )
 
         return ChatOpenAI(
             model=mapped,
-            api_key=settings.LLM_API_KEY,
+            api_key=SecretStr(settings.LLM_API_KEY),
             base_url=settings.LLM_API_BASE,
         )
 
