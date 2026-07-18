@@ -62,6 +62,8 @@ class SandboxdFileWriteTool(BaseTool):
             },
             tags=["sandbox", "file", "write"],
             requires_auth=False,
+            requires_sandbox=True,
+            rate_limit_key="sandboxd_file_write",
             timeout_seconds=30,
         )
         super().__init__(metadata=metadata)

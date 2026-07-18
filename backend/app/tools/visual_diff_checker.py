@@ -148,7 +148,7 @@ class VisualDiffCheckerTool(BaseTool):
         # Resize if dimensions differ
         dimensions_match = size1 == size2
         if not dimensions_match:
-            img2 = img2.resize((img1.width, img1.height), Image.LANCZOS)
+            img2 = img2.resize((img1.width, img1.height), Image.Resampling.LANCZOS)
 
         # Convert to numpy arrays for pixel-wise comparison
         arr1 = np.array(img1, dtype=np.float32)

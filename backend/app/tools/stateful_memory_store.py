@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 
 import redis.asyncio as redis_asyncio
 from pydantic import Field
-from sqlalchemy import select
+from sqlalchemy import select, true as sql_true
 
 from app.database import AsyncSessionLocal
 from app.models.agent import AgentMemory
@@ -410,14 +410,14 @@ class StatefulMemoryStoreTool(BaseTool):
                     .where(
                         AgentMemory.user_id == (user_id or 0),
                         AgentMemory.content_type == "stateful_memory",
-                        (AgentMemory.agent_id.like(f"{namespace}:%") if namespace != "*" else True),
+                        (AgentMemory.agent_id.like(f"{namespace}:%") if namespace != "*" else sql_true()),
                     )
                     .order_by(AgentMemory.created_at.desc())
                     .limit(validated.max_results)
                 )
 
                 if namespace == "*":
-                    stmt = stmt.where(True)  # no namespace filter
+                    stmt = stmt.where(sql_true())  # no namespace filter
 
                 result = await session.execute(stmt)
                 rows = result.scalars().all()

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import desc, func, select, text
@@ -105,7 +105,7 @@ async def list_missions(
     total = (await db.execute(count_query)).scalar() or 0
 
     # Sort
-    sort_cols = {
+    sort_cols: dict[str, Any] = {
         "started_at": Mission.started_at,
         "completed_at": Mission.completed_at,
         "actual_cost": Mission.actual_cost,

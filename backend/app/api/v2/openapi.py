@@ -127,7 +127,7 @@ _SECURITY_SCHEMES = {
 
 # ── Rate Limit Tier Documentation ─────────────────────────────────────────────
 
-_TIER_DOCS = {
+_TIER_DOCS: dict[str, Any] = {
     "x-rate-limit-tiers": {
         "free": {
             "description": "Default tier for new accounts",
@@ -270,7 +270,7 @@ def _build_v2_openapi(request: Request) -> dict[str, Any]:
                 "name": "Proprietary",
                 "url": "https://flowmanner.com/terms",
             },
-            **_TIER_DOCS,
+            **_TIER_DOCS,  # type: ignore[dict-item]
         },
         "servers": [
             {"url": f"{base_url}/api/v2", "description": "Production API v2"},

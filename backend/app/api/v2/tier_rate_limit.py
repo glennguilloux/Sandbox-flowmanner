@@ -166,7 +166,7 @@ def tier_rate_limit(
         if tier_name is None:
             tier_name = await _resolve_tier_from_db(user)
             # Cache on user object so subsequent calls in same request skip DB
-            user._effective_tier = tier_name
+            user._effective_tier = tier_name  # type: ignore[attr-defined]
 
         multiplier = _TIER_MULTIPLIERS.get(tier_name, 1.0)
         effective_limit = int(base * multiplier)

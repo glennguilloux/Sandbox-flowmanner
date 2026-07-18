@@ -150,7 +150,7 @@ async def _call_provenance(*, db, service, user_id: int, workspace_id: str, clai
     return await claim_provenance(
         claim_id=claim_id,
         workspace_id=workspace_id,
-        user=_StubUser(user_id),
+        user=_StubUser(user_id),  # type: ignore[arg-type]
         service=service,
         db=db,
     )

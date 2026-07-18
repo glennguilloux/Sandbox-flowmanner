@@ -25,7 +25,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 from collections import deque
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import UUID as SA_UUID
@@ -53,7 +53,7 @@ from app.schemas.workspace_v3 import (
 from app.services.background_task_manager import background_task_manager
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
 router = APIRouter(prefix="/workspaces", tags=["v3-workspaces"])
 
@@ -237,7 +237,7 @@ async def update_workspace(
     # Tenant-scoped audit trail (fire-and-forget). Records the workspace that was
     # mutated, scoped by its workspace_id. Only the fields present in the payload
     # are noted in the audit details.
-    changed = {}
+    changed: dict[str, Any] = {}
     if payload.name is not None:
         changed["name"] = payload.name
     if payload.logo_url is not None:
@@ -366,8 +366,7 @@ async def _reflect_tables(db: AsyncSession) -> MetaData:
     """
     engine = db.bind
     meta = MetaData()
-    async with engine.connect() as conn:
-        await conn.run_sync(lambda sc: meta.reflect(bind=sc))
+    await cast("AsyncConnection", engine).run_sync(lambda sc: meta.reflect(bind=sc))
     return meta
 
 

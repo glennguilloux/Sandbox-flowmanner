@@ -396,8 +396,8 @@ async def claim_provenance(
     source_mission_id = claim.source_id if claim.source_type == "mission" else None
     provenance = PersonalMemoryProvenanceInfo(
         source_type=claim.source_type,
-        source_id=claim.source_id,
-        source_mission_id=source_mission_id,
+        source_id=uuid.UUID(claim.source_id) if claim.source_id else None,
+        source_mission_id=uuid.UUID(source_mission_id) if source_mission_id else None,
         created_at=claim.created_at,
         confidence=claim.confidence,
         importance=claim.importance,

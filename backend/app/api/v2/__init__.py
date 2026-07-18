@@ -48,7 +48,7 @@ from app.api.v2.personal_memory import (
 from app.main_fastapi import app as _fastapi_app
 
 api_v2_router.include_router(personal_memory_router)
-_fastapi_app.add_exception_handler(RequestValidationError, pm_validation_handler)
+_fastapi_app.add_exception_handler(RequestValidationError, pm_validation_handler)  # type: ignore[arg-type]
 
 # Critic Inspection API (D30-60, T28) — read-only /critiques surface for
 # the Programs brief UI and the future "show alternatives" UI. Mirrors
@@ -63,7 +63,7 @@ from app.api.v2.critiques import (
 )
 
 api_v2_router.include_router(critiques_router)
-_fastapi_app.add_exception_handler(RequestValidationError, critiques_validation_handler)
+_fastapi_app.add_exception_handler(RequestValidationError, critiques_validation_handler)  # type: ignore[arg-type]
 
 from app.api.v2.dashboard import router as dashboard_router
 from app.api.v2.integrations import router as integrations_router

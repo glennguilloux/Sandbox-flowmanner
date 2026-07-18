@@ -430,7 +430,7 @@ register_strict_validation(app)
 app.add_middleware(RateLimitHeadersMiddleware)
 # Idempotency finalization: must run AFTER routes but captures responses
 app.add_middleware(IdempotencyFinalizationMiddleware)
-app.include_router(api_v2_router)
+app.include_router(api_v2_router)  # type: ignore[has-type]
 
 # ---------------------------------------------------------------------------
 # Auth v3 — register v3 routers. Exception handlers are already registered

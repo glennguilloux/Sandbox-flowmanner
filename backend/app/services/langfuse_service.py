@@ -154,8 +154,8 @@ def _is_transient_error(exc: Exception) -> bool:
 
 def _run_with_timeout(func, timeout_seconds: float, *args, **kwargs):
     """Run a function with a timeout using threading."""
-    result = [None]
-    error = [None]
+    result: list[Any] = [None]
+    error: list[Exception | None] = [None]
     done = threading.Event()
 
     def _worker():

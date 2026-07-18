@@ -64,9 +64,9 @@ def ok(data: Any, request_id: str | None = None, **extra_meta: Any) -> dict[str,
     if request_id:
         meta.request_id = request_id
     if extra_meta:
-        meta = meta.model_dump()
-        meta.update(extra_meta)
-        return {"data": data, "meta": meta, "error": None}
+        meta_dict = meta.model_dump()
+        meta_dict.update(extra_meta)
+        return {"data": data, "meta": meta_dict, "error": None}
     return {"data": data, "meta": meta.model_dump(), "error": None}
 
 

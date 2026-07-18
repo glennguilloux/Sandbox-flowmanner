@@ -14,7 +14,7 @@ This module provides background task processing for the swarm coordination syste
 import asyncio
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Sequence
 
 from sqlalchemy import select
 
@@ -137,7 +137,7 @@ async def _mark_stale_agents_offline(redis_cache_manager) -> int:
         return offline
 
 
-async def _list_active_swarms() -> list:
+async def _list_active_swarms() -> Sequence[SwarmProfile]:
     """Return all active swarm profiles. Opens its own session."""
     async with AsyncSessionLocal() as db:
         return (await db.execute(select(SwarmProfile).where(SwarmProfile.status == "active"))).scalars().all()

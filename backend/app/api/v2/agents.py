@@ -189,7 +189,7 @@ async def create_template(
         payload.description,
         payload.agent_type,
         payload.system_prompt,
-        payload.model_config,
+        dict(payload.model_config),
     )
     return ok(AgentTemplateResponse.model_validate(template).model_dump())
 
@@ -204,10 +204,10 @@ async def update_template(
     updated = await update_agent_template(
         db,
         template_id,  # type: ignore[arg-type]
-        payload.name,
-        payload.description,
-        payload.system_prompt,
-        payload.model_config,
+        name=payload.name,
+        description=payload.description,
+        system_prompt=payload.system_prompt,
+        model_config=dict(payload.model_config),
     )
     if updated is None:
         raise _not_found()

@@ -567,11 +567,12 @@ async def send_notification(user_id: int, notification_type: str, data: dict, db
     Called when mission status changes.
     """
     result = await db.execute(select(DBNotificationSettings).where(DBNotificationSettings.user_id == user_id))
-    settings = result.scalar_one_or_none()
-    if not settings:
+    settings_row = result.scalar_one_or_none()
+    settings: NotificationSettings
+    if not settings_row:
         settings = NotificationSettings()  # defaults
     else:
-        settings = NotificationSettings.model_validate(settings)
+        settings = NotificationSettings.model_validate(settings_row)
 
     # Check if this notification type is enabled
     if notification_type == "mission_completed" and not settings.event_mission_completed:

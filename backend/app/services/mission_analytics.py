@@ -89,7 +89,7 @@ async def get_failure_analysis(db: AsyncSession, user_id: int | None = None) -> 
 
     rows = await db.execute(
         select(
-            func.coalesce(Mission.failure_reason, Mission.error_message, "unknown").label("category"),
+            func.coalesce(Mission.error_message, "unknown").label("category"),
             func.count().label("count"),
         )
         .where(*filters)

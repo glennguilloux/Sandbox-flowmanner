@@ -198,7 +198,7 @@ class CosineSimilarityCalcTool(BaseTool):
         """Compute cosine similarity between query and each corpus row."""
         import numpy as np
 
-        q_norm = np.linalg.norm(query)
+        q_norm: float = float(np.linalg.norm(query))
         c_norms = np.linalg.norm(corpus, axis=1)
 
         # Avoid division by zero

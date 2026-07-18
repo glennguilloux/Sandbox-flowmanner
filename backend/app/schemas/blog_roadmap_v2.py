@@ -109,7 +109,7 @@ def _iso(dt: datetime | None) -> str | None:
 
 def blog_post_to_out(post: Any) -> dict[str, Any]:
     """Map a ``BlogPost`` ORM row to the v2 ``BlogPostOut`` dict."""
-    tags = [BlogTagOut(id=str(t.id), name=t.name, slug=t.slug).model_dump() for t in (post.tags or [])]
+    tags = [BlogTagOut(id=str(t.id), name=t.name, slug=t.slug) for t in (post.tags or [])]
     return BlogPostOut(
         id=str(post.id),
         slug=post.slug,

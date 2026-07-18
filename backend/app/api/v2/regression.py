@@ -123,7 +123,7 @@ async def compare_mission(
 
     # Evaluate assertions
     engine = get_assertion_engine()
-    results = await engine.evaluate(db, actual_run_id, expected_behaviors)
+    results = await engine.evaluate(db, actual_run_id, expected_behaviors)  # type: ignore[arg-type]
 
     # Build summary
     summary = {

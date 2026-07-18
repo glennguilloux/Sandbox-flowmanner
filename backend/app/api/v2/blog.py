@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, select
 
 from app.api.v2.base import ok, paginated
 from app.database import get_db
@@ -40,7 +40,7 @@ async def list_blog_posts(
     Returns the v2 paginated envelope. Posts are ordered by
     ``published_at`` desc, falling back to ``created_at`` desc.
     """
-    filters = [BlogPost.published_at.is_not(None)]
+    filters: list[ColumnElement[bool]] = [BlogPost.published_at.is_not(None)]
     if category:
         filters.append(BlogPost.category == category)
 

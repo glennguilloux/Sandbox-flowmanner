@@ -132,6 +132,8 @@ def idempotency(ttl_hours: int = DEFAULT_IDEMPOTENCY_TTL_HOURS, *, required: boo
             request.state._idempotency_record = record
             return None
 
+        return None
+
     return _check
 
 

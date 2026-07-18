@@ -193,7 +193,7 @@ class SecondPassVerifier:
             # Allow an async override too.
             ov = self._call_llm_override
             if hasattr(ov, "__await__"):
-                return await ov(messages)
+                return await ov(messages)  # type: ignore[misc]
             return ov(messages)
         from decimal import Decimal
 

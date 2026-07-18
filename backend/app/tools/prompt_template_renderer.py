@@ -240,10 +240,10 @@ class PromptTemplateRendererTool(BaseTool):
         try:
             from jinja2 import (
                 BaseLoader,
-                SandboxedEnvironment,
                 TemplateSyntaxError,
                 UndefinedError,
             )
+            from jinja2.sandbox import SandboxedEnvironment
 
             env = SandboxedEnvironment(
                 loader=BaseLoader(),
