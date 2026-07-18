@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Import Celery app
 try:
-    from app.celery_app import celery_app
+    from app.tasks.celery_app import celery_app
 
     CELERY_AVAILABLE = True
 except ImportError:

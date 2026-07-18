@@ -20,7 +20,7 @@ from typing import Any
 
 from kombu import Connection, Exchange, Queue
 
-from app.app_config import Config
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ def initialize_rabbitmq_infrastructure(max_retries: int = 5, retry_delay: int = 
         "errors": [],
     }
 
-    broker_url = Config.CELERY_BROKER_URL
+    broker_url = settings.CELERY_BROKER_URL
 
     # Mask credentials in logs
     safe_url = broker_url
@@ -203,7 +203,7 @@ def verify_rabbitmq_infrastructure() -> dict[str, Any]:
         "errors": [],
     }
 
-    broker_url = Config.CELERY_BROKER_URL
+    broker_url = settings.CELERY_BROKER_URL
 
     try:
         with Connection(broker_url, connect_timeout=5) as conn:

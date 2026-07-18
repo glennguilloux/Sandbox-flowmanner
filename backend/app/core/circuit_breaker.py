@@ -119,7 +119,7 @@ class CircuitBreaker:
         try:
             from app.services.alerting import send_circuit_alert
 
-            asyncio.get_event_loop().create_task(
+            asyncio.get_running_loop().create_task(
                 send_circuit_alert(
                     dependency=self.config.name,
                     old_state=old.value,
@@ -134,7 +134,7 @@ class CircuitBreaker:
         if self._state == CircuitState.HALF_OPEN:
             self._half_open_successes += 1
             if self._half_open_successes >= self.config.half_open_max_calls:
-                asyncio.get_event_loop().create_task(self._transition(CircuitState.CLOSED))
+                asyncio.get_running_loop().create_task(self._transition(CircuitState.CLOSED))
                 self._failures.clear()
 
     def record_failure(self) -> None:
@@ -142,7 +142,7 @@ class CircuitBreaker:
         _CB_FAILURE_GAUGE.labels(dependency=self.config.name).set(self._failure_count())
 
         if self._state == CircuitState.HALF_OPEN or (self._state == CircuitState.CLOSED and self._should_trip()):
-            asyncio.get_event_loop().create_task(self._transition(CircuitState.OPEN))
+            asyncio.get_running_loop().create_task(self._transition(CircuitState.OPEN))
 
     @asynccontextmanager
     async def protect(self):
