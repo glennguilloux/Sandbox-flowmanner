@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -49,6 +50,9 @@ class ChatMessageCreate(BaseModel):
     role: str = "user"
     model: str | None = None
     model_id: str | None = None
+    system_prompt: str | None = None
+    attachments: list[Any] | None = None
+    web_search: bool | None = None
 
 
 class ChatMessageResponse(BaseModel):

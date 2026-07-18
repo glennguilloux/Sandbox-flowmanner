@@ -7,7 +7,7 @@ import logging
 import time
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -124,9 +124,9 @@ class EvaluationRunner:
             scored_results = []
             category_scores: dict[str, list[float]] = {}
 
-            for i, result in enumerate(case_results):
+            for i, case_result in enumerate(case_results):
                 tc = test_cases[i]
-                if isinstance(result, Exception):
+                if isinstance(case_result, BaseException):
                     scored_results.append(
                         {
                             "test_case_id": tc.id,
@@ -148,17 +148,17 @@ class EvaluationRunner:
                     score = await judge.score(
                         input_prompt=tc.input_prompt,
                         expected_behavior=tc.expected_behavior,
-                        actual_output=result,
+                        actual_output=case_result["output"],
                         rubric=tc.rubric,
                     )
                     case_score = score.get("overall_score", 0.0)
                     # Comment 10: capture model-call usage for cost-per-correct-answer.
-                    usage = result.get("usage", {}) if isinstance(result, dict) else {}
-                    cost_usd = float(result.get("cost_usd", 0.0)) if isinstance(result, dict) else 0.0
-                    latency_ms = int(result.get("latency_ms", 0) or 0) if isinstance(result, dict) else 0
-                    provider = result.get("provider") if isinstance(result, dict) else None
+                    usage = case_result.get("usage", {}) if isinstance(case_result, dict) else {}
+                    cost_usd = float(case_result.get("cost_usd", 0.0)) if isinstance(case_result, dict) else 0.0
+                    latency_ms = int(case_result.get("latency_ms", 0) or 0) if isinstance(case_result, dict) else 0
+                    provider = case_result.get("provider") if isinstance(case_result, dict) else None
                     served_model = (
-                        result.get("served_model") or result.get("model") if isinstance(result, dict) else model_name
+                        case_result.get("served_model") or case_result.get("model") if isinstance(case_result, dict) else model_name
                     )
                     is_correct = case_score >= self.CORRECT_THRESHOLD
                     scored_results.append(
@@ -166,7 +166,7 @@ class EvaluationRunner:
                             "test_case_id": tc.id,
                             "task_type": tc.task_type,
                             "input_preview": tc.input_prompt[:100],
-                            "output_preview": (result.get("output") if isinstance(result, dict) else str(result))[:200],
+                            "output_preview": (case_result.get("output") if isinstance(case_result, dict) else str(case_result))[:200],
                             "scores": score.get("scores", {}),
                             "overall_score": case_score,
                             "summary": score.get("summary", ""),
@@ -199,7 +199,7 @@ class EvaluationRunner:
                     record_eval_test_case(model_name, tc.task_type, case_score >= 3.0)
 
             # Compute aggregates
-            all_scores = [r["overall_score"] for r in scored_results if "error" not in r]
+            all_scores = [cast(float, r["overall_score"]) for r in scored_results if "error" not in r]
             aggregate = sum(all_scores) / len(all_scores) if all_scores else 0.0
 
             avg_by_category = {cat: round(sum(scores) / len(scores), 2) for cat, scores in category_scores.items()}
