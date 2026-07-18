@@ -36,7 +36,7 @@ class WeatherCurrentInput(ToolInput):
 async def _geocode(location: str) -> tuple[float, float, str]:
     """Resolve a location name to (lat, lon, display_name) via Open-Meteo geocoding."""
     url = "https://geocoding-api.open-meteo.com/v1/search"
-    params = {"name": location, "count": 1, "language": "en"}
+    params: dict[str, str | int] = {"name": location, "count": 1, "language": "en"}
 
     async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS) as client:
         resp = await client.get(url, params=params)
@@ -82,7 +82,7 @@ class WeatherCurrentTool(BaseTool):
         try:
             temp_unit = "fahrenheit" if validated.units == "fahrenheit" else "celsius"
             url = "https://api.open-meteo.com/v1/forecast"
-            params = {
+            params: dict[str, str | int | float] = {
                 "latitude": lat,
                 "longitude": lon,
                 "current": "temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code",
@@ -205,7 +205,7 @@ class CurrencyConvertTool(BaseTool):
 
         try:
             url = f"https://api.frankfurter.app/latest"
-            params = {
+            params: dict[str, str | int | float] = {
                 "amount": validated.amount,
                 "from": from_ccy,
                 "to": to_ccy,

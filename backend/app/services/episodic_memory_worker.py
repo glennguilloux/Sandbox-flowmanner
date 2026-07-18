@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
 from app.models.substrate_models import SubstrateEvent, SubstrateEventType
 
@@ -146,7 +146,7 @@ class EpisodicMemoryWorker:
 
     # ── Internal helpers ─────────────────────────────────────────
 
-    def _extract_outcome(self, mission: Any, events: list) -> str:
+    def _extract_outcome(self, mission: Any, events: Sequence[Any]) -> str:
         """Determine mission outcome from terminal events."""
         for event in reversed(events):
             if event.type == SubstrateEventType.MISSION_COMPLETED:
@@ -166,7 +166,7 @@ class EpisodicMemoryWorker:
                 return "failure"
         return "partial"
 
-    def _extract_cost(self, events: list) -> float:
+    def _extract_cost(self, events: Sequence[Any]) -> float:
         """Sum cost from task.completed events."""
         total = 0.0
         for event in events:
@@ -175,7 +175,7 @@ class EpisodicMemoryWorker:
                 total += payload.get("cost_usd", 0.0)
         return total
 
-    def _extract_hitl_outcome(self, events: list) -> str | None:
+    def _extract_hitl_outcome(self, events: Sequence[Any]) -> str | None:
         """Extract HITL outcome from human_interrupt events."""
         for event in events:
             if event.type == SubstrateEventType.HUMAN_INTERRUPT_RESOLVED:
@@ -187,7 +187,7 @@ class EpisodicMemoryWorker:
                     return "rejected"
         return None
 
-    def _extract_step_types(self, events: list) -> list[str]:
+    def _extract_step_types(self, events: Sequence[Any]) -> list[str]:
         """Extract unique step types from events."""
         types = set()
         for event in events:
@@ -202,7 +202,7 @@ class EpisodicMemoryWorker:
                 types.add("llm_call")
         return sorted(types)
 
-    def _build_summary(self, mission: Any, events: list) -> str:
+    def _build_summary(self, mission: Any, events: Sequence[Any]) -> str:
         """Build a compact summary from mission metadata and events.
 
         This summary is REDACTED by the service before storage.

@@ -198,7 +198,7 @@ class RedisCacheManagerTool(BaseTool):
             elif action == "hget":
                 if not validated.key or not validated.field:
                     return ToolResult.error_result(tool_id=self.tool_id, error="key and field are required")
-                val = await r.hget(validated.key, validated.field)
+                val = await r.hget(validated.key, validated.field)  # type: ignore[misc]
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
                     result={
@@ -212,7 +212,7 @@ class RedisCacheManagerTool(BaseTool):
             elif action == "hset":
                 if not validated.key or not validated.field or validated.value is None:
                     return ToolResult.error_result(tool_id=self.tool_id, error="key, field, and value are required")
-                await r.hset(validated.key, validated.field, validated.value)
+                await r.hset(validated.key, validated.field, validated.value)  # type: ignore[misc]
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
                     result={
@@ -226,7 +226,7 @@ class RedisCacheManagerTool(BaseTool):
             elif action == "hgetall":
                 if not validated.key:
                     return ToolResult.error_result(tool_id=self.tool_id, error="key is required")
-                data = await r.hgetall(validated.key)
+                data = await r.hgetall(validated.key)  # type: ignore[misc]
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
                     result={

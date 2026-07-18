@@ -313,7 +313,7 @@ class SeoContentScorerTool(BaseTool):
         links = []
         for tag in soup.find_all("a", href=True):
             text = tag.get_text(strip=True)
-            href = tag["href"]
+            href = str(tag["href"])
             if text:
                 links.append({"text": text, "href": href})
         return links
@@ -321,9 +321,9 @@ class SeoContentScorerTool(BaseTool):
     def _extract_images(self, soup: BeautifulSoup) -> list[dict[str, str | bool]]:
         return [
             {
-                "src": tag.get("src", ""),
-                "alt": tag.get("alt", ""),
-                "has_alt": bool(tag.get("alt", "").strip()),
+                "src": str(tag.get("src", "")),
+                "alt": str(tag.get("alt", "")),
+                "has_alt": bool(str(tag.get("alt", ""))),
             }
             for tag in soup.find_all("img")
         ]
@@ -336,7 +336,7 @@ class SeoContentScorerTool(BaseTool):
         description = None
         meta_desc = soup.find("meta", attrs={"name": "description"})
         if meta_desc and meta_desc.get("content"):
-            description = meta_desc["content"].strip()
+            description = str(meta_desc["content"]).strip()
 
         h1 = None
         h1_tag = soup.find("h1")

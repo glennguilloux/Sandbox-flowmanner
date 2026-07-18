@@ -192,7 +192,12 @@ class ElevenLabsTTSTool(BaseTool):
             )
 
         # Voice settings defaults
-        voice_settings = validated.voice_settings or VoiceSettings()
+        voice_settings = validated.voice_settings or VoiceSettings(
+            stability=0.5,
+            similarity_boost=0.75,
+            style=0.0,
+            use_speaker_boost=True,
+        )
 
         start = time.monotonic()
 
