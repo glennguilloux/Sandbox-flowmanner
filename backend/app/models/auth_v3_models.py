@@ -25,6 +25,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base, TimestampMixin, UUIDMixin
+from app.models.user import User
 
 # ──────────────────────────────────────────────────────────────
 # AuthSession — explicit session tracking (replaces refresh_tokens)

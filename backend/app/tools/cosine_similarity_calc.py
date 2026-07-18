@@ -12,6 +12,7 @@ import logging
 import time
 from typing import Any, Literal
 
+import numpy as np
 from pydantic import Field, model_validator
 
 from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, register_tool

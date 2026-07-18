@@ -153,7 +153,7 @@ class EvaluationRunner:
                     )
                     case_score = score.get("overall_score", 0.0)
                     # Comment 10: capture model-call usage for cost-per-correct-answer.
-                    usage = result.get("usage", {}) if isinstance(result, dict) else {}
+                    usage: dict[str, Any] = result.get("usage", {}) if isinstance(result, dict) else {}
                     cost_usd = float(result.get("cost_usd", 0.0)) if isinstance(result, dict) else 0.0
                     latency_ms = int(result.get("latency_ms", 0) or 0) if isinstance(result, dict) else 0
                     provider = result.get("provider") if isinstance(result, dict) else None

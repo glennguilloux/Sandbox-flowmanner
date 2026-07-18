@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
 from fastapi import File as FastAPIFile
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,10 +18,8 @@ from app.api.v3.auth_cookies import set_refresh_cookie
 from app.database import get_db
 
 
-def _auth_response(access_token: str, refresh_token: str) -> "JSONResponse":
+def _auth_response(access_token: str, refresh_token: str) -> JSONResponse:
     """Return a TokenResponse with httpOnly refresh cookie for preview auth."""
-    from fastapi.responses import JSONResponse
-
     response = JSONResponse(content={"access_token": access_token, "refresh_token": refresh_token})
     set_refresh_cookie(response, refresh_token)
     return response

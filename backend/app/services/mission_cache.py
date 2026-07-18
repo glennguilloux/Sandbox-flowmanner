@@ -11,13 +11,14 @@ MISSION_CACHE_ACTIVE_TTL.
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import structlog
 
 from app.config import settings
 
 # Lazy import to avoid test failures when redis is mocked
-AsyncRedis = None
+AsyncRedis: type[Any] | None = None
 
 logger = structlog.get_logger(__name__)
 

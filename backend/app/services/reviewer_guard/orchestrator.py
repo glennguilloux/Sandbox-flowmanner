@@ -217,10 +217,10 @@ class ReviewerGuard:
             # Contradiction: lexical grounded BUT verifier says no (and the
             # verifier didn't degrade).  Degraded verifier → escalate on
             # uncertainty, not "contradict".
-            if grounded and not _vr.supports and not _vr.degraded:
+            if grounded and not vresult.supports and not vresult.degraded:
                 verifier_contradicts = True
             # Degraded verifier on a grounded claim → escalate on uncertainty.
-            if grounded and _vr.degraded:
+            if grounded and vresult.degraded:
                 verifier_contradicts = False  # not a contradiction, but see below
 
         # ── Decision (escalate-only) ──

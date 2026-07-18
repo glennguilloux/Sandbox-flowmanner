@@ -75,7 +75,7 @@ class UnifiedChainExecutor:
         if not chain:
             raise ChainExecutionError(f"Chain not found: {chain_id}")
 
-        steps = chain.steps or []
+        steps: list[Any] = list(chain.steps or [])
         if not steps:
             raise ChainExecutionError(f"Chain has no steps: {chain_id}")
 

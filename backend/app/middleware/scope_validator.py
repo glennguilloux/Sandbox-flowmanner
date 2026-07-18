@@ -8,7 +8,7 @@ from starlette.responses import JSONResponse
 if TYPE_CHECKING:
     from fastapi import Request
 
-SCOPE_REQUIREMENTS: dict[str, dict[str, list[str]]] = {}
+SCOPE_REQUIREMENTS: dict[str, dict[str, str | list[str]]] = {}
 
 
 def register_scope_requirement(path: str, method: str, scopes: list[str]) -> None:
@@ -36,8 +36,7 @@ class ScopeValidationMiddleware(BaseHTTPMiddleware):
                     "meta": {},
                     "error": {
                         "code": "UNAUTHENTICATED",
-                        "message": "Missing or malformed Authorization header — "
-                        "expected 'Bearer <token>'",
+                        "message": "Missing or malformed Authorization header — " "expected 'Bearer <token>'",
                         "details": {},
                         "trace_id": "",
                     },

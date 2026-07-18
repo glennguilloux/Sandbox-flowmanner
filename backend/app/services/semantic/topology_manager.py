@@ -2,6 +2,7 @@ import json
 import logging
 from datetime import UTC
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +12,7 @@ class TopologyManager:
         self.graph_path = Path(graph_path)
         self.G = None
         self.communities: dict[int, list[str]] | None = None
-        self.embeddings: dict[int, dict] | None = None
+        self.embeddings: dict[str, dict[str, float]] | None = None
 
     async def build(self, data: dict | None = None) -> dict:
         if data is None:
@@ -119,8 +120,8 @@ class TopologyManager:
         )
         return snapshot_id
 
-    def _compute_community_embeddings(self) -> dict[int, dict]:
-        embeddings: dict[str, list[float]] = {}
+    def _compute_community_embeddings(self) -> dict[str, dict[str, float]]:
+        embeddings: dict[str, dict[str, float]] = {}
         if not self.communities or not self.G:
             return embeddings
         for cid, node_ids in self.communities.items():

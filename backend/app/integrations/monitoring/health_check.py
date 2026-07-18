@@ -51,7 +51,7 @@ class HealthCheck:
         self.controller = controller or create_integration_controller(client=self.client)
 
         # Cache health status
-        self.health_status = {
+        self.health_status: dict[str, Any] = {
             "last_check": None,
             "openwhisk_healthy": False,
             "gateway_healthy": False,
@@ -195,6 +195,9 @@ class HealthCheck:
         start_time = datetime.now(UTC)
 
         # Run all checks concurrently
+        openwhisk_health: dict[str, Any] | BaseException
+        gateway_health: dict[str, Any] | BaseException
+        actions_health: dict[str, Any] | BaseException
         openwhisk_health, gateway_health, actions_health = await asyncio.gather(
             self.check_openwhisk(),
             self.check_gateway(),

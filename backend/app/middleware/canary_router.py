@@ -3,7 +3,10 @@ import os
 import random
 import sys
 from functools import wraps
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from config.canary_config import get_routing_backend
 
 from flask import g, request
 
@@ -20,7 +23,6 @@ try:
         N8N_MIGRATION_PERCENTAGE,
         ROLLBACK_TRIGGERS,
         USE_N8N_WORKFLOWS,
-        get_routing_backend,
     )
 except ImportError:
     logging.warning("Could not import canary_config, using defaults")

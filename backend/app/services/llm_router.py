@@ -57,7 +57,7 @@ def _make_client(base_url: str, api_key: str) -> AsyncOpenAI:
 # Reject internal/reserved/private/multicast destinations for a BYOK custom
 # base_url. Mirrors app/api/v1/api_keys.py:_is_safe_outbound_url so the two
 # SSRF gates agree. http/https only; resolves host and rejects non-public IPs.
-_BLOCKED_SCHEMES = frozenset()
+_BLOCKED_SCHEMES: frozenset[str] = frozenset()
 _BLOCKED_HOSTNAMES = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
 
 

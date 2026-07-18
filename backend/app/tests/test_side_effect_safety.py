@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.capability_models import Budget
 from app.models.substrate_models import SubstrateEventType
-from app.services.substrate.event_log import _compute_idempotency_key
+from app.services.substrate.event_log import EventLog, _compute_idempotency_key
 from app.services.substrate.executor import UnifiedExecutor
 from app.services.substrate.node_executor import NodeExecutor
 from app.services.substrate.workflow_models import (
@@ -30,7 +30,7 @@ from app.services.substrate.workflow_models import (
 )
 
 
-class _FakeEventLog:
+class _FakeEventLog(EventLog):
     """In-memory event log that supports idempotency-key lookups."""
 
     def __init__(self) -> None:

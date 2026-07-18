@@ -4,6 +4,7 @@ import functools
 import hashlib
 import logging
 from collections.abc import Callable
+from typing import Any
 
 from cachetools import TTLCache
 
@@ -12,10 +13,10 @@ from app.core.metrics import record_cache_hit, record_cache_miss
 logger = logging.getLogger(__name__)
 
 # Caches for different data categories
-_feature_flags_cache = TTLCache(maxsize=1, ttl=60)  # 60s — flags change rarely
-_agent_templates_cache = TTLCache(maxsize=64, ttl=300)  # 5min — static templates
-_config_cache = TTLCache(maxsize=1, ttl=300)  # 5min — app config
-_generic_cache = TTLCache(maxsize=256, ttl=120)  # 2min — misc
+_feature_flags_cache: TTLCache[str, Any] = TTLCache(maxsize=1, ttl=60)  # 60s — flags change rarely
+_agent_templates_cache: TTLCache[str, Any] = TTLCache(maxsize=64, ttl=300)  # 5min — static templates
+_config_cache: TTLCache[str, Any] = TTLCache(maxsize=1, ttl=300)  # 5min — app config
+_generic_cache: TTLCache[str, Any] = TTLCache(maxsize=256, ttl=120)  # 2min — misc
 
 
 def cached_feature_flags(func: Callable) -> Callable:
@@ -75,7 +76,7 @@ def cached_config(func: Callable) -> Callable:
 
 def cached(ttl: int = 120, maxsize: int = 64, cache_name: str = "generic") -> Callable:
     """Generic cache decorator with configurable TTL."""
-    _cache = TTLCache(maxsize=maxsize, ttl=ttl)
+    _cache: TTLCache[str, Any] = TTLCache(maxsize=maxsize, ttl=ttl)
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
