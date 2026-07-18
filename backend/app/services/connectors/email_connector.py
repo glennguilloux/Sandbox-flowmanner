@@ -224,19 +224,19 @@ class EmailConnector(BaseConnector):
                 elif content_type == "text/plain":
                     payload = part.get_payload(decode=True)
                     if payload:
-                        result["body"] += payload.decode("utf-8", errors="replace")
+                        result["body"] += payload.decode("utf-8", errors="replace")  # type: ignore[operator,union-attr]
                 elif content_type == "text/html":
                     payload = part.get_payload(decode=True)
                     if payload:
-                        result["html"] += payload.decode("utf-8", errors="replace")
+                        result["html"] += payload.decode("utf-8", errors="replace")  # type: ignore[operator,union-attr]
         else:
             payload = msg.get_payload(decode=True)
             if payload:
                 content_type = msg.get_content_type()
                 if content_type == "text/html":
-                    result["html"] = payload.decode("utf-8", errors="replace")
+                    result["html"] = payload.decode("utf-8", errors="replace")  # type: ignore[union-attr]
                 else:
-                    result["body"] = payload.decode("utf-8", errors="replace")
+                    result["body"] = payload.decode("utf-8", errors="replace")  # type: ignore[union-attr]
 
         return result
 
