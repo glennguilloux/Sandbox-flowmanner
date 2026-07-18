@@ -135,3 +135,7 @@ class ChatMessageUpdate(BaseModel):
     role: str | None = None
     model: str | None = None
     model_id: str | None = None
+
+
+class ReactionIn(BaseModel):
+    reaction: str
