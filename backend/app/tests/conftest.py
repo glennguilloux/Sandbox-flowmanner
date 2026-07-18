@@ -48,3 +48,74 @@ async def _rebind_global_engine():
     await engine.dispose()
     yield
     await engine.dispose()
+
+
+import sys
+from unittest.mock import AsyncMock, MagicMock
+
+from fastapi.testclient import TestClient
+
+from app.api.deps import get_current_user
+from app.database import get_db
+from app.main_fastapi import app
+
+
+@pytest.fixture
+def mock_db_session():
+    """Awaited-style mock session matching the auth tests' assumptions.
+
+    The auth routes call the DB as::
+
+        result = await db.execute(select(...))
+        user = result.scalar_one_or_none()
+
+    i.e. ``db.execute`` is *awaited* (so it must be an ``AsyncMock``)
+    but ``.scalar_one_or_none()`` is called **synchronously** on the
+    result.  The tests configure the result chain with::
+
+        mock_db_session.execute.return_value.scalar_one_or_none.return_value = ...
+
+    so the mock must resolve that chain synchronously.  Using
+    ``MagicMock(spec=AsyncSession)`` would turn *both* ``execute`` and
+    the result's ``scalar_one_or_none`` into ``AsyncMock`` (the spec
+    propagates to children), making the sync ``.scalar_one_or_none()``
+    return a coroutine instead of the configured value — which is exactly
+    the bug that produced ``'coroutine' object has no attribute
+    'hashed_password'``.  So we use a plain ``MagicMock`` with
+    ``execute`` pinned to an ``AsyncMock`` and its *return value* pinned to
+    a plain ``MagicMock`` (sync result), which satisfies both halves.
+    """
+    mock = MagicMock()
+    mock.execute = AsyncMock()
+    mock.execute.return_value = MagicMock()
+    return mock
+
+
+@pytest.fixture
+def test_client(mock_db_session):
+    """FastAPI TestClient with ``get_db`` overridden to the mock session.
+
+    The 7 auth API tests patch the auth-service functions they exercise
+    (``check_rate_limit``, ``create_access_token``, ``create_user``,
+    ``verify_password``, ``revoke_refresh_token`` …) directly in
+    ``app.api.v1.auth``, so the only live dependency reaching the DB is
+    ``get_db`` — overridden here to yield ``mock_db_session``.
+
+    Auth-bypass for authenticated endpoints is handled by the tests
+    themselves (they set ``app.dependency_overrides[get_current_user]``
+    inline), so we intentionally do NOT override ``get_current_user`` here.
+    """
+    # Preserve any overrides already set, restore them on teardown.
+    saved = dict(app.dependency_overrides)
+
+    async def _override_get_db():
+        yield mock_db_session
+
+    app.dependency_overrides[get_db] = _override_get_db
+
+    client = TestClient(app)
+    try:
+        yield client
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(saved)
