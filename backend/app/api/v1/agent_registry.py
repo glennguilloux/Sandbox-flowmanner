@@ -59,7 +59,7 @@ async def list_agents_registry(
     """List agents for the current user."""
     try:
         offset = (page - 1) * per_page
-        items, total = await list_agents(db, user.id, offset=offset, limit=per_page)
+        items, total = await list_agents(db, str(user.id), offset=offset, limit=per_page)
         pages = (total + per_page - 1) // per_page
         return {
             "items": items,
@@ -85,7 +85,7 @@ async def create_agent_registry(
         return await create_agent(
             db,
             payload.name,
-            user.id,
+            str(user.id),
             payload.description,
             payload.system_prompt,
             payload.model_preference,
@@ -120,7 +120,7 @@ async def register_agent(
         agent = await create_agent(
             db,
             name,
-            user.id,
+            str(user.id),
             description,
             system_prompt,
             model_reference,
@@ -208,7 +208,7 @@ async def start_agent(
         _require_owner(agent, user)
 
         # Update agent status to active
-        agent.status = "active"
+        agent.state = "active"
         await db.flush()
 
         return {

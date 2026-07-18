@@ -17,6 +17,7 @@ REST endpoint: GET /api/v1/workspaces/{id}/presence → { online_user_ids: [...]
 
 import logging
 import time
+from typing import Any
 
 from redis.asyncio import Redis
 
@@ -27,10 +28,10 @@ logger = logging.getLogger(__name__)
 PRESENCE_WS_KEY = "ws_presence:workspace:{workspace_id}"
 PRESENCE_SOCKET_KEY = "ws_presence:socket:{socket_id}"
 
-_redis_client: Redis | None = None
+_redis_client: Any = None
 
 
-async def _get_redis() -> Redis | None:
+async def _get_redis():
     """Get or create the async Redis client for presence tracking."""
     global _redis_client
     if _redis_client is None:

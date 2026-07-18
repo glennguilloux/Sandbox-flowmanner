@@ -249,8 +249,8 @@ async def document_parse(
                 import csv
                 import io
 
-                reader = csv.DictReader(io.StringIO(raw_bytes.decode("utf-8", errors="replace")))
-                rows = list(reader)
+                csv_reader = csv.DictReader(io.StringIO(raw_bytes.decode("utf-8", errors="replace")))
+                rows = list(csv_reader)
                 text_content = "\n".join(", ".join(f"{k}: {v}" for k, v in row.items()) for row in rows[:500])
                 # H5.4: Include actual row data (first 500 rows) + truncation flag
                 structured_data = {
@@ -415,8 +415,8 @@ async def code_execute(
         else:
             from app.tools.python_sandbox import PythonSandboxTool
 
-            tool = PythonSandboxTool()
-            result = await tool.execute(
+            py_tool = PythonSandboxTool()
+            result = await py_tool.execute(
                 {
                     "code": payload.code,
                     "timeout_seconds": payload.timeout_seconds,

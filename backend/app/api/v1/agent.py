@@ -112,7 +112,14 @@ async def create_template(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return await create_agent_template(db, payload.name, payload.description, payload.config, payload.is_public)
+    return await create_agent_template(
+        db,
+        payload.name,
+        payload.description,
+        payload.system_prompt,
+        model_config=payload.config_data,
+        is_active=payload.is_active,
+    )
 
 
 @router.patch("/templates/{template_id}", response_model=AgentTemplateResponse)
@@ -128,10 +135,10 @@ async def patch_template(
     updated = await update_agent_template(
         db,
         template_id,  # type: ignore[arg-type]
-        payload.name,
-        payload.description,
-        payload.config,
-        payload.is_public,
+        name=payload.name,
+        description=payload.description,
+        model_config=payload.config_data,
+        is_active=payload.is_active,
     )
     if updated is None:
         raise _not_found()

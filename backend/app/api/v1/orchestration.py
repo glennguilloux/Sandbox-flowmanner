@@ -72,7 +72,7 @@ def _dt(dt) -> str | None:
 
 
 def _status_to_bool(status: str) -> bool:
-    return status and status.upper() not in ("OFFLINE", "ERROR", "MAINTENANCE")
+    return bool(status) and status.upper() not in ("OFFLINE", "ERROR", "MAINTENANCE")
 
 
 def _task_status_map(status: str) -> str:
@@ -303,7 +303,7 @@ async def delete_agent(
         {"id": agent_id, "uid": user.id},
     )
     await db.commit()
-    if r.rowcount == 0:
+    if r.rowcount == 0:  # type: ignore[attr-defined]
         raise HTTPException(404)
     return {"ok": True}
 
@@ -408,7 +408,7 @@ async def delete_team(
         {"id": team_id, "uid": user.id},
     )
     await db.commit()
-    if r.rowcount == 0:
+    if r.rowcount == 0:  # type: ignore[attr-defined]
         raise HTTPException(404)
     return {"ok": True}
 
@@ -572,6 +572,6 @@ async def delete_task(
         {"id": task_id, "uid": user.id},
     )
     await db.commit()
-    if r.rowcount == 0:
+    if r.rowcount == 0:  # type: ignore[attr-defined]
         raise HTTPException(404)
     return {"ok": True}

@@ -254,7 +254,7 @@ async def fetch_provider_models(
         client = httpx.AsyncClient(timeout=10.0, follow_redirects=False)
         if target_ip:
             client._transport._pool._network_backend = _PinnedNetworkBackend(  # type: ignore[attr-defined]
-                client._transport._pool._network_backend,
+                client._transport._pool._network_backend,  # type: ignore[attr-defined]
                 target_ip,  # type: ignore[attr-defined]
             )
         async with client:
@@ -615,33 +615,33 @@ async def test_key(
     # ``fetch_provider_models`` so the test path and the model-picker path share
     # one implementation.
     api_key = key.get_api_key()
-    result = await fetch_provider_models(provider=key.provider, api_key=api_key, base_url=key.base_url)
-    if result.kind == "ok":
+    models_result = await fetch_provider_models(provider=key.provider, api_key=api_key, base_url=key.base_url)
+    if models_result.kind == "ok":
         return {
             "provider": key.provider,
             "key_name": key.key_label,
             "valid": True,
             "message": "Key is valid",
         }
-    if result.kind == "invalid_key":
+    if models_result.kind == "invalid_key":
         return {
             "provider": key.provider,
             "key_name": key.key_label,
             "valid": False,
             "message": "Invalid API key",
         }
-    if result.kind == "unsafe":
+    if models_result.kind == "unsafe":
         return {
             "provider": key.provider,
             "key_name": key.key_label,
             "valid": False,
-            "message": f"Refusing to test: {result.error}",
+            "message": f"Refusing to test: {models_result.error}",
         }
     return {
         "provider": key.provider,
         "key_name": key.key_label,
         "valid": False,
-        "message": result.error or f"HTTP error ({result.kind})",
+        "message": models_result.error or f"HTTP error ({models_result.kind})",
     }
 
 

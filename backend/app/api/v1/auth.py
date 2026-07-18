@@ -498,12 +498,6 @@ async def get_me(user: User = Depends(get_current_user)):
         is_active=user.is_active,
         avatar_url=user.avatar_url,
         created_at=user.created_at,
-        onboarding_step=user.onboarding_step,
-        onboarding_completed=user.onboarding_completed or False,
-        onboarding_completed_at=user.onboarding_completed_at,
-        onboarding_data=user.onboarding_data,
-        last_login_at=user.last_login_at,
-        login_count=user.login_count or 0,
     )
 
 
@@ -890,7 +884,7 @@ async def _fetch_social_profile(provider: str, access_token: str) -> dict:
     )
 
 
-async def _ensure_oidc_provider(db: AsyncSession, name: str, display_name: str, issuer_url: str) -> int:
+async def _ensure_oidc_provider(db: AsyncSession, name: str, display_name: str, issuer_url: str) -> str:
     """Look up or lazily create an OIDCProvider row, returning its id."""
     from app.models.auth_models import OIDCProvider
 

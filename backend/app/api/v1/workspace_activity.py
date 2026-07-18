@@ -101,11 +101,11 @@ async def get_workspace_activity(
         ActivityItemResponse(
             id=e.id,
             event_type=e.event_type,
-            user_id=e.user_id,
+            user_id=str(e.user_id),
             actor_name=(e.properties or {}).get("actor_name"),
             target_name=(e.properties or {}).get("target_name"),
             description=(e.properties or {}).get("description"),
-            created_at=e.timestamp.isoformat() if e.timestamp else "",
+            created_at=e.timestamp.isoformat() if e.timestamp else "",  # type: ignore[attr-defined]
             properties=e.properties,
         )
         for e in events
@@ -226,7 +226,7 @@ async def get_workspace_overview(
             "user_id": e.user_id,
             "actor_name": (e.properties or {}).get("actor_name"),
             "description": (e.properties or {}).get("description"),
-            "created_at": e.timestamp.isoformat() if e.timestamp else "",
+            "created_at": e.timestamp.isoformat() if e.timestamp else "",  # type: ignore[attr-defined]
         }
         for e in recent_events
     ]
