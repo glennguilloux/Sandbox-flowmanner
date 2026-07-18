@@ -157,6 +157,7 @@ except Exception as e:
 
 from app.api.v1.hermes_studio import router as hermes_studio_router  # Hermes Studio tricks bridge
 from app.api.v1.strategies import router as strategies_router  # P1-2 — strategy metadata
+from app.api.v1.subscription import router as subscription_router  # stub subscription endpoints
 from app.api.v1.substrate import router as substrate_router  # H5.2 — replay events
 
 api_v1_router = APIRouter(prefix="/api")
@@ -246,6 +247,7 @@ for _name, _router in [
     ("strategies", strategies_router),
     ("hermes-studio", hermes_studio_router),
     ("governance", governance_router),
+    ("subscription", subscription_router),
 ]:
     if _router:
         _prefix = None
