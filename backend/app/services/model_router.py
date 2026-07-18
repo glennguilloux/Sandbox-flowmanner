@@ -244,7 +244,7 @@ class ModelRouter:
             "paid_cloud_count": len(self.PAID_CLOUD_MODELS),
         }
 
-    async def get_model_status(self, model_id: str, user_id: int = None, db_session: Session = None) -> dict[str, Any]:
+    async def get_model_status(self, model_id: str, user_id: int = None, db_session: AsyncSession = None) -> dict[str, Any]:
         """Get current status of a model"""
         return self._model_status.get(
             model_id,
@@ -255,7 +255,7 @@ class ModelRouter:
             },
         )
 
-    async def _is_model_available(self, model_id: str, user_id: int = None, db_session: Session = None) -> bool:
+    async def _is_model_available(self, model_id: str, user_id: int = None, db_session: AsyncSession = None) -> bool:
         """Check if a model is available (platform or BYOK).
 
         Args:
@@ -356,7 +356,7 @@ class ModelRouter:
         api_key: str,
         base_url: str,
         user_id: str = None,
-        db_session: Session = None,
+        db_session: AsyncSession = None,
         api_key_id: int = None,
         request_type: str = "chat",
         **kwargs,
@@ -431,11 +431,11 @@ class ModelRouter:
                 try:
                     from app.services.usage_tracking_service import UsageTrackingService
 
-                    user_id_int = int(user_id) if isinstance(user_id, str) and user_id.isdigit() else user_id
+                    user_id_int = int(user_id) if isinstance(user_id, str) and user_id.isdigit() else None
                     UsageTrackingService.log_usage(
                         db=db_session,
                         api_key_id=api_key_id,
-                        user_id=(user_id_int if isinstance(user_id_int, int) else int(user_id_int)),
+                        user_id=user_id_int,
                         model_id=model_id,
                         request_type=request_type,
                         input_tokens=input_tokens,
@@ -556,7 +556,7 @@ class ModelRouter:
         self,
         messages: list,
         user_id: str | int | None = None,
-        db_session: Session = None,
+        db_session: AsyncSession = None,
         model_id: str = None,
         model_preference: str = None,
         is_admin: bool = False,
@@ -625,7 +625,7 @@ class ModelRouter:
         user_id: str,
         is_admin: bool = False,
         user_id_int: int = None,
-        db_session: Session = None,
+        db_session: AsyncSession = None,
         **kwargs,
     ) -> dict:
         """Execute using platform model with BYOK fallback."""

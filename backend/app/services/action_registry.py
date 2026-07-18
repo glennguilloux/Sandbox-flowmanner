@@ -304,7 +304,7 @@ async def execute_action(
 
     start = _time.monotonic()
     try:
-        result = await adapter.execute(
+        action_result = await adapter.execute(
             action=action_name,
             params=params,
             connection=connection,
@@ -320,14 +320,14 @@ async def execute_action(
                 user_id=int(user_id),
                 integration_slug=connection.provider,
                 action=action_name,
-                status="success" if result.get("success") else "failed",
+                status="success" if action_result.get("success") else "failed",
                 latency_ms=latency_ms,
-                error_message=result.get("error") if not result.get("success") else None,
+                error_message=action_result.get("error") if not action_result.get("success") else None,
             )
         except Exception:
             logger.debug("Usage recording failed (non-fatal)", exc_info=True)
 
-        return result
+        return action_result
 
     except Exception as exc:
         latency_ms = int((_time.monotonic() - start) * 1000)

@@ -2,6 +2,7 @@
 
 import logging
 import os
+from typing import Any
 
 from fastapi import APIRouter, Depends
 
@@ -100,7 +101,7 @@ async def get_tradeoff(
     router = _get_router()
 
     # Get available models from environment
-    models = []
+    models: list[dict[str, Any]] = []
     deepseek_key = os.getenv("DEEPSEEK_API_KEY")
     if deepseek_key:
         models.append(

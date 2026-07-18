@@ -13,7 +13,7 @@ from sqlalchemy import func, select
 
 logger = logging.getLogger(__name__)
 import uuid  # FastAPI/Pydantic v2 needs uuid at runtime for path param resolution
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from app.models.mission_models import (
     Mission,
@@ -313,7 +313,7 @@ class MissionQueryHandlers(QueryHandlerBase):
 
                 from .compat import _ACTIVE_RUN_STATUSES
 
-                stmt = (
+                stmt_bp = (
                     select(Blueprint, Run)
                     .join(Run, Run.blueprint_id == Blueprint.id)
                     .where(
@@ -323,7 +323,7 @@ class MissionQueryHandlers(QueryHandlerBase):
                     )
                     .order_by(Run.created_at.desc())
                 )
-                rows = (await self.session.execute(stmt)).all()
+                rows = (await self.session.execute(stmt_bp)).all()
                 return [MissionShim.from_blueprint_run(bp, run) for bp, run in rows]
             # Legacy path: re-fetch from Mission table
             stmt = (
@@ -350,7 +350,7 @@ class MissionQueryHandlers(QueryHandlerBase):
                     workspace_id=workspace_id,
                 )
             )
-            return shims
+            return cast("list[Mission | MissionShim]", shims)
 
         base_filter = Mission.workspace_id == workspace_id if workspace_id is not None else Mission.user_id == user_id
 
@@ -375,7 +375,7 @@ class MissionQueryHandlers(QueryHandlerBase):
                 workspace_id=workspace_id,
             )
         )
-        return missions
+        return cast("list[Mission | MissionShim]", missions)
 
     async def active_missions(
         self,
@@ -471,7 +471,7 @@ class MissionQueryHandlers(QueryHandlerBase):
                 eta = datetime.now(UTC).replace(microsecond=0) + timedelta(seconds=int(avg * remaining))
             response.append(
                 MissionResponse(
-                    id=m.id,
+                    id=uuid.UUID(m.id),
                     user_id=m.user_id,
                     title=m.title,
                     description=m.description,

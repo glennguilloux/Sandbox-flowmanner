@@ -23,10 +23,10 @@ class ProviderFactory:
     Supports user-specific API keys for 'bring your own LLM' feature.
     """
 
-    _instances: dict[type, Any] = {}
+    _instances: dict[str, Any] = {}
 
     @staticmethod
-    def create(provider: str, api_key: str | None = None) -> object | None:
+    def create(provider: str, api_key: str | None = None) -> Any:
         """
         Create and return a provider service instance.
 

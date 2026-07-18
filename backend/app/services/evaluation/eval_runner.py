@@ -7,7 +7,7 @@ import logging
 import time
 import uuid
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -121,7 +121,7 @@ class EvaluationRunner:
 
             # Score results with LLM judge (fixed/deterministic judge model where possible).
             judge = LLMJudge(model=judge_model)
-            scored_results = []
+            scored_results: list[dict[str, Any]] = []
             category_scores: dict[str, list[float]] = {}
 
             for i, case_result in enumerate(case_results):
@@ -131,7 +131,7 @@ class EvaluationRunner:
                         {
                             "test_case_id": tc.id,
                             "task_type": tc.task_type,
-                            "error": str(result),
+                            "error": str(case_result),
                             "overall_score": 0.0,
                             "correct": False,
                             "usage": {},
@@ -148,15 +148,15 @@ class EvaluationRunner:
                     score = await judge.score(
                         input_prompt=tc.input_prompt,
                         expected_behavior=tc.expected_behavior,
-                        actual_output=case_result["output"],
+                        actual_output=case_result.get("output", ""),
                         rubric=tc.rubric,
                     )
                     case_score = score.get("overall_score", 0.0)
                     # Comment 10: capture model-call usage for cost-per-correct-answer.
-                    usage: dict[str, Any] = result.get("usage", {}) if isinstance(result, dict) else {}
-                    cost_usd = float(result.get("cost_usd", 0.0)) if isinstance(result, dict) else 0.0
-                    latency_ms = int(result.get("latency_ms", 0) or 0) if isinstance(result, dict) else 0
-                    provider = result.get("provider") if isinstance(result, dict) else None
+                    usage = case_result.get("usage", {}) if isinstance(case_result, dict) else {}
+                    cost_usd = float(case_result.get("cost_usd", 0.0)) if isinstance(case_result, dict) else 0.0
+                    latency_ms = int(case_result.get("latency_ms", 0) or 0) if isinstance(case_result, dict) else 0
+                    provider = case_result.get("provider") if isinstance(case_result, dict) else None
                     served_model = (
                         case_result.get("served_model") or case_result.get("model") if isinstance(case_result, dict) else model_name
                     )
@@ -199,7 +199,7 @@ class EvaluationRunner:
                     record_eval_test_case(model_name, tc.task_type, case_score >= 3.0)
 
             # Compute aggregates
-            all_scores = [cast(float, r["overall_score"]) for r in scored_results if "error" not in r]
+            all_scores = [r["overall_score"] for r in scored_results if "error" not in r]
             aggregate = sum(all_scores) / len(all_scores) if all_scores else 0.0
 
             avg_by_category = {cat: round(sum(scores) / len(scores), 2) for cat, scores in category_scores.items()}

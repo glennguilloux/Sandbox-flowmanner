@@ -489,7 +489,7 @@ async def eval_stats(
 # ── Templates ───────────────────────────────────────────────────────────
 
 
-EVAL_TEMPLATES = [
+EVAL_TEMPLATES: list[dict[str, Any]] = [
     {
         "id": "code-review",
         "name": "Code Review",
@@ -716,7 +716,7 @@ async def run_benchmark(
     """Run a benchmark: evaluate multiple models against the same dataset and return a leaderboard."""
     runner = EvaluationRunner(db)
 
-    results = []
+    results: list[dict[str, Any]] = []
     for model_name in body.models:
         try:
             eval_run = await runner.run_evaluation(
