@@ -210,10 +210,13 @@ async def delete_thread(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    # Idempotent: an already-deleted thread returns 204, not 404, so a
+    # repeated/stale delete does not surface as a failure to the client.
     thread = await get_chat_thread(db, thread_id)
+    if thread is None:
+        return
     _require_owner(thread, user)
-    if not await delete_chat_thread(db, thread_id):
-        raise _not_found()
+    await delete_chat_thread(db, thread_id)
 
 
 @router.get("/threads/{thread_id}/messages")
