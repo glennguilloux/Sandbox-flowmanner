@@ -712,7 +712,7 @@ class DistributedExecutor:
 
             inspect = current_app.control.inspect()
 
-            stats = {
+            stats: dict[str, Any] = {
                 "available": True,
                 "workers": {},
                 "total_workers": 0,

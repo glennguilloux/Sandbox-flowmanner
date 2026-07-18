@@ -210,11 +210,11 @@ class CapabilityComposer:
                 # Update existing
                 existing.name = composed.name
                 existing.description = composed.description
-                existing.capability_ids = composed.capability_ids
-                existing.composition_type = composed.composition_type.value
-                existing.metadata = composed.metadata
-                existing.execution_count = composed.execution_count
-                existing.last_executed = composed.last_executed
+                existing.capability_ids = composed.capability_ids  # type: ignore[assignment]
+                existing.composition_type = composed.composition_type.value  # type: ignore[attr-defined]
+                existing.metadata = composed.metadata  # type: ignore[misc,assignment]
+                existing.execution_count = composed.execution_count  # type: ignore[attr-defined]
+                existing.last_executed = composed.last_executed  # type: ignore[attr-defined]
             else:
                 # Create new
                 model = ComposedCapabilityModel(

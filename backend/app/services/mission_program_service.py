@@ -143,7 +143,7 @@ class MissionProgramService:
 
     async def create(self, user_id: int, workspace_id: str, payload: ProgramCreate) -> MissionProgram:
         """Insert a new program. Status defaults to ``"active"``."""
-        trigger_cfg = (
+        trigger_cfg: Any = (
             payload.trigger_config.model_dump()
             if hasattr(payload.trigger_config, "model_dump")
             else payload.trigger_config

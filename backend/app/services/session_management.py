@@ -79,10 +79,10 @@ async def get_user_sessions(db: AsyncSession, user_id: int) -> list[dict]:
         sessions.append(
             {
                 "id": token.id,
-                "token_prefix": (token.token[:8] + "..." if len(token.token) > 8 else token.token),
+                "token_prefix": (token.token[:8] + "..." if len(token.token) > 8 else token.token),  # type: ignore[attr-defined]
                 "device_name": token.device_name or "Unknown device",
                 "ip_address": token.ip_address,
-                "user_agent": token.user_agent,
+                "user_agent": token.user_agent,  # type: ignore[attr-defined]
                 "created_at": (token.created_at.isoformat() if token.created_at else None),
                 "last_used_at": (token.last_used_at.isoformat() if token.last_used_at else None),
                 "expires_at": (token.expires_at.isoformat() if token.expires_at else None),
@@ -126,7 +126,7 @@ async def revoke_session(db: AsyncSession, user_id: int, session_id: int | str) 
     if not token:
         return False
 
-    token.is_revoked = True
+    token.is_revoked = True  # type: ignore[attr-defined]
     await db.flush()
     logger.info("v1 session %s revoked for user %s", session_id, user_id)
     return True
@@ -170,7 +170,7 @@ async def revoke_all_other_sessions(db: AsyncSession, user_id: int, current_toke
         )
     )
     for token in result.scalars().all():
-        token.is_revoked = True
+        token.is_revoked = True  # type: ignore[attr-defined]
         count += 1
 
     await db.flush()
@@ -218,5 +218,5 @@ async def update_session_activity(
         if ip_address:
             rt.ip_address = ip_address
         if user_agent:
-            rt.user_agent = user_agent
+            rt.user_agent = user_agent  # type: ignore[attr-defined]
         await db.flush()
