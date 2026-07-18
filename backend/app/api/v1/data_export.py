@@ -10,6 +10,7 @@ import json
 import logging
 import zipfile
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text
@@ -30,7 +31,7 @@ async def export_user_data(
     db: AsyncSession = Depends(get_db),
 ):
     """Export all user data as a ZIP file (GDPR compliance)."""
-    export_data = {}
+    export_data: dict[str, Any] = {}
 
     # 1. User profile
     export_data["profile"] = {
@@ -217,11 +218,11 @@ async def delete_user_data(
         ("team_members", "user_id = :uid"),
     ]
 
-    deleted_counts = {}
+    deleted_counts: dict[str, Any] = {}
     for table, where_clause in tables:
         try:
             result = await db.execute(text(f"DELETE FROM {table} WHERE {where_clause}"), {"uid": user_id})
-            deleted_counts[table] = result.rowcount
+            deleted_counts[table] = result.rowcount  # type: ignore[attr-defined]
         except Exception as e:
             logger.warning("Delete from %s failed: %s", table, e)
             deleted_counts[table] = f"error: {e}"
