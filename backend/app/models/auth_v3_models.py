@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -22,10 +23,13 @@ from sqlalchemy import (
     String,
     Text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models import Base, TimestampMixin, UUIDMixin
-from app.models.user import User
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 # ──────────────────────────────────────────────────────────────
 # AuthSession — explicit session tracking (replaces refresh_tokens)
@@ -69,6 +73,11 @@ class AuthSession(Base, UUIDMixin, TimestampMixin):
     )
     family_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     family_generation: Mapped[int] = mapped_column(Integer, default=0)
+    scopes: Mapped[list[str] | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="OAuth-style scopes granted to this session; None = no scopes assigned",
+    )
 
     __table_args__ = (Index("ix_auth_sessions_user_active", "user_id", "is_active"),)
 

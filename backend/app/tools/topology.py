@@ -91,7 +91,7 @@ class TopologyTool(BaseTool):
                 tool_id=self.tool_id,
                 result={
                     "workflows": [{"id": str(w.id), "name": w.name, "status": w.status} for w in workflows],
-                    "missions": [{"id": str(m.id), "name": m.name} for m in missions],
+                    "missions": [{"id": str(m.id), "name": m.title} for m in missions],
                 },
             )
 
