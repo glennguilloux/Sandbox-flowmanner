@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -12,7 +13,7 @@ from app.api.deps import get_current_user
 from app.api.v2.base import ok, paginated
 from app.api.v2.cursor_pagination import CursorParams, cursor_paginated
 from app.database import get_db
-from app.models.chat import ChatBranch, ChatFolder, ChatMessage, ChatThread
+from app.models.chat import ChatBranch, ChatFolder, ChatMessage, ChatTemplate, ChatThread
 from app.schemas.chat import (
     ChatBranchCreate,
     ChatBranchResponse,
@@ -24,6 +25,10 @@ from app.schemas.chat import (
     ChatMessageCreate,
     ChatMessageResponse,
     ChatMessageUpdate,
+    ChatTemplateCreate,
+    ReactionIn,
+    ChatTemplateInstantiate,
+    ChatTemplateResponse,
     ChatThreadCreate,
     ChatThreadResponse,
     ChatThreadUpdate,
@@ -37,6 +42,7 @@ from app.services.chat_service import (
     delete_chat_branch,
     delete_chat_message,
     delete_chat_thread,
+    generate_thread_title,
     get_chat_branch,
     get_chat_files,
     get_chat_messages,
@@ -48,7 +54,8 @@ from app.services.chat_service import (
     update_chat_message,
     update_chat_thread,
 )
-from app.services.sse_buffer import get_stream_buffer
+from app.services.cost_summary_service import get_chat_cost_summary
+from app.services.sse_buffer import get_stream_buffer, replay_from_buffer
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -210,10 +217,13 @@ async def delete_thread(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    # Idempotent: an already-deleted thread returns 204, not 404, so a
+    # repeated/stale delete does not surface as a failure to the client.
     thread = await get_chat_thread(db, thread_id)
+    if thread is None:
+        return
     _require_owner(thread, user)
-    if not await delete_chat_thread(db, thread_id):
-        raise _not_found()
+    await delete_chat_thread(db, thread_id)
 
 
 @router.get("/threads/{thread_id}/messages")
@@ -508,3 +518,277 @@ async def chat_with_llm_stream(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Chat v2 promotion (2026-07-18): ported v1-only routes into v2.
+# Every handler below uses the v2 envelope (ok/paginated) and the local
+# _require_owner owner check, NOT v1's require_chat_thread_access. SSE replay
+# and thread export are envelope-exempt (stream/file responses).
+# SECURITY NOTE: v1 shipped /streams/{id}/replay with NO auth dependency
+# (any anonymous caller could replay buffered SSE) and templates CRUD with no
+# per-user ownership (BOLA/IDOR). Both holes are closed here.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get("/costs")
+async def chat_costs(
+    days: int = Query(30, ge=1, le=365, description="Look-back window in days"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Per-user chat cost summary (FE CostSummary shape).
+
+    Re-maps the legacy /api/chat/costs call (which 404s on v1) to v2, under the
+    envelope, scoped to the authenticated user (401 without a valid JWT).
+    """
+    summary = await get_chat_cost_summary(user, db, days=days)
+    return ok(summary)
+
+
+# ── SSE stream replay endpoint (port of v1 /streams/{id}/replay into v2) ──
+@router.get("/streams/{stream_id}/replay")
+async def replay_stream(
+    stream_id: str,
+    since: str = Query("0", description="Replay events with stream entry ID > since"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),  # HARDENING: v1 had NO auth
+):
+    """Replay buffered SSE events for a stream (for client reconnection).
+
+    ``since`` is a Redis Stream entry ID. Returns 404 if the buffer has expired
+    or never existed. Returns the v2 envelope ``{data: {events, stream_id}}``.
+    """
+    events = await replay_from_buffer(stream_id, since_seq=since)
+    if events is None:
+        raise _not_found()
+    return ok({"events": events, "stream_id": stream_id})
+
+
+# Export endpoint
+@router.get("/threads/{thread_id}/export")
+async def export_thread(
+    thread_id: int,
+    format: str = Query("markdown"),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    from fastapi.responses import PlainTextResponse
+
+    thread = await get_chat_thread(db, thread_id)
+    _require_owner(thread, user)
+    msgs, _ = await get_chat_messages(db, thread_id)
+    if format == "json":
+        return {
+            "thread_id": thread.id,
+            "title": thread.title,
+            "messages": [
+                {
+                    "id": m.id,
+                    "role": m.role,
+                    "content": m.content,
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                }
+                for m in msgs
+            ],
+        }
+    lines = ["# " + (thread.title or "Untitled"), ""]
+    for m in msgs:
+        rl = "**User**" if m.role == "user" else "**Assistant**" if m.role == "assistant" else "**System**"
+        ts = m.created_at.strftime("%Y-%m-%d %H:%M") if m.created_at else ""
+        lines.append("### " + rl + (" (" + ts + ")" if ts else ""))
+        lines.append("")
+        lines.append(m.content)
+        lines.append("")
+        lines.append("---")
+        lines.append("")
+    md = "\n".join(lines)
+    return PlainTextResponse(
+        content=md,
+        media_type="text/markdown",
+        headers={"Content-Disposition": "attachment; filename=" + (thread.title or "thread").replace(" ", "_") + ".md"},
+    )
+
+
+# Auto-title endpoint
+@router.post("/threads/{thread_id}/title")
+async def generate_title(
+    thread_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    thread = await get_chat_thread(db, thread_id)
+    _require_owner(thread, user)
+    title = await generate_thread_title(db, thread_id)
+    if title is None:
+        return ok({"title": None, "message": "Not enough messages to generate a title"})
+    return ok({"title": title})
+
+
+# Metadata PATCH
+@router.patch("/threads/{thread_id}/metadata")
+async def update_thread_metadata(
+    thread_id: int,
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    thread = await get_chat_thread(db, thread_id)
+    _require_owner(thread, user)
+    meta = dict(thread.metadata_) if thread.metadata_ else {}
+    if "tags" in payload:
+        meta["tags"] = payload["tags"]
+    if "is_starred" in payload:
+        meta["is_starred"] = payload["is_starred"]
+    thread.metadata_ = meta
+    await db.flush()
+    await db.refresh(thread)
+    return ok({"id": thread.id, "metadata": meta})
+
+
+# ── Message reactions (formerly phantom route — SSEChat.tsx:493) ──
+def _load_reactions(message: ChatMessage) -> dict[str, int]:
+    if not message.reactions:
+        return {}
+    try:
+        data = json.loads(message.reactions)
+    except (ValueError, TypeError):
+        return {}
+    return {str(k): int(v) for k, v in data.items() if str(k) and int(v) > 0}
+
+
+@router.post("/messages/{message_id}/react")
+async def react_message(
+    message_id: int,
+    payload: ReactionIn,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = await db.execute(select(ChatMessage).where(ChatMessage.id == message_id))
+    message = result.scalar_one_or_none()
+    if message is None:
+        raise _not_found()
+    thread = await get_chat_thread(db, message.thread_id)
+    _require_owner(thread, user)
+    reactions = _load_reactions(message)
+    reactions[payload.reaction] = reactions.get(payload.reaction, 0) + 1
+    message.reactions = json.dumps(reactions)
+    await db.flush()
+    return ok({"id": message_id, "reactions": reactions})
+
+
+@router.delete("/messages/{message_id}/react", status_code=status.HTTP_204_NO_CONTENT)
+async def unreact_message(
+    message_id: int,
+    payload: ReactionIn,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = await db.execute(select(ChatMessage).where(ChatMessage.id == message_id))
+    message = result.scalar_one_or_none()
+    if message is None:
+        raise _not_found()
+    thread = await get_chat_thread(db, message.thread_id)
+    _require_owner(thread, user)
+    reactions = _load_reactions(message)
+    if payload.reaction in reactions:
+        if reactions[payload.reaction] > 1:
+            reactions[payload.reaction] -= 1
+        else:
+            del reactions[payload.reaction]
+        message.reactions = json.dumps(reactions) if reactions else None
+        await db.flush()
+    return
+
+
+# ── Template CRUD (ported from v1 chat.py:541-611 WITH per-user ownership). ──
+# SECURITY: v1 list_templates returned EVERY user's templates (BOLA); v1
+# instantiate/delete loaded a template by id with NO ownership assertion (IDOR).
+# v2 scopes reads to created_by == user.id and asserts ownership (404, not 403)
+# before any instantiate/delete. ChatTemplate.workspace_id is a legacy Integer
+# column incompatible with the real String(36) workspace PK; ownership is
+# enforced via created_by. FOLLOW-UP: migrate workspace_id -> FK and scope by
+# real workspace membership.
+_LEGACY_DEFAULT_WORKSPACE_ID = 1
+
+
+@router.get("/templates")
+async def list_templates(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(ChatTemplate).where(ChatTemplate.created_by == user.id).order_by(ChatTemplate.name)
+    )
+    templates = result.scalars().all()
+    return ok([ChatTemplateResponse.model_validate(t).model_dump() for t in templates])
+
+
+@router.post("/templates", status_code=status.HTTP_201_CREATED)
+async def create_template(
+    payload: ChatTemplateCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    template = ChatTemplate(
+        workspace_id=_LEGACY_DEFAULT_WORKSPACE_ID,
+        name=payload.name,
+        description=payload.description,
+        system_prompt=payload.system_prompt,
+        model=payload.model,
+        temperature=payload.temperature,
+        max_tokens=payload.max_tokens,
+        created_by=user.id,
+    )
+    db.add(template)
+    await db.flush()
+    await db.refresh(template)
+    return ok(ChatTemplateResponse.model_validate(template).model_dump())
+
+
+@router.post("/templates/{template_id}/instantiate", status_code=status.HTTP_201_CREATED)
+async def instantiate_template(
+    template_id: int,
+    payload: ChatTemplateInstantiate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(ChatTemplate).where(
+            ChatTemplate.id == template_id,
+            ChatTemplate.created_by == user.id,
+        )
+    )
+    template = result.scalar_one_or_none()
+    if template is None:
+        # Absent OR not owned -> 404 (do not leak existence to a non-owner).
+        raise _not_found()
+    meta: dict[str, str] = {}
+    if template.model:
+        meta["model_preference"] = template.model
+    if template.system_prompt:
+        meta["system_prompt"] = template.system_prompt
+    thread = ChatThread(title=payload.title, user_id=user.id, username=user.username, metadata_=meta)
+    db.add(thread)
+    await db.flush()
+    await db.refresh(thread)
+    return ok(ChatThreadResponse.model_validate(thread).model_dump())
+
+
+@router.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_template(
+    template_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(ChatTemplate).where(
+            ChatTemplate.id == template_id,
+            ChatTemplate.created_by == user.id,
+        )
+    )
+    template = result.scalar_one_or_none()
+    if template is None:
+        raise _not_found()
+    await db.delete(template)
+    await db.flush()

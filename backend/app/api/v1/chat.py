@@ -38,6 +38,7 @@ from app.services.chat_service import (
     get_chat_branch,
     get_chat_files,
     get_chat_messages,
+    get_chat_thread,
     list_chat_branches,
     list_chat_threads,
     require_chat_thread_access,
@@ -200,9 +201,13 @@ async def delete_thread(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    # Idempotent: a thread that is already gone (or was deleted elsewhere)
+    # returns 204 rather than 404, so a repeated or stale delete request does
+    # not surface to the client as a failure (and orphan the row in the UI).
+    if await get_chat_thread(db, thread_id) is None:
+        return
     await require_chat_thread_access(db, thread_id, user.id)
-    if not await delete_chat_thread(db, thread_id):
-        raise _not_found()
+    await delete_chat_thread(db, thread_id)
 
 
 @router.get("/threads/{thread_id}/messages", response_model=list[ChatMessageResponse])
