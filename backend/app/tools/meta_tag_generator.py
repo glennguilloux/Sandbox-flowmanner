@@ -339,28 +339,28 @@ class MetaTagGeneratorTool(BaseTool):
         """Extract existing title and meta description from HTML."""
         title = None
         if soup.title and soup.title.string:
-            title = soup.title.string.strip()
+            title = str(soup.title.string).strip()
 
         description = None
         meta_desc = soup.find("meta", attrs={"name": "description"})
         if meta_desc and meta_desc.get("content"):
-            description = meta_desc["content"].strip()
+            description = str(meta_desc["content"]).strip()
 
         # Also extract OG and Twitter tags for full picture
         og_title = None
         og_tag = soup.find("meta", property="og:title")
         if og_tag and og_tag.get("content"):
-            og_title = og_tag["content"].strip()
+            og_title = str(og_tag["content"]).strip()
 
         og_desc = None
         og_desc_tag = soup.find("meta", property="og:description")
         if og_desc_tag and og_desc_tag.get("content"):
-            og_desc = og_desc_tag["content"].strip()
+            og_desc = str(og_desc_tag["content"]).strip()
 
         twitter_title = None
         tw_tag = soup.find("meta", attrs={"name": "twitter:title"})
         if tw_tag and tw_tag.get("content"):
-            twitter_title = tw_tag["content"].strip()
+            twitter_title = str(tw_tag["content"]).strip()
 
         return {
             "title": title,

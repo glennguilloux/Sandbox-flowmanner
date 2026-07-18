@@ -125,8 +125,8 @@ class ContentExtractor:
         # Extract metadata
         metadata = {}
         for meta in soup.find_all("meta"):
-            name = meta.get("name") or meta.get("property", "")
-            content = meta.get("content", "")
+            name = str(meta.get("name") or meta.get("property", ""))
+            content = str(meta.get("content", ""))
             if name and content:
                 metadata[name] = content
 
@@ -151,14 +151,14 @@ class ContentExtractor:
         # Extract links
         links = []
         for a in soup.find_all("a", href=True):
-            href = a["href"]
+            href = str(a["href"])
             if href.startswith("http"):
                 links.append(href)
 
         # Extract images
         images = []
         for img in soup.find_all("img", src=True):
-            images.append({"src": img["src"], "alt": img.get("alt", "")})
+            images.append({"src": str(img["src"]), "alt": str(img.get("alt", ""))})
 
         # Calculate quality score
         quality_score = self._calculate_quality(text, metadata)

@@ -27,7 +27,7 @@ CeleryIntegration = None
 SamplingContext = None
 
 try:
-    import sentry_sdk  # type: ignore[no-redef]
+    import sentry_sdk  # type: ignore[assignment,no-redef]
 
     SENTRY_AVAILABLE = True
 except ImportError:
@@ -35,23 +35,23 @@ except ImportError:
 
 if SENTRY_AVAILABLE:
     try:
-        from sentry_sdk.integrations.fastapi import FastApiIntegration  # type: ignore[no-redef]
+        from sentry_sdk.integrations.fastapi import FastApiIntegration  # type: ignore[assignment,no-redef]
     except ImportError:
         logger.debug("sentry-sdk FastApiIntegration not available")
     try:
-        from sentry_sdk.integrations.redis import RedisIntegration  # type: ignore[no-redef]
+        from sentry_sdk.integrations.redis import RedisIntegration  # type: ignore[assignment,no-redef]
     except ImportError:
         logger.debug("sentry-sdk RedisIntegration not available")
     try:
-        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration  # type: ignore[no-redef]
+        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration  # type: ignore[assignment,no-redef]
     except ImportError:
         logger.debug("sentry-sdk SqlalchemyIntegration not available")
     try:
-        from sentry_sdk.integrations.celery import CeleryIntegration  # type: ignore[no-redef]
+        from sentry_sdk.integrations.celery import CeleryIntegration  # type: ignore[assignment,no-redef]
     except ImportError:
         logger.debug("sentry-sdk CeleryIntegration not available")
     try:
-        from sentry_sdk.tracing import SamplingContext  # type: ignore[no-redef]
+        from sentry_sdk.tracing import SamplingContext  # type: ignore[assignment,no-redef]
     except ImportError:
         logger.debug("sentry-sdk SamplingContext not available")
 

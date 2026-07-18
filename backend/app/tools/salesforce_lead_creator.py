@@ -201,6 +201,7 @@ class SalesforceLeadCreatorTool(BaseTool):
                 "errors": data.get("errors", []),
             }
         resp.raise_for_status()
+        return {"error": "unexpected response from Salesforce", "action": "create_lead"}
 
     async def _update_lead(
         self,
@@ -221,6 +222,7 @@ class SalesforceLeadCreatorTool(BaseTool):
                 "id": lead_id,
             }
         resp.raise_for_status()
+        return {"error": "unexpected response from Salesforce", "action": "update_lead"}
 
     async def _get_lead(
         self,
@@ -309,6 +311,7 @@ class SalesforceLeadCreatorTool(BaseTool):
                 "opportunity_id": data.get("opportunityId"),
             }
         resp.raise_for_status()
+        return {"error": "unexpected response from Salesforce", "action": "convert_lead"}
 
     # ── SOQL ─────────────────────────────────────────────────────
 

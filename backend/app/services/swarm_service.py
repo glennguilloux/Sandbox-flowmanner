@@ -89,7 +89,7 @@ async def delete_swarm(db: AsyncSession, swarm_id) -> bool:
 async def add_agent_to_swarm(
     db: AsyncSession,
     swarm_id: str,
-    template_id: int,
+    template_id: str,
     role: str | None = None,
     assigned_model: str | None = None,
 ) -> SwarmAgent | None:
@@ -97,7 +97,7 @@ async def add_agent_to_swarm(
     if not swarm:
         return None
 
-    tmpl_result = await db.execute(select(AgentTemplate).where(AgentTemplate.id == template_id))
+    tmpl_result = await db.execute(select(AgentTemplate).where(AgentTemplate.template_id == template_id))
     template = tmpl_result.scalars().first()
     if not template:
         return None
@@ -108,9 +108,9 @@ async def add_agent_to_swarm(
         agent_template_id=template_id,
         role=role or template.agent_type,
         display_name=template.name,
-        capabilities=template.capabilities,
-        specializations=template.specializations,
-        assigned_model=assigned_model or template.default_model,
+        capabilities=(template.model_config or {}).get("capabilities"),
+        specializations=(template.model_config or {}).get("specializations"),
+        assigned_model=assigned_model or (template.model_config or {}).get("default_model"),
         status="idle",
     )
     db.add(agent)
@@ -131,7 +131,7 @@ async def add_agent_by_slug(
     if not template:
         logger.warning("Agent template not found for slug: %s", slug)
         return None
-    return await add_agent_to_swarm(db, swarm_id, template.id, role, assigned_model)
+    return await add_agent_to_swarm(db, swarm_id, template.template_id, role, assigned_model)
 
 
 async def populate_swarm_from_division(db: AsyncSession, swarm_id: str, division: str) -> list[SwarmAgent]:
@@ -148,7 +148,7 @@ async def populate_swarm_from_division(db: AsyncSession, swarm_id: str, division
 
     agents = []
     for template in templates:
-        agent = await add_agent_to_swarm(db, swarm_id, template.id)
+        agent = await add_agent_to_swarm(db, swarm_id, template.template_id)
         if agent:
             agents.append(agent)
 
