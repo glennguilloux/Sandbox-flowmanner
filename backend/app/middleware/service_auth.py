@@ -1,4 +1,5 @@
 import logging
+import time
 from functools import wraps
 from typing import Any
 
@@ -17,10 +18,8 @@ class ServiceAuthManager:
         payload = {
             "service": service_name,
             "endpoints": allowed_endpoints,
-            "exp": jwt.utils.get_int_from_datetime(
-                jwt.utils.datetime_from_timestamp(jwt.utils.time.time() + expires_hours * 3600)
-            ),
-            "iat": jwt.utils.time.time(),
+            "exp": int(time.time()) + expires_hours * 3600,
+            "iat": int(time.time()),
         }
         return jwt.encode(payload, self.secret_key, algorithm="HS256")
 
@@ -163,7 +162,7 @@ class ServiceRegistry:
         self.services[name] = {
             "description": description,
             "allowed_endpoints": allowed_endpoints,
-            "created_at": jwt.utils.time.time(),
+            "created_at": int(time.time()),
         }
 
     def get_service_permissions(self, name: str) -> dict[str, Any] | None:

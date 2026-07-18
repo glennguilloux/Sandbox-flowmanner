@@ -339,7 +339,7 @@ class OpenWhiskIntegrationController:
         """
         import os
 
-        action_files: list[str] = []
+        action_files: list[dict[str, Any]] = []
 
         if not os.path.exists(actions_dir):
             logger.warning("Actions directory not found: %s", actions_dir)

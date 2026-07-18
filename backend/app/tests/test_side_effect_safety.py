@@ -83,10 +83,10 @@ def _make_workflow(node: WorkflowNode) -> Workflow:
 
 
 def _make_executor(log: _FakeEventLog) -> UnifiedExecutor:
-    ex = UnifiedExecutor(event_log=log, replay_engine=MagicMock())
-    ex.budget_enforcer = MagicMock()
-    ex.is_aborted = MagicMock(return_value=False)
-    ex.check_circuit_breaker = AsyncMock(return_value=(True, ""))
+    ex = UnifiedExecutor(event_log=log, replay_engine=MagicMock())  # type: ignore[arg-type]
+    ex.budget_enforcer = MagicMock()  # type: ignore[attr-defined]
+    ex.is_aborted = MagicMock(return_value=False)  # type: ignore[method-assign]
+    ex.check_circuit_breaker = AsyncMock(return_value=(True, ""))  # type: ignore[method-assign]
     return ex
 
 
