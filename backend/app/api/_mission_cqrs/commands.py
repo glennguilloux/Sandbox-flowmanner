@@ -10,7 +10,7 @@ from sqlalchemy import select, text
 
 logger = logging.getLogger(__name__)
 import uuid  # FastAPI/Pydantic v2 needs uuid at runtime for path param resolution
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from app.models.mission_advanced_models import MissionTemplate
 from app.models.mission_models import (
@@ -1022,7 +1022,7 @@ class MissionCommandHandlers(CommandHandlerBase):
 
             if self.audit:
                 self.audit.mission_aborted(
-                    mission_id=mission.id,
+                    mission_id=cast(uuid.UUID, mission.id),
                     actor_id=user.id,
                     old_status=prev_status,
                     abort_reason=abort_reason.value,

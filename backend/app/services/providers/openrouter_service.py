@@ -11,7 +11,7 @@ import logging
 import os
 import time
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -138,7 +138,7 @@ class OpenRouterService:
         payload.update(kwargs)
 
         # Make request with retry logic
-        last_error = None
+        last_error: Exception | None = None
         for attempt in range(self.max_retries):
             try:
                 response = await self._make_request(payload, request_id)
@@ -332,7 +332,7 @@ class OpenRouterService:
             redis_client = redis.Redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/2"), decode_responses=True)
             cached = redis_client.get(key)
             if cached:
-                return json.loads(cached)
+                return cast("dict[str, Any]", json.loads(cast("str", cached)))
         except Exception as e:
             logger.warning("Cache read error: %s", e)
         return None

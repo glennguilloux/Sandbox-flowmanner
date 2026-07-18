@@ -19,6 +19,7 @@ import logging
 import re
 import time
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -916,7 +917,7 @@ class MissionPlanner:
                 self._plan_budget
                 if getattr(self, "_plan_budget", None)
                 else Budget(
-                    max_cost_usd=getattr(settings, "MISSION_PLAN_MAX_COST_USD", 0.05),
+                    max_cost_usd=getattr(settings, "MISSION_PLAN_MAX_COST_USD", Decimal("0.05")),
                     max_wall_time_seconds=getattr(settings, "MISSION_PLAN_MAX_WALL_SECONDS", 120),
                     max_iterations=1,
                     max_depth=1,

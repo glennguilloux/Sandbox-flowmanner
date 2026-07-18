@@ -40,7 +40,7 @@ import asyncio
 import logging
 import uuid
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import Text, and_, func, or_, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -936,7 +936,7 @@ class PersonalMemoryService:
         if items:
             new_ts = datetime.now(UTC)
             for c in items:
-                c.last_used_at = new_ts
+                c.last_used_at = cast("Any", new_ts)
             await self.db.flush()
             self._safe_audit(
                 "claim_recalled",
@@ -1104,7 +1104,7 @@ class PersonalMemoryService:
             )
             return claim
 
-        claim.deleted_at = datetime.now(UTC)
+        claim.deleted_at = cast("Any", datetime.now(UTC))
         await self.db.flush()
         await self.db.refresh(claim)
         logger.info(

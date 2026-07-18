@@ -546,3 +546,9 @@ class AgentCapabilityRegistrar:
     def _count_by_field(self, items: list[Any], field: str) -> dict[str, int]:
         """Count items by a field value"""
         counts: dict[str, int] = {}
+        for item in items:
+            value = getattr(item, field, None)
+            if value is not None:
+                key = str(value)
+                counts[key] = counts.get(key, 0) + 1
+        return counts

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class MTLSValidator:
     def __init__(self, ca_cert_path: str):
         self.ca_cert_path = ca_cert_path
-        self._context = None
+        self._context: ssl.SSLContext | None = None
 
     @property
     def context(self) -> ssl.SSLContext:

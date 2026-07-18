@@ -27,7 +27,7 @@ class ComfyUIHandler(BaseToolHandler):
         super().__init__("execute_comfyui_workflow", "Execute ComfyUI Workflow")
         self.comfyui_base_url = comfyui_base_url.rstrip("/")
         self.client_id = client_id
-        self.session = None
+        self.session: aiohttp.ClientSession | None = None
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session"""

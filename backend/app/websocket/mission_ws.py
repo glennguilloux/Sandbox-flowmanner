@@ -13,8 +13,12 @@ Events handled:
 """
 
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
+sio: Any
+ws_app: Any
 
 try:
     import socketio

@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 logger = logging.getLogger(__name__)
 
@@ -281,7 +281,7 @@ class OpenAICompatibleAdapter:
         try:
             resp = await client.chat.completions.create(
                 model=self.upstream_model,
-                messages=messages,
+                messages=cast("list[Any]", messages),
                 max_tokens=max_tokens,
                 temperature=temperature,
             )

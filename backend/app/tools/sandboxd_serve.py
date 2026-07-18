@@ -89,6 +89,8 @@ class SandboxdServeTool(BaseTool):
             },
             tags=["sandbox", "serve", "preview", "server"],
             requires_auth=False,
+            requires_sandbox=False,
+            rate_limit_key=None,
             timeout_seconds=45,
         )
         super().__init__(metadata=metadata)

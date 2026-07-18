@@ -84,7 +84,7 @@ class WorkflowConfigManager:
                 return {"success": False, "error": "config_data must be a dictionary"}
 
             # Create config record
-            db = SessionLocal()
+            db: Any = SessionLocal()
             try:
                 config = WorkflowConfig(
                     config_id=config_id,
@@ -148,7 +148,7 @@ class WorkflowConfigManager:
             # Load from database
             from app.database import SessionLocal
 
-            db = SessionLocal()
+            db: Any = SessionLocal()
             try:
                 config = (
                     db.query(WorkflowConfig)
@@ -198,7 +198,7 @@ class WorkflowConfigManager:
         try:
             from app.database import SessionLocal
 
-            db = SessionLocal()
+            db: Any = SessionLocal()
             try:
                 config = (
                     db.query(WorkflowConfig)
@@ -256,7 +256,7 @@ class WorkflowConfigManager:
         try:
             from app.database import SessionLocal
 
-            db = SessionLocal()
+            db: Any = SessionLocal()
             try:
                 query = db.query(WorkflowConfig).filter(WorkflowConfig.is_active == "true")
 
@@ -303,7 +303,7 @@ class WorkflowConfigManager:
         try:
             from app.database import SessionLocal
 
-            db = SessionLocal()
+            db: Any = SessionLocal()
             try:
                 config = (
                     db.query(WorkflowConfig)
@@ -360,7 +360,7 @@ class WorkflowConfigManager:
         try:
             from app.database import SessionLocal
 
-            db = SessionLocal()
+            db: Any = SessionLocal()
             try:
                 config = db.query(WorkflowConfig).filter(WorkflowConfig.config_id == config_id).first()
 
@@ -413,7 +413,7 @@ class WorkflowConfigManager:
             # Calculate expiration
             expires_at = datetime.now(UTC) + timedelta(seconds=self.session_ttl)
 
-            db = SessionLocal()
+            db: Any = SessionLocal()
             try:
                 # Check if exists
                 session = db.query(SessionState).filter(SessionState.session_id == session_id).first()
@@ -461,7 +461,7 @@ class WorkflowConfigManager:
         try:
             from app.database import SessionLocal
 
-            db = SessionLocal()
+            db: Any = SessionLocal()
             try:
                 session = (
                     db.query(SessionState)
@@ -497,7 +497,7 @@ class WorkflowConfigManager:
         try:
             from app.database import SessionLocal
 
-            db = SessionLocal()
+            db: Any = SessionLocal()
             try:
                 deleted = db.query(SessionState).filter(SessionState.session_id == session_id).delete()
                 db.commit()
