@@ -108,7 +108,7 @@ class OpenWhiskAPIGateway:
         self.auth_manager = auth_manager
         self.routes: dict[str, Route] = {}
         self.rate_limiter = RequestLimiter() if enable_rate_limiting else None
-        self.metrics = {
+        self.metrics: dict[str, Any] = {
             "total_requests": 0,
             "successful_requests": 0,
             "failed_requests": 0,
@@ -366,7 +366,7 @@ class OpenWhiskAPIGateway:
         }
         logger.info("Metrics reset")
 
-    def list_routes(self) -> list[dict[str, str]]:
+    def list_routes(self) -> list[dict[str, Any]]:
         """
         List all registered routes
 

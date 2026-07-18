@@ -29,15 +29,17 @@ async def synthesize_feedback(
     a structured feedback report.
     """
     # Load mission and tasks
-    mission = await db.execute(select(Mission).where(Mission.id == mission_id))
-    mission = mission.scalar_one_or_none()
+    mission = (await db.execute(select(Mission).where(Mission.id == mission_id))).scalar_one_or_none()
     if not mission:
         raise ValueError("Mission not found")
 
-    tasks = await db.execute(
-        select(MissionTask).where(MissionTask.mission_id == mission_id).order_by(MissionTask.order_index)
+    tasks = list(
+        (
+            await db.execute(
+                select(MissionTask).where(MissionTask.mission_id == mission_id).order_by(MissionTask.order_index)
+            )
+        ).scalars().all()
     )
-    tasks = list(tasks.scalars().all())
 
     # Analyze tasks
     task_analysis = []
@@ -142,10 +144,9 @@ async def get_feedback_report(db: AsyncSession, report_id: str) -> FeedbackRepor
 async def list_feedback_reports(
     db: AsyncSession, mission_id: str, offset: int = 0, limit: int = 20
 ) -> tuple[list[FeedbackReport], int]:
-    total = await db.execute(
+    total = (await db.execute(
         select(func.count()).select_from(FeedbackReport).where(FeedbackReport.mission_id == mission_id)
-    )
-    total = total.scalar() or 0
+    )).scalar() or 0
 
     result = await db.execute(
         select(FeedbackReport)
@@ -171,8 +172,7 @@ async def list_feedback_patterns(
     if status:
         query = query.where(FeedbackPattern.status == status)
 
-    total = await db.execute(select(func.count()).select_from(query.subquery()))
-    total = total.scalar() or 0
+    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
 
     result = await db.execute(query.order_by(desc(FeedbackPattern.frequency)).offset(offset).limit(limit))
     return list(result.scalars().all()), total
@@ -193,8 +193,7 @@ async def update_feedback_pattern(db: AsyncSession, pattern_id: str, **kwargs) -
 
 async def get_feedback_analytics(db: AsyncSession, user_id: int) -> dict:
     """Aggregate feedback analytics for a user."""
-    reports = await db.execute(select(FeedbackReport).where(FeedbackReport.user_id == user_id))
-    reports = list(reports.scalars().all())
+    reports = list((await db.execute(select(FeedbackReport).where(FeedbackReport.user_id == user_id))).scalars().all())
 
     if not reports:
         return {
@@ -221,13 +220,12 @@ async def get_feedback_analytics(db: AsyncSession, user_id: int) -> dict:
     ]
 
     # Top patterns
-    patterns = await db.execute(
+    patterns = list((await db.execute(
         select(FeedbackPattern)
         .where(FeedbackPattern.user_id == user_id, FeedbackPattern.status == "active")
         .order_by(desc(FeedbackPattern.frequency))
         .limit(5)
-    )
-    patterns = list(patterns.scalars().all())
+    )).scalars().all())
     top_patterns = [
         {
             "type": p.pattern_type,

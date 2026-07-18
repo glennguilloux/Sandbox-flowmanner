@@ -3,6 +3,12 @@ ignore_missing_imports = true
 no_strict_optional = true
 disable_error_code = ["annotation-unchecked"]
 namespace_packages = false
+# Load the SQLAlchemy mypy plugin so ORM Result[Tuple[...]] generics resolve
+# correctly. This MUST be present here (the repo root config) because the
+# pre-commit mypy hook runs from the repo root and discovers THIS file; the
+# backend/pyproject.toml copy alone is not seen by the hook. (The --plugins
+# CLI flag does not exist in mypy 1.8-1.11.)
+plugins = ["sqlalchemy.ext.mypy.plugin"]
 
 [[tool.mypy.overrides]]
 module = "app.migrations.versions.*"
