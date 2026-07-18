@@ -110,7 +110,7 @@ class RuntimeSDK:
         data = await self._request("GET", "/api/runtime/queue/stats")
         return QueueStats(**data)
 
-    async def get_queue_items(self, status: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+    async def get_queue_items(self, status: str | None = None, limit: int = 100) -> dict[str, Any]:
         """Get items in the execution queue"""
         params = {"limit": limit}
         if status:
@@ -239,7 +239,7 @@ class RuntimeSDK:
         """Get resource predictions"""
         return await self._request("GET", "/api/runtime/predictions")
 
-    async def get_anomalies(self, hours: int = 24) -> list[dict[str, Any]]:
+    async def get_anomalies(self, hours: int = 24) -> dict[str, Any]:
         """Get detected anomalies"""
         return await self._request("GET", "/api/runtime/anomalies", params={"hours": hours})
 
@@ -255,7 +255,7 @@ class RuntimeSDK:
         """Get system health status"""
         return await self._request("GET", "/api/runtime/health/system")
 
-    async def get_recovery_history(self, hours: int = 24) -> list[dict[str, Any]]:
+    async def get_recovery_history(self, hours: int = 24) -> dict[str, Any]:
         """Get recovery attempt history"""
         return await self._request("GET", "/api/runtime/recovery/history", params={"hours": hours})
 

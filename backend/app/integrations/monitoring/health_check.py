@@ -195,10 +195,14 @@ class HealthCheck:
         start_time = datetime.now(UTC)
 
         # Run all checks concurrently
-        openwhisk_health: dict[str, Any] | BaseException
-        gateway_health: dict[str, Any] | BaseException
-        actions_health: dict[str, Any] | BaseException
-        openwhisk_health, gateway_health, actions_health = await asyncio.gather(
+        openwhisk_health: dict[str, Any]
+        gateway_health: dict[str, Any]
+        actions_health: dict[str, Any]
+        (
+            openwhisk_health,
+            gateway_health,
+            actions_health,
+        ) = await asyncio.gather(  # type: ignore[assignment]
             self.check_openwhisk(),
             self.check_gateway(),
             self.check_actions(),

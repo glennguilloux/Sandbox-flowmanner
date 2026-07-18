@@ -138,16 +138,14 @@ class ConnectorManager:
             try:
                 # Create connector config
                 connector_config = ConnectorConfig(
-                    connector_id=connector_id,
                     name=config.get("name", connector_id),
+                    connector_type=connector_type,
                     base_url=config.get("base_url"),
                     auth_type=config.get("auth_type"),
                     auth_config=config.get("auth_config", {}),
                     headers=config.get("headers"),
                     timeout=config.get("timeout", 30.0),
                     rate_limit=config.get("rate_limit"),
-                    retry_config=config.get("retry_config"),
-                    metadata=config.get("metadata", {}),
                 )
 
                 # Create connector instance

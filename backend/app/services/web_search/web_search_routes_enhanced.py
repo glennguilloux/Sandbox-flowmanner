@@ -3,6 +3,7 @@ Enhanced Web Search API Routes with AI features
 """
 
 import logging
+from dataclasses import asdict
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -102,12 +103,15 @@ async def extract_content(
         if not content:
             raise HTTPException(status_code=404, detail="Could not extract content")
 
-        # Truncate if needed
-        if len(content.get("text", "")) > max_length:  # type: ignore[attr-defined]
-            content["text"] = content["text"][:max_length] + "..."
-            content["truncated"] = True
+        # Convert dataclass to dict for JSON response + truncation
+        content_dict = asdict(content)
 
-        return content
+        # Truncate if needed
+        if len(content_dict.get("text", "")) > max_length:
+            content_dict["text"] = content_dict["text"][:max_length] + "..."
+            content_dict["truncated"] = True
+
+        return content_dict
     except Exception as e:
         logger.error("Content extraction error: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

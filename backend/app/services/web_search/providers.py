@@ -69,7 +69,7 @@ class SearXNGProvider(BaseSearchProvider):
             # Map search type to SearXNG categories
             categories = self._get_categories(search_type)
 
-            params = {
+            params: dict[str, str | int] = {
                 "q": query,
                 "format": "json",
                 "engines": "google,bing,duckduckgo",
@@ -373,7 +373,7 @@ class DuckDuckGoProvider(BaseSearchProvider):
             snippet_elem = result_div.select_one(".result__snippet")
 
             if title_elem:
-                url = title_elem.get("href", "")
+                url = str(title_elem.get("href", ""))
                 # Extract actual URL from redirect
                 if "uddg=" in url:
                     from urllib.parse import unquote
@@ -406,4 +406,4 @@ def create_provider(config: ProviderConfig) -> BaseSearchProvider:
     if not provider_class:
         raise ValueError(f"Unknown provider: {config.provider}")
 
-    return provider_class(config)
+    return provider_class(config)  # type: ignore[abstract]
