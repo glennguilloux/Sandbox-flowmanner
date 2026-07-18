@@ -23,6 +23,7 @@ import asyncio
 import logging
 import os
 import socket
+import threading
 from typing import TYPE_CHECKING
 
 from sqlalchemy import text
@@ -231,7 +232,7 @@ class LeaseReclaimer:
 # ── Module-level reclaimer lifecycle (used by celery_app.py) ───────
 
 _reclaimer_stop: asyncio.Event | None = None
-_reclaimer_thread: object | None = None  # threading.Thread | None
+_reclaimer_thread: threading.Thread | None = None  # threading.Thread | None
 
 
 def start_reclaimer() -> None:

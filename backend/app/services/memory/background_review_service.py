@@ -1400,6 +1400,7 @@ class BackgroundReviewService:
                 "max_tokens": 1024,
             }
             # GOV-1.7 retry loop — bounded, linear backoff, transient-only.
+            last_exc: Exception | None = None
             for attempt in range(1, REVIEWER_MAX_RETRIES + 1):
                 try:
                     async with httpx.AsyncClient(timeout=60.0) as client:

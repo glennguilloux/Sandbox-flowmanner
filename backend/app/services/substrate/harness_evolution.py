@@ -328,7 +328,7 @@ def score_run(
     run: RunOutcome,
     baseline_metrics: dict[str, float],
     assertion_spec: list[dict[str, Any]] | None = None,
-) -> tuple[bool, dict[str, Any], list[dict[str, Any]], float]:
+) -> tuple[bool, dict[str, Any], list[dict[str, Any]], bool]:
     """Score one run, fail-closed.
 
     Returns ``(passed, score, assertion_results, safety_pass)``.

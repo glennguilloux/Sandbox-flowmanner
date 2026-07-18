@@ -55,7 +55,8 @@ class ResilienceService:
         approval_timeout: int,
         escalation_policy: str,
     ) -> dict[str, Any]:
-        plan = copy.deepcopy(template.default_plan or {})
+        raw_plan = template.default_plan or {}
+        plan = copy.deepcopy(raw_plan) if isinstance(raw_plan, dict) else {}
         return apply_resilience(
             plan,
             gate=gate,

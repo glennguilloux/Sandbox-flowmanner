@@ -173,7 +173,7 @@ class TriggerBridge:
             .all()
         )
 
-        fired: list[UUID] = []
+        fired: list[str] = []
         for program in programs:
             cfg = program.trigger_config or {}
             if cfg.get("type") != "cron":

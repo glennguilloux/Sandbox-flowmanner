@@ -22,7 +22,7 @@ AsyncRedis: type[Any] | None = None
 
 logger = structlog.get_logger(__name__)
 
-_redis: AsyncRedis | None = None
+_redis: Any | None = None
 _redis_available: bool | None = None
 
 

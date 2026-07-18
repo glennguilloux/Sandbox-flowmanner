@@ -51,7 +51,7 @@ def _claim(
         importance=importance,
     )
     c.created_at = created_at
-    c.id = uuid.uuid4()
+    c.id = str(uuid.uuid4())
     # The Python model default for source_priority only fires at DB flush,
     # not object construction — set it explicitly so the E23-B ranking sees
     # the real priority (mirrors recall() which reads the stored column).

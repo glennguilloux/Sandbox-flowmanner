@@ -278,7 +278,7 @@ class WikipediaFetcherTool(BaseTool):
         if not validated.query:
             return {"error": "query is required for search"}
 
-        params = {
+        params: dict[str, Any] = {
             "action": "query",
             "list": "search",
             "srsearch": validated.query,
@@ -370,7 +370,7 @@ class WikipediaFetcherTool(BaseTool):
         if validated.section_index is None:
             return {"error": "section_index is required for get_section_content"}
 
-        params = {
+        params: dict[str, Any] = {
             "action": "parse",
             "page": validated.title,
             "section": validated.section_index,

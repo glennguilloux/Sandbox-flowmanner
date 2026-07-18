@@ -98,6 +98,8 @@ class SandboxdExecTool(BaseTool):
             },
             tags=["sandbox", "code", "execution", "docker"],
             requires_auth=False,
+            requires_sandbox=False,
+            rate_limit_key=None,
             timeout_seconds=90,
         )
         super().__init__(metadata=metadata)

@@ -297,7 +297,7 @@ class WebSearchService:
 
     async def health_check(self) -> dict[str, Any]:
         """Check health of all providers"""
-        health = {"status": "healthy", "providers": {}, "cache": None}
+        health: dict[str, Any] = {"status": "healthy", "providers": {}, "cache": None}
 
         for provider_type, provider in self.providers.items():
             health["providers"][provider_type.value] = {
@@ -309,7 +309,7 @@ class WebSearchService:
             health["cache"] = self.cache.stats
 
         # Determine overall status
-        available_count = sum(1 for p in health["providers"].values() if p["available"])  # type: ignore[attr-defined]
+        available_count = sum(1 for p in health["providers"].values() if p["available"])
         if available_count == 0:
             health["status"] = "degraded"
 
