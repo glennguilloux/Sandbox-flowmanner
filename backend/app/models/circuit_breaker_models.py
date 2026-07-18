@@ -129,7 +129,7 @@ class MissionCircuitBreaker(Base, TimestampMixin):
     )
 
     # ── Destructive action list ──────────────────────────────────────
-    destructive_actions: Mapped[dict | None] = mapped_column(
+    destructive_actions: Mapped[list[str] | None] = mapped_column(
         JSONB,
         nullable=True,
         comment="List of tool/action names that require approval when destructive_actions_require_approval=True",

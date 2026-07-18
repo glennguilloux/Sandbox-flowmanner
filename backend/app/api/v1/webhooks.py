@@ -301,8 +301,11 @@ async def emit_event(
         await db.flush()
 
         # Dispatch via Celery for reliable delivery with retries
+        # NOTE: app.tasks.webhook_tasks is currently a disabled stub (no
+        # deliver_webhook). The import is guarded so the except below falls
+        # back to inline delivery until the sync session factory is restored.
         try:
-            from app.tasks.webhook_tasks import deliver_webhook
+            from app.tasks.webhook_tasks import deliver_webhook  # type: ignore[attr-defined]
 
             deliver_webhook.delay(log.id)
             dispatched += 1
@@ -386,7 +389,7 @@ async def get_stats(
 
     success_q = select(func.count(WebhookLog.id)).where(
         WebhookLog.endpoint_id.in_(ep_ids),
-        WebhookStatus.SUCCESS.value == WebhookLog.status,
+        WebhookLog.status == WebhookStatus.SUCCESS.value,
     )
     success_count = (await db.execute(success_q)).scalar() or 0
 

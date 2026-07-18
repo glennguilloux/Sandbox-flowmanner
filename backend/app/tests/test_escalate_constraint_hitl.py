@@ -56,7 +56,6 @@ def _make_tool_node(tool_name: str, user_id: str):
         type=NodeType.TOOL_CALL,
         title="Gated tool",
         config={"tool_name": tool_name},
-        user_id=user_id,
     )
 
 

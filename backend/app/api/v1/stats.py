@@ -1,5 +1,7 @@
 """Dashboard stats endpoint."""
 
+from typing import Any
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +20,7 @@ async def get_dashboard_stats(
 ):
     """Aggregate dashboard stats from all tables for the current user."""
     uid = current_user.id
-    stats = {}
+    stats: dict[str, Any] = {}
 
     # Missions counts
     try:

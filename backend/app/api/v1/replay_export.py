@@ -407,7 +407,7 @@ async def export_replay(
                     "type": e["type"],
                     "payload": e["payload"],
                     "actor": e["actor"],
-                    "timestamp": e["timestamp"].isoformat() if e["timestamp"] else None,
+                    "timestamp": e["timestamp"].isoformat() if isinstance(e["timestamp"], datetime) else None,
                 }
                 for e in events
             ],

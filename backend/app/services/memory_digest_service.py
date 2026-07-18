@@ -248,7 +248,7 @@ class MemoryDigestService:
 
         summaries = [
             DigestClaimSummary(
-                id=c.id,
+                id=UUID(c.id),
                 subject=c.subject,
                 predicate=c.predicate,
                 claim_type=c.claim_type,

@@ -83,9 +83,9 @@ async def _probe_health() -> HealthResponse:
     llm_success_rate: float | None = None
     langfuse_caused_failures = 0
     try:
-        from app.services.reliability_assertions import get_reliability_report
+        from app.services.reliability_assertions import get_reliability_monitor
 
-        report = get_reliability_report()
+        report = get_reliability_monitor().get_reliability_report()
         llm_success_rate = report.get("llm_success_rate")
         langfuse_caused_failures = report.get("langfuse_caused_failures", 0)
     except Exception:
@@ -96,7 +96,7 @@ async def _probe_health() -> HealthResponse:
         from app.services.langfuse_service import get_langfuse_service
 
         lf = get_langfuse_service()
-        circuit_state = lf.circuit_breaker.state.value if lf.circuit_breaker else "CLOSED"
+        circuit_state = lf.circuit_state if lf.circuit_state else "CLOSED"
     except Exception:
         logger.debug("circuit_breaker_state_failed", exc_info=True)
 

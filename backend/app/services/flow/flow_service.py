@@ -172,7 +172,7 @@ class FlowService:
 
     async def _update_run_status(self, run_id: str, status: str):
         """Update run status."""
-        updates = {"status": status}
+        updates: dict[str, object] = {"status": status}
         if status == "running":
             updates["started_at"] = datetime.now(UTC)
 

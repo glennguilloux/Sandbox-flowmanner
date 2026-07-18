@@ -49,6 +49,8 @@ class SandboxdFileReadTool(BaseTool):
             },
             tags=["sandbox", "file", "read"],
             requires_auth=False,
+            requires_sandbox=False,
+            rate_limit_key=None,
             timeout_seconds=30,
         )
         super().__init__(metadata=metadata)

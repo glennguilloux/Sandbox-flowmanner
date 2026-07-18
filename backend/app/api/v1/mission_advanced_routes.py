@@ -503,7 +503,7 @@ async def restore_version(
     await db.commit()
     return RestoreResponse(
         message=f"Restored to version {version.version}",
-        version_id=version.id,
+        version_id=uuid.UUID(version.id),
         version=version.version,
         snapshot=version.snapshot,
     )

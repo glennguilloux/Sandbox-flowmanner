@@ -182,9 +182,9 @@ class ProviderFallbackMiddleware:
                     model_provider=self._get_provider(model),
                 )
                 db.add(record)
-                db.commit()
+                await db.commit()
             finally:
-                db.close()
+                await db.close()
 
         except Exception as e:
             logger.warning("Failed to track cost: %s", e)

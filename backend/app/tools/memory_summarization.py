@@ -229,7 +229,7 @@ class MemorySummarizationTool(BaseTool):
                     rk = f"{prefix}:{namespace}:{key}"
                     value = redis_client.get(rk)
                     if value:
-                        return value, f"redis:{prefix}"
+                        return str(value), f"redis:{prefix}"
                 except Exception:
                     continue
 

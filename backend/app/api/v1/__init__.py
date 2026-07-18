@@ -139,7 +139,7 @@ integrations_router = _import_router("integrations", tier=RouterTier.OPTIONAL)
 integrations_onboarding_router = _import_router("integrations_onboarding", tier=RouterTier.OPTIONAL)
 newsletter_router = _import_router("newsletter", tier=RouterTier.OPTIONAL)
 
-web_search_enhanced_router = None  # type: ignore[no-redef]
+web_search_enhanced_router: APIRouter | None = None  # type: ignore[no-redef]
 try:
     from app.services.web_search.web_search_routes_enhanced import (  # type: ignore[no-redef]
         router as web_search_enhanced_router,
@@ -147,7 +147,7 @@ try:
 except Exception as e:
     logger.warning("Skipping enhanced web search router: %s", e)
 
-notification_router = None  # type: ignore[no-redef]
+notification_router: APIRouter | None = None  # type: ignore[no-redef]
 try:
     from app.services.notification_service import (  # type: ignore[no-redef]
         router as notification_router,

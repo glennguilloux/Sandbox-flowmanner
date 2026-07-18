@@ -21,8 +21,14 @@ class SignatureVerifier(ABC):
     """Abstract base class for signature verifiers"""
 
     @abstractmethod
-    def verify(self, payload: bytes, signature: str, secret: str) -> bool:
-        """Verify the signature of a webhook payload"""
+    def verify(
+        self, payload: bytes, signature: str, secret: str, timestamp: str | None = None
+    ) -> bool:
+        """Verify the signature of a webhook payload.
+
+        ``timestamp`` is accepted for timestamp-based schemes (e.g. Slack) but
+        ignored by HMAC verifiers unless a subclass overrides ``verify``.
+        """
         pass
 
     @abstractmethod
@@ -37,7 +43,9 @@ class HMACSHA256Verifier(SignatureVerifier):
     def __init__(self, prefix: str = "sha256="):
         self.prefix = prefix
 
-    def verify(self, payload: bytes, signature: str, secret: str) -> bool:
+    def verify(
+        self, payload: bytes, signature: str, secret: str, timestamp: str | None = None
+    ) -> bool:
         """Verify HMAC SHA256 signature"""
         try:
             expected_sig = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()
@@ -67,7 +75,9 @@ class HMACSHA1Verifier(SignatureVerifier):
     def __init__(self, prefix: str = "sha1="):
         self.prefix = prefix
 
-    def verify(self, payload: bytes, signature: str, secret: str) -> bool:
+    def verify(
+        self, payload: bytes, signature: str, secret: str, timestamp: str | None = None
+    ) -> bool:
         """Verify HMAC SHA1 signature"""
         try:
             expected_sig = hmac.new(secret.encode("utf-8"), payload, hashlib.sha1).hexdigest()
@@ -96,29 +106,31 @@ class StripeVerifier(SignatureVerifier):
         self.tolerance_seconds = tolerance_seconds
         self.prefix = "t="
 
-    def verify(self, payload: bytes, signature: str, secret: str) -> bool:
+    def verify(
+        self, payload: bytes, signature: str, secret: str, timestamp: str | None = None
+    ) -> bool:
         """Verify Stripe signature with timestamp"""
         try:
             # Parse the signature header
             # Format: t=1234567890,v1=abc123...
             elements = signature.split(",")
-            timestamp = None
+            sig_timestamp = None
             v1_signature = None
 
             for element in elements:
                 if element.startswith("t="):
-                    timestamp = int(element[2:])
+                    sig_timestamp = int(element[2:])
                 elif element.startswith("v1="):
                     v1_signature = element[3:]
 
-            if not timestamp or not v1_signature:
+            if not sig_timestamp or not v1_signature:
                 logger.error("Invalid Stripe signature format")
                 return False
 
             # Check timestamp tolerance
             current_time = int(time.time())
-            if abs(current_time - timestamp) > self.tolerance_seconds:
-                logger.warning("Stripe webhook timestamp outside tolerance: %s", timestamp)
+            if abs(current_time - sig_timestamp) > self.tolerance_seconds:
+                logger.warning("Stripe webhook timestamp outside tolerance: %s", sig_timestamp)
                 return False
 
             # Compute expected signature
@@ -180,7 +192,9 @@ class TwilioVerifier(SignatureVerifier):
     def __init__(self, url: str):
         self.url = url
 
-    def verify(self, payload: bytes, signature: str, secret: str) -> bool:
+    def verify(
+        self, payload: bytes, signature: str, secret: str, timestamp: str | None = None
+    ) -> bool:
         """Verify Twilio signature"""
         try:
             import urllib.parse
@@ -212,7 +226,9 @@ class TwilioVerifier(SignatureVerifier):
 class ShopifyVerifier(SignatureVerifier):
     """Shopify webhook signature verification"""
 
-    def verify(self, payload: bytes, signature: str, secret: str) -> bool:
+    def verify(
+        self, payload: bytes, signature: str, secret: str, timestamp: str | None = None
+    ) -> bool:
         """Verify Shopify HMAC SHA256 signature"""
         try:
             expected_sig = hmac.new(secret.encode("utf-8"), payload, hashlib.sha256).hexdigest()

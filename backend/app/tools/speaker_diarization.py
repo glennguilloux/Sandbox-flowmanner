@@ -195,7 +195,7 @@ class SpeakerDiarizationTool(BaseTool):
 
         # Merge adjacent speech frames into segments
         min_frames = max(1, int(min_segment_sec * sr / hop_length))
-        segments = self._merge_speech_frames(speech_frames, min_frames, hop_length, sr)
+        segments = self._merge_speech_frames(speech_frames, min_frames, hop_length, int(sr))
 
         if not segments:
             return []

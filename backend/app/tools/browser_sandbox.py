@@ -191,6 +191,7 @@ class BrowserSandboxTool(BaseTool):
             tags=["browser", "sandbox", "playwright", "novnc"],
             required_scopes=["tool:browser-sandbox"],
             requires_sandbox=True,
+            rate_limit_key=None,
             timeout_seconds=120,
         )
         super().__init__(metadata=metadata)

@@ -227,7 +227,7 @@ class OpenWhiskClient:
         start_time = datetime.now(UTC)
 
         try:
-            payload = {"blocking": blocking, "result": result}
+            payload: dict[str, Any] = {"blocking": blocking, "result": result}
 
             if params:
                 payload["params"] = params
@@ -346,7 +346,7 @@ class OpenWhiskClient:
         """
         logger.info("Updating action: %s", action_name)
 
-        payload = {}
+        payload: dict[str, Any] = {}
 
         if code is not None:
             payload["exec"] = {"code": code}
