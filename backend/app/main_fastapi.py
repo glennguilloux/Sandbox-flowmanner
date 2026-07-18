@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import uuid
+from typing import Any
 
 import structlog
 from fastapi import FastAPI, Request
@@ -26,18 +27,20 @@ from app.middleware.scope_validator import ScopeValidationMiddleware
 from app.utils.scrubber import structlog_scrub_processor
 from app.websocket.mission_ws import ws_app
 
+log_processors: list = [
+    structlog.contextvars.merge_contextvars,
+    structlog.processors.add_log_level,
+    structlog.processors.StackInfoRenderer(),
+    structlog.dev.set_exc_info,
+    structlog.processors.TimeStamper(fmt="iso"),
+    # Scrub BYOK secrets/keys from every log line before rendering.
+    # Must run before the renderer so the redacted value is what gets emitted.
+    structlog_scrub_processor,
+    (structlog.processors.JSONRenderer() if settings.APP_ENV != "development" else structlog.dev.ConsoleRenderer()),
+]
+
 structlog.configure(
-    processors=[
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.StackInfoRenderer(),
-        structlog.dev.set_exc_info,
-        structlog.processors.TimeStamper(fmt="iso"),
-        # Scrub BYOK secrets/keys from every log line before rendering.
-        # Must run before the renderer so the redacted value is what gets emitted.
-        structlog_scrub_processor,
-        (structlog.processors.JSONRenderer() if settings.APP_ENV != "development" else structlog.dev.ConsoleRenderer()),
-    ],
+    processors=log_processors,
     wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
     context_class=dict,
     logger_factory=structlog.PrintLoggerFactory(),
@@ -257,13 +260,13 @@ async def app_error_handler(request: Request, exc: AppError):
         from app.api.v3.base import ResponseMeta as V3ResponseMeta
 
         trace_id = getattr(request.state, "trace_id", None)
-        error = V3ErrorDetail(code=code, message=message, details=details)
+        v3_error = V3ErrorDetail(code=code, message=message, details=details)
         if trace_id:
-            error.trace_id = trace_id
-        meta = V3ResponseMeta()
+            v3_error.trace_id = trace_id
+        v3_meta = V3ResponseMeta()
         if request_id:
-            meta.request_id = request_id
-        body = {"data": None, "meta": meta.model_dump(), "error": error.model_dump()}
+            v3_meta.request_id = request_id
+        body = {"data": None, "meta": v3_meta.model_dump(), "error": v3_error.model_dump()}
         return JSONResponse(status_code=status, content=body)
 
     # v1 / unversioned — flat detail (backward compat)
@@ -448,7 +451,7 @@ try:
     from app.services.auth_service import get_user_by_id
 
     async def _gql_context_getter(request: Request):
-        ctx = {}
+        ctx: dict[str, Any] = {}
         auth = request.headers.get("Authorization", "")
         if auth.startswith("Bearer "):
             token = auth[7:]
@@ -624,6 +627,6 @@ def _resilient_openapi():
     return schema
 
 
-app.openapi = _resilient_openapi
+app.openapi = _resilient_openapi  # type: ignore[method-assign]
 
 app.mount("/ws", ws_app)

@@ -11,6 +11,7 @@ from qdrant_client.models import (
     MatchAny,
     MatchValue,
     PointStruct,
+    UpdateStatus,
     VectorParams,
 )
 
@@ -90,21 +91,29 @@ class QdrantVectorStore:
         limit: int = 15,
     ):
         collection = f"{settings.RAG_COLLECTION_PREFIX}{user_id}"
-        must_conditions: list[FieldCondition] = []
 
-        if topics:
-            must_conditions.append(FieldCondition(key="topics", params=MatchAny(any=topics)))
-        if book_title:
-            must_conditions.append(FieldCondition(key="book_title", params=MatchValue(value=book_title)))
+        if topics and book_title:
+            query_filter = Filter(
+                must=[
+                    FieldCondition(key="topics", match=MatchAny(any=topics)),
+                    FieldCondition(key="book_title", match=MatchValue(value=book_title)),
+                ]
+            )
+        elif topics:
+            query_filter = Filter(must=[FieldCondition(key="topics", match=MatchAny(any=topics))])
+        elif book_title:
+            query_filter = Filter(must=[FieldCondition(key="book_title", match=MatchValue(value=book_title))])
+        else:
+            query_filter = None
 
         return await self.client.search(
             collection_name=collection,
             query_vector=query_vector,
-            query_filter=Filter(must=must_conditions) if must_conditions else None,
+            query_filter=query_filter,
             limit=limit,
         )
 
-    async def delete_book_chunks(self, user_id: str | int, book_title: str) -> int:
+    async def delete_book_chunks(self, user_id: str | int, book_title: str) -> UpdateStatus:
         collection = f"{settings.RAG_COLLECTION_PREFIX}{user_id}"
         result = await self.client.delete(
             collection_name=collection,
@@ -112,7 +121,7 @@ class QdrantVectorStore:
                 must=[
                     FieldCondition(
                         key="book_title",
-                        params=MatchValue(value=book_title),
+                        match=MatchValue(value=book_title),
                     )
                 ]
             ),
@@ -126,7 +135,7 @@ class QdrantVectorStore:
             return []
 
         books: dict[str, int] = {}
-        next_offset: int | None = None
+        next_offset: int | str | None = None
         while True:
             records, next_offset = await self.client.scroll(
                 collection_name=collection,
@@ -159,14 +168,14 @@ class QdrantVectorStore:
             must=[
                 FieldCondition(
                     key="book_title",
-                    params=MatchValue(value=book_title),
+                    match=MatchValue(value=book_title),
                 )
             ]
         )
 
         # First scroll all records matching this book to get the total count
         all_records = []
-        next_offset: int | None = None
+        next_offset: int | str | None = None
         while True:
             records, next_offset = await self.client.scroll(
                 collection_name=collection,
