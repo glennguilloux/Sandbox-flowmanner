@@ -576,7 +576,7 @@ async def _stream_message_to_llm_body(
     elif base_url != _LLM_API_BASE or api_key != _LLM_API_KEY:
         client = AsyncOpenAI(api_key=api_key, base_url=base_url)
     else:
-        client = _client
+        client = _get_client()
 
     # Circuit breaker protection
     from app.core.circuit_breaker import CircuitOpenError, get_circuit_breaker
@@ -1102,10 +1102,28 @@ async def _stream_message_to_llm_body(
         yield json.dumps({"type": "error", "error": str(e)})
 
 
-_client = AsyncOpenAI(
-    api_key=_LLM_API_KEY,
-    base_url=_LLM_API_BASE,
-)
+# Lazily-constructed default OpenAI client. Constructed on first use (not at
+# module import time) so that `app.services.chat_service` — and the CRITICAL
+# `chat` router that imports it — can be imported WITHOUT credentials being
+# present. This keeps `from app.api.v1 import app` collectable in tests /
+# workers that have no OPENAI_API_KEY set. The singleton is cached across calls.
+_client: AsyncOpenAI | None = None
+
+
+def _get_client() -> AsyncOpenAI:
+    """Return the shared default OpenAI client, constructing it on first use.
+
+    Lazily builds the module-level singleton so importing this module never
+    requires credentials. Raises OpenAIError at call time (not import time) if
+    no key is configured — which is the correct place for that failure.
+    """
+    global _client
+    if _client is None:
+        _client = AsyncOpenAI(
+            api_key=_LLM_API_KEY,
+            base_url=_LLM_API_BASE,
+        )
+    return _client
 
 
 async def create_chat_thread(
@@ -2306,7 +2324,7 @@ async def send_message_to_llm(
     elif base_url != _LLM_API_BASE or api_key != _LLM_API_KEY:
         client = AsyncOpenAI(api_key=api_key, base_url=base_url)
     else:
-        client = _client
+        client = _get_client()
 
     # Circuit breaker protection
     from app.core.circuit_breaker import CircuitOpenError, get_circuit_breaker
@@ -2746,7 +2764,7 @@ async def generate_thread_title(
         # (enforce_budget_before_llm rejects a None budget by design, so a
         # missing budget must not 500 the title endpoint).
         enforce_budget_before_llm(budget or Budget(), model_id=model_name, estimated_completion_tokens=20)
-        response = await _client.chat.completions.create(
+        response = await _get_client().chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": title_prompt}],
             max_tokens=20,
