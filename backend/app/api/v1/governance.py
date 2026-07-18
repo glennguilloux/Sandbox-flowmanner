@@ -132,7 +132,12 @@ async def list_poison_scans(
 
     # Single-source request: paginate entirely in the DB.
     if source in ("live", "retro"):
-        model, transform = (PendingWrite, _pending_row) if source == "live" else (PersonalMemoryClaim, _claim_row)
+        model: type[PendingWrite] | type[PersonalMemoryClaim]
+        transform: Callable[[Any], dict[str, Any]]
+        if source == "live":
+            model, transform = PendingWrite, _pending_row
+        else:
+            model, transform = PersonalMemoryClaim, _claim_row
         stmt = (
             select(model)
             .where(model.meta.op("@>")(type_coerce(_FLAGGED_VERDICT, JSONB)))
@@ -207,9 +212,9 @@ async def _count_flagged(
 
     stmt = select(func.count()).select_from(model).where(model.meta.op("@>")(type_coerce(_FLAGGED_VERDICT, JSONB)))
     if model is PendingWrite:
-        stmt = stmt.where(model.status == PendingWriteStatus.PENDING)
+        stmt = stmt.where(PendingWrite.status == PendingWriteStatus.PENDING)
     else:
-        stmt = stmt.where(model.deleted_at.is_(None))
+        stmt = stmt.where(PersonalMemoryClaim.deleted_at.is_(None))
     result = await db.execute(stmt)
     return int(result.scalar_one() or 0)
 
@@ -227,11 +232,11 @@ async def _fetch_source(
     combined with ``offset`` (handled by the caller) paginates at the DB for a
     single source.
     """
-    base = model.meta.op("@>")(type_coerce(_FLAGGED_VERDICT, JSONB))
+    base: Any = model.meta.op("@>")(type_coerce(_FLAGGED_VERDICT, JSONB))
     if model is PendingWrite:
-        base = base & (model.status == PendingWriteStatus.PENDING)
+        base = base & (PendingWrite.status == PendingWriteStatus.PENDING)
     else:
-        base = base & (model.deleted_at.is_(None))
+        base = base & (PersonalMemoryClaim.deleted_at.is_(None))
 
     rows_stmt = select(model).where(base).order_by(model.created_at.desc().nullslast())
     if limit is not None:
