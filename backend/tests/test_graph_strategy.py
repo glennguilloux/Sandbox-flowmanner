@@ -510,12 +510,53 @@ class TestEvaluateCondition:
         assert s._evaluate_condition(edge, {"a": {"output": {"n": 42}}}) is True
         assert s._evaluate_condition(edge, {"a": {"output": {"n": 0}}}) is False
 
-    def test_exception_in_resolution_returns_true(self):
-        """If condition resolution raises, default to True."""
+    def test_exception_in_resolution_fails_closed(self):
+        """If condition resolution raises, fail closed (False) — never silently fire."""
         s = GraphStrategy()
         edge = WorkflowEdge(source="a", target="b", condition="always")
         with patch.object(s, "_resolve_interpolation", side_effect=RuntimeError("boom")):
-            assert s._evaluate_condition(edge, {}) is True
+            assert s._evaluate_condition(edge, {}) is False
+
+    def test_exception_in_resolution_logs_warning(self):
+        """A failing condition must log the exception rather than swallow it silently."""
+        with patch("app.services.substrate.strategies.graph.logger") as mock_logger:
+            s = GraphStrategy()
+            edge = WorkflowEdge(source="a", target="b", condition="always")
+            with patch.object(s, "_resolve_interpolation", side_effect=RuntimeError("boom")):
+                assert s._evaluate_condition(edge, {}) is False
+            mock_logger.warning.assert_called_once()
+            _, kwargs = mock_logger.warning.call_args
+            assert kwargs.get("exc_info") is True
+
+    @pytest.mark.asyncio
+    async def test_execute_throwing_condition_does_not_fire_edge(self):
+        """F3: an edge whose condition throws must NOT route execution downstream.
+
+        This is the integration-level counterpart to the unit test above — a broken
+        condition expression closes the edge so the downstream node is skipped.
+        """
+        s = GraphStrategy()
+        nodes = [
+            WorkflowNode(id="gate", type="llm_call", title="Gate"),
+            WorkflowNode(id="after", type="llm_call", title="After"),
+        ]
+        edges = [WorkflowEdge(source="gate", target="after", condition="{{gate.bad.ref}}")]
+        wf = _make_graph_workflow(nodes=nodes, edges=edges)
+        db = AsyncMock()
+        executor = _mock_executor()
+
+        # Resolution of a path that raises (e.g. attribute access on None) closes the edge.
+        def boom(template, outputs):
+            raise RuntimeError("broken expression")
+
+        with patch.object(s, "_resolve_interpolation", side_effect=boom):
+            result = await s.execute(wf, {}, executor, db, run_id="test-run")
+
+        assert result.success is True
+        assert "gate" in result.completed_nodes
+        # Edge closed → downstream node never executed
+        assert "after" not in result.completed_nodes
+        executor.execute_node.assert_called_once()  # only 'gate' ran
 
 
 # ── _resolve_interpolation ───────────────────────────────────────────
