@@ -24,6 +24,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import UTC
+from decimal import Decimal
 
 from pydantic import ConfigDict, Field
 from sqlalchemy import select
@@ -484,12 +485,12 @@ class BrandVoiceEnforcerTool(BaseTool):
                     },
                 )
             elif validated.action == "rewrite":
-                result = await rewrite_text(validated.text, validated.style_guide_id)
+                rewrite_result = await rewrite_text(validated.text, validated.style_guide_id)
                 return ToolResult.success_result(
                     tool_id=self.tool_id,
                     result={
-                        "rewritten_text": result.rewritten_text,
-                        "changes_made": result.changes_made,
+                        "rewritten_text": rewrite_result.rewritten_text,
+                        "changes_made": rewrite_result.changes_made,
                     },
                 )
             else:
@@ -826,7 +827,7 @@ class SubAgentRouterTool(BaseTool):
             from app.services.budget_enforcer import get_budget_enforcer
 
             # Discover available agents if none specified
-            candidates = validated.available_agents or []
+            candidates: list = validated.available_agents or []
             if not candidates:
                 try:
                     from app.services.agent_registry_service import AgentRegistry
@@ -872,7 +873,7 @@ class SubAgentRouterTool(BaseTool):
             enforcer = get_budget_enforcer()
             agent_list = "\n".join(f"- {c['name']}: {c.get('description', 'No description')}" for c in candidates[:10])
             response = await enforcer.call(
-                budget=Budget(max_cost_usd=0.01),
+                budget=Budget(max_cost_usd=Decimal("0.01")),
                 model_id="deepseek-v4-flash",
                 messages=[
                     {
@@ -950,7 +951,7 @@ class TaskPlannerTool(BaseTool):
             ctx = f"\nContext: {validated.context}" if validated.context else ""
 
             response = await enforcer.call(
-                budget=Budget(max_cost_usd=0.02),
+                budget=Budget(max_cost_usd=Decimal("0.02")),
                 model_id="deepseek-v4-flash",
                 messages=[
                     {
