@@ -199,9 +199,25 @@ from app.models.memory_models import MemoryEntry, PendingWrite
 # Mission versioning (Phase 3.1 — already existed, now normalized)
 from app.models.mission_advanced_models import MissionPlanCandidate, MissionVersion
 
+# Changelog model (re-register — was orphaned, never imported)
+from app.models.changelog_models import ChangelogEntry
+
+# External event model (re-register — was orphaned, never imported)
+from app.models.external_event_model import ExternalEvent
+
+# Memory action event model (re-register — was orphaned, never imported)
+from app.models.memory_action_models import MemoryActionEvent
+
+# Prompt version model (re-register — was orphaned, never imported)
+from app.models.prompt_version_models import PromptVersion
+
+# Scaffold models (re-register — were orphaned, never imported)
+from app.models.scaffold_models import ScaffoldProposal, ScaffoldVersion
+
 # Mission models
 from app.models.mission_models import (
     Mission,
+    MissionExecutionOutbox,
     MissionImprovement,
     MissionLog,
     MissionTask,

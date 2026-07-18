@@ -22,6 +22,7 @@ _RAW_SQL_TABLES = frozenset(
         "agent_template_versions",
         "mission_runs",
         "onboarding_state",
+        "substrate_worker_leases",  # raw-SQL CRUD in services/substrate/leases.py
     }
 )
 
