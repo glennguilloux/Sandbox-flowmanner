@@ -1,7 +1,7 @@
 {
   "alembic_version": "",
   "generated_at": "1970-01-01T00:00:00Z",
-  "model_count": 156,
+  "model_count": 162,
   "tables": [
     {
       "columns": {
@@ -371,6 +371,7 @@
         "refresh_token_hash": "VARCHAR(64)",
         "revoke_reason": "VARCHAR(100)",
         "revoked_at": "DATETIME",
+        "scopes": "JSONB",
         "updated_at": "DATETIME",
         "user_id": "INTEGER"
       },
@@ -618,6 +619,27 @@
         "ix_capability_versions_capability_id"
       ],
       "name": "capability_versions",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "body": "TEXT",
+        "category": "VARCHAR(64)",
+        "created_at": "DATETIME",
+        "id": "UUID",
+        "is_featured": "BOOLEAN",
+        "released_at": "DATETIME",
+        "sort_order": "INTEGER",
+        "summary": "TEXT",
+        "title": "VARCHAR(512)",
+        "updated_at": "DATETIME",
+        "version": "VARCHAR(64)"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_changelog_entries_version"
+      ],
+      "name": "changelog_entries",
       "unique_constraints": []
     },
     {
@@ -1144,6 +1166,35 @@
         "ix_execution_events_execution_id"
       ],
       "name": "execution_events",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "created_at": "DATETIME",
+        "delivery_id": "VARCHAR(255)",
+        "error_message": "TEXT",
+        "event_type": "VARCHAR(128)",
+        "id": "UUID",
+        "payload": "JSONB",
+        "processed_at": "DATETIME",
+        "raw_body": "JSONB",
+        "received_at": "DATETIME",
+        "source": "VARCHAR(64)",
+        "status": "VARCHAR(20)",
+        "triggers_fired": "INTEGER",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER"
+      },
+      "foreign_keys": [],
+      "indexes": [
+        "ix_external_events_delivery_id",
+        "ix_external_events_received_at",
+        "ix_external_events_source",
+        "ix_external_events_source_type",
+        "ix_external_events_status",
+        "ix_external_events_user_id"
+      ],
+      "name": "external_events",
       "unique_constraints": []
     },
     {
@@ -1908,6 +1959,39 @@
         "ix_memories_user_id"
       ],
       "name": "memories",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "action_input": "JSON",
+        "action_latency_ms": "FLOAT",
+        "action_result": "JSON",
+        "action_success": "BOOLEAN",
+        "action_type": "VARCHAR(50)",
+        "agent_confidence": "FLOAT",
+        "created_at": "DATETIME",
+        "id": "UUID",
+        "mission_id": "UUID",
+        "updated_at": "DATETIME",
+        "user_id": "INTEGER",
+        "workspace_id": "UUID"
+      },
+      "foreign_keys": [
+        [
+          "user_id",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_mem_actions_mission",
+        "ix_mem_actions_type",
+        "ix_mem_actions_ws_user_created",
+        "ix_memory_action_events_action_type",
+        "ix_memory_action_events_mission_id",
+        "ix_memory_action_events_user_id",
+        "ix_memory_action_events_workspace_id"
+      ],
+      "name": "memory_action_events",
       "unique_constraints": []
     },
     {
@@ -2898,6 +2982,40 @@
     },
     {
       "columns": {
+        "content": "TEXT",
+        "created_at": "DATETIME",
+        "created_by": "INTEGER",
+        "id": "INTEGER",
+        "is_active": "BOOLEAN",
+        "name": "VARCHAR(255)",
+        "updated_at": "DATETIME",
+        "version": "INTEGER",
+        "workspace_id": "VARCHAR(36)"
+      },
+      "foreign_keys": [
+        [
+          "created_by",
+          "users.id"
+        ],
+        [
+          "workspace_id",
+          "workspaces.id"
+        ]
+      ],
+      "indexes": [
+        "ix_prompt_versions_workspace_id"
+      ],
+      "name": "prompt_versions",
+      "unique_constraints": [
+        [
+          "name",
+          "version",
+          "workspace_id"
+        ]
+      ]
+    },
+    {
+      "columns": {
         "auth_key": "VARCHAR(255)",
         "created_at": "DATETIME",
         "endpoint": "TEXT",
@@ -3115,6 +3233,77 @@
         "ix_runs_workspace_id"
       ],
       "name": "runs",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_id": "VARCHAR(255)",
+        "applied_at": "DATETIME",
+        "applied_version_id": "UUID",
+        "changes_summary": "TEXT",
+        "created_at": "DATETIME",
+        "current_prompt_hash": "VARCHAR(64)",
+        "expected_impact": "TEXT",
+        "id": "UUID",
+        "meta_model": "VARCHAR(100)",
+        "proposed_prompt": "TEXT",
+        "reasoning": "TEXT",
+        "rejection_reason": "TEXT",
+        "reviewed_at": "DATETIME",
+        "reviewed_by": "INTEGER",
+        "status": "VARCHAR(50)",
+        "trace_count": "INTEGER",
+        "updated_at": "DATETIME",
+        "validation_metrics": "JSONB"
+      },
+      "foreign_keys": [
+        [
+          "applied_version_id",
+          "scaffold_versions.id"
+        ],
+        [
+          "reviewed_by",
+          "users.id"
+        ]
+      ],
+      "indexes": [
+        "ix_scaffold_proposals_agent_id",
+        "ix_scaffold_proposals_agent_status",
+        "ix_scaffold_proposals_status",
+        "ix_scaffold_proposals_status_created"
+      ],
+      "name": "scaffold_proposals",
+      "unique_constraints": []
+    },
+    {
+      "columns": {
+        "agent_id": "VARCHAR(255)",
+        "created_at": "DATETIME",
+        "id": "UUID",
+        "is_active": "BOOLEAN",
+        "parent_version_id": "UUID",
+        "prompt_text": "TEXT",
+        "source_proposal_id": "UUID",
+        "updated_at": "DATETIME",
+        "version": "INTEGER"
+      },
+      "foreign_keys": [
+        [
+          "parent_version_id",
+          "scaffold_versions.id"
+        ],
+        [
+          "source_proposal_id",
+          "scaffold_proposals.id"
+        ]
+      ],
+      "indexes": [
+        "ix_scaffold_versions_agent_active",
+        "ix_scaffold_versions_agent_id",
+        "ix_scaffold_versions_agent_version",
+        "ix_scaffold_versions_is_active"
+      ],
+      "name": "scaffold_versions",
       "unique_constraints": []
     },
     {
