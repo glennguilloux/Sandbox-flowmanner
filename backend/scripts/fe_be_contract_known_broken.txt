@@ -1,0 +1,58 @@
+# Known FE->BE contract drift (pre-existing, accepted backlog).
+# This file lets the contract gate FAIL ON NEW DRIFT ONLY. Any /api URL the
+# frontend calls that is NOT in this list and NOT on the live backend route
+# table will fail CI. Remove a line here ONLY when the corresponding endpoint
+# is added on the backend OR the frontend call site is fixed.
+#
+# Generated 2026-07-18 by scripts/check_fe_be_contract.py against backend
+# app.main_fastapi (619 /api routes) and the frontend source tree.
+# NOTE: several of these (F10/F11 as originally triaged) are NOT present here
+# because the frontend correctly uses unversioned /api/missions|workspaces.
+/api/auth/csrf
+/api/auth/session
+/api/blog
+/api/changelog
+/api/changelog/latest
+/api/community/categories
+/api/community/featured
+/api/community/stats
+/api/community/templates
+/api/community/trending
+/api/config/milestones
+/api/domain/agents
+/api/domain/badges
+/api/domain/divisions
+/api/flow/run/stream
+/api/flow/runs
+/api/invitations
+/api/invitations/workspace
+/api/linear/webhook
+/api/marketplace/categories
+/api/marketplace/listings
+/api/marketplace/listings/featured
+/api/marketplace/my-installations
+/api/marketplace/my-listings
+/api/marketplace/seed
+/api/missions/advanced
+/api/og
+/api/rag/context/search
+/api/roadmap
+/api/roadmap/categories
+/api/roadmap/comments
+/api/swarm
+/api/swarm/execute
+/api/teams
+/api/tenant
+/api/tenant/members
+/api/tenant/my
+/api/tenants/me
+/api/tts
+/api/v1
+/api/v1/chat/documents/parse
+/api/v1/orchestration/agents
+/api/v1/orchestration/stats
+/api/v1/playground/sandboxes
+/api/v1/playground/sandboxes/claim
+/api/v1/plugins
+/api/v2/integrations/oauth
+/api/votes

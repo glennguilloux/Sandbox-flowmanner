@@ -140,7 +140,16 @@ async def register(payload: UserCreate, request: Request, db: AsyncSession = Dep
 
     user = await create_user_service(db, payload.email, payload.password, payload.full_name, payload.username)
 
-    # Auto-create a default workspace for the new user
+    # Auto-create a default workspace for the new user.
+    # NOTE: the workspace auto-create is isolated from the auth transaction.
+    # A slug collision (or any DB error here) MUST NOT poison `db` — the
+    # register endpoint shares one session for user + refresh token + analytics,
+    # and a PendingRollbackError here would cascade into a 500 on signup
+    # (see ix_workspaces_slug unique violation). Two safeguards:
+    #   1. slug is made collision-proof (short uuid suffix) so the unique
+    #      constraint can never trip on a second user with the same name.
+    #   2. on any failure we roll back ONLY the workspace unit of work so the
+    #      rest of registration can still complete.
     try:
         import re as _re
 
@@ -148,13 +157,21 @@ async def register(payload: UserCreate, request: Request, db: AsyncSession = Dep
 
         ws_id = str(uuid.uuid4())
         ws_name = f"{payload.full_name or payload.username or 'My'}'s Workspace"
-        ws_slug = _re.sub(r"[^a-z0-9]+", "-", ws_name.lower()).strip("-") or "workspace"
+        base_slug = _re.sub(r"[^a-z0-9]+", "-", ws_name.lower()).strip("-") or "workspace"
+        # Collision-proof: suffix a short uuid shard (first 8 hex of ws_id).
+        ws_slug = f"{base_slug}-{ws_id[:8]}"
         ws = Workspace(id=ws_id, name=ws_name, slug=ws_slug, owner_id=user.id)
         db.add(ws)
         db.add(WorkspaceMember(workspace_id=ws_id, user_id=user.id, role="owner"))
         await db.flush()
     except Exception:
         logger.exception("[REGISTER] Failed to auto-create workspace for user %s", user.id)
+        # Isolate the failure: roll back only the tainted workspace unit of
+        # work so the user + refresh-token writes below still succeed.
+        try:
+            await db.rollback()
+        except Exception:
+            logger.debug("[REGISTER] workspace rollback failed (session already closed?)", exc_info=True)
 
     access = await _create_access_token_dual_write(db, user, request, ip)
     refresh = create_refresh_token_value()
@@ -748,7 +765,8 @@ async def social_token_exchange(
     )
     await db.flush()
 
-    # Auto-create default workspace
+    # Auto-create default workspace (collision-proof slug + session isolation,
+    # mirroring the register path — a slug collision here must not 500 OAuth login).
     try:
         import re as _re
 
@@ -756,13 +774,18 @@ async def social_token_exchange(
 
         ws_id = str(uuid.uuid4())
         ws_name = f"{social['name'] or social['login']}'s Workspace"
-        ws_slug = _re.sub(r"[^a-z0-9]+", "-", ws_name.lower()).strip("-") or "workspace"
+        base_slug = _re.sub(r"[^a-z0-9]+", "-", ws_name.lower()).strip("-") or "workspace"
+        ws_slug = f"{base_slug}-{ws_id[:8]}"
         ws = Workspace(id=ws_id, name=ws_name, slug=ws_slug, owner_id=user.id)
         db.add(ws)
         db.add(WorkspaceMember(workspace_id=ws_id, user_id=user.id, role="owner"))
         await db.flush()
     except Exception:
         logger.exception("Failed to auto-create workspace for OAuth user %s", user.id)
+        try:
+            await db.rollback()
+        except Exception:
+            logger.debug("OAuth workspace rollback failed (session already closed?)", exc_info=True)
 
     _complete_login(user)
     return _auth_response(

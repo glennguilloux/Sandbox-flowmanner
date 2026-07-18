@@ -138,3 +138,25 @@ jobs:
             --ignore=tests/test_speaker_diarization.py \
             --ignore=tests/test_speech_to_text_transcriber.py \
             -x -q --tb=short -m "not integration"
+
+      # FE<->BE contract-drift guard. The frontend checkout is a SEPARATE
+      # private repo, so it is normally absent on the backend CI runner. The
+      # guard therefore SKIPS (passes) when $FE_REPO is not present, and only
+      # runs when a frontend source tree is provided (e.g. a combined runner
+      # or a downstream frontend-repo CI job that checks out both repos and
+      # calls `make guard-fe-be-contract FE_REPO=<path>`). This keeps the gate
+      # in-repo and prevents NEW drift from reaching prod without red-breaking
+      # backend-only CI on the accepted 54-item backlog.
+      - name: FE<->BE contract-drift guard (skips if no frontend checkout)
+        env:
+          APP_ENV: test
+          OPENAI_API_KEY: '***'
+        run: |
+          FE_REPO="${FE_REPO:-/home/glenn/f}"
+          if [ ! -d "$FE_REPO/src/lib" ]; then
+            echo "No frontend checkout at $FE_REPO — skipping contract-drift guard (run it in the frontend repo CI)."
+            exit 0
+          fi
+          cd backend
+          PYTHONPATH="$(pwd)" /tmp/prcheck-venv/bin/python scripts/check_fe_be_contract.py \
+            --frontend "$FE_REPO" --src src/lib

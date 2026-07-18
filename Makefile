@@ -141,6 +141,18 @@ guard-llm-success: ## CI guard: fail if any route_request result is read without
 	@echo -e "$(GREEN)Running LLM failure-propagation guard...$(RESET)"
 	cd $(BACKEND_DIR) && $(PYTHON) scripts/guard_llm_success.py app
 
+# FE<->BE contract drift guard: import the live FastAPI app, diff every /api/*
+# call site the frontend uses against the real route table, and fail on any NEW
+# drift (pre-existing known-broken URLs are listed in
+# backend/scripts/fe_be_contract_known_broken.txt so CI does not red-break on the
+# accepted backlog). Pass FE_REPO=/abs/path to point at the frontend checkout
+# (defaults to the symlink at /home/glenn/f). Runs from the backend dir so the
+# live app imports cleanly.
+.PHONY: guard-fe-be-contract
+guard-fe-be-contract: ## CI guard: fail if the frontend calls a backend route that does not exist
+	@echo -e "$(GREEN)Running FE<->BE contract-drift guard...$(RESET)"
+	cd $(BACKEND_DIR) && PYTHONPATH=$(BACKEND_DIR) $(PYTHON) scripts/check_fe_be_contract.py --frontend $(FRONTEND_DIR) --src src/lib
+
 .PHONY: test-backend
 test-backend: ## Run backend pytest
 	@echo -e "$(GREEN)Running backend tests...$(RESET)"
