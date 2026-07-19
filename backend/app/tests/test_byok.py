@@ -273,3 +273,111 @@ def test_validate_provider():
     assert validate_provider("OpenAI") == True
     assert validate_provider("comfyui") == True
     assert validate_provider("invalid") == False
+
+
+@pytest.mark.asyncio
+async def test_update_api_key_no_rekey():
+    """Editing label/base_url/models must NOT re-encrypt the stored key."""
+    with (
+        patch("app.api.v1.byok.get_current_user", return_value=MOCK_USER),
+        patch("app.api.v1.byok.get_db") as mock_get_db,
+        patch("app.api.v1.byok.encrypt_api_key") as mock_encrypt,
+    ):
+        from app.api.v1.byok import APIKeyUpdate, update_api_key
+
+        mock_db = AsyncMock()
+        mock_result = MagicMock()
+        mock_key = MagicMock(
+            id=1,
+            user_id=1,
+            provider="openai",
+            key_label="Old",
+            is_active=True,
+            base_url=None,
+            encrypted_key="stored-encrypted",
+            created_at=MagicMock(isoformat=lambda: "2026-04-30T12:00:00"),
+            updated_at=MagicMock(isoformat=lambda: "2026-04-30T12:00:00"),
+        )
+        mock_key.get_models_list.return_value = ["openai/gpt-4o"]
+        mock_result.scalar_one_or_none.return_value = mock_key
+        mock_db.execute.return_value = mock_result
+        mock_get_db.return_value = mock_db
+
+        result = await update_api_key(
+            key_id=1,
+            data=APIKeyUpdate(label="New", base_url="https://example.com/v1", models=["openai/gpt-4o"]),
+            user=MOCK_USER,
+            db=mock_db,
+        )
+
+        assert result["key_label"] == "New"
+        assert result["base_url"] == "https://example.com/v1"
+        assert result["models"] == ["openai/gpt-4o"]
+        mock_encrypt.assert_not_called()  # secret untouched
+        mock_db.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_update_api_key_rekey_on_secret():
+    """Supplying api_key must re-encrypt the stored secret."""
+    with (
+        patch("app.api.v1.byok.get_current_user", return_value=MOCK_USER),
+        patch("app.api.v1.byok.get_db") as mock_get_db,
+        patch("app.api.v1.byok.encrypt_api_key", return_value="new-encrypted") as mock_encrypt,
+    ):
+        from app.api.v1.byok import APIKeyUpdate, update_api_key
+
+        mock_db = AsyncMock()
+        mock_result = MagicMock()
+        mock_key = MagicMock(
+            id=1,
+            user_id=1,
+            provider="openai",
+            key_label="K",
+            is_active=True,
+            base_url=None,
+            encrypted_key="stored-encrypted",
+            created_at=MagicMock(isoformat=lambda: "2026-04-30T12:00:00"),
+            updated_at=MagicMock(isoformat=lambda: "2026-04-30T12:00:00"),
+        )
+        mock_key.get_models_list.return_value = None
+        mock_result.scalar_one_or_none.return_value = mock_key
+        mock_db.execute.return_value = mock_result
+        mock_get_db.return_value = mock_db
+
+        await update_api_key(
+            key_id=1,
+            data=APIKeyUpdate(api_key="sk-brand-new"),
+            user=MOCK_USER,
+            db=mock_db,
+        )
+
+        mock_encrypt.assert_called_once_with("sk-brand-new")
+        assert mock_key.encrypted_key == "new-encrypted"
+
+
+@pytest.mark.asyncio
+async def test_update_api_key_missing_returns_404():
+    """Updating a non-existent / other user's key returns 404."""
+    with (
+        patch("app.api.v1.byok.get_current_user", return_value=MOCK_USER),
+        patch("app.api.v1.byok.get_db") as mock_get_db,
+    ):
+        from fastapi import HTTPException
+
+        from app.api.v1.byok import APIKeyUpdate, update_api_key
+
+        mock_db = AsyncMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None  # not found
+        mock_db.execute.return_value = mock_result
+        mock_get_db.return_value = mock_db
+
+        with pytest.raises(HTTPException) as exc:
+            await update_api_key(
+                key_id=999,
+                data=APIKeyUpdate(label="x"),
+                user=MOCK_USER,
+                db=mock_db,
+            )
+        assert exc.value.status_code == 404

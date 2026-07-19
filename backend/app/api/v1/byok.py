@@ -145,6 +145,70 @@ async def list_api_keys(
         )
 
 
+class APIKeyUpdate(BaseModel):
+    label: str | None = None
+    base_url: str | None = None
+    models: list[str] | None = None
+    api_key: str | None = None  # Only when re-keying; omit to keep stored key
+
+
+@router.patch("/{key_id}", status_code=status.HTTP_200_OK)
+async def update_api_key(
+    key_id: int,
+    data: APIKeyUpdate,
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Edit a user's own BYOK key (label / base_url / models, optional re-key).
+
+    The secret is only re-encrypted when ``api_key`` is supplied. Omitting it
+    leaves the stored encrypted key intact. Scoped to the calling user.
+    """
+    try:
+        result = await db.execute(select(UserAPIKey).where(UserAPIKey.id == key_id, UserAPIKey.user_id == user.id))
+        key = result.scalar_one_or_none()
+        if not key:
+            raise HTTPException(status_code=404, detail="API key not found")
+
+        if data.label is not None:
+            key.key_label = data.label or None
+        if data.base_url is not None:
+            key.base_url = data.base_url or None
+        if data.models is not None:
+            import json
+
+            key.models = json.dumps(data.models) if data.models else None
+        if data.api_key is not None and data.api_key.strip():
+            key.encrypted_key = encrypt_api_key(data.api_key.strip())
+
+        await db.commit()
+        await db.refresh(key)
+        logger.info("BYOK updated: user=%s key_id=%s", user.id, key_id)
+
+        from app.api.middleware.audit import log_event
+
+        await log_event(user.id, "byok_key_updated", {"provider": key.provider, "key_id": key.id})
+
+        return {
+            "id": key.id,
+            "provider": key.provider,
+            "key_label": key.key_label,
+            "is_active": key.is_active,
+            "created_at": key.created_at.isoformat(),
+            "updated_at": key.updated_at.isoformat(),
+            "models": key.get_models_list() or None,
+            "base_url": key.base_url,
+        }
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("BYOK update failed: user=%s key_id=%s", user.id, key_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update API key",
+        )
+
+
 @router.delete("/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_api_key(
     key_id: int,
