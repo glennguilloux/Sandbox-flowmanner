@@ -119,6 +119,9 @@ async def _add_notification(
     body: str,
     notification_type: str = "info",
     severity: str = "info",
+    entity_type: str | None = None,
+    entity_id: str | None = None,
+    meta: str | None = None,
 ) -> NotificationItem:
     """Create a notification in the database."""
     from app.models.notification_models import Notification
@@ -133,6 +136,9 @@ async def _add_notification(
         is_read=False,
         created_at=now,
         updated_at=now,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        meta=meta,
     )
     db.add(db_item)
     await db.flush()
@@ -582,6 +588,16 @@ async def send_notification(user_id: int, notification_type: str, data: dict, db
 
     # Send SSE notification (in-app) via user notification channel
     if settings.in_app_enabled:
+        # Propagate entity linkage + meta so the feed can deep-link to the
+        # source object (e.g. mission_id). These columns already exist on the
+        # Notification model; previously they were never populated.
+        _entity_type = data.get("entity_type")
+        _entity_id = data.get("entity_id")
+        _meta = None
+        if data.get("meta") is not None:
+            import json
+
+            _meta = data["meta"] if isinstance(data["meta"], str) else json.dumps(data["meta"])
         notification_item = await _add_notification(
             db=db,
             user_id=user_id,
@@ -589,6 +605,9 @@ async def send_notification(user_id: int, notification_type: str, data: dict, db
             body=data.get("message", str(data)),
             notification_type=notification_type,
             severity=(notification_type.split("_")[-1] if "_" in notification_type else "info"),
+            entity_type=_entity_type,
+            entity_id=_entity_id,
+            meta=_meta,
         )
         await publish_user_notification(
             user_id,
