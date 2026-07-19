@@ -590,6 +590,13 @@ class PluginReviewRequest(BaseModel):
     reason: str | None = None
 
 
+class KillSwitchResponse(BaseModel):
+    status: str
+    plugin_name: str
+    instances_disabled: int
+    reason: str | None = None
+
+
 class ScanResultResponse(BaseModel):
     risk_score: int
     passed: bool
@@ -697,7 +704,7 @@ async def reject_plugin(
     return _to_plugin_response(plugin)
 
 
-@router.post("/{plugin_id}/kill-switch")
+@router.post("/{plugin_id}/kill-switch", response_model=KillSwitchResponse)
 async def kill_switch_plugin(
     plugin_id: str,
     payload: PluginReviewRequest,
@@ -748,12 +755,12 @@ async def kill_switch_plugin(
         disabled_count,
         user.id,
     )
-    return {
-        "status": "disabled",
-        "plugin_name": plugin.name,
-        "instances_disabled": disabled_count,
-        "reason": payload.reason,
-    }
+    return KillSwitchResponse(
+        status="disabled",
+        plugin_name=plugin.name,
+        instances_disabled=disabled_count,
+        reason=payload.reason,
+    )
 
 
 @router.post("/{plugin_id}/scan", response_model=ScanResultResponse)

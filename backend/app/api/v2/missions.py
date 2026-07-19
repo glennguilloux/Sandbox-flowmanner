@@ -5,21 +5,24 @@ Cross-cutting concerns: idempotency, per-user rate limiting, auditing.
 
 from __future__ import annotations
 
-import uuid  # FastAPI/Pydantic v2 needs uuid at runtime for path param resolution
 from typing import TYPE_CHECKING, Any
 
+if TYPE_CHECKING:
+    import uuid  # only used in type annotations (future-annotations active)
+
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
 from app.api._mission_cqrs.deps import get_mission_commands, get_mission_queries
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_workspace_id
 from app.api.v2.base import ok, paginated
 from app.api.v2.cursor_pagination import CursorParams, cursor_paginated
 from app.api.v2.idempotency import idempotency
 from app.api.v2.rate_limit import rate_limit
 from app.database import get_db
-import structlog
+
 logger = structlog.get_logger(__name__)
 from app.schemas.mission import (
     MissionCreate,
@@ -59,6 +62,7 @@ async def list_items(
         description="Opaque cursor token from a previous response (enables keyset pagination)",
     ),
     user: User = Depends(get_current_user),
+    workspace_id: str | None = Depends(get_workspace_id),
     q: MissionQueryHandlers = Depends(get_mission_queries),
 ):
     if cursor:
@@ -67,10 +71,15 @@ async def list_items(
 
         cp = CursorParams(cursor=cursor, direction="after", limit=per_page)
         decoded = cp.decoded
+        # Tenancy: scope to the active workspace when one is resolved,
+        # otherwise fall back to the caller's own missions. Mirrors the
+        # user_id-vs-workspace_id filter in q.list_missions / q.list_active
+        # so workspace-scoped missions are not silently dropped.
+        scope_filter = Mission.workspace_id == workspace_id if workspace_id is not None else Mission.user_id == user.id
         query = (
             select(Mission)
             .where(
-                Mission.user_id == user.id,
+                scope_filter,
                 Mission.deleted_at.is_(None),
                 Mission.id > str(decoded["id"]),
             )
@@ -88,7 +97,7 @@ async def list_items(
             item_ts_fn=lambda x: x.get("created_at"),
         )
     # Offset pagination (default)
-    r = await q.list_missions(user.id, page, per_page)
+    r = await q.list_missions(user.id, page, per_page, workspace_id=workspace_id)
     return paginated(
         items=[i.model_dump() for i in r.items],
         total=r.total,
@@ -119,9 +128,10 @@ async def create_item(
 @router.get("/active")
 async def list_active(
     user: User = Depends(get_current_user),
+    workspace_id: str | None = Depends(get_workspace_id),
     q: MissionQueryHandlers = Depends(get_mission_queries),
 ):
-    missions = await q.list_active(user.id)
+    missions = await q.list_active(user.id, workspace_id=workspace_id)
     return ok([MissionResponse.model_validate(m).model_dump() for m in missions])
 
 
@@ -516,7 +526,7 @@ async def approve_task(
     # interrupt must actually signal the executor to resume the paused run.
     # v2 previously only flipped DB flags, so approved tasks never
     # re-entered execution. Reuse the same durable Celery resume task.
-    run_id = (matching[0].get("run_id") if isinstance(matching[0], dict) else None)
+    run_id = matching[0].get("run_id") if isinstance(matching[0], dict) else None
     try:
         from app.tasks.hitl_resume import dispatch_hitl_resume
 
@@ -526,7 +536,7 @@ async def approve_task(
             inbox_item_id=str(interrupt_id),
             resolution="approved",
         )
-    except Exception as exc:  # noqa: BLE001 — resume signal must not fail the HTTP 200
+    except Exception as exc:
         logger.warning("hitl resume signal failed for %s: %s", mission_id, exc)
 
     return ok(
@@ -591,7 +601,7 @@ async def reject_task(
     # G-10 (P1): mirror the v1 HITL inbox wiring — rejecting the
     # interrupt must signal the executor so the paused run fails cleanly
     # (and does not hang in PAUSED waiting on a resolution that never comes).
-    run_id = (matching[0].get("run_id") if isinstance(matching[0], dict) else None)
+    run_id = matching[0].get("run_id") if isinstance(matching[0], dict) else None
     try:
         from app.tasks.hitl_resume import dispatch_hitl_resume
 
@@ -601,7 +611,7 @@ async def reject_task(
             inbox_item_id=str(interrupt_id),
             resolution="rejected",
         )
-    except Exception as exc:  # noqa: BLE001 — resume signal must not fail the HTTP 200
+    except Exception as exc:
         logger.warning("hitl reject signal failed for %s: %s", mission_id, exc)
 
     return ok(

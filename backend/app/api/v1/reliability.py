@@ -6,7 +6,7 @@ Used to verify Langfuse failure isolation guarantees.
 """
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.api.deps import get_current_user, require_role
 from app.models.user import User
@@ -20,7 +20,40 @@ class ChaosToggleRequest(BaseModel):
     enabled: bool
 
 
-@router.get("/reliability")
+class ReliabilityReportResponse(BaseModel):
+    """Reliability report envelope.
+
+    The underlying report is assembled dynamically (monitor metrics plus
+    runtime-enriched ``chaos_stats`` / ``langfuse_trace_stats`` sub-dicts that
+    may carry an ``{"error": ...}`` branch), so this model documents the known
+    fields while permitting extras rather than silently dropping them.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    status: str | None = None
+    llm_total_calls: int | None = None
+    llm_successful: int | None = None
+    llm_success_rate: float | None = None
+    llm_latency_violations: int | None = None
+    langfuse_caused_failures: int | None = None
+    langfuse_total_failures: int | None = None
+    circuit_transitions: int | None = None
+    circuit_transition_log: list[dict] | None = None
+    chaos_stats: dict | None = None
+    langfuse_trace_stats: dict | None = None
+    assertion: str | None = None
+    target_llm_success_rate: str | None = None
+    actual_llm_success_rate: str | None = None
+
+
+class ChaosToggleResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    status: str
+
+
+@router.get("/reliability", response_model=ReliabilityReportResponse)
 async def get_reliability_report(
     user: User = Depends(get_current_user),
 ):
@@ -55,7 +88,7 @@ async def get_reliability_report(
     return report
 
 
-@router.post("/reliability/chaos")
+@router.post("/reliability/chaos", response_model=ChaosToggleResponse)
 async def toggle_chaos_mode(
     request: ChaosToggleRequest,
     user: User = Depends(require_role("admin")),
