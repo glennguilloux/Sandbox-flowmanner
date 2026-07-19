@@ -167,6 +167,25 @@ test-backend: ## Run backend pytest
 	@echo -e "$(GREEN)Running backend tests...$(RESET)"
 	cd $(BACKEND_DIR) && $(PYTHON) -m pytest tests/ -v --tb=short
 
+# Phase-1 in-repo contract regression test (app/tests/...). Maps every
+# frontend apiClient call to the live backend route table and FAILS on drift
+# (the /v1 alias class + any newly-broken path). This is the durable
+# guard that makes the 404 bug class architecturally impossible to re-add.
+.PHONY: test-contract
+test-contract: ## Run FE->BE contract regression test (app/tests)
+	@echo -e "$(GREEN)Running FE->BE contract regression test...$(RESET)"
+	cd $(BACKEND_DIR) && PYTHONPATH=$(BACKEND_DIR) $(PYTHON) -m pytest \
+		app/tests/test_frontend_backend_contract.py \
+		app/tests/test_versioning_v1_strip.py -q
+
+# Run ALL backend tests (default tests/ + the app/tests regression/invariant
+# suite) — used by the verification gate before commit.
+.PHONY: test-backend-all
+test-backend-all: ## Run tests/ + app/tests/
+	@echo -e "$(GREEN)Running full backend suite...$(RESET)"
+	cd $(BACKEND_DIR) && PYTHONPATH=$(BACKEND_DIR) $(PYTHON) -m pytest \
+		tests/ app/tests/ -q
+
 .PHONY: test-frontend
 test-frontend: ## Run frontend vitest
 	@echo -e "$(GREEN)Running frontend tests...$(RESET)"

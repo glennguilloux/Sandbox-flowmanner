@@ -81,6 +81,30 @@ class APIVersioningMiddleware(BaseHTTPMiddleware):
         if any(p in path for p in ["/docs", "/redoc", "/openapi", "/health"]):
             return await call_next(request)
 
+        # Phase-1 contract fix (root cause of the /api/v1/<plain-router> 404s):
+        # ~50 routers mount at /api/<prefix> (no /v1 segment); only `usage` and
+        # `rag` bake /v1 into their own prefix. The versioning middleware
+        # negotiated v1/v2/v3 from the path but NEVER rewrote it, so
+        # /api/v1/<router> reached the router literally and 404'd.
+        #
+        # Rewrite /api/v1/<x> -> /api/<x> in the request scope BEFORE routing,
+        # so BOTH /api/v1/<x> and /api/<x> resolve to the same router. This
+        # makes the /v1 alias class of 404s architecturally impossible.
+        #
+        # Explicitly preserved (NOT rewritten):
+        #   /api/v2/* and /api/v3/*  -- those are real versioned mounts
+        #   /api/v1/usage/* and /api/v1/rag/* -- the 2 routers that bake /v1
+        #       into their own prefix (usage is normalized to /usage in usage.py;
+        #       rag is intentionally /v1/rag per app/api/AGENTS.md -- deprecated,
+        #       must not be removed/changed)
+        if re.match(r"^/api/v1/(?!usage/|rag/)", path):
+            # Mutate the scope dict IN PLACE (reassigning request.scope does not
+            # propagate to call_next under BaseHTTPMiddleware) so the downstream
+            # router sees the rewritten path.
+            new_path = "/api/" + path[len("/api/v1/") :]
+            request.scope["path"] = new_path
+            request.scope["raw_path"] = new_path.encode()
+
         # Negotiate version
         version = _negotiate_version(request)
 
