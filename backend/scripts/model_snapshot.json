@@ -3197,6 +3197,7 @@
         "id": "UUID",
         "input_data": "JSONB",
         "meta": "JSONB",
+        "mission_id": "UUID",
         "output_data": "JSONB",
         "parent_run_id": "UUID",
         "snapshot": "JSONB",
@@ -3214,6 +3215,10 @@
           "blueprints.id"
         ],
         [
+          "mission_id",
+          "missions.id"
+        ],
+        [
           "parent_run_id",
           "runs.id"
         ],
@@ -3228,6 +3233,7 @@
       ],
       "indexes": [
         "ix_runs_blueprint_id",
+        "ix_runs_mission_id",
         "ix_runs_parent_run_id",
         "ix_runs_status",
         "ix_runs_workspace_id"
