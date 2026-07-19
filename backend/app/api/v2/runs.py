@@ -46,7 +46,7 @@ async def list_runs(
         status=status_filter,
     )
     return paginated(
-        items=[run.model_dump() for run in r.items],
+        items=[RunResponse.model_validate(run).model_dump() for run in r.items],
         total=r.total,
         page=r.page,
         per_page=r.per_page,
@@ -65,7 +65,7 @@ async def get_run(
 ):
     """Get run details and current state."""
     run = await q.get_run(user.id, run_id)
-    return ok(run.model_dump())
+    return ok(RunResponse.model_validate(run).model_dump())
 
 
 # ── Abort ──────────────────────────────────────────────────────────────────────

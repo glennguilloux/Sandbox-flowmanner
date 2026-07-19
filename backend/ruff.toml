@@ -132,3 +132,19 @@ ignore = [
 # defer to TYPE_CHECKING). TCH001 is a false positive here — same precedent as
 # schemas/mission.py.
 "**/workspace_v3.py" = ["TCH001", "TCH003"]
+# blueprint_models.py: Run/Blueprint use Mapped[datetime | None] (via
+# TimestampMixin.created_at / updated_at) which SQLAlchemy resolves eagerly at
+# mapper-config time, so datetime must be a runtime import (not deferrable to
+# TYPE_CHECKING). TCH003 is a false positive here — same as blog_models.py /
+# memory_models.py / **/hitl_models.py. RunStatus / BlueprintStatus /
+# BlueprintType are intentional str+Enum (serialize as plain strings through
+# the API and JSONB); UP042 is silenced to match the personal_memory.py /
+# workflow_models.py precedent.
+"**/blueprint_models.py" = ["TCH003", "UP042"]
+# schemas/blueprint.py: uuid / datetime / UUID back Pydantic model fields
+# (RunResponse.created_at, mission_id coercion, from_attributes). With
+# `from __future__ import annotations` these must resolve at runtime, so
+# datetime stays a top-level import (cannot defer to TYPE_CHECKING). TCH003 is
+# a false positive here — same precedent as schemas/mission.py /
+# schemas/personal_memory.py.
+"**/blueprint.py" = ["TCH003"]

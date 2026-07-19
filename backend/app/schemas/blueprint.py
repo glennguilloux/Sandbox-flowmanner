@@ -161,10 +161,15 @@ class RunResponse(BaseModel):
     meta: dict | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    # Link to the Mission this blueprint run backs (nullable for legacy runs).
+    # FRONTEND NOTE: the run-create / run-execute routes return an envelope
+    # (ok(...)), so consumers must unwrap `res.data` before reading
+    # `mission_id` — see MissionStatusTile.tsx (Phase B/C owns the fix).
+    mission_id: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
-    @field_validator("id", "blueprint_id", "workspace_id", "parent_run_id", mode="before")
+    @field_validator("id", "blueprint_id", "workspace_id", "parent_run_id", "mission_id", mode="before")
     @classmethod
     def _coerce_uuid(cls, v: Any) -> Any:
         return str(v) if isinstance(v, UUID) else v

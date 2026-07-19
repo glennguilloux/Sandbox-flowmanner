@@ -156,6 +156,17 @@ class Run(Base, TimestampMixin):
         index=True,
     )
 
+    # Link to the Mission this blueprint run backs. A blueprint run and a
+    # mission run are separate aggregates; this FK lets the Chat
+    # MissionStatusTile poll the mission a run was created from. Nullable so
+    # legacy/caller-supplied runs that predate the link stay valid.
+    mission_id: Mapped[str | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("missions.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Context
     input_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
