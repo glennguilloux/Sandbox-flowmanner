@@ -14,7 +14,9 @@ from uuid import uuid4
 from sqlalchemy import func, select
 
 from app.models.blueprint_models import Blueprint, Run, RunStatus
+from app.models.mission_models import Mission
 from app.models.workspace_models import WorkspaceMember
+from app.services.mission_service import create_mission as _create_mission
 from app.services.substrate.adapters import InvalidBlueprintGraphError, blueprint_to_workflow
 from app.services.substrate.executor import get_unified_executor
 from app.services.substrate.replay_engine import get_replay_engine
@@ -53,6 +55,7 @@ class RunService:
         user_id: int,
         input_data: dict | None = None,
         budget_override: dict | None = None,
+        mission_id: str | None = None,
     ) -> Run:
         """Create a Run from a Blueprint.
 
@@ -60,6 +63,16 @@ class RunService:
         2. Snapshot Blueprint.definition into Run.snapshot
         3. Create Run record (status=pending)
         4. Return Run (caller decides when to execute)
+
+        The Run is linked to a Mission so the Chat MissionStatusTile can poll
+        the mission a run was created from. If ``mission_id`` is caller-supplied
+        it is used as-is; otherwise a Mission is created inline from the
+        blueprint definition (title/description/workspace) so the link always
+        exists. A2a: we use the lightweight ``mission_service.create_mission``
+        rather than ``MissionCommandHandlers.create_mission`` to avoid pulling
+        the User object, subscription tier checks, cache invalidation, and audit
+        side effects into the blueprint-run path — those belong to the mission
+        create route, not a run link.
         """
         result = await self.db.execute(
             select(Blueprint).where(
@@ -97,6 +110,25 @@ class RunService:
             input_data=input_data,
             budget_limit_usd=budget_limit,
         )
+
+        # Link the run to a Mission so the Chat MissionStatusTile has something
+        # to poll. Prefer a caller-supplied mission_id; otherwise create one
+        # inline from the blueprint definition. Both paths reuse the same
+        # session/transaction as the run.
+        if mission_id is None:
+            mission = await _create_mission(
+                db=self.db,
+                title=bp.title or "Blueprint run",
+                description=bp.description or "",
+                mission_type="blueprint_run",
+                user_id=user_id,
+                status="pending",
+                workspace_id=bp.workspace_id,
+            )
+            mission_id = str(mission.id)
+
+        run.mission_id = mission_id
+
         self.db.add(run)
         await self.db.flush()
         return run
