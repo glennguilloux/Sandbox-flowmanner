@@ -61,15 +61,10 @@ from app.services.mission_service import (
 from app.services.self_improvement import SelfImprovementEngine
 
 from .base import QueryHandlerBase, _make_execution_status, _schedule_fire_and_forget
-from .compat import (
-    MissionShim,
-    active_missions_from_blueprints,
-    get_mission_as_shim,
-    get_mission_from_blueprint,
-    list_active_from_blueprints,
-    list_missions_from_blueprints,
-    use_new_reads,
-)
+from .compat import use_new_reads
+
+if TYPE_CHECKING:
+    from .compat import MissionShim
 
 
 @dataclass(slots=True)
@@ -103,24 +98,14 @@ class MissionQueryHandlers(QueryHandlerBase):
 
         offset = (page - 1) * per_page
 
-        # Phase 6: Read from Blueprint/Run tables when feature flag is enabled
-        if use_new_reads():
-            items, total = await list_missions_from_blueprints(
-                self.session,
-                user_id,
-                offset=offset,
-                limit=per_page,
-                workspace_id=workspace_id,
-            )
-        else:
-            mission_items, total = await list_missions(
-                self.session,
-                user_id,
-                offset=offset,
-                limit=per_page,
-                workspace_id=workspace_id,
-            )
-            items = [MissionResponse.model_validate(m) for m in mission_items]
+        mission_items, total = await list_missions(
+            self.session,
+            user_id,
+            offset=offset,
+            limit=per_page,
+            workspace_id=workspace_id,
+        )
+        items = [MissionResponse.model_validate(m) for m in mission_items]
 
         result = PaginatedMissions(
             items=items,
@@ -156,27 +141,8 @@ class MissionQueryHandlers(QueryHandlerBase):
         verifies the user is a member of that workspace. Otherwise falls back
         to user_id ownership check.
 
-        When ``USE_NEW_READS=1``, returns a ``MissionShim`` from the
-        Blueprint/Run tables instead of hitting the legacy ``missions`` table.
-
         For the v2 GET endpoint use get_mission_response() which is cache-aside.
         """
-        # Phase 6: Read from Blueprint/Run tables when feature flag is enabled
-        if use_new_reads():
-            shim = await get_mission_as_shim(self.session, mission_id, user_id)
-            # Write-through cache populate (fire-and-forget, failure logged)
-            try:
-                _schedule_fire_and_forget(
-                    cache_set(
-                        user_id,
-                        str(mission_id),
-                        MissionResponse.model_validate(shim).model_dump(),
-                    )
-                )
-            except Exception:
-                logger.debug("cache_set_serialization_failed", exc_info=True)
-            return shim
-
         mission = await require_mission_access(self.session, mission_id, user_id)
 
         # Write-through cache populate (fire-and-forget, failure logged)
@@ -208,17 +174,9 @@ class MissionQueryHandlers(QueryHandlerBase):
             except Exception:
                 logger.debug("cache_get_deserialization_failed", exc_info=True)
 
-        # Phase 6: Read from Blueprint/Run tables when feature flag is enabled
-        if use_new_reads():
-            response = await get_mission_from_blueprint(
-                self.session,
-                mission_id,
-                user_id,
-            )
-        else:
-            # Cache miss: fetch from DB, validate workspace access, populate cache
-            mission = await require_mission_access(self.session, mission_id, user_id)
-            response = MissionResponse.model_validate(mission)
+        # Cache miss: fetch from DB, validate workspace access, populate cache
+        mission = await require_mission_access(self.session, mission_id, user_id)
+        response = MissionResponse.model_validate(mission)
 
         try:
             _schedule_fire_and_forget(cache_set(user_id, str(mission_id), response.model_dump()))
@@ -307,24 +265,6 @@ class MissionQueryHandlers(QueryHandlerBase):
             ids = cached["active_ids"]
             if not ids:
                 return []
-            if use_new_reads():
-                # Cache stores blueprint IDs when new reads are on
-                from app.models.blueprint_models import Blueprint, Run
-
-                from .compat import _ACTIVE_RUN_STATUSES
-
-                stmt_bp = (
-                    select(Blueprint, Run)
-                    .join(Run, Run.blueprint_id == Blueprint.id)
-                    .where(
-                        Blueprint.id.in_(ids),
-                        Blueprint.deleted_at.is_(None),
-                        Run.status.in_(sorted(_ACTIVE_RUN_STATUSES)),
-                    )
-                    .order_by(Run.created_at.desc())
-                )
-                rows = (await self.session.execute(stmt_bp)).all()
-                return [MissionShim.from_blueprint_run(bp, run) for bp, run in rows]
             # Legacy path: re-fetch from Mission table
             stmt = (
                 select(Mission)
@@ -332,25 +272,6 @@ class MissionQueryHandlers(QueryHandlerBase):
                 .order_by(Mission.started_at.desc())
             )
             return list((await self.session.execute(stmt)).scalars().all())
-
-        # Phase 6: Read from Blueprint/Run tables when feature flag is enabled
-        if use_new_reads():
-            shims = await list_active_from_blueprints(
-                self.session,
-                user_id,
-                workspace_id=workspace_id,
-            )
-            # Populate cache with mission IDs (workspace-scoped)
-            _schedule_fire_and_forget(
-                cache_set_active(
-                    user_id,
-                    {
-                        "active_ids": [s.id for s in shims],
-                    },
-                    workspace_id=workspace_id,
-                )
-            )
-            return cast("list[Mission | MissionShim]", shims)
 
         base_filter = Mission.workspace_id == workspace_id if workspace_id is not None else Mission.user_id == user_id
 
@@ -398,26 +319,6 @@ class MissionQueryHandlers(QueryHandlerBase):
                 return MissionListResult(missions=items, total=len(items))
             except Exception:
                 logger.debug("cache_active_deserialization_failed", exc_info=True)
-
-        # Phase 6: Read from Blueprint/Run tables when feature flag is enabled
-        if use_new_reads():
-            items, total = await active_missions_from_blueprints(
-                self.session,
-                user_id,
-                workspace_id=workspace_id,
-            )
-            # Populate cache (fire-and-forget, failure logged)
-            _schedule_fire_and_forget(
-                cache_set_active(
-                    user_id,
-                    {
-                        "missions": [r.model_dump() for r in items],
-                        "total": total,
-                    },
-                    workspace_id=workspace_id,
-                )
-            )
-            return MissionListResult(missions=items, total=total)
 
         base_filter = Mission.workspace_id == workspace_id if workspace_id is not None else Mission.user_id == user_id
 
@@ -764,7 +665,7 @@ class MissionQueryHandlers(QueryHandlerBase):
             if mission.status not in terminal_states:
                 for _ in range(150):
                     await asyncio.sleep(2)
-                    # Use handler's get_mission() which respects USE_NEW_READS
+                    # Re-fetch the mission to detect terminal status
                     try:
                         mission = await self.get_mission(user_id, mission_id)
                     except MissionNotFoundError:

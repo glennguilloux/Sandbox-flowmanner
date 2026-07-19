@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import uuid
+import warnings
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -45,6 +46,10 @@ def use_new_reads() -> bool:
     sites continue to import without churn). Re-enabling requires a new
     decision plus a population/backfill path — do not flip without one.
     """
+    warnings.warn(
+        "USE_NEW_READS is deprecated/kill-switched; reads always serve the legacy Mission table",
+        stacklevel=2,
+    )
     return False
 
 
