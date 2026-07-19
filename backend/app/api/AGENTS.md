@@ -46,6 +46,15 @@ This is the local contract for `backend/app/api/` — the HTTP layer that expose
 
 The underscore prefix is a Python convention marking these as **internal implementation packages, not user-facing routers**. No `APIRouter` here; they are pure handler classes that routes in `v1/` / `v2/` compose into path operations.
 
+## RAG / Memory endpoint contract
+
+`/api/memory` is the **CANONICAL** endpoint the RAG UI consumes. `/api/v1/rag` is **DEPRECATED** (kept for backward-compat); new RAG UI work must target `/api/memory`.
+
+- **Canonical (use this):** `app.api.v1.memory` — router prefix `/memory` (see `backend/app/api/v1/memory.py`). All new RAG UI features read/write memory here. The v2 surface also exposes `app.api.v2.personal_memory` (prefix `/personal_memory`) as part of the v2 default surface.
+- **Deprecated (do not extend):** `app.api.v1.rag` — router prefix `/v1/rag` (see `backend/app/api/v1/rag.py`). Kept for backward compatibility with existing callers. It carries a module-level `DeprecationWarning` and MUST NOT be removed or have its behavior changed without an explicit new decision. Do not add new RAG UI features to this router.
+
+Rationale (Glenn, 2026-07-19): consolidate the RAG UI on a single canonical memory surface (`/api/memory`) to avoid split-brain between two RAG endpoints and to align RAG with the broader memory model.
+
 ## Local Contracts
 
 These rules apply across `app/api/`, on top of `backend/AGENTS.md` and `backend/app/services/AGENTS.md`.

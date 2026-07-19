@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
@@ -24,6 +25,22 @@ from app.services.rag.prompt_synthesizer import (
 )
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# DEPRECATION NOTICE
+# ---------------------------------------------------------------------------
+# `/api/v1/rag` is DEPRECATED as the canonical RAG UI endpoint.
+# The RAG UI now consumes `/api/memory` (router: app.api.v1.memory).
+# This router is kept for backward compatibility and MUST NOT be removed or
+# have its behavior changed without an explicit new decision.
+# New RAG UI work must target `/api/memory`, not `/api/v1/rag`.
+# ---------------------------------------------------------------------------
+warnings.warn(
+    "app.api.v1.rag is deprecated; the RAG UI now consumes /api/memory. "
+    "Keep this router for backward-compat only — do not add new RAG UI features here.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 router = APIRouter(prefix="/v1/rag", tags=["rag"])
 
