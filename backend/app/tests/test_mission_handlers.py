@@ -601,7 +601,7 @@ class TestHandlePlanMission:
                 "app.api._mission_cqrs.commands.get_mission_tasks",
                 new=AsyncMock(return_value=[]),
             ),
-            patch("app.api._mission_cqrs.commands.MissionExecutor", return_value=mock_exec),
+            patch("app.api._mission_cqrs.commands.MissionPlanner", return_value=mock_exec),
         ):
             handler = MissionCommandHandlers(AsyncMock())
             result = await handler.plan_mission(make_user(), MISSION_ID)
@@ -621,7 +621,7 @@ class TestHandlePlanMission:
                 "app.api._mission_cqrs.commands.require_mission_access",
                 new=AsyncMock(return_value=mock_mission),
             ),
-            patch("app.api._mission_cqrs.commands.MissionExecutor", return_value=mock_exec),
+            patch("app.api._mission_cqrs.commands.MissionPlanner", return_value=mock_exec),
         ):
             handler = MissionCommandHandlers(AsyncMock())
             with pytest.raises(MissionValidationError):

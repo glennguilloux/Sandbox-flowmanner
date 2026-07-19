@@ -785,7 +785,7 @@ class TestMissionCommandHandlersSuccess:
             return_value=mission,
         )
         mock_exec_cls = mocker.patch(
-            "app.api._mission_cqrs.commands.MissionExecutor",
+            "app.api._mission_cqrs.commands.MissionPlanner",
         )
         mocker.patch(
             "app.api._mission_cqrs.commands.get_mission_tasks",
@@ -818,7 +818,7 @@ class TestMissionCommandHandlersSuccess:
             return_value=mission,
         )
         mock_exec_cls = mocker.patch(
-            "app.api._mission_cqrs.commands.MissionExecutor",
+            "app.api._mission_cqrs.commands.MissionPlanner",
         )
 
         executor = MagicMock()
