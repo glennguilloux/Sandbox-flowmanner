@@ -208,6 +208,23 @@ async def _lookup_stored_byok_key(
                     )
                     return k.get_api_key(), k.base_url
 
+            # No exact provider match. For an openai_compatible (generic) key
+            # the stored provider is "openai_compatible" regardless of the
+            # model prefix (e.g. tencent/hy3:free, deepseek/...), so the hint
+            # never equals it. These keys serve ANY model id, so use one
+            # rather than falling through to the platform key (which 400/403s
+            # because it doesn't know the user's model).
+            compatible = [k for k in keys if k.provider == "openai_compatible"]
+            if compatible:
+                chosen = compatible[0]
+                logger.info(
+                    "BYOK lookup GENERIC: user=%s provider=%s -> openai_compatible key_id=%s",
+                    user_id,
+                    provider_hint,
+                    chosen.id,
+                )
+                return chosen.get_api_key(), chosen.base_url
+
             # No provider match found — do NOT fall back to a random key.
             # Returning a key for the wrong provider causes 400 errors
             # (e.g. sending demo-llm to OpenRouter instead of glennguilloux).
