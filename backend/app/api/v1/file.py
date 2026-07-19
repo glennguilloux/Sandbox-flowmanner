@@ -95,8 +95,12 @@ def _safe_storage_name(file_id: str, filename: str | None) -> str:
     base = base.replace("/", "_").replace("\\", "_")
     return f"{file_id}_{base}"
 
+# Both routers serve the same file domain. They intentionally keep distinct URL
+# prefixes (/file and /files) for backward compatibility, but MUST share ONE
+# canonical OpenAPI tag so the SDK generator emits a single FileService instead
+# of FileService + FilesService. (See task t_1db19911.)
 router = APIRouter(prefix="/file", tags=["file"])
-files_router = APIRouter(prefix="/files", tags=["files"])
+files_router = APIRouter(prefix="/files", tags=["file"])
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
