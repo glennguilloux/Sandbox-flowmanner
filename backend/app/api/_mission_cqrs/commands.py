@@ -439,8 +439,12 @@ class MissionCommandHandlers(CommandHandlerBase):
             if tasks is None:
                 tasks = await get_mission_tasks(self.session, mission_id)
 
-            workflow = mission_to_workflow(mission, tasks)
-            strategy_result = await unified.execute(self.session, workflow)
+            workflow = mission_to_workflow(mission, tasks, input_data=payload.input_data if payload else None)
+            strategy_result = await unified.execute(
+                self.session,
+                workflow,
+                context={"inputs": payload.input_data} if payload and payload.input_data else None,
+            )
             result = {
                 "success": strategy_result.success,
                 "status": strategy_result.status,
@@ -1022,7 +1026,7 @@ class MissionCommandHandlers(CommandHandlerBase):
 
             if self.audit:
                 self.audit.mission_aborted(
-                    mission_id=cast(uuid.UUID, mission.id),
+                    mission_id=cast("uuid.UUID", mission.id),
                     actor_id=user.id,
                     old_status=prev_status,
                     abort_reason=abort_reason.value,

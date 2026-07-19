@@ -426,12 +426,35 @@ class SandboxdClient:
             ev_type = data.get("type", "")
         return {"id": ev_id, "type": ev_type, "data": data}
 
-    async def cancel_task(self, sandbox_id: str, task_id: str) -> dict[str, Any]:
-        """POST /v1/sandboxes/{id}/tasks/{taskId}/cancel."""
+    async def sync_openrouter_key(self, api_key: str) -> dict[str, Any]:
+        """POST /v1/agents/openrouter/api-key — push a Flowmanner-stored
+        OpenRouter BYOK key into sandboxd's agent-auth store so the sandbox
+        auth proxy can inject it when forwarding to the openrouter upstream.
+
+        The key is stored opaquely in sandboxd's `openrouter` dir and never
+        returned. Idempotent — re-calling replaces the stored key.
+        """
         client = await self._get_client()
-        resp = await client.post(f"/v1/sandboxes/{sandbox_id}/tasks/{task_id}/cancel")
+        resp = await client.post(
+            "/v1/agents/openrouter/api-key",
+            json={"api_key": api_key},
+        )
         resp.raise_for_status()
         return resp.json()
+
+    async def delete_openrouter_key(self) -> None:
+        """Best-effort removal of a synced OpenRouter key from sandboxd.
+
+        Reuses the generic provider disconnect endpoint (openrouter shares the
+        agent-auth store layout). Silently no-ops transport errors so a missing
+        sandboxd does not break a BYOK delete on the Flowmanner side.
+        """
+        try:
+            client = await self._get_client()
+            resp = await client.post("/v1/agents/openrouter/disconnect")
+            resp.raise_for_status()
+        except Exception as exc:
+            logger.warning("sync_openrouter_key: cleanup failed: %s", exc)
 
     # ── Files (workspace) ──────────────────────────────────────────────
 

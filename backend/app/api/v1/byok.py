@@ -23,6 +23,42 @@ router = APIRouter(tags=["BYOK"])
 logger = logging.getLogger(__name__)
 
 
+async def _sync_openrouter_key_to_sandboxd(api_key: str) -> None:
+    """Best-effort push of an OpenRouter BYOK key into sandboxd's agent-auth
+    store so sandbox blueprints can route openrouter/<slug> models through the
+    credential-injecting proxy. Never raises — sandboxd being down should not
+    fail a Flowmanner BYOK operation.
+    """
+    if not api_key:
+        return
+    try:
+        from app.integrations.sandboxd_client import SandboxdClient
+
+        client = SandboxdClient()
+        try:
+            await client.sync_openrouter_key(api_key)
+        finally:
+            await client.close()
+        logger.info("BYOK sync: OpenRouter key pushed to sandboxd")
+    except Exception as exc:
+        logger.warning("BYOK sync: failed to push OpenRouter key to sandboxd: %s", exc)
+
+
+async def _delete_openrouter_key_from_sandboxd() -> None:
+    """Best-effort removal of the synced OpenRouter key from sandboxd."""
+    try:
+        from app.integrations.sandboxd_client import SandboxdClient
+
+        client = SandboxdClient()
+        try:
+            await client.delete_openrouter_key()
+        finally:
+            await client.close()
+        logger.info("BYOK sync: OpenRouter key removed from sandboxd")
+    except Exception as exc:
+        logger.warning("BYOK sync: failed to remove OpenRouter key from sandboxd: %s", exc)
+
+
 class APIKeyCreate(BaseModel):
     provider: str
     api_key: str
@@ -96,6 +132,12 @@ async def create_api_key(
         key.id,
         data.models,
     )
+
+    # Sync OpenRouter BYOK key into sandboxd so sandbox blueprints can use
+    # openrouter/<slug> models through the credential-injecting proxy. Best
+    # effort: a sandboxd outage must not fail the BYOK create.
+    if provider_lower == "openrouter":
+        await _sync_openrouter_key_to_sandboxd(data.api_key)
 
     # Audit log
     from app.api.middleware.audit import log_event
@@ -185,6 +227,12 @@ async def update_api_key(
         await db.refresh(key)
         logger.info("BYOK updated: user=%s key_id=%s", user.id, key_id)
 
+        # Re-push the OpenRouter key to sandboxd if this key is the OpenRouter
+        # one (idempotent — keeps the sandbox proxy's stored key in sync on
+        # re-key or first sync after a sandboxd restart).
+        if key.provider == "openrouter":
+            await _sync_openrouter_key_to_sandboxd(key.get_api_key())
+
         from app.api.middleware.audit import log_event
 
         await log_event(user.id, "byok_key_updated", {"provider": key.provider, "key_id": key.id})
@@ -224,6 +272,10 @@ async def delete_api_key(
         key.is_active = False
         await db.commit()
         logger.info("BYOK deleted: user=%s provider=%s key_id=%s", user.id, key.provider, key_id)
+
+        # Best-effort removal of the OpenRouter key from sandboxd.
+        if key.provider == "openrouter":
+            await _delete_openrouter_key_from_sandboxd()
 
         # Audit log
         from app.api.middleware.audit import log_event

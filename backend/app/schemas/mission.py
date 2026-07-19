@@ -137,6 +137,10 @@ class MissionExecuteRequest(BaseModel):
 
     model_preference: str | None = None
     selected_plan_id: str | None = None
+    # Per-run input overrides surfaced to sandbox nodes as {{ inputs.<key> }}.
+    # The mission-run model picker sets input_data={"model": "<slug>"} so the
+    # sandbox opencode agent uses the chosen model (node_executor.py:2152).
+    input_data: dict | None = None
 
 
 class SelectPlanCandidateRequest(BaseModel):
