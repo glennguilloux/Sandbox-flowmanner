@@ -19,6 +19,15 @@ repos:
     hooks:
       - id: mypy
         files: ^backend/app/.*\.py$
+        # The mypy hook runs in an isolated mirrors-mypy venv that does NOT
+        # include project deps. pyproject.toml sets
+        #   plugins = ["sqlalchemy.ext.mypy.plugin"]
+        # so mypy imports that plugin at startup — which needs `sqlalchemy`
+        # present in THIS venv, not just the project venv. Without it the hook
+        # dies with "Error importing plugin sqlalchemy.ext.mypy.plugin:
+        # No module named 'sqlalchemy'" and silently fails every backend
+        # commit (blind gate). Adding it here is the root-cause fix.
+        additional_dependencies: [sqlalchemy==2.0.46]
         # Pass files only — do NOT also pass `backend/app` as a positional
         # arg or mypy sees each file twice (once as `app/foo.py` from
         # pre-commit's file list, once as `backend/app/foo.py` from the
