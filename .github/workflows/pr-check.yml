@@ -139,6 +139,20 @@ jobs:
             --ignore=tests/test_speech_to_text_transcriber.py \
             -x -q --tb=short -m "not integration"
 
+      # Model-drift guard: assert every ORM model is registered on
+      # Base.metadata. An orphaned model (defined but never imported by
+      # app.models) would be DROPPED on the next autogenerate against live
+      # data. This runs with no DB and lives under app/tests/ (outside the
+      # default testpaths=["tests"]), so it is invoked explicitly here rather
+      # than relying on the broad `pytest tests/` collection above.
+      - name: Model-registration drift guard
+        env:
+          APP_ENV: test
+          OPENAI_API_KEY: '***'
+        run: |
+          cd backend
+          /tmp/prcheck-venv/bin/python -m pytest app/tests/test_models_registered.py -q
+
       # FE<->BE contract-drift guard. The frontend checkout is a SEPARATE
       # private repo, so it is normally absent on the backend CI runner. The
       # guard therefore SKIPS (passes) when $FE_REPO is not present, and only

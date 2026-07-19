@@ -141,6 +141,15 @@ guard-llm-success: ## CI guard: fail if any route_request result is read without
 	@echo -e "$(GREEN)Running LLM failure-propagation guard...$(RESET)"
 	cd $(BACKEND_DIR) && $(PYTHON) scripts/guard_llm_success.py app
 
+# Model-drift guard: assert every ORM model is registered on Base.metadata
+# (catches orphaned models that Alembic would DROP on live data). No DB needed.
+# Mirrors the explicit-invocation pattern of guard-fe-be-contract because the
+# test lives under app/tests/ (outside the default testpaths=["tests"]).
+.PHONY: guard-model-registered
+guard-model-registered: ## CI guard: fail if any ORM model is orphaned from Base.metadata
+	@echo -e "$(GREEN)Running model-registration drift guard...$(RESET)"
+	cd $(BACKEND_DIR) && PYTHONPATH=$(BACKEND_DIR) $(PYTHON) -m pytest app/tests/test_models_registered.py -q
+
 # FE<->BE contract drift guard: import the live FastAPI app, diff every /api/*
 # call site the frontend uses against the real route table, and fail on any NEW
 # drift (pre-existing known-broken URLs are listed in
