@@ -81,6 +81,7 @@ logger = logging.getLogger(__name__)
 _TASK_TYPE_MAP: dict[str, NodeType] = {
     "llm": NodeType.LLM_CALL,
     "llm_call": NodeType.LLM_CALL,
+    "prompt": NodeType.LLM_CALL,
     "tool": NodeType.TOOL_CALL,
     "tool_execution": NodeType.TOOL_CALL,
     "rag": NodeType.RAG_QUERY,
@@ -88,6 +89,11 @@ _TASK_TYPE_MAP: dict[str, NodeType] = {
     "web_search": NodeType.WEB_SEARCH,
     "code": NodeType.CODE_EXECUTION,
     "code_execution": NodeType.CODE_EXECUTION,
+    # Scope B palette node types that have a real backend handler but
+    # were missing from the map and silently collapsed to LLM_CALL.
+    "code_transform": NodeType.CODE_EXECUTION,
+    "search_retrieve": NodeType.RAG_QUERY,
+    "subflow": NodeType.SUB_WORKFLOW,
     "sandbox": NodeType.SANDBOX,
     "file_operation": NodeType.FILE_OPERATION,
     "review": NodeType.HUMAN_REVIEW,
