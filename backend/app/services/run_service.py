@@ -20,6 +20,7 @@ from app.models.mission_models import Mission
 from app.models.workspace_models import WorkspaceMember
 from app.services.mission_service import create_mission as _create_mission
 from app.services.substrate.adapters import InvalidBlueprintGraphError, blueprint_to_workflow
+from app.services.substrate.event_log import get_event_log
 from app.services.substrate.executor import get_unified_executor
 from app.services.substrate.replay_engine import get_replay_engine
 
@@ -359,6 +360,141 @@ class RunService:
         await self.db.flush()
         return new_run
 
+    # ── Fork ───────────────────────────────────────────────────────
+
+    async def fork_run(
+        self,
+        run_id: str,
+        user_id: int,
+        *,
+        from_sequence: int,
+        instruction: str,
+    ) -> dict:
+        """Fork a completed (or any) run from a mid-step edit (Phase 3).
+
+        Re-runs the run from ``from_sequence`` with a patched instruction
+        applied to the node that was active at that point. The fork is a
+        **new** substrate run (fresh ``run_id``) whose ``parent_run_id`` links
+        back to the original, so the two can be compared via ``/diff``.
+
+        Mechanics:
+        1. Ownership check on the original run.
+        2. Replay the event log up to ``from_sequence`` to locate the fork
+           node — the node that was running at that sequence (or the node
+           referenced by the event at that sequence).
+        3. Rebuild the workflow from the original snapshot and patch the fork
+           node's prompt with ``instruction``.
+        4. Create a new ``Run`` row carrying the patched definition +
+           ``parent_run_id``, and dispatch it through ``UnifiedExecutor``.
+
+        Returns a dict with the new run's id, type, and fork metadata.
+        """
+        original = await self.get(run_id, user_id)
+
+        if from_sequence < 0:
+            raise RunValidationError("from_sequence must be >= 0")
+
+        # ── 2. locate the fork node via replay ──
+        replay = get_replay_engine()
+        state = await replay.rebuild_state_at_sequence(self.db, str(original.id), from_sequence)
+        task_states: dict = state.task_states
+
+        # Prefer a node still "running" at the fork point; otherwise the most
+        # recently completed/failed node before it.
+        fork_node_id = None
+        for nid, ts in task_states.items():
+            if ts.get("status") == "running":
+                fork_node_id = nid
+                break
+        if fork_node_id is None:
+            # Fall back to the event at from_sequence itself, if any.
+            event_log = get_event_log()
+            events = await event_log.get_events(
+                self.db, str(original.id), from_sequence=from_sequence, limit=1
+            )
+            if events:
+                payload = events[0].payload or {}
+                fork_node_id = payload.get("node_id") or payload.get("task_id")
+        if fork_node_id is None:
+            # Nothing recorded before this sequence — fork from the first node
+            # of the original topology.
+            from app.services.substrate.adapters import blueprint_to_workflow
+
+            topo = blueprint_to_workflow(
+                snapshot=original.snapshot or {},
+                blueprint_id=str(original.blueprint_id) if original.blueprint_id else str(original.id),
+                user_id=str(user_id),
+            )
+            fork_node_id = topo.nodes[0].id if topo.nodes else "goal"
+
+        # ── 3. rebuild + patch the fork node's instruction ──
+        from app.services.substrate.adapters import blueprint_to_workflow
+
+        workflow = blueprint_to_workflow(
+            snapshot=original.snapshot or {},
+            blueprint_id=str(original.blueprint_id) if original.blueprint_id else str(original.id),
+            user_id=str(user_id),
+        )
+        patched = False
+        for node in workflow.nodes:
+            if node.id == fork_node_id:
+                node.config = {**node.config, "prompt": instruction}
+                node.description = f"[fork] {instruction}"
+                patched = True
+                break
+        if not patched and workflow.nodes:
+            # The fork node id came from the event log but has no matching
+            # topology node (shouldn't happen) — apply to the first node.
+            workflow.nodes[0].config = {**workflow.nodes[0].config, "prompt": instruction}
+
+        # ── 4. new run row + dispatch ──
+        new_run_id = str(uuid4())
+        new_run = Run(
+            id=new_run_id,
+            blueprint_id=original.blueprint_id,
+            workspace_id=original.workspace_id,
+            user_id=user_id,
+            status=RunStatus.PENDING.value,
+            snapshot=original.snapshot,
+            input_data={"forked_instruction": instruction, "forked_from_sequence": from_sequence},
+            budget_limit_usd=original.budget_limit_usd,
+            parent_run_id=str(original.id),
+        )
+        self.db.add(new_run)
+
+        # Dispatch the patched workflow through the unified executor. Passing a
+        # fresh run_id means a brand-new execution (crash-recovery only replays
+        # when the run_id already has events; here there are none yet).
+        executor = get_unified_executor()
+        definition = workflow.model_dump()
+        result = await executor.execute(
+            db=self.db,
+            workflow=workflow,
+            run_id=new_run_id,
+            context={"previous_outputs": dict(task_states)},
+        )
+
+        new_run.status = result.status
+        new_run.total_tokens = result.total_tokens
+        new_run.total_cost_usd = result.total_cost_usd
+        new_run.error_message = result.error
+        if result.status in ("completed", "failed", "aborted"):
+            new_run.completed_at = datetime.now(UTC)
+        # Persist the patched definition so /tree, /graph, /diff see the fork.
+        new_run.snapshot = {**(original.snapshot or {}), "fork": definition, "forked_node": fork_node_id}
+        await self.db.flush()
+
+        return {
+            "new_run_id": new_run_id,
+            "parent_run_id": str(original.id),
+            "workflow_type": workflow.type.value,
+            "forked_from_sequence": from_sequence,
+            "forked_node": fork_node_id,
+            "status": result.status,
+            "total_tokens": result.total_tokens,
+            "total_cost_usd": result.total_cost_usd,
+        }
+
     # ── Read ────────────────────────────────────────────────────────
 
     async def get(self, run_id: str, user_id: int) -> Run:
@@ -620,6 +756,89 @@ class RunService:
             "workflow_type": workflow.type.value,
             "status": run.status,
             "layers": tree_layers,
+        }
+
+    async def get_run_graph(self, run_id: str, user_id: int) -> dict:
+        """Return the full graph for a run (graph promotion, Phase 3).
+
+        Unlike ``get_run_tree`` (which collapses the topology into layers of
+        nodes), this returns the *complete* graph: every node, every edge
+        (including conditional edges and their ``condition``/``label``), the
+        layered execution order, and — derived from the event log — which
+        conditional edges were actually *taken* at runtime.  This is what lets
+        the frontend render branches and highlight the path that executed,
+        distinguishing a graph run from the DAG's pure fan-out.
+
+        Returns a dict with:
+            run_id, workflow_type, status,
+            nodes: [{
+                node_id, title, node_type, status,
+                layer, depends_on,
+            }],
+            edges: [{
+                source, target, condition, label, taken,
+            }],
+        """
+        run = await self.get(run_id, user_id)  # access check
+
+        workflow = blueprint_to_workflow(
+            snapshot=run.snapshot or {},
+            blueprint_id=str(run.blueprint_id) if run.blueprint_id else str(run.id),
+            user_id=str(user_id),
+        )
+
+        # Node status from the event log (source of truth).
+        replay = get_replay_engine()
+        state = await replay.rebuild_state(self.db, str(run.id))
+        task_states = state.task_states  # task_id -> {"status": ...}
+
+        layers = _topo_layers(workflow)
+        node_layer: dict[str, int] = {}
+        graph_nodes: list[dict] = []
+        for i, layer in enumerate(layers):
+            for nid in layer:
+                node_layer[nid] = i
+                node = workflow.node_map.get(nid)
+                if node is None:
+                    continue
+                st = task_states.get(nid, {}).get("status", "pending")
+                graph_nodes.append(
+                    {
+                        "node_id": nid,
+                        "title": node.title,
+                        "node_type": node.type.value,
+                        "status": st,
+                        "layer": i,
+                        "depends_on": _direct_deps(workflow, nid),
+                    }
+                )
+
+        # Which edges were taken? Control actually flows across an edge only
+        # if BOTH its source AND target executed (reached a terminal status).
+        # A branch edge whose source (e.g. `decide`) fired but whose target
+        # (e.g. `branch_a`) never ran is NOT taken — that is the signal the
+        # frontend uses to render "this branch was skipped." A plain
+        # dependency edge (source never ran) is also not taken.
+        executed = {nid for nid, ts in task_states.items() if ts.get("status") in ("completed", "failed")}
+        graph_edges: list[dict] = []
+        for e in workflow.edges:
+            taken = e.source in executed and e.target in executed
+            graph_edges.append(
+                {
+                    "source": e.source,
+                    "target": e.target,
+                    "condition": e.condition,
+                    "label": e.label,
+                    "taken": taken,
+                }
+            )
+
+        return {
+            "run_id": str(run.id),
+            "workflow_type": workflow.type.value,
+            "status": run.status,
+            "nodes": graph_nodes,
+            "edges": graph_edges,
         }
 
     async def _check_access(self, run: Run, user_id: int) -> None:

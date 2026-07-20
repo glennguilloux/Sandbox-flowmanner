@@ -147,3 +147,23 @@ class RunCommandHandlers(CommandHandlerBase):
             return await svc.execute(str(new_run.id), user.id)
 
         return await self.wrap_command(_op)
+
+    async def fork_run(self, user: User, run_id: str, *, from_sequence: int, instruction: str):
+        """Fork a run from a mid-step edit (Phase 3).
+
+        Delegates to ``RunService.fork_run``, which replays the original run's
+        event log to locate the active node at ``from_sequence``, patches that
+        node's instruction, and dispatches a NEW run (linked via
+        ``parent_run_id``) through the unified executor.
+        """
+        svc = RunService(self.session)
+
+        async def _op():
+            return await svc.fork_run(
+                run_id,
+                user.id,
+                from_sequence=from_sequence,
+                instruction=instruction,
+            )
+
+        return await self.wrap_command(_op)

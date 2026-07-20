@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 
 from app.api._blueprint_cqrs.deps import get_run_commands, get_run_queries
 from app.api.deps import get_current_user, get_workspace_id
@@ -125,6 +125,30 @@ async def retry_run(
     return ok(RunResponse.model_validate(run).model_dump())
 
 
+# ── Fork ──────────────────────────────────────────────────────────────────────
+
+@router.post("/{run_id}/fork")
+async def fork_run(
+    run_id: str,
+    user: User = Depends(get_current_user),
+    c: RunCommandHandlers = Depends(get_run_commands),
+    from_sequence: int = Body(..., description="Replay checkpoint sequence to fork from"),
+    instruction: str = Body(..., description="Edited instruction for the forked node"),
+):
+    """Fork a run from a mid-step edit (graph promotion / compounding, Phase 3).
+
+    Replays the original run's event log up to ``from_sequence`` to locate the
+    active node, patches that node's instruction with ``instruction``, and
+    dispatches a NEW run (linked via ``parent_run_id``) through the unified
+    executor. The returned ``new_run_id`` can be compared with the original via
+    ``/diff/{new_run_id}``.
+    """
+    result = await c.fork_run(
+        user, run_id, from_sequence=from_sequence, instruction=instruction
+    )
+    return ok(result)
+
+
 # ── Events ─────────────────────────────────────────────────────────────────────
 
 
@@ -226,6 +250,27 @@ async def get_run_tree(
     """
     tree = await q.get_run_tree(user.id, run_id)
     return ok(tree)
+
+
+# ── Graph (full branching graph) ─────────────────────────────────
+
+
+@router.get("/{run_id}/graph")
+@router.get("/{run_id}/graph/")
+async def get_run_graph(
+    run_id: str,
+    user: User = Depends(get_current_user),
+    q: RunQueryHandlers = Depends(get_run_queries),
+):
+    """Get the full branching graph for a run (graph promotion, Phase 3).
+
+    Returns every node + every edge (including conditional-edge condition /
+    label metadata and which edges were actually taken at runtime), so the
+    frontend can render branches and highlight the executed path. Distinct
+    from /tree, which collapses the topology into layers of nodes.
+    """
+    graph = await q.get_run_graph(user.id, run_id)
+    return ok(graph)
 
 
 # ── Diff ───────────────────────────────────────────────────────────────────────
