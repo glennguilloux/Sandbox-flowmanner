@@ -302,21 +302,33 @@ OAUTH_PROVIDERS: dict[str, OAuthProviderConfig] = {
 }
 
 
-def get_fernet() -> Fernet:
-    """Get a Fernet instance from the configured AES_ENCRYPTION_KEY."""
-    key = settings.AES_ENCRYPTION_KEY
-    if key == "change-me-in-production":
-        raise RuntimeError("AES_ENCRYPTION_KEY must be set to a valid Fernet key in production")
-    return Fernet(key.encode() if isinstance(key, str) else key)
+def get_fernet(kek_version: int | None = None) -> Fernet:
+    """Get a Fernet instance for the given OAuth KEK version.
+
+    Delegates to ``app.integrations.oauth`` — the single source of truth for
+    OAuth token encryption (key-versioned envelope + KEK rotation scaffold).
+    """
+    from app.integrations.oauth import get_fernet as _get_fernet
+
+    return _get_fernet(kek_version=kek_version)
 
 
 def encrypt_token(token: str) -> str:
-    """Encrypt a token string for storage."""
-    f = get_fernet()
-    return f.encrypt(token.encode()).decode()
+    """Encrypt a token string for storage.
+
+    Delegates to ``app.integrations.oauth.encrypt_token``.
+    """
+    from app.integrations.oauth import encrypt_token as _encrypt_token
+
+    return _encrypt_token(token)
 
 
 def decrypt_token(encrypted: str) -> str:
-    """Decrypt a stored encrypted token."""
-    f = get_fernet()
-    return f.decrypt(encrypted.encode()).decode()
+    """Decrypt a stored encrypted token.
+
+    Delegates to ``app.integrations.oauth.decrypt_token`` (tolerates both the
+    legacy no-prefix form and the new versioned envelope).
+    """
+    from app.integrations.oauth import decrypt_token as _decrypt_token
+
+    return _decrypt_token(encrypted)
