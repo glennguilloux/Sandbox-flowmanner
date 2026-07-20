@@ -1145,6 +1145,21 @@ class NodeExecutor:
                 return await self._handle_loop(node, context)
             case NodeType.WEBHOOK:
                 return await self._handle_webhook(db, node, context, run_id, workflow)
+            case NodeType.LLM_EVAL:
+                # LLM-as-judge: reuse the budgeted LLM path. The judge prompt
+                # is supplied via node.config["prompt"] (read by _handle_llm),
+                # and the node's outputSchema { score, rationale } is the
+                # expected return shape. All LLM calls stay inside
+                # BudgetEnforcer.call() (post-H5.1 — no direct httpx/OpenAI).
+                return await self._handle_llm(
+                    db,
+                    node,
+                    context,
+                    budget,
+                    run_id,
+                    workflow,
+                    context_events=context_events or [],
+                )
             case _:
                 return {"success": False, "error": f"Unknown node type: {node.type}"}
 
