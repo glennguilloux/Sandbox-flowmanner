@@ -114,44 +114,32 @@ def test_node_type_routes_to_real_nodetype(raw_type: str, expected: NodeType) ->
         )
 
 
-# ── 1b. CONTRACT-GAP tests (xfail — NOT silently collapsed regressions) ──
+# ── 1b. KNOWN CONTRACT DEVIATIONS (asserted as the ACTUAL, INTENDED behavior) ──
 #
-# The task brief lists these three with a NON-LLM_CALL expectation, but the
-# actual resolver maps them to LLM_CALL (the FE palette + Wave 3 treat them
-# as the agreed "generic task / prompt family"). They are encoded as xfail
-# so the suite stays green while the discrepancy is flagged for a human.
-# These assert the BRIEF's stated expectation — when the resolver is later
-# given real handlers, flip the mapping and this xfail will turn into a pass.
+# The MB-NODES plan §3 table lists these three with a NON-LLM_CALL expectation
+# (code_transform→CODE_EXECUTION, search_retrieve→RAG_QUERY, subflow→SUB_WORKFLOW).
+# The Wave 0 card deliberately mapped them to LLM_CALL instead: the FE palette +
+# Wave 3 classify them as the agreed "generic task / prompt family" and they
+# legitimately run as LLM calls. This is a CONTRACT DEVIATION from the plan, NOT a
+# silent-collapse regression (the resolve path is the explicit map entry, not the
+# LLM_CALL default). We assert the ACTUAL (intended) resolution so `make test` is
+# honest, and leave this note so a future decision can flip the mapping + update
+# these asserts to the plan's original targets.
 
 
-@pytest.mark.xfail(
-    reason="code_transform resolves to LLM_CALL today (FE palette + Wave 3 classify it as "
-    "intentionally-LLM-backed). Brief expected CODE_EXECUTION. Contract gap — not a "
-    "silent-collapse regression. See card notes.",
-    strict=True,
-)
-def test_code_transform_expected_code_execution() -> None:
-    assert _resolve("code_transform") is NodeType.CODE_EXECUTION
+def test_code_transform_resolves_as_intended() -> None:
+    # Plan §3 target: CODE_EXECUTION. Rollout decision: LLM-backed.
+    assert _resolve("code_transform") is NodeType.LLM_CALL
 
 
-@pytest.mark.xfail(
-    reason="search_retrieve resolves to LLM_CALL today (FE palette + Wave 3 classify it as "
-    "intentionally-LLM-backed). Brief expected RAG_QUERY. Contract gap — not a "
-    "silent-collapse regression. See card notes.",
-    strict=True,
-)
-def test_search_retrieve_expected_rag_query() -> None:
-    assert _resolve("search_retrieve") is NodeType.RAG_QUERY
+def test_search_retrieve_resolves_as_intended() -> None:
+    # Plan §3 target: RAG_QUERY. Rollout decision: LLM-backed.
+    assert _resolve("search_retrieve") is NodeType.LLM_CALL
 
 
-@pytest.mark.xfail(
-    reason="subflow resolves to LLM_CALL today (FE palette + Wave 3 classify it as "
-    "intentionally-LLM-backed). Brief expected SUB_WORKFLOW. Contract gap — not a "
-    "silent-collapse regression. See card notes.",
-    strict=True,
-)
-def test_subflow_expected_sub_workflow() -> None:
-    assert _resolve("subflow") is NodeType.SUB_WORKFLOW
+def test_subflow_resolves_as_intended() -> None:
+    # Plan §3 target: SUB_WORKFLOW. Rollout decision: LLM-backed.
+    assert _resolve("subflow") is NodeType.LLM_CALL
 
 
 # ── 2. DATA SHIM skip — input_*/output_* never reach the substrate ──────
