@@ -3,10 +3,12 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 
+from app.config import settings
 from app.database import get_db
 from app.models.auth_v3_models import AuthSession
 from app.services.auth_service import decode_access_token as v1_decode_access_token
@@ -257,20 +259,83 @@ def require_tenant_admin():
     return checker
 
 
+# Failure categories for optional-auth telemetry. These are *observability only*;
+# get_current_user_optional still returns None for every category so callers never
+# see a behaviour change. Categories let operators distinguish a missing token
+# (no_token) from a stale/expired credential (expired) or a forged/invalid one
+# (invalid_signature / invalid_token) when scanning the logs.
+_AUTH_FAILURE_CATEGORY = {
+    "no_token": "missing_or_malformed_authorization_header",
+    "expired": "token_expired",
+    "invalid_signature": "token_signature_invalid",
+    "invalid_token": "token_malformed_or_wrong_type",
+    "user_resolution": "token_valid_but_user_not_found_or_inactive",
+    "other": "unexpected_decode_or_lookup_error",
+}
+
+
+def _classify_optional_auth_failure(token: str, exc: Exception | None) -> str:
+    """Map an auth failure to a telemetry category without changing behaviour.
+
+    The decode helpers (v3_decode_access_token / v1_decode_access_token) silently
+    swallow ``jwt.ExpiredSignatureError`` / ``jwt.InvalidTokenError`` and return
+    None, so we re-attempt a raw decode purely to *classify* the failure mode.
+    This never alters the resolution outcome — it only labels it.
+    """
+    if exc is not None:
+        if isinstance(exc, jwt.ExpiredSignatureError):
+            return "expired"
+        if isinstance(exc, jwt.InvalidSignatureError):
+            return "invalid_signature"
+        if isinstance(exc, jwt.InvalidTokenError):
+            return "invalid_token"
+        return "other"
+    # No exception captured — token decoded (or helper returned None) without raising.
+    # Re-attempt a raw decode to distinguish expired/forged from a wrong-type token.
+    try:
+        jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=["HS256"])
+        # Raw decode succeeded → the failure was in user resolution, not the token.
+        return "user_resolution"
+    except jwt.ExpiredSignatureError:
+        return "expired"
+    except jwt.InvalidSignatureError:
+        return "invalid_signature"
+    except jwt.InvalidTokenError:
+        return "invalid_token"
+    except Exception:
+        # Any other decode fault (e.g. missing secret) collapses to other.
+        return "other"
+
+
 async def get_current_user_optional(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> User | None:
-    """Like get_current_user but returns None instead of 401 for unauthenticated."""
+    """Like get_current_user but returns None instead of 401 for unauthenticated.
+
+    Behaviour is unchanged: any auth failure (missing token, expired, forged,
+    or unresolvable user) yields None. As observability-only telemetry, the
+    *category* of failure is logged via the module logger so operators can tell
+    no-token from expired/forged without changing the return contract.
+    """
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
+        logger.debug(
+            "optional_user_auth_failed",
+            extra={
+                "category": _AUTH_FAILURE_CATEGORY["no_token"],
+                "reason": "authorization_header_missing_or_not_bearer",
+            },
+        )
         return None
     token = auth[7:]
+    decode_exc: Exception | None = None
     try:
         payload = v3_decode_access_token(token)
         if payload is not None:
             user_id = payload.get("sub")
             if user_id is None:
+                _log_optional_auth_failure(request, token, "invalid_token", "v3_payload_missing_sub")
                 return None
             user = await get_user_by_id(db, int(user_id))
             if user and user.is_active:
@@ -278,17 +343,63 @@ async def get_current_user_optional(
                 if not payload.get("session_id"):
                     await backfill_session_from_v1(db, int(user_id))
                 return user
-        # Defense-in-depth: v1 fallback
+            _log_optional_auth_failure(request, token, "user_resolution", "user_not_found_or_inactive")
+            return None
+        # Defense-in-depth: v1 fallback. Both decode helpers swallow
+        # ExpiredSignatureError/InvalidTokenError and return None, so a None here
+        # can mean expired OR forged OR wrong-type. Classify it for telemetry.
         user_id = v1_decode_access_token(token)
         if user_id is None:
+            _log_optional_auth_failure(
+                request,
+                token,
+                _classify_optional_auth_failure(token, None),
+                "v1_decode_returned_none",
+            )
             return None
         user = await get_user_by_id(db, int(user_id))
         if user and user.is_active:
             await backfill_session_from_v1(db, int(user_id))
             return user
-    except Exception:
-        logger.debug("optional_user_decode_failed", exc_info=True)
+        _log_optional_auth_failure(request, token, "user_resolution", "v1_user_not_found_or_inactive")
+        return None
+    except (jwt.ExpiredSignatureError, jwt.InvalidSignatureError, jwt.InvalidTokenError) as exc:
+        # The decode helpers swallow these, but a direct decode inside the
+        # user-resolution path can still surface them (e.g. via get_user_by_id):
+        # re-raise classification into the telemetry branch below is unnecessary —
+        # record and collapse to None.
+        decode_exc = exc
+    except Exception as exc:  # broad catch preserves old behaviour
+        decode_exc = exc
+    _log_optional_auth_failure(
+        request, token, _classify_optional_auth_failure(token, decode_exc), "decode_or_lookup_failed", exc=decode_exc
+    )
     return None
+
+
+def _log_optional_auth_failure(
+    request: Request,
+    token: str,
+    category: str,
+    reason: str,
+    exc: Exception | None = None,
+) -> None:
+    """Emit a structured debug log for an optional-auth failure.
+
+    Telemetry only — never affects the return value. ``debug`` level keeps the
+    volume low (these are per-request and expected on public endpoints); the
+    structured ``category`` field is the signal operators filter on.
+    """
+    logger.debug(
+        "optional_user_auth_failed",
+        extra={
+            "category": _AUTH_FAILURE_CATEGORY.get(category, category),
+            "reason": reason,
+            "path": request.url.path if hasattr(request, "url") else None,
+            "token_prefix": token[:8] if token else None,
+        },
+        exc_info=exc is not None,
+    )
 
 
 def require_permission(permission_key: str) -> Callable:
