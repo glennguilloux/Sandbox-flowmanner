@@ -96,6 +96,7 @@ class NodeType(str, Enum):
     WEBHOOK = "webhook"  # outbound HTTP POST (irreversible side effect)
     RETRY = "retry"  # reliability wrapper: sets/overrides max_retries + backoff for its wrapped child
     CACHE_GET = "cache_get"  # read-through Redis cache lookup (reversible)
+    VALIDATE_SCHEMA = "validate_schema"  # assert payload against a schema; route on_invalid on mismatch
 
     # Convention: read-only / internal-passthrough node types are annotated
     # REVERSIBLE by the planner/adapter (see EffectClass + side-effect-safety
