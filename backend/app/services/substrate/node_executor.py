@@ -1142,6 +1142,20 @@ class NodeExecutor:
                 return await self._handle_sandbox_node(db, node, context, budget, run_id, workflow)
             case NodeType.TRANSFORM:
                 return await self._handle_transform(node, context)
+            case NodeType.FILTER:
+                # Pure data-control transform: keep only collection items whose
+                # predicate (transformExpression) evaluates truthy. Reuses the
+                # whitelisted _safe_transform("filter", ...) sandbox — no
+                # arbitrary eval. The predicate lives in transformExpression;
+                # transformType is forced to "filter" so a FILTER node never
+                # needs to set transformType in its config.
+                filter_node = WorkflowNode(
+                    id=node.id,
+                    type=node.type,
+                    title=node.title,
+                    config={**node.config, "transformType": "filter"},
+                )
+                return await self._handle_transform(filter_node, context)
             case NodeType.CONDITION:
                 # Handler only evaluates the expression + reports the branch.
                 # Actual branch *taking* is strategy-level (see DAGStrategy).
