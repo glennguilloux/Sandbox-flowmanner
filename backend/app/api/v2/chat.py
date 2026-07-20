@@ -60,6 +60,7 @@ from app.services.chat_service import (
 )
 from app.services.cost_summary_service import get_chat_cost_summary
 from app.services.sse_buffer import get_stream_buffer, replay_from_buffer
+from app.services.substrate.executor import get_unified_executor
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -636,6 +637,95 @@ async def stream_thread_run(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Phase 2 — Director controls for chat-launched substrate runs.
+#
+# A chat turn may have spawned a solo substrate run (run_id stamped on the
+# thread's metadata_["source_run_id"]). These routes let the thread OWNER
+# steer that run: pause / resume / abort. Owner-binding is MANDATORY —
+# cross-user access resolves the thread to 404 (via _require_owner), so a
+# foreign user can never discover or steer another user's run.
+#
+# The control is dispatched straight to the UnifiedExecutor singleton that
+# owns the run's asyncio.Event signals (chat runs are not persisted as
+# Blueprint Run rows, so they are not reachable through RunService).
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _resolve_thread_run_id(thread: ChatThread) -> str:
+    """Return the chat-launched substrate run_id for this thread, or 404."""
+    meta = thread.metadata_ or {}
+    run_id = meta.get("source_run_id")
+    if not run_id:
+        raise _not_found()
+    return str(run_id)
+
+
+def _director_control_body(run_id: str, action: str, paused: bool) -> dict:
+    return {
+        "run_id": run_id,
+        "action": action,
+        "paused": paused,
+        "thread_bound": True,
+    }
+
+
+@router.post("/threads/{thread_id}/runs/{run_id}/pause")
+async def pause_thread_run(
+    thread_id: int,
+    run_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Pause the chat-launched substrate run bound to this thread (owner only)."""
+    thread = await get_chat_thread(db, thread_id)
+    _require_owner(thread, user)
+    # run_id is path-bound for ergonomics, but must match the thread's stamped run.
+    if _resolve_thread_run_id(thread) != run_id:
+        raise _not_found()
+
+    executor = get_unified_executor()
+    signaled = await executor.pause(run_id, db=db)
+    return ok(_director_control_body(run_id, "pause", paused=bool(signaled)))
+
+
+@router.post("/threads/{thread_id}/runs/{run_id}/resume")
+async def resume_thread_run(
+    thread_id: int,
+    run_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Resume the chat-launched substrate run bound to this thread (owner only)."""
+    thread = await get_chat_thread(db, thread_id)
+    _require_owner(thread, user)
+    if _resolve_thread_run_id(thread) != run_id:
+        raise _not_found()
+
+    executor = get_unified_executor()
+    resumed = await executor.resume(run_id, db=db)
+    return ok(_director_control_body(run_id, "resume", paused=not bool(resumed)))
+
+
+@router.post("/threads/{thread_id}/runs/{run_id}/abort")
+async def abort_thread_run(
+    thread_id: int,
+    run_id: str,
+    reason: str = "user_requested",
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Abort the chat-launched substrate run bound to this thread (owner only)."""
+    thread = await get_chat_thread(db, thread_id)
+    _require_owner(thread, user)
+    if _resolve_thread_run_id(thread) != run_id:
+        raise _not_found()
+
+    executor = get_unified_executor()
+    signaled = await executor.abort(run_id, reason=reason, db=db)
+    return ok(_director_control_body(run_id, "abort", paused=bool(signaled)))
 
 
 # ─────────────────────────────────────────────────────────────────────

@@ -128,6 +128,10 @@ class SubstrateEventType:
     # Item #3: Durable abort request
     ABORT_REQUESTED = "abort_requested"
 
+    # Phase 2 director controls: durable pause/resume intent (mirrors ABORT_REQUESTED)
+    PAUSE_REQUESTED = "pause_requested"
+    RESUME_REQUESTED = "resume_requested"
+
     # Q1-A chunk 5: Per-workspace+provider circuit breaker events
     CIRCUIT_BREAKER_OPENED = "circuit_breaker.opened"
     PROVIDER_FALLBACK_INVOKED = "provider.fallback_invoked"

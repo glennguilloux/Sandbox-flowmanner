@@ -249,6 +249,48 @@ class RunService:
 
         return run
 
+    # ── Pause ───────────────────────────────────────────────────────
+
+    async def pause(self, run_id: str, user_id: int) -> Run:
+        """Pause a running execution (director control)."""
+        run = await self.get(run_id, user_id)
+
+        if run.status != RunStatus.EXECUTING.value:
+            raise RunValidationError(f"Cannot pause run in '{run.status}' status. Only executing runs can be paused.")
+
+        run.status = RunStatus.PAUSED.value
+        await self.db.flush()
+
+        # Signal UnifiedExecutor pause
+        try:
+            executor = get_unified_executor()
+            await executor.pause(str(run.id), db=self.db)
+        except Exception:
+            logger.debug("UnifiedExecutor pause signal failed", exc_info=True)
+
+        return run
+
+    # ── Resume ──────────────────────────────────────────────────────
+
+    async def resume(self, run_id: str, user_id: int) -> Run:
+        """Resume a paused execution (director control)."""
+        run = await self.get(run_id, user_id)
+
+        if run.status != RunStatus.PAUSED.value:
+            raise RunValidationError(f"Cannot resume run in '{run.status}' status. Only paused runs can be resumed.")
+
+        run.status = RunStatus.EXECUTING.value
+        await self.db.flush()
+
+        # Signal UnifiedExecutor resume
+        try:
+            executor = get_unified_executor()
+            await executor.resume(str(run.id), db=self.db)
+        except Exception:
+            logger.debug("UnifiedExecutor resume signal failed", exc_info=True)
+
+        return run
+
     # ── Retry ───────────────────────────────────────────────────────
 
     async def retry(self, run_id: str, user_id: int) -> Run:

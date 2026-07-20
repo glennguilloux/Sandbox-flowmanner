@@ -83,6 +83,7 @@ class UnifiedExecutor:
         self.replay_engine = replay_engine or get_replay_engine()
         self.ws_manager = get_ws_manager()
         self._abort_signals: dict[str, asyncio.Event] = {}
+        self._pause_signals: dict[str, asyncio.Event] = {}
         self._strategies: dict[WorkflowType, ExecutionStrategy] = {}
         self._strategies_loaded = False
         # Q1-A: Lease manager (lazily initialized per execute() call)
@@ -607,17 +608,102 @@ class UnifiedExecutor:
             return True
         return False
 
-    async def pause(self, run_id: str) -> bool:
-        """Pause a running workflow.  (Future: pause signal propagation.)"""
-        logger.info("Pause requested for run %s", run_id)
-        # For now, abort is the only signal.  Pause support requires
-        # per-strategy pause point handling (future enhancement).
+    async def pause(
+        self,
+        run_id: str,
+        *,
+        db: AsyncSession | None = None,
+    ) -> bool:
+        """Pause a running workflow via an asyncio.Event signal.
+
+        Phase 2 director control. Mirrors the durable abort pattern: when
+        ``db`` is provided a ``pause_requested`` event is written to the event
+        log BEFORE the in-memory signal is set, so crash recovery can re-arm
+        the pause on replay.
+
+        Returns True if the pause signal was newly set (workflow was running).
+        """
+        event = self._pause_signals.get(run_id)
+        if event is None:
+            event = asyncio.Event()
+            self._pause_signals[run_id] = event
+
+        if not event.is_set():
+            if db is not None:
+                try:
+                    await self.event_log.append(
+                        db,
+                        run_id,
+                        [
+                            {
+                                "type": SubstrateEventType.PAUSE_REQUESTED,
+                                "payload": {"reason": "user_requested"},
+                                "actor": "pause_handler",
+                            }
+                        ],
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "Failed to write durable pause event for run %s: %s",
+                        run_id,
+                        e,
+                    )
+            event.set()
+            logger.info("Pause signal set for run %s", run_id)
+            return True
         return False
+
+    async def resume(
+        self,
+        run_id: str,
+        *,
+        db: AsyncSession | None = None,
+    ) -> bool:
+        """Resume a paused workflow by clearing the pause signal.
+
+        Phase 2 director control. When ``db`` is provided a
+        ``resume_requested`` event is written to the event log. Clears the
+        in-memory pause signal so a checkpointing strategy can continue.
+
+        Returns True if the run was paused (signal was cleared).
+        """
+        event = self._pause_signals.get(run_id)
+        if event is None or not event.is_set():
+            # Nothing to resume — run is not currently paused.
+            return False
+
+        if db is not None:
+            try:
+                await self.event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": SubstrateEventType.RESUME_REQUESTED,
+                            "payload": {"reason": "user_requested"},
+                            "actor": "resume_handler",
+                        }
+                    ],
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to write durable resume event for run %s: %s",
+                    run_id,
+                    e,
+                )
+        event.clear()
+        logger.info("Pause signal cleared for run %s (resumed)", run_id)
+        return True
 
     async def is_running(self, run_id: str) -> bool:
         """Check if a run is active (not yet aborted/completed)."""
         event = self._abort_signals.get(run_id)
         return event is not None and not event.is_set()
+
+    def is_paused(self, run_id: str) -> bool:
+        """Check if a run's pause signal has been set."""
+        event = self._pause_signals.get(run_id)
+        return event is not None and event.is_set()
 
     def is_aborted(self, run_id: str) -> bool:
         """Check if a run's abort signal has been set."""

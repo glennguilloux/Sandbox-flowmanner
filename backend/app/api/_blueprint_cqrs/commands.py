@@ -122,6 +122,22 @@ class RunCommandHandlers(CommandHandlerBase):
 
         return await self.wrap_command(_op)
 
+    async def pause_run(self, user: User, run_id: str):
+        svc = RunService(self.session)
+
+        async def _op():
+            return await svc.pause(run_id, user.id)
+
+        return await self.wrap_command(_op)
+
+    async def resume_run(self, user: User, run_id: str):
+        svc = RunService(self.session)
+
+        async def _op():
+            return await svc.resume(run_id, user.id)
+
+        return await self.wrap_command(_op)
+
     async def retry_run(self, user: User, run_id: str):
         svc = RunService(self.session)
 
