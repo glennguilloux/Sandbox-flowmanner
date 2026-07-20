@@ -90,6 +90,7 @@ class NodeType(str, Enum):
     # Template node types (Scope B — real handlers in node_executor)
     # Previously these collapsed to LLM_CALL through the task-type map default.
     TRANSFORM = "transform"  # pure data transform (no LLM/tool)
+    FILTER = "filter"  # pure data-control transform: keep collection items matching a predicate
     CONDITION = "condition"  # evaluate a boolean expression, drive branching
     LOG = "log"  # append a substrate log event (read-only)
     LOOP = "loop"  # strategy-level bounded iteration marker

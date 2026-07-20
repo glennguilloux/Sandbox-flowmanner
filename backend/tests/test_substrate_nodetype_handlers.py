@@ -129,6 +129,53 @@ class TestTransformHandler:
         assert res["output"] == [11]
 
 
+# ── FILTER (data-control) ────────────────────────────────────
+
+
+class TestFilterHandler:
+    @pytest.mark.asyncio
+    async def test_filter_keeps_matching_items(self):
+        """A FILTER node keeps only collection items whose predicate is truthy."""
+        ex = _executor()
+        node = _node(
+            NodeType.FILTER,
+            {"transformType": "filter", "transformExpression": "x > 1", "input": [0, 1, 2, 3]},
+        )
+        res = await ex._handle_transform(node, {})
+        assert res["success"] is True
+        assert res["output"] == [2, 3]
+
+    @pytest.mark.asyncio
+    async def test_filter_dispatch_forces_transform_type(self):
+        """_dispatch routes FILTER to the transform handler with transformType='filter'."""
+        ex = _executor()
+        node = _node(NodeType.FILTER, {"transformExpression": "x > 1", "input": [0, 1, 2, 3]})
+        res = await ex._dispatch(MagicMock(), node, {}, _budget(), "run-1", None)
+        assert res["success"] is True
+        assert res["output"] == [2, 3]
+
+    @pytest.mark.asyncio
+    async def test_filter_does_not_mutate_original_config(self):
+        """The FILTER dispatch must override transformType without mutating the source node."""
+        ex = _executor()
+        node = _node(NodeType.FILTER, {"transformExpression": "x > 1", "input": [0, 1, 2, 3]})
+        assert "transformType" not in node.config
+        await ex._dispatch(MagicMock(), node, {}, _budget(), "run-1", None)
+        # The original node config must remain untouched.
+        assert "transformType" not in node.config
+
+    @pytest.mark.asyncio
+    async def test_filter_rejects_arbitrary_code(self):
+        """A predicate that escapes the whitelist must fail closed (no execution)."""
+        ex = _executor()
+        node = _node(
+            NodeType.FILTER,
+            {"transformType": "filter", "transformExpression": "().__class__.__bases__", "input": [1]},
+        )
+        res = await ex._handle_transform(node, {})
+        assert res["success"] is False
+
+
 # ── CONDITION ────────────────────────────────────────────────
 
 
