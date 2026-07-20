@@ -18,15 +18,11 @@
 # Hermetic: no Postgres / Docker / Alembic. The adapter and DAG strategy
 # are exercised directly against in-memory Workflow objects.
 #
-# NOTE ON CONTRACT MISMATCHES (read before "fixing"): the task brief's
-# expected NodeType for `code_transform`, `search_retrieve`, and `subflow`
-# does NOT match the actual `_TASK_TYPE_MAP` resolver — all three resolve
-# to LLM_CALL today (the FE palette + Wave 3 classify them as
-# intentionally-LLM-backed). Those three are NOT silently-collapsed
-# regressions; they are the agreed "generic task / prompt family" that
-# legitimately runs as an LLM call. They are encoded as `xfail` gap tests
-# (asserting the brief's stated expectation) so the suite stays GREEN while
-# the discrepancy is surfaced to a human reviewer — this test card is
+# NOTE ON CONTRACT: the MB-NODES plan §3 table is the source of truth for expected
+# NodeTypes. All mapped types (incl. code_transform→CODE_EXECUTION,
+# search_retrieve→RAG_QUERY, subflow→SUB_WORKFLOW) resolve to their REAL NodeType —
+# verified at runtime via the adapter. No node type silently collapses to LLM_CALL
+# except `prompt`, which is the agreed LLM-backed family. This test card is
 # TEST-ONLY and must not mutate production mapping.
 # ─────────────────────────────────────────────────────────────────────
 from __future__ import annotations
@@ -114,32 +110,24 @@ def test_node_type_routes_to_real_nodetype(raw_type: str, expected: NodeType) ->
         )
 
 
-# ── 1b. KNOWN CONTRACT DEVIATIONS (asserted as the ACTUAL, INTENDED behavior) ──
+# ── 1b. W0 types — resolve to their REAL NodeType (plan §3 targets) ──
 #
-# The MB-NODES plan §3 table lists these three with a NON-LLM_CALL expectation
-# (code_transform→CODE_EXECUTION, search_retrieve→RAG_QUERY, subflow→SUB_WORKFLOW).
-# The Wave 0 card deliberately mapped them to LLM_CALL instead: the FE palette +
-# Wave 3 classify them as the agreed "generic task / prompt family" and they
-# legitimately run as LLM calls. This is a CONTRACT DEVIATION from the plan, NOT a
-# silent-collapse regression (the resolve path is the explicit map entry, not the
-# LLM_CALL default). We assert the ACTUAL (intended) resolution so `make test` is
-# honest, and leave this note so a future decision can flip the mapping + update
-# these asserts to the plan's original targets.
+# Verified at runtime: code_transform→CODE_EXECUTION, search_retrieve→RAG_QUERY,
+# subflow→SUB_WORKFLOW. (An earlier draft mislabeled these as LLM-backed and wrapped
+# them in xfail(strict=True); the runtime check proved the map IS correct, so they
+# are plain passing asserts against the plan §3 contract.)
 
 
-def test_code_transform_resolves_as_intended() -> None:
-    # Plan §3 target: CODE_EXECUTION. Rollout decision: LLM-backed.
-    assert _resolve("code_transform") is NodeType.LLM_CALL
+def test_code_transform_resolves_to_code_execution() -> None:
+    assert _resolve("code_transform") is NodeType.CODE_EXECUTION
 
 
-def test_search_retrieve_resolves_as_intended() -> None:
-    # Plan §3 target: RAG_QUERY. Rollout decision: LLM-backed.
-    assert _resolve("search_retrieve") is NodeType.LLM_CALL
+def test_search_retrieve_resolves_to_rag_query() -> None:
+    assert _resolve("search_retrieve") is NodeType.RAG_QUERY
 
 
-def test_subflow_resolves_as_intended() -> None:
-    # Plan §3 target: SUB_WORKFLOW. Rollout decision: LLM-backed.
-    assert _resolve("subflow") is NodeType.LLM_CALL
+def test_subflow_resolves_to_sub_workflow() -> None:
+    assert _resolve("subflow") is NodeType.SUB_WORKFLOW
 
 
 # ── 2. DATA SHIM skip — input_*/output_* never reach the substrate ──────
