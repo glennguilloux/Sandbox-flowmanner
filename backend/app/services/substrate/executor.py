@@ -710,6 +710,96 @@ class UnifiedExecutor:
         event = self._abort_signals.get(run_id)
         return event is not None and event.is_set()
 
+    # ── Timeout (deadline) wrapper ──────────────────────────────────
+    async def execute_with_timeout(
+        self,
+        db: AsyncSession,
+        node: WorkflowNode,
+        child: WorkflowNode,
+        context: dict[str, Any],
+        budget: Budget,
+        run_id: str,
+        workflow: Workflow | None,
+        timeout_ms: int,
+    ) -> dict[str, Any]:
+        """Deadline wrapper: bound ``child`` execution to ``timeout_ms``.
+
+        Used by the ``timeout`` node type. Runs ``child`` through the normal
+        ``execute_node`` path but under ``asyncio.wait_for``. On
+        ``asyncio.TimeoutError`` the in-flight task is cancelled cleanly (no
+        leaked coroutines) and a ``SubstrateEventType.NODE_TIMEOUT`` event is
+        emitted; the result carries ``branch == "on_timeout"`` so
+        strategy-level branch gating can route the ``on_timeout`` edge.
+
+        Abort and budget failures are NOT swallowed — they propagate so the
+        surrounding run fails fast exactly as it would without the wrapper
+        (preserves ``is_aborted`` and ``BudgetExhausted`` semantics).
+
+        Args:
+            node: the wrapping ``timeout`` node (carries ``timeoutMs`` config).
+            child: the wrapped child node to execute under the deadline.
+            timeout_ms: deadline in milliseconds.
+        """
+        from app.services.substrate.node_executor import NodeExecutor
+
+        if timeout_ms is None or timeout_ms <= 0:
+            # No deadline configured — execute the child unwrapped.
+            return await NodeExecutor(self).execute(
+                db, child, context, budget, run_id, workflow
+            )
+
+        timeout_s = timeout_ms / 1000.0
+        node_exec = NodeExecutor(self)
+        try:
+            result = await asyncio.wait_for(
+                node_exec.execute(db, child, context, budget, run_id, workflow),
+                timeout=timeout_s,
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                "timeout_node deadline exceeded: run=%s node=%s child=%s timeout_ms=%s",
+                run_id,
+                node.id,
+                child.id,
+                timeout_ms,
+            )
+            # Emit a durable timeout event so the event log captures the miss.
+            try:
+                await self.event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": SubstrateEventType.NODE_TIMEOUT,
+                            "payload": {
+                                "task_id": node.id,
+                                "child_id": child.id,
+                                "timeout_ms": timeout_ms,
+                            },
+                            "actor": "timeout_wrapper",
+                        }
+                    ],
+                )
+            except Exception as e:  # pragma: no cover - logging best-effort
+                logger.debug("Failed to emit NODE_TIMEOUT event: %s", e)
+            # Clean cancellation is handled by asyncio.wait_for (it cancels the
+            # inner task and awaits it). Return a branch result for routing.
+            return {
+                "success": True,
+                "task_id": node.id,
+                "branch": "on_timeout",
+                "timed_out": True,
+                "output": {
+                    "branch": "on_timeout",
+                    "child_id": child.id,
+                    "timeout_ms": timeout_ms,
+                },
+                "tokens_used": 0,
+                "cost_usd": 0.0,
+            }
+        # Re-raise abort/budget/other failures unchanged.
+        return result
+
     # ── Shared node execution ───────────────────────────────────────
 
     async def execute_node(

@@ -81,6 +81,7 @@ class NodeType(str, Enum):
 
     # Strategy-specific
     APPROVAL = "approval"  # Human-in-the-loop pause
+    GUARDRAIL = "guardrail"  # Pre/post content safety check (regex + optional LLM classifier)
     SUB_WORKFLOW = "sub_workflow"  # Recursive execution
     PHASE_GATE = "phase_gate"  # Pipeline phase boundary
     FAN_OUT = "fan_out"  # Swarm decomposition
@@ -91,9 +92,12 @@ class NodeType(str, Enum):
     # Previously these collapsed to LLM_CALL through the task-type map default.
     TRANSFORM = "transform"  # pure data transform (no LLM/tool)
     CONDITION = "condition"  # evaluate a boolean expression, drive branching
+    FILTER = "filter"  # keep only collection items matching a predicate
+    SPLIT = "split"  # fan a collection out into one branch per item (runtime)
     LOG = "log"  # append a substrate log event (read-only)
     LOOP = "loop"  # strategy-level bounded iteration marker
     WEBHOOK = "webhook"  # outbound HTTP POST (irreversible side effect)
+    TIMEOUT = "timeout"  # deadline wrapper: bounds a wrapped child, routes on_timeout
 
     # Convention: read-only / internal-passthrough node types are annotated
     # REVERSIBLE by the planner/adapter (see EffectClass + side-effect-safety

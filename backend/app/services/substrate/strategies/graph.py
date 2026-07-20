@@ -61,6 +61,10 @@ class GraphStrategy(ExecutionStrategy):
     ) -> StrategyResult:
         start_node_id = context.get("start_node_id")
 
+        # Stash the workflow so helper methods (e.g. _evaluate_condition's
+        # timeout-branch gating) can resolve edge source node types.
+        self.workflow = workflow
+
         active_ids = (
             self._get_subgraph_ids(workflow, start_node_id) if start_node_id else {n.id for n in workflow.nodes}
         )
@@ -155,6 +159,20 @@ class GraphStrategy(ExecutionStrategy):
     def _evaluate_condition(self, edge, node_outputs: dict[str, Any]) -> bool:
         if not edge.condition:
             return True
+        # Strategy-level branch *taking* for TIMEOUT sources: an edge with
+        # condition "on_timeout" is taken only when the wrapped child missed
+        # its deadline; "default" only when it completed in time.
+        src = self.workflow.node_map.get(edge.source) if getattr(self, "workflow", None) else None
+        if src is not None and getattr(src.type, "value", None) == "timeout":
+            branch = edge.condition.strip().lower()
+            src_out = node_outputs.get(edge.source, {})
+            timed_out = bool(src_out.get("branch") == "on_timeout") if isinstance(src_out, dict) else False
+            if branch == "on_timeout":
+                return timed_out
+            if branch == "default":
+                return not timed_out
+            # Unknown condition on a timeout edge — close it (safe default).
+            return False
         try:
             resolved = self._resolve_interpolation(edge.condition, node_outputs)
             if isinstance(resolved, bool):
