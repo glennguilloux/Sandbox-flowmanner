@@ -1136,6 +1136,11 @@ class NodeExecutor:
                 # Handler only evaluates the expression + reports the branch.
                 # Actual branch *taking* is strategy-level (see DAGStrategy).
                 return await self._handle_condition(node, context)
+            case NodeType.SPLIT:
+                # Resolves the collection into items; the DAG strategy expands
+                # the single outgoing edge into one branch per item (runtime
+                # fan-out). Mirrors RouterNode's data-driven dispatch.
+                return await self._handle_split(node, context)
             case NodeType.LOG:
                 return await self._handle_log(db, node, context, run_id, workflow)
             case NodeType.LOOP:
@@ -1939,6 +1944,90 @@ class NodeExecutor:
         return {
             "success": True,
             "output": {"value": result, "expression": expression},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    # ── Split (collection fan-out, runtime data-driven) ────────────
+    async def _handle_split(
+        self,
+        node: WorkflowNode,
+        context: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Split a collection into one item per branch (runtime fan-out).
+
+        Mirrors RouterNode's data-driven fan-out but is driven by the *shape*
+        of the data, not a classifier. The actual parallel branch creation is
+        the strategy's job (see DAGStrategy.execute); this handler only
+        resolves the collection into a flat, ordered list of items and reports
+        them so the strategy can expand the single outgoing edge into N
+        per-item branches.
+
+        Config keys:
+            splitOn: dotted path into the node input / context that resolves to
+                     the collection (default "input" -> context["input"]).
+                     Supports "input", "input.<key>", or a bare context key.
+            mode:    "item"  - emit one branch per collection element (default)
+                     "batch" - reserved; currently behaves like "item".
+
+        Returns {
+            "success",
+            "output": {
+                "items": list[Any],   # flat, ordered item payloads
+                "count": int,         # == len(items)
+                "split_on": str,
+                "mode": str,
+                "empty": bool,        # True when collection is empty
+            },
+            "tokens": 0, "cost": 0.0,
+        }.
+
+        An empty collection sets ``empty=True`` and ``items=[]`` so the
+        strategy emits NO fan-out branches (the run continues past split).
+        """
+        split_on = node.config.get("splitOn", "input")
+        mode = node.config.get("mode", "item")
+
+        # Resolve the collection from the node input / context.
+        data = context.get("input", context)
+        if split_on and split_on != "input":
+            key = split_on.split(".", 1)[1] if split_on.startswith("input.") else split_on
+            source = data if split_on.startswith("input.") else context
+            collection = source.get(key) if isinstance(source, dict) else None
+        else:
+            collection = data
+
+        if collection is None:
+            return {
+                "success": True,
+                "output": {
+                    "items": [],
+                    "count": 0,
+                    "split_on": split_on,
+                    "mode": mode,
+                    "empty": True,
+                    "note": "split source resolved to None",
+                },
+                "tokens": 0,
+                "cost": 0.0,
+            }
+
+        if isinstance(collection, (list, tuple, set)):
+            items = [x for x in collection]
+        elif isinstance(collection, dict):
+            items = list(collection.values())
+        else:
+            items = [collection]
+
+        return {
+            "success": True,
+            "output": {
+                "items": items,
+                "count": len(items),
+                "split_on": split_on,
+                "mode": mode,
+                "empty": len(items) == 0,
+            },
             "tokens": 0,
             "cost": 0.0,
         }

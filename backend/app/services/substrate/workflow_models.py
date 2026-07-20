@@ -91,6 +91,9 @@ class NodeType(str, Enum):
     # Previously these collapsed to LLM_CALL through the task-type map default.
     TRANSFORM = "transform"  # pure data transform (no LLM/tool)
     CONDITION = "condition"  # evaluate a boolean expression, drive branching
+    FILTER = "filter"  # keep only collection items matching a predicate
+    SPLIT = "split"  # fan a collection out into one branch per item (runtime)
+    GUARDRAIL = "guardrail"  # content/contract check (regex + read-only LLM classifier)
     LOG = "log"  # append a substrate log event (read-only)
     LOOP = "loop"  # strategy-level bounded iteration marker
     WEBHOOK = "webhook"  # outbound HTTP POST (irreversible side effect)

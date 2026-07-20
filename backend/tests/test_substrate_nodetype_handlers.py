@@ -475,3 +475,158 @@ class TestDAGLoopIteration:
         await DAGStrategy().execute(wf, {}, exec_mock, db, run_id="r-4")
         # Should stop after 1 iteration (not run 10 times).
         assert counts["b1"] == 1
+
+
+# ── SPLIT (collection fan-out) ──────────────────────────
+
+
+class TestSplitHandler:
+    """Unit tests for the Scope B SPLIT handler (data-driven fan-out)."""
+
+    @pytest.mark.asyncio
+    async def test_splits_list_into_items(self):
+        ex = _executor()
+        node = _node("split", {"splitOn": "input"})
+        res = await ex._handle_split(node, {"input": [1, 2, 3]})
+        assert res["success"] is True
+        assert res["output"]["items"] == [1, 2, 3]
+        assert res["output"]["count"] == 3
+        assert res["output"]["empty"] is False
+
+    @pytest.mark.asyncio
+    async def test_splits_dict_over_values(self):
+        ex = _executor()
+        node = _node("split", {"splitOn": "input"})
+        res = await ex._handle_split(node, {"input": {"a": 10, "b": 20}})
+        assert res["success"] is True
+        assert res["output"]["items"] == [10, 20]
+        assert res["output"]["count"] == 2
+
+    @pytest.mark.asyncio
+    async def test_empty_collection_marks_empty(self):
+        ex = _executor()
+        node = _node("split", {"splitOn": "input"})
+        res = await ex._handle_split(node, {"input": []})
+        assert res["success"] is True
+        assert res["output"]["items"] == []
+        assert res["output"]["empty"] is True
+
+    @pytest.mark.asyncio
+    async def test_scalar_becomes_single_item(self):
+        ex = _executor()
+        node = _node("split", {"splitOn": "input"})
+        res = await ex._handle_split(node, {"input": "solo"})
+        assert res["output"]["items"] == ["solo"]
+        assert res["output"]["count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_split_on_nested_key(self):
+        ex = _executor()
+        node = _node("split", {"splitOn": "input.rows"})
+        res = await ex._handle_split(node, {"input": {"rows": ["x", "y"]}})
+        assert res["output"]["items"] == ["x", "y"]
+        assert res["output"]["split_on"] == "input.rows"
+
+    @pytest.mark.asyncio
+    async def test_dispatch_routes_to_handler(self):
+        ex = _executor()
+        node = _node("split", {"splitOn": "input"})
+        res = await ex._dispatch(MagicMock(), node, {"input": [1, 2]}, _budget(), "run-1", None)
+        assert res["success"] is True
+        assert res["output"]["count"] == 2
+
+
+class TestDAGSplitFanout:
+    """SPLIT node drives one branch per item at the DAG strategy level."""
+
+    @pytest.mark.asyncio
+    async def test_one_branch_per_item(self):
+        # split -> worker ; collection of 3 -> worker runs 3 times.
+        nodes = [
+            WorkflowNode(
+                id="src",
+                type="llm_call",
+                title="S",
+                config={"collection": [1, 2, 3]},
+            ),
+            WorkflowNode(
+                id="split",
+                type="split",
+                title="Split",
+                dependencies=["src"],
+                config={"splitOn": "input"},
+            ),
+            WorkflowNode(id="worker", type="llm_call", title="W", dependencies=["split"]),
+        ]
+        edges = [
+            WorkflowEdge(source="src", target="split"),
+            WorkflowEdge(source="split", target="worker"),
+        ]
+        wf = _make_dag(nodes, edges)
+        # validate() must still pass: the edge references a real node id.
+        errors = await DAGStrategy().validate(wf)
+        assert errors == []
+
+        db = MagicMock()
+        exec_mock = MagicMock()
+        exec_mock.is_aborted = MagicMock(return_value=False)
+        ran: dict[str, int] = {}
+
+        async def run_node(*a, **k):
+            n = k["node"]
+            nid = n.id
+            ran[nid] = ran.get(nid, 0) + 1
+            if n.type.value == "split":
+                # Return the REAL split handler output so the strategy fans out.
+                from app.services.substrate.node_executor import NodeExecutor
+
+                out = await NodeExecutor(_StubUnifiedExecutor())._handle_split(n, k["context"])
+                out.setdefault("tokens", 0)
+                out.setdefault("cost", 0.0)
+                return out
+            # worker receives the per-item input from the fan-out.
+            return {
+                "success": True,
+                "output": {"got": k["context"].get("input")},
+                "tokens": 1,
+                "cost": 0.0,
+            }
+
+        exec_mock.execute_node = AsyncMock(side_effect=run_node)
+        result = await DAGStrategy().execute(wf, {"input": [1, 2, 3]}, exec_mock, db, run_id="r-split-1")
+        assert result.success is True
+        # split fanned its 3 items out: worker executed once per item.
+        assert ran["worker"] == 3
+        assert ran["split"] == 1
+
+    @pytest.mark.asyncio
+    async def test_empty_collection_no_fanout(self):
+        nodes = [
+            WorkflowNode(id="split", type="split", title="Split", config={"splitOn": "input"}),
+            WorkflowNode(id="worker", type="llm_call", title="W", dependencies=["split"]),
+        ]
+        edges = [WorkflowEdge(source="split", target="worker")]
+        wf = _make_dag(nodes, edges)
+        db = MagicMock()
+        exec_mock = MagicMock()
+        exec_mock.is_aborted = MagicMock(return_value=False)
+        ran: dict[str, int] = {}
+
+        async def run_node(*a, **k):
+            n = k["node"]
+            ran[n.id] = ran.get(n.id, 0) + 1
+            if n.type.value == "split":
+                from app.services.substrate.node_executor import NodeExecutor
+
+                out = await NodeExecutor(_StubUnifiedExecutor())._handle_split(n, k["context"])
+                out.setdefault("tokens", 0)
+                out.setdefault("cost", 0.0)
+                return out
+            return {"success": True, "output": {}, "tokens": 1, "cost": 0.0}
+
+        exec_mock.execute_node = AsyncMock(side_effect=run_node)
+        result = await DAGStrategy().execute(wf, {"input": []}, exec_mock, db, run_id="r-split-2")
+        assert result.success is True
+        # Empty collection -> no fan-out -> worker never runs.
+        assert ran.get("worker", 0) == 0
+        assert ran["split"] == 1

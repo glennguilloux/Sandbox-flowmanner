@@ -154,6 +154,28 @@ class DAGStrategy(ExecutionStrategy):
                             completed_nodes,
                             failed_nodes,
                         )
+
+                    # Scope B (T1-D2): a SPLIT node fans its collection out
+                    # into one branch per item at runtime. The handler already
+                    # resolved the collection into ``output["items"]``; here we
+                    # expand the split's single outgoing edge(s) into N parallel
+                    # executions of the immediate downstream target(s), one per
+                    # item. Targets are marked executed so the normal layering
+                    # (later layer) skips them - they only run via the fan-out.
+                    if workflow.node_map[nid].type.value == "split" and not node_outputs[nid].get("empty", False):
+                        await self._run_split_branches(
+                            workflow,
+                            nid,
+                            node_outputs[nid],
+                            context,
+                            executor,
+                            db,
+                            run_id,
+                            node_outputs,
+                            executed,
+                            completed_nodes,
+                            failed_nodes,
+                        )
                 else:
                     failed_nodes.append(nid)
                     node_outputs[nid] = {"error": result.get("error")}
@@ -184,7 +206,19 @@ class DAGStrategy(ExecutionStrategy):
         incoming = [e for e in workflow.edges if e.target == nid]
         for edge in incoming:
             src = workflow.node_map.get(edge.source)
-            if src is None or src.type.value != "condition":
+            if src is None:
+                continue
+            # A fan-out edge from an EMPTY split node produces no branches, so
+            # the downstream target must be skipped (the run continues past the
+            # split). Mirrors CONDITION branch gating but is keyed on the split
+            # node's resolved ``empty`` flag rather than an edge condition.
+            if src.type.value == "split":
+                if not edge.condition:
+                    src_out = node_outputs.get(edge.source, {})
+                    if isinstance(src_out, dict) and src_out.get("empty"):
+                        return False
+                continue
+            if src.type.value != "condition":
                 continue
             if not edge.condition:
                 continue
@@ -304,6 +338,86 @@ class DAGStrategy(ExecutionStrategy):
                 except Exception as e:
                     logger.debug("Loop stop_condition eval failed: %s", e)
                     break
+
+    # ── Split (runtime fan-out) ──────────────────────────────────
+
+    async def _run_split_branches(
+        self,
+        workflow: Workflow,
+        split_node_id: str,
+        split_output: dict[str, Any],
+        context: dict[str, Any],
+        executor: UnifiedExecutor,
+        db: AsyncSession,
+        run_id: str,
+        node_outputs: dict[str, Any],
+        executed: set[str],
+        completed_nodes: list[str],
+        failed_nodes: list[str],
+    ) -> None:
+        """Fan a split node's collection out into one branch per item.
+
+        For each item in ``split_output["items"]``, the split node's immediate
+        downstream target(s) (the nodes reached via its outgoing edges) are
+        executed once, in parallel, with that item injected as the node's
+        ``input``. This is the data-driven analogue of RouterNode's per-route
+        branches: one dynamic edge per item at runtime.
+
+        Items run in parallel (one asyncio task per (item, target) pair). Each
+        target is marked ``executed`` so the normal layered traversal skips it
+        - it only runs through this fan-out. The split node itself is already
+        in ``executed``.
+
+        An empty collection (``split_output["empty"] is True``) produces no
+        branches; the caller is responsible for not invoking this helper in
+        that case, so the run simply continues past the split node.
+        """
+        items = split_output.get("items") or []
+        if not items:
+            return
+
+        # Immediate downstream targets reached via the split's outgoing edges.
+        targets: list[str] = []
+        for edge in workflow.dependency_map.get(split_node_id, []):
+            if edge.target not in targets:
+                targets.append(edge.target)
+
+        if not targets:
+            return
+
+        async def _run_one(item_idx: int, item: Any, target_nid: str) -> None:
+            target_node = workflow.node_map.get(target_nid)
+            if target_node is None:
+                return
+            # Inject the item as the node's input so the per-item payload flows
+            # downstream. ``previous_outputs`` keeps the rest of the context.
+            branch_context = {
+                **context,
+                "input": item,
+                "previous_outputs": node_outputs,
+                "split_item_index": item_idx,
+            }
+            result = await executor.execute_node(
+                db=db,
+                node=target_node,
+                context=branch_context,
+                budget=workflow.budget,
+                run_id=run_id,
+                workflow=workflow,
+            )
+            if result.get("success"):
+                executed.add(target_nid)
+                if target_nid not in completed_nodes:
+                    completed_nodes.append(target_nid)
+                node_outputs[target_nid] = result.get("output", {})
+            else:
+                if target_nid not in failed_nodes:
+                    failed_nodes.append(target_nid)
+                node_outputs[target_nid] = {"error": result.get("error")}
+
+        # Parallel across items x targets.
+        fan_tasks = [_run_one(idx, item, target_nid) for idx, item in enumerate(items) for target_nid in targets]
+        await asyncio.gather(*fan_tasks, return_exceptions=True)
 
     # ── Topological sort (Kahn) ───────────────────────────────────
 
