@@ -62,6 +62,7 @@ _REVERSIBLE_NODE_TYPES: frozenset[NodeType] = frozenset(
         NodeType.LOG,  # read-only substrate event append
         NodeType.CONDITION,  # handler only evaluates + reports branch
         NodeType.TRANSFORM,  # pure data transform, no LLM/tool
+        NodeType.MEMORY_READ,  # read-only semantic memory read from Qdrant
     }
 )
 
@@ -106,6 +107,7 @@ _TASK_TYPE_MAP: dict[str, NodeType] = {
     "log": NodeType.LOG,
     "loop": NodeType.LOOP,
     "webhook": NodeType.WEBHOOK,
+    "memory_read": NodeType.MEMORY_READ,
 }
 
 

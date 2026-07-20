@@ -44,6 +44,55 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# ── Shared Qdrant client (lazy, single instance for node execution) ──
+# Reuses the same connection target as the rest of the stack
+# (settings.QDRANT_URL). We deliberately keep ONE client for node-level
+# Qdrant access so the memory_read node does not spin up a second
+# connection — it reuses this cached client.
+_QDRANT_CLIENT: Any | None = None
+_QDRANT_EMBED_MODEL: Any | None = None
+_QDRANT_EMBED_DIM = 384  # all-MiniLM-L6-v2
+_QDRANT_EMBED_MODEL_NAME = "all-MiniLM-L6-v2"
+
+
+def _get_qdrant_client() -> Any | None:
+    """Return a lazily-created, cached Qdrant client (or None if unavailable)."""
+    global _QDRANT_CLIENT
+    if _QDRANT_CLIENT is not None:
+        return _QDRANT_CLIENT
+    try:
+        from qdrant_client import QdrantClient
+
+        from app.config import settings
+
+        client = QdrantClient(url=settings.QDRANT_URL, timeout=10)
+        client.get_collections()
+        _QDRANT_CLIENT = client
+        logger.info("NodeExecutor connected to Qdrant at %s", settings.QDRANT_URL)
+        return _QDRANT_CLIENT
+    except Exception as e:
+        logger.warning("NodeExecutor: Qdrant unavailable (%s)", e)
+        return None
+
+
+def _embed_query(text: str) -> list[float] | None:
+    """Embed a query string with the shared all-MiniLM-L6-v2 model (384-dim)."""
+    global _QDRANT_EMBED_MODEL
+    if _QDRANT_EMBED_MODEL is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+
+            _QDRANT_EMBED_MODEL = SentenceTransformer(_QDRANT_EMBED_MODEL_NAME)
+        except Exception as e:
+            logger.warning("NodeExecutor: embedding model unavailable (%s)", e)
+            return None
+    try:
+        return _QDRANT_EMBED_MODEL.encode(text).tolist()
+    except Exception as e:
+        logger.warning("NodeExecutor: query embed failed (%s)", e)
+        return None
+
+
 # ── Scope B helpers: safe evaluators for transform / condition nodes ──
 # These nodes MUST NOT run arbitrary code. They use ast.parse to compile the
 # user expression and allow ONLY a whitelisted node set (literals, names
@@ -1145,6 +1194,8 @@ class NodeExecutor:
                 return await self._handle_loop(node, context)
             case NodeType.WEBHOOK:
                 return await self._handle_webhook(db, node, context, run_id, workflow)
+            case NodeType.MEMORY_READ:
+                return await self._handle_memory_read(node, context)
             case _:
                 return {"success": False, "error": f"Unknown node type: {node.type}"}
 
@@ -1813,6 +1864,76 @@ class NodeExecutor:
             return {"success": True, "output": {"query": query, "results": results}}
         except Exception as e:
             return {"success": False, "error": f"Web search failed: {e}"}
+
+    async def _handle_memory_read(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
+        """Read semantically-similar memories from a Qdrant collection.
+
+        Config keys:
+            collection: target Qdrant collection (default "flowmanner_memory")
+            query: the search query text (falls back to node description)
+            topK: max results to return (default 5)
+            scoreThreshold: optional minimum similarity score
+
+        Reuses the shared Qdrant client (``_get_qdrant_client``) and the
+        project's all-MiniLM-L6-v2 384-dim embedding model. Returns a
+        normalized ``results`` list mirroring ``search_retrieve`` shape.
+        """
+        inputs = context.get("inputs") or {}
+        collection = node.config.get("collection") or "flowmanner_memory"
+        query = node.config.get("query") or context.get("query") or node.description
+        query = interpolate_inputs(query, inputs)
+
+        if not query:
+            return {"success": False, "error": "No query provided for memory_read"}
+
+        top_k = int(node.config.get("topK", 5))
+        score_threshold = node.config.get("scoreThreshold")
+
+        embedding = _embed_query(query)
+        if embedding is None:
+            return {"success": False, "error": "Memory embedding model unavailable"}
+
+        client = _get_qdrant_client()
+        if client is None:
+            return {"success": False, "error": "Qdrant client unavailable"}
+
+        try:
+            from qdrant_client.models import Filter
+
+            search_filter = None
+            if "filter" in node.config and isinstance(node.config["filter"], dict):
+                # Pass-through of a pre-built qdrant filter payload is not
+                # supported here; only key/value equality shortcuts are.
+                search_filter = Filter(**node.config["filter"])
+
+            hits = client.search(
+                collection_name=collection,
+                query_vector=embedding,
+                query_filter=search_filter,
+                limit=top_k,
+                score_threshold=score_threshold,
+            )
+
+            results = [
+                {
+                    "id": hit.id,
+                    "score": round(hit.score, 4),
+                    "payload": hit.payload,
+                }
+                for hit in hits
+            ]
+            return {
+                "success": True,
+                "output": {
+                    "query": query,
+                    "collection": collection,
+                    "results": results,
+                },
+                "tokens": 0,
+                "cost": 0.0,
+            }
+        except Exception as e:
+            return {"success": False, "error": f"Memory read failed: {e}"}
 
     # ── File operations ─────────────────────────────────────────────
 
