@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 
 from app.api._blueprint_cqrs.deps import get_run_commands, get_run_queries
 from app.api.deps import get_current_user, get_workspace_id
@@ -123,6 +123,30 @@ async def retry_run(
     """Retry a failed run (creates new run from same blueprint)."""
     run = await c.retry_run(user, run_id)
     return ok(RunResponse.model_validate(run).model_dump())
+
+
+# ── Fork ──────────────────────────────────────────────────────────────────────
+
+@router.post("/{run_id}/fork")
+async def fork_run(
+    run_id: str,
+    user: User = Depends(get_current_user),
+    c: RunCommandHandlers = Depends(get_run_commands),
+    from_sequence: int = Body(..., description="Replay checkpoint sequence to fork from"),
+    instruction: str = Body(..., description="Edited instruction for the forked node"),
+):
+    """Fork a run from a mid-step edit (graph promotion / compounding, Phase 3).
+
+    Replays the original run's event log up to ``from_sequence`` to locate the
+    active node, patches that node's instruction with ``instruction``, and
+    dispatches a NEW run (linked via ``parent_run_id``) through the unified
+    executor. The returned ``new_run_id`` can be compared with the original via
+    ``/diff/{new_run_id}``.
+    """
+    result = await c.fork_run(
+        user, run_id, from_sequence=from_sequence, instruction=instruction
+    )
+    return ok(result)
 
 
 # ── Events ─────────────────────────────────────────────────────────────────────
