@@ -95,6 +95,7 @@ class NodeType(str, Enum):
     LOOP = "loop"  # strategy-level bounded iteration marker
     WEBHOOK = "webhook"  # outbound HTTP POST (irreversible side effect)
     RETRY = "retry"  # reliability wrapper: sets/overrides max_retries + backoff for its wrapped child
+    CACHE_GET = "cache_get"  # read-through Redis cache lookup (reversible)
 
     # Convention: read-only / internal-passthrough node types are annotated
     # REVERSIBLE by the planner/adapter (see EffectClass + side-effect-safety

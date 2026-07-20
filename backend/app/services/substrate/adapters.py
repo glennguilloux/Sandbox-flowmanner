@@ -62,6 +62,7 @@ _REVERSIBLE_NODE_TYPES: frozenset[NodeType] = frozenset(
         NodeType.LOG,  # read-only substrate event append
         NodeType.CONDITION,  # handler only evaluates + reports branch
         NodeType.TRANSFORM,  # pure data transform, no LLM/tool
+        NodeType.CACHE_GET,  # read-through Redis cache lookup (reversible)
     }
 )
 
