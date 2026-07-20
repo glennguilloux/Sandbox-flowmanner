@@ -6,6 +6,8 @@ abort/retry lifecycle.
 
 from __future__ import annotations
 
+import hashlib
+import json as _json
 import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -431,6 +433,48 @@ class RunService:
             limit=limit,
         )
 
+    # ── Provenance ─────────────────────────────────────────────────
+
+    async def get_provenance(
+        self,
+        run_id: str,
+        user_id: int,
+        *,
+        from_sequence: int = 0,
+        limit: int = 10_000,
+    ) -> list[dict]:
+        """READ over the substrate event log — explainability (Phase 2).
+
+        Provenance answers *why a step happened*: which actor fired it,
+        what its causal parent was, what tool/capability/budget it used,
+        and a content hash of its payload. No second audit store — this is
+        a projection built from the existing append-only ``substrate_events``
+        table.
+
+        Per contract 10 (``_blueprint_cqrs`` AGENTS.md), substrate reads use a
+        separate read session so this projection never touches the caller's
+        write transaction.
+
+        Field extraction is best-effort: ``reasoning``, ``tool_name``,
+        ``capability_scope`` and ``budget_spent`` come from the event payload
+        when present, otherwise ``None``. ``content_hash`` is derived from the
+        payload when the event does not carry one explicitly.
+        """
+        await self.get(run_id, user_id)  # access/ownership check
+
+        from app.database import AsyncSessionLocal
+        from app.services.substrate.event_log import get_event_log
+
+        async with AsyncSessionLocal() as read_session:
+            event_log = get_event_log()
+            events = await event_log.get_events(
+                read_session,
+                str(run_id),
+                from_sequence=from_sequence,
+                limit=limit,
+            )
+            return [_event_to_provenance(e) for e in events]
+
     # ── Replay ──────────────────────────────────────────────────────
 
     async def replay_state(self, run_id: str, user_id: int, at_sequence: int | None = None) -> dict:
@@ -595,3 +639,72 @@ class RunService:
                 return
 
         raise RunNotFoundError(f"Run {run.id} not found")
+
+
+# ── Provenance projection helper ──────────────────────────────────
+#
+# Module-level so tests can call it directly without a DB session.
+# Best-effort extraction from the substrate event: model fields give the
+# structural provenance (seq / actor / causal_parent / type) and the payload
+# is mined for explainability fields (reasoning / tool / capability / budget).
+# Anything not emitted by the event log falls back to ``None``.
+
+
+def _event_to_provenance(event: Any) -> dict:
+    """Project a substrate event into a provenance record.
+
+    Returns a flat dict with keys:
+        seq, actor, causal_parent, type, reasoning, tool_name,
+        capability_scope, budget_spent, content_hash
+
+    ``content_hash`` is taken from the payload's ``content_hash`` key when
+    present, otherwise computed as a sha256 of the canonical payload JSON so
+    two events with identical payloads always hash identically.
+    """
+    payload: dict = event.payload or {}
+
+    # ── tool_name: several emit shapes ──
+    tool_name = (
+        payload.get("tool_name")
+        or payload.get("tool")
+        or (payload.get("tool_call") or {}).get("name")
+        or (payload.get("tool_call") or {}).get("tool")
+        or (payload.get("tool_result") or {}).get("tool")
+        or payload.get("node_type")
+    )
+
+    # ── capability_scope: explicit key, or nested under capability token ──
+    capability_scope = (
+        payload.get("capability_scope")
+        or (payload.get("capability_token") or {}).get("scope")
+        or (payload.get("capability") or {}).get("scope")
+    )
+
+    # ── budget_spent: explicit cost keys ──
+    budget_spent = payload.get("budget_spent") or payload.get("cost_usd") or payload.get("spent_usd")
+    # Coerce to float when numeric so the contract stays typed.
+    if budget_spent is not None:
+        try:
+            budget_spent = float(budget_spent)
+        except (TypeError, ValueError):
+            budget_spent = None
+
+    # ── reasoning ──
+    reasoning = payload.get("reasoning") or payload.get("rationale")
+
+    # ── content_hash ──
+    content_hash = payload.get("content_hash")
+    if content_hash is None:
+        content_hash = hashlib.sha256(_json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
+
+    return {
+        "seq": event.sequence,
+        "actor": event.actor,
+        "causal_parent": event.causal_parent,
+        "type": event.type,
+        "reasoning": reasoning,
+        "tool_name": tool_name,
+        "capability_scope": capability_scope,
+        "budget_spent": budget_spent,
+        "content_hash": content_hash,
+    }
