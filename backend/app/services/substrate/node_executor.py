@@ -18,6 +18,7 @@ All tool calls go through CapabilityEngine.verify().
 from __future__ import annotations
 
 import ast
+import asyncio
 import json
 import logging
 import re
@@ -915,6 +916,13 @@ class NodeExecutor:
                         }
                     ],
                 )
+                # Optional backoff before the next attempt. Only sleeps when the
+                # node (or its retry-wrapper parent) configured backoff_ms.
+                # Default path (inline task.maxRetries) carries no backoff and is
+                # unaffected.
+                backoff_ms = node.config.get("backoff_ms")
+                if backoff_ms:
+                    await asyncio.sleep(float(backoff_ms) / 1000.0)
                 continue
 
             # All retries exhausted
@@ -1145,6 +1153,8 @@ class NodeExecutor:
                 return await self._handle_loop(node, context)
             case NodeType.WEBHOOK:
                 return await self._handle_webhook(db, node, context, run_id, workflow)
+            case NodeType.RETRY:
+                return await self._handle_retry(db, node, context, budget, run_id, workflow)
             case _:
                 return {"success": False, "error": f"Unknown node type: {node.type}"}
 
@@ -2119,6 +2129,62 @@ class NodeExecutor:
             }
         except Exception as e:
             return {"success": False, "error": f"Webhook request failed: {e}"}
+
+    # ── Retry wrapper (Reliability) ────────────────────────────────
+    async def _handle_retry(
+        self,
+        db: AsyncSession | None,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        budget: Budget,
+        run_id: str,
+        workflow: Workflow | None = None,
+    ) -> dict[str, Any]:
+        """Reliability wrapper: set/override max_retries + backoff for the child.
+
+        A `retry` node is a composition wrapper. It resolves its single wrapped
+        child via the outgoing edge, overrides the child's effective retry
+        policy (wrapper wins when both the wrapper and the child specify
+        maxRetries — Q1), propagates a backoff, then re-executes the child
+        through ``execute`` so the existing retry loop + BudgetExhausted
+        handling are reused unchanged. Budget exhaustion still raises (the
+        child's loop re-raises at execute()'s budget check).
+
+        Config keys (read from the wrapper node):
+            maxRetries: int — overrides child ``max_retries`` (default 3)
+            backoffMs:  int — sleep between child attempts (no backoff if unset)
+        """
+        if workflow is None:
+            return {
+                "success": False,
+                "error": "retry wrapper requires a workflow graph to resolve its child",
+            }
+
+        child_ids = [edge.target for edge in workflow.edges if edge.source == node.id]
+        if not child_ids:
+            return {
+                "success": False,
+                "error": "retry wrapper has no wrapped child (no outgoing edge)",
+            }
+        child_id = child_ids[0]
+        child = workflow.node_map.get(child_id)
+        if child is None:
+            return {
+                "success": False,
+                "error": f"retry wrapper child not found: {child_id}",
+            }
+
+        # Wrapper wins (Q1): only override when the wrapper explicitly sets it.
+        wrapper_max = node.config.get("maxRetries", node.max_retries)
+        if wrapper_max is not None:
+            child.max_retries = int(wrapper_max)
+
+        # Propagate backoff into the child config so execute()'s loop sleeps.
+        backoff_ms = node.config.get("backoffMs")
+        if backoff_ms is not None:
+            child.config = {**child.config, "backoff_ms": int(backoff_ms)}
+
+        return await self.execute(db, child, context, budget, run_id, workflow)
 
     # ── Sandbox node (Phase 3) ───────────────────────────────────────
 
