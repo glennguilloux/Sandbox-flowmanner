@@ -81,6 +81,7 @@ class NodeType(str, Enum):
 
     # Strategy-specific
     APPROVAL = "approval"  # Human-in-the-loop pause
+    GUARDRAIL = "guardrail"  # Pre/post content safety check (regex + optional LLM classifier)
     SUB_WORKFLOW = "sub_workflow"  # Recursive execution
     PHASE_GATE = "phase_gate"  # Pipeline phase boundary
     FAN_OUT = "fan_out"  # Swarm decomposition
@@ -108,6 +109,7 @@ class NodeType(str, Enum):
     VARIABLE_SET = "variable_set"  # write a named value into the run-scoped inputs dict
     LLM_EVAL = "llm_eval"  # LLM-as-judge: score + rationale (read-only output)
     MEMORY_READ = "memory_read"  # read from the flowmanner_memory Qdrant collection
+    TIMEOUT = "timeout"  # deadline wrapper: bounds a wrapped child, routes on_timeout
 
     # Convention: read-only / internal-passthrough node types are annotated
     # REVERSIBLE by the planner/adapter (see EffectClass + side-effect-safety

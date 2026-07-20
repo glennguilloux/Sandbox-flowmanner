@@ -97,6 +97,7 @@ class SubstrateEventType:
     NODE_FAILED = "task.failed"
     NODE_RETRYING = "task.retrying"
     NODE_SKIPPED = "task.skipped"
+    NODE_TIMEOUT = "task.timeout"  # a TIMEOUT wrapper node's child exceeded deadline
 
     LLM_CALL = "llm.call"
     LLM_RESPONSE = "llm.response"

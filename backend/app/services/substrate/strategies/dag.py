@@ -194,12 +194,17 @@ class DAGStrategy(ExecutionStrategy):
     # ── CONDITION branch gating ──────────────────────────────────────
 
     def _incoming_branch_passed(self, workflow: Workflow, nid: str, node_outputs: dict[str, Any]) -> bool:
-        """True if all incoming edges from CONDITION nodes permit execution.
+        """True if all incoming edges from CONDITION/TIMEOUT nodes permit execution.
 
         An edge from a CONDITION node carries edge.condition == "true" or
         "false". The edge is taken only when the condition's evaluated
         boolean matches. Edges without a condition (or not from a condition
         node) don't gate.
+
+        An edge from a TIMEOUT node carries edge.condition == "on_timeout"
+        (taken only when the wrapped child missed its deadline) or "default"
+        (taken only when it completed in time). This mirrors the CONDITION
+        branch precedent for strategy-level branch *taking*.
         """
         # Build incoming edges for this node (validate() guarantees the
         # edge endpoints reference real node ids).
@@ -219,16 +224,32 @@ class DAGStrategy(ExecutionStrategy):
                         return False
                 continue
             if src.type.value != "condition":
+                # A fan-out edge from an EMPTY split node produces no branches,
+                # so the downstream target must be skipped (the run continues
+                # past the split). Mirrors CONDITION branch gating.
+                if src.type.value == "split":
+                    src_out = node_outputs.get(edge.source, {})
+                    if isinstance(src_out, dict) and src_out.get("empty"):
+                        return False
                 continue
-            if not edge.condition:
-                continue
-            cond_out = node_outputs.get(edge.source, {})
-            cond_value = bool(cond_out.get("value")) if isinstance(cond_out, dict) else bool(cond_out)
             branch = edge.condition.strip().lower()
-            if branch == _BRANCH_TRUE and not cond_value:
-                return False
-            if branch == _BRANCH_FALSE and cond_value:
-                return False
+            if src.type.value == "condition":
+                if branch not in (_BRANCH_TRUE, _BRANCH_FALSE):
+                    continue
+                cond_out = node_outputs.get(edge.source, {})
+                cond_value = bool(cond_out.get("value")) if isinstance(cond_out, dict) else bool(cond_out)
+                if branch == _BRANCH_TRUE and not cond_value:
+                    return False
+                if branch == _BRANCH_FALSE and cond_value:
+                    return False
+            elif src.type.value == "timeout":
+                # The timeout node records its branch on its own output.
+                src_out = node_outputs.get(edge.source, {})
+                timed_out = bool(src_out.get("branch") == "on_timeout") if isinstance(src_out, dict) else False
+                if branch == "on_timeout" and not timed_out:
+                    return False
+                if branch == "default" and timed_out:
+                    return False
         return True
 
     # ── LOOP bounded iteration ───────────────────────────────────────

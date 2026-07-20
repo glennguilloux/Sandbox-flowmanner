@@ -1172,6 +1172,16 @@ class NodeExecutor:
                     workflow,
                     interrupt_type="approval",
                 )
+            case NodeType.GUARDRAIL:
+                return await self._handle_guardrail(
+                    db,
+                    node,
+                    context,
+                    budget,
+                    run_id,
+                    workflow,
+                    context_events=context_events or [],
+                )
             case (
                 NodeType.BROWSER_NAVIGATE
                 | NodeType.BROWSER_SNAPSHOT
@@ -1253,6 +1263,11 @@ class NodeExecutor:
                 )
             case NodeType.MEMORY_READ:
                 return await self._handle_memory_read(node, context)
+            case NodeType.TIMEOUT:
+                # Deadline wrapper: bounds a wrapped child node and routes to
+                # the on_timeout branch on deadline miss. Actual branch *taking*
+                # is strategy-level (see DAGStrategy/GraphStrategy gating).
+                return await self._handle_timeout(db, node, context, budget, run_id, workflow)
             case _:
                 return {"success": False, "error": f"Unknown node type: {node.type}"}
 
@@ -1557,6 +1572,217 @@ class NodeExecutor:
             "reflection_iterations": _sel.reflection_iterations,
             "depth_degraded": _sel.degraded,
             "depth_degradation_note": _sel.degradation_note,
+        }
+
+    # ── Guardrail handler ───────────────────────────────────────────
+
+    @staticmethod
+    def _guardrail_content(node: WorkflowNode, context: dict[str, Any]) -> str:
+        """Resolve the text to scan for a guardrail node.
+
+        Precedence: explicit ``config["input"]`` (may reference upstream via
+        interpolation) → the in-flight node ``input`` → the upstream output's
+        ``text`` field → a stringified fallback of the whole context input.
+        """
+        if "input" in node.config:
+            raw = node.config["input"]
+        else:
+            raw = context.get("input", context)
+        if isinstance(raw, dict):
+            # Common upstream shape: {"output": {"text": "..."}} or {"text": "..."}
+            out = raw.get("output", raw)
+            if isinstance(out, dict) and "text" in out:
+                return str(out["text"])
+            if "text" in raw:
+                return str(raw["text"])
+            return str(raw)
+        return "" if raw is None else str(raw)
+
+    @staticmethod
+    def _guardrail_scan_regex(content: str, patterns: list[str]) -> list[dict[str, Any]]:
+        """Return one match record per pattern that fired. No LLM.
+
+        Each record: {"pattern": <str>, "spans": [[start, end], ...]}.
+        Invalid regexes are reported as a violation (fail-closed) rather than
+        silently ignored, so a misconfigured guardrail never passes content.
+        """
+        violations: list[dict[str, Any]] = []
+        for pat in patterns:
+            if not isinstance(pat, str) or pat == "":
+                continue
+            try:
+                compiled = re.compile(pat, re.IGNORECASE | re.MULTILINE)
+            except re.error as e:
+                violations.append({"pattern": pat, "error": f"invalid regex: {e}"})
+                continue
+            spans = [[m.start(), m.end()] for m in compiled.finditer(content)]
+            if spans:
+                violations.append({"pattern": pat, "spans": spans})
+        return violations
+
+    async def _handle_guardrail(
+        self,
+        db: AsyncSession,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        budget: Budget,
+        run_id: str,
+        workflow: Workflow | None = None,
+        *,
+        context_events: list[SubstrateEvent] | None = None,
+    ) -> dict[str, Any]:
+        """Pre/post content safety check.
+
+        Config keys:
+            guardrailMode: "pre" | "post" | "both" (informational; the scan runs
+                on the resolved content regardless — it records which side the
+                node guards).
+            patterns: list[str] of regex patterns. The REGEX path runs with NO
+                LLM call — a purely static, deterministic check.
+            onViolation: "block" | "redact" | "route_to_fallback" (default
+                "block").
+            redactWith: replacement token for redact mode (default "[REDACTED]").
+            useClassifier: bool — when True AND no regex violation is found, run
+                an optional LLM classifier branch through the SAME budgeted
+                ``_handle_llm`` seam (post-H5.1 substrate rule: all LLM calls go
+                through BudgetEnforcer via _handle_llm; never raw httpx/OpenAI).
+            classifierPrompt: instruction for the classifier; the resolved
+                content is appended. A response starting with "VIOLATION" (case-
+                insensitive) is treated as a violation.
+
+        Returns the standard handler shape. On a violation:
+            - block                 -> success=False, error, violated=True
+            - redact                -> success=True, output.text redacted
+            - route_to_fallback     -> success=True, violated=True,
+                                       fallbackBehavior="route_to_fallback"
+                                       (the strategy resolves the fallback edge,
+                                       mirroring RouterNodeConfig.fallbackBehavior)
+        Clean content -> success=True, output passes through, violated=False.
+        """
+        mode = node.config.get("guardrailMode", "both")
+        on_violation = node.config.get("onViolation", "block")
+        patterns = node.config.get("patterns") or []
+        if not isinstance(patterns, list):
+            patterns = [patterns]
+
+        content = self._guardrail_content(node, context)
+
+        # ── Static regex path (no LLM) ──────────────────────────────
+        violations = self._guardrail_scan_regex(content, [str(p) for p in patterns])
+        violation_source = "regex" if violations else None
+
+        # ── Optional LLM classifier branch (budgeted via _handle_llm) ─
+        if not violations and node.config.get("useClassifier"):
+            classifier_prompt = node.config.get("classifierPrompt") or (
+                "You are a content safety guardrail. Reply with 'VIOLATION: <reason>' "
+                "if the following content is unsafe, otherwise reply 'OK'.\n\nContent:\n"
+            )
+            # Reuse the _handle_llm seam: build a transient LLM node so the
+            # classifier call is budgeted, replayable, and counts against the
+            # run budget exactly like any other LLM node.
+            classifier_node = WorkflowNode(
+                id=f"{node.id}::guardrail-classifier",
+                type=NodeType.LLM_CALL,
+                title="Guardrail classifier",
+                config={
+                    "prompt": f"{classifier_prompt}\n{content}",
+                    "temperature": node.config.get("temperature", 0.0),
+                    "max_tokens": node.config.get("max_tokens", 256),
+                },
+                reasoning_profile=node.reasoning_profile,
+                assigned_model=node.assigned_model,
+            )
+            llm_res = await self._handle_llm(
+                db,
+                classifier_node,
+                context,
+                budget,
+                run_id,
+                workflow,
+                context_events=context_events or [],
+            )
+            if not llm_res.get("success"):
+                # Classifier failed — fail closed for the block policy, else
+                # pass content through (the static path already found nothing).
+                if on_violation == "block":
+                    return {
+                        "success": False,
+                        "error": f"Guardrail classifier failed: {llm_res.get('error')}",
+                        "violated": True,
+                        "violation_source": "classifier_error",
+                        "tokens": llm_res.get("tokens", 0),
+                        "cost": llm_res.get("cost", 0.0),
+                    }
+            else:
+                verdict = str((llm_res.get("output") or {}).get("text", "")).strip()
+                if verdict.upper().startswith("VIOLATION"):
+                    violations = [{"pattern": "classifier", "verdict": verdict}]
+                    violation_source = "classifier"
+            # Carry the classifier cost/tokens through regardless of verdict.
+            classifier_tokens = llm_res.get("tokens", 0)
+            classifier_cost = llm_res.get("cost", 0.0)
+        else:
+            classifier_tokens = 0
+            classifier_cost = 0.0
+
+        # ── No violation: pass content through ──────────────────────
+        if not violations:
+            return {
+                "success": True,
+                "output": {"text": content},
+                "violated": False,
+                "guardrail_mode": mode,
+                "tokens": classifier_tokens,
+                "cost": classifier_cost,
+            }
+
+        # ── Violation: apply the configured policy ──────────────────
+        if on_violation == "redact":
+            redact_with = node.config.get("redactWith", "[REDACTED]")
+            redacted = content
+            # Redact from the end of the string so earlier spans stay valid.
+            spans: list[tuple[int, int]] = []
+            for v in violations:
+                for s in v.get("spans", []):
+                    spans.append((int(s[0]), int(s[1])))
+            for start, end in sorted(spans, key=lambda t: t[0], reverse=True):
+                redacted = redacted[:start] + redact_with + redacted[end:]
+            return {
+                "success": True,
+                "output": {"text": redacted},
+                "violated": True,
+                "violation_source": violation_source,
+                "violations": violations,
+                "guardrail_mode": mode,
+                "tokens": classifier_tokens,
+                "cost": classifier_cost,
+            }
+
+        if on_violation == "route_to_fallback":
+            # Mirror RouterNodeConfig.fallbackBehavior: the handler reports the
+            # violation + intent; the strategy resolves the fallback edge.
+            return {
+                "success": True,
+                "output": {"text": content},
+                "violated": True,
+                "violation_source": violation_source,
+                "violations": violations,
+                "fallbackBehavior": "route_to_fallback",
+                "guardrail_mode": mode,
+                "tokens": classifier_tokens,
+                "cost": classifier_cost,
+            }
+
+        # Default policy: block.
+        return {
+            "success": False,
+            "error": "Guardrail violation: content blocked by policy",
+            "violated": True,
+            "violation_source": violation_source,
+            "violations": violations,
+            "guardrail_mode": mode,
+            "tokens": classifier_tokens,
+            "cost": classifier_cost,
         }
 
     # ── Tool handler ────────────────────────────────────────────────
@@ -2161,10 +2387,10 @@ class NodeExecutor:
 
         Config keys:
             splitOn: dotted path into the node input / context that resolves to
-                     the collection (default "input" -> context["input"]).
-                     Supports "input", "input.<key>", or a bare context key.
+                    the collection (default "input" -> context["input"]).
+                    Supports "input", "input.<key>", or a bare context key.
             mode:    "item"  - emit one branch per collection element (default)
-                     "batch" - reserved; currently behaves like "item".
+                    "batch" - reserved; currently behaves like "item".
 
         Returns {
             "success",
@@ -2187,6 +2413,7 @@ class NodeExecutor:
         # Resolve the collection from the node input / context.
         data = context.get("input", context)
         if split_on and split_on != "input":
+            # Support "input.<key>" and bare context keys.
             key = split_on.split(".", 1)[1] if split_on.startswith("input.") else split_on
             source = data if split_on.startswith("input.") else context
             collection = source.get(key) if isinstance(source, dict) else None
@@ -2211,8 +2438,10 @@ class NodeExecutor:
         if isinstance(collection, (list, tuple, set)):
             items = [x for x in collection]
         elif isinstance(collection, dict):
+            # Fan out over values, preserving insertion order (py3.7+).
             items = list(collection.values())
         else:
+            # Scalar: one branch carrying the scalar itself.
             items = [collection]
 
         return {
@@ -2287,7 +2516,6 @@ class NodeExecutor:
             "tokens": 0,
             "cost": 0.0,
         }
-
     # ── VariableSet (write a named run-scoped input) ───────────────
     async def _handle_variable_set(
         self,
@@ -2745,6 +2973,63 @@ class NodeExecutor:
             }
         except Exception as e:
             return {"success": False, "error": f"Memory write failed: {e}"}
+
+    # ── Timeout (deadline wrapper) ───────────────────────────────────
+    async def _handle_timeout(
+        self,
+        db: AsyncSession | None,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        budget: Budget,
+        run_id: str,
+        workflow: Workflow | None = None,
+    ) -> dict[str, Any]:
+        """Wrap a child node under a deadline and route on timeout.
+
+        Config keys:
+            timeoutMs: deadline in milliseconds (REQUIRED).
+            wrapped_node_id: id of the child node to execute under the
+                deadline. If omitted, the single outgoing (default) edge
+                target of this timeout node is used.
+
+        The child runs through the shared ``execute_with_timeout`` path on the
+        UnifiedExecutor, which bounds it with ``asyncio.wait_for``. On a
+        deadline miss the result carries ``branch == "on_timeout"`` so the
+        strategy can route the ``on_timeout`` edge. If the child completes in
+        time, its result passes through unchanged (branch "default").
+
+        Returns a failure result (not a crash) if the configuration is
+        invalid — the run should still record the wrapper node as failed
+        rather than raising.
+        """
+        timeout_ms = node.config.get("timeoutMs")
+        if not isinstance(timeout_ms, (int, float)) or timeout_ms <= 0:
+            return {
+                "success": False,
+                "error": f"timeout node {node.id} requires a positive config.timeoutMs",
+            }
+
+        # Resolve the wrapped child node.
+        child_id = node.config.get("wrapped_node_id")
+        if not child_id and workflow is not None:
+            outgoing = [e for e in workflow.edges if e.source == node.id]
+            # The "default" (main) edge has no condition; fall back to the
+            # first outgoing edge if only one exists.
+            default_edge = next(
+                (e for e in outgoing if not e.condition), None
+            )
+            child_id = (default_edge or outgoing[0]).target if outgoing else None
+
+        if not child_id or workflow is None or child_id not in workflow.node_map:
+            return {
+                "success": False,
+                "error": f"timeout node {node.id} has no resolvable wrapped child",
+            }
+
+        child = workflow.node_map[child_id]
+        return await self.executor.execute_with_timeout(
+            db, node, child, context, budget, run_id, workflow, int(timeout_ms)
+        )
 
     # ── Sandbox node (Phase 3) ───────────────────────────────────────
 
