@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
+logger = logging.getLogger(__name__)
 from app.api.deps import get_current_user
 from app.api.v2.base import ok, paginated
 from app.api.v2.cursor_pagination import CursorParams, cursor_paginated
@@ -26,13 +29,14 @@ from app.schemas.chat import (
     ChatMessageResponse,
     ChatMessageUpdate,
     ChatTemplateCreate,
-    ReactionIn,
     ChatTemplateInstantiate,
     ChatTemplateResponse,
     ChatThreadCreate,
     ChatThreadResponse,
     ChatThreadUpdate,
+    ReactionIn,
 )
+from app.services.chat.substrate_client import SubstrateClient, new_run_id
 from app.services.chat_service import (
     _get_model_preference,
     create_chat_branch,
@@ -520,7 +524,121 @@ async def chat_with_llm_stream(
     )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────
+# Phase 1 — chat → control-plane front door.
+#
+# A chat turn can spawn a REAL, observable substrate run (solo strategy
+# only, per the owner-approved plan).  These two routes are the seam:
+#   * POST /runs           → build + dispatch, return {run_id} immediately
+#   * POST /runs/stream   → SSE stream of the run's event_log frames
+#                             re-emitted as frontend-understood events
+#                             (the SPIKE pipe: event_log → SSE → trace-tile).
+# ─────────────────────────────────────────────────────────────────────
+
+
+class RunCreateBody(BaseModel):
+    goal: str = Field(..., description="Natural-language goal for the solo run")
+    model: str | None = Field(None, description="Optional model override (defaults to chat model)")
+
+
+@router.post("/threads/{thread_id}/runs", status_code=status.HTTP_201_CREATED)
+async def create_thread_run(
+    thread_id: int,
+    payload: RunCreateBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Build a solo Workflow from the goal and dispatch it via UnifiedExecutor.
+
+    Returns the ``run_id`` immediately (the run executes in the request
+    transaction; callers stream its events via ``/runs/stream``).
+    Stamps ``metadata_["source_run_id"]`` on the thread so the run is
+    re-enterable from the chat panel.
+    """
+    thread = await get_chat_thread(db, thread_id)
+    _require_owner(thread, user)
+
+    run_id = new_run_id()
+    client = SubstrateClient()
+    try:
+        result = await client.execute_solo(
+            db,
+            goal=payload.goal,
+            run_id=run_id,
+            model=payload.model,
+            user_id=str(user.id),
+            workspace_id=str(thread.workspace_id) if thread.workspace_id else None,
+        )
+    except Exception as exc:
+        logger.exception("create_thread_run: solo dispatch failed for %s", run_id)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Run dispatch failed: {exc}",
+        )
+
+    # Stamp the one-way loose link (thread knows its run; run never
+    # knows its thread — see plan §2.2).
+    meta = thread.metadata_ or {}
+    meta["source_run_id"] = run_id
+    meta["source_workflow_type"] = "solo"
+    thread.metadata_ = meta
+    await db.flush()
+
+    return ok({"run_id": run_id, "workflow_type": "solo", "result": result})
+
+
+@router.post("/threads/{thread_id}/runs/stream")
+async def stream_thread_run(
+    thread_id: int,
+    payload: RunCreateBody,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """SSE stream of a solo run's event_log, re-emitted as trace events.
+
+    This is the Phase-1 SPIKE pipe: it drives a real solo substrate run
+    and replays its append-only event log as frontend-understood SSE
+    frames (``run_started`` → ``agent_step_start`` / ``agent_step_end`` /
+    ``tool_result`` → ``run_complete``) so ``AgentTraceTile`` can render a
+    legible, in-thread, step-by-step run with ≥1 real tool call.
+    """
+    thread = await get_chat_thread(db, thread_id)
+    _require_owner(thread, user)
+
+    run_id = new_run_id()
+    client = SubstrateClient()
+
+    async def _run_gen() -> AsyncGenerator[str, None]:
+        async for frame in client.stream_turn(
+            db,
+            goal=payload.goal,
+            run_id=run_id,
+            model=payload.model,
+            user_id=str(user.id),
+            workspace_id=str(thread.workspace_id) if thread.workspace_id else None,
+        ):
+            yield f"data: {frame}\n\n"
+        yield "data: [DONE]\n\n"
+
+    # Stamp the loose link now that we have a run_id.
+    meta = thread.metadata_ or {}
+    meta["source_run_id"] = run_id
+    meta["source_workflow_type"] = "solo"
+    thread.metadata_ = meta
+    await db.flush()
+
+    return StreamingResponse(
+        _run_gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────
 # Chat v2 promotion (2026-07-18): ported v1-only routes into v2.
 # Every handler below uses the v2 envelope (ok/paginated) and the local
 # _require_owner owner check, NOT v1's require_chat_thread_access. SSE replay
@@ -559,7 +677,7 @@ async def replay_stream(
     ``since`` is a Redis Stream entry ID. Returns 404 if the buffer has expired
     or never existed. Returns the v2 envelope ``{data: {events, stream_id}}``.
     """
-    events = await replay_from_buffer(stream_id, since_seq=since)
+    events = await replay_from_buffer(stream_id, since_seq=since, user_id=str(user.id))
     if events is None:
         raise _not_found()
     return ok({"events": events, "stream_id": stream_id})

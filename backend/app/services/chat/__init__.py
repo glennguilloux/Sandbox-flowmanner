@@ -8,6 +8,13 @@ from .byok import *
 from .messages import *
 from .prompts import *
 from .streaming import *
+from .substrate_client import (
+    SubstrateClient,
+    build_solo_workflow,
+    execute_solo_run,
+    new_run_id,
+    run_substrate_turn_sse,
+)
 from .threads import *
 from .toolcall import *
 

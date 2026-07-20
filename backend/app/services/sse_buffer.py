@@ -97,7 +97,11 @@ def _parse_stream_id(entry_id: str) -> tuple[int, int]:
         return (0, 0)
 
 
-async def replay_from_buffer(stream_id: str, since_seq: str) -> list[str] | None:
+async def replay_from_buffer(
+    stream_id: str,
+    since_seq: str,
+    user_id: str | None = None,
+) -> list[str] | None:
     """Replay SSE events with entry ID > since_seq.
 
     Returns None if buffer is gone (TTL expired or never existed) — caller
@@ -110,15 +114,29 @@ async def replay_from_buffer(stream_id: str, since_seq: str) -> list[str] | None
     Each returned SSE frame carries a ``seq`` field on its JSON payload (the
     native Redis Stream entry ID), so a reconnecting client can advance its
     cursor precisely.
+
+    Owner-binding (Phase-1 security, plan §7): when ``user_id`` is
+    supplied and the buffer was owner-bound at create time, the stored
+    owner record must match or we return None (caller → 404). This
+    closes the v1 ``/streams/{id}/replay`` IDOR: a leaked/guessed
+    stream id can no longer replay another user's tokens.
     """
     rds = await _get_stream_redis()
     if rds is None:
         return None
     try:
         events_key = f"chat:stream:{stream_id}:events"
-
         exists = await rds.exists(events_key)
         if not exists:
+            return None
+
+        # Owner check: reject cross-user (and anonymous) replay of a
+        # bound buffer (fail-closed).  Unbound buffers (no owner
+        # record) fall through to legacy replay behavior.
+        owner_key = f"chat:stream:{stream_id}:owner"
+        owner = await rds.hgetall(owner_key)
+        if owner and (user_id is None or str(owner.get("user_id")) != str(user_id)):
+            logger.debug("sse_buffer_replay_owner_mismatch stream_id=%s", stream_id)
             return None
 
         since_str = str(since_seq)
@@ -144,6 +162,8 @@ async def replay_from_buffer(stream_id: str, since_seq: str) -> list[str] | None
 
 async def get_stream_buffer(
     inner_gen: AsyncGenerator,
+    thread_id: str | None = None,
+    user_id: str | None = None,
 ) -> AsyncGenerator:
     """Wrapper generator that buffers each yielded SSE event to a Redis Stream.
 
@@ -153,17 +173,44 @@ async def get_stream_buffer(
 
     When Redis is unavailable, degrades to no-resume mode (seq = "0").
 
+    Owner-binding (Phase-1 security, plan §7): when ``thread_id`` and
+    ``user_id`` are supplied, the buffer also persists a small owner
+    record (``chat:stream:{stream_id}:owner``) so a leaked/guessed
+    stream id cannot replay another user's tokens — ``replay_from_buffer``
+    enforces the match before returning buffered frames. This closes the
+    v1 ``/streams/{id}/replay`` IDOR even though v2 owns
+    replay under auth.
+
     Usage in the route handler::
 
         return StreamingResponse(
-            get_stream_buffer(_sse_stream(stream_message_to_llm(...))),
+            get_stream_buffer(
+                _sse_stream(stream_message_to_llm(...)),
+                thread_id=str(thread_id),
+                user_id=str(user.id),
+            ),
             media_type="text/event-stream",
         )
     """
     stream_id = str(uuid.uuid4())
-
+    # Owner-bind the buffer when we have the caller's identity.
+    if thread_id is not None and user_id is not None:
+        try:
+            rds_owner = await _get_stream_redis()
+            if rds_owner is not None:
+                owner_key = f"chat:stream:{stream_id}:owner"
+                await rds_owner.hset(
+                    owner_key,
+                    mapping={"thread_id": str(thread_id), "user_id": str(user_id)},
+                )
+                await rds_owner.expire(owner_key, _BUFFER_TTL)
+        except Exception as exc:
+            logger.debug("sse_buffer_owner_bind_failed stream_id=%s error=%s", stream_id, exc)
     # Emit stream_start as the first event
     stream_start_obj = {"stream_id": stream_id}
+    if thread_id is not None:
+        stream_start_obj["thread_id"] = str(thread_id)
+        stream_start_obj["user_id"] = str(user_id) if user_id is not None else None
     stream_start_sse = f"event: stream_start\ndata: {json.dumps(stream_start_obj)}\n\n"
     seq = await append_to_buffer(stream_id, stream_start_sse)
     yield _stamp_seq(stream_start_sse, seq or "0")
