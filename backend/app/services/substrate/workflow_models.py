@@ -91,6 +91,8 @@ class NodeType(str, Enum):
     # Previously these collapsed to LLM_CALL through the task-type map default.
     TRANSFORM = "transform"  # pure data transform (no LLM/tool)
     CONDITION = "condition"  # evaluate a boolean expression, drive branching
+    FILTER = "filter"  # keep only collection items matching a predicate
+    TEMPLATE_RENDER = "template_render"  # render a {{ inputs.* }} template to a string
     LOG = "log"  # append a substrate log event (read-only)
     LOOP = "loop"  # strategy-level bounded iteration marker
     WEBHOOK = "webhook"  # outbound HTTP POST (irreversible side effect)
