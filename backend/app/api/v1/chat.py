@@ -46,7 +46,7 @@ from app.services.chat_service import (
     stream_message_to_llm,
     update_chat_thread,
 )
-from app.services.sse_buffer import get_stream_buffer, replay_from_buffer
+from app.services.sse_buffer import get_stream_buffer
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -447,15 +447,19 @@ async def replay_stream(
     stream_id: str,
     since: str = Query("0", description="Replay events with stream entry ID > since"),
 ):
-    """Replay buffered SSE events for a stream (for client reconnection).
+    """REPLAY REMOVED (2026-07-20, Phase-1 security, plan §7).
 
-    ``since`` is a Redis Stream entry ID (opaque string like ``1720451234567-0``).
-    Returns 404 if the buffer has expired (TTL 5min) or never existed.
+    This v1 route shipped with NO ``Depends(get_current_user)`` — any
+    anonymous caller could replay another user's buffered SSE tokens
+    (CWE-639 / IDOR).  Replay now lives only under v2
+    (``/api/v2/chat/streams/{id}/replay``) behind auth + the
+    owner-bound buffer.  Kept as a 410 so stale clients get a
+    deterministic signal instead of a silent 404/500.
     """
-    events = await replay_from_buffer(stream_id, since_seq=since)
-    if events is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Stream buffer not found or expired")
-    return {"events": events, "stream_id": stream_id}
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Replay moved to /api/v2/chat/streams/{id}/replay (auth + owner-bound).",
+    )
 
 
 # Export endpoint
