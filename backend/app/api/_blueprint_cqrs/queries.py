@@ -120,6 +120,22 @@ class RunQueryHandlers(QueryHandlerBase):
         events = await svc.get_events(run_id, user_id, from_sequence=from_sequence, limit=limit)
         return [RunEventResponse.model_validate(e) for e in events]  # type: ignore[attr-defined]
 
+    async def get_provenance(
+        self,
+        user_id: int,
+        run_id: str,
+        from_sequence: int = 0,
+        limit: int = 10_000,
+    ) -> list[dict]:
+        """Provenance READ over the substrate event log (explainability).
+
+        Returns one projection per event — best-effort extraction of the
+        actor, causal parent, reasoning, tool, capability scope, budget spent,
+        and a content hash. See ``RunService.get_provenance`` for details.
+        """
+        svc = RunService(self.session)
+        return await svc.get_provenance(run_id, user_id, from_sequence=from_sequence, limit=limit)
+
     async def replay_state(
         self,
         user_id: int,

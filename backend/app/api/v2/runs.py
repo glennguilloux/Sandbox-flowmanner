@@ -120,6 +120,35 @@ async def get_run_events(
     )
 
 
+# ── Provenance ──────────────────────────────────────────────────────────────
+
+
+@router.get("/{run_id}/provenance")
+@router.get("/{run_id}/provenance/")
+async def get_run_provenance(
+    run_id: str,
+    from_sequence: int = Query(0, ge=0, description="Inclusive lower bound on sequence"),
+    limit: int = Query(10000, ge=1, le=100000, description="Max events to project"),
+    user: User = Depends(get_current_user),
+    q: RunQueryHandlers = Depends(get_run_queries),
+):
+    """Provenance READ over the substrate event log (explainability).
+
+    Returns one projection per event: which actor fired it, its causal
+    parent, the reasoning/tool/capability/budget behind it, and a content
+    hash. No second audit store — this is a read-only projection over the
+    existing append-only event log. Missing fields are returned as null.
+    """
+    provenance = await q.get_provenance(user.id, run_id, from_sequence=from_sequence, limit=limit)
+    return ok(
+        {
+            "run_id": run_id,
+            "provenance": provenance,
+            "count": len(provenance),
+        }
+    )
+
+
 # ── Replay ─────────────────────────────────────────────────────────────────────
 
 
