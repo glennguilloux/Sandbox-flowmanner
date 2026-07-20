@@ -1263,6 +1263,12 @@ class NodeExecutor:
                 )
             case NodeType.MEMORY_READ:
                 return await self._handle_memory_read(node, context)
+            case NodeType.VALIDATE_SCHEMA:
+                # Asserts the incoming payload against a JSON-Schema config.
+                # On mismatch routes to the on_invalid edge (never raises) — see
+                # DAGStrategy/GraphStrategy gating, which take the branch named by
+                # the handler's emitted `route` output.
+                return await self._handle_validate_schema(node, context)
             case NodeType.TIMEOUT:
                 # Deadline wrapper: bounds a wrapped child node and routes to
                 # the on_timeout branch on deadline miss. Actual branch *taking*
@@ -2334,6 +2340,73 @@ class NodeExecutor:
         rendered = interpolate_inputs(template, inputs)
         return {"success": True, "output": rendered, "tokens": 0, "cost": 0.0}
 
+    # ── Validate schema (JSON-Schema assertion + on_invalid routing) ─
+    async def _handle_validate_schema(
+        self,
+        node: WorkflowNode,
+        context: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Assert the incoming payload against a JSON-Schema config.
+
+        Delegates to the standalone :class:`ValidateSchemaHandler` (which owns
+        the schema-resolution + validation logic and is unit-tested in
+        ``test_validate_schema_handler.py``), then translates its
+        :class:`PluginContext` outputs into the substrate handler contract.
+
+        Match -> ``success=True``, ``route=default``; the run continues down the
+        main edge. Mismatch (or missing required field) -> ``success=True`` with
+        ``route=on_invalid`` so the strategy takes the ``on_invalid`` edge
+        instead of raising (see DAGStrategy/GraphStrategy gating). A
+        misconfigured node (no/invalid schema) still fails closed as a node
+        error rather than silently passing.
+
+        REVERSIBLE: validation has no external side effect, so the node is a
+        data-control transform.
+        """
+        from app.sdk.context import PluginContext
+        from app.sdk.validate_schema import ValidateSchemaHandler
+
+        # Substrate context carries the node input as ``context["input"]``
+        # (NodeExecutor) and the run-scoped inputs dict as ``context["inputs"]``.
+        # The handler reads inputs by KEY (default key "payload"), so we expose
+        # both shapes: the payload under its configured key, plus the raw node
+        # input as ``context["input"]`` for callers that pass the payload inline.
+        inputs = dict(context.get("inputs") or {})
+        node_input = context.get("input", context)
+        # Expose the node-level input under the configured payload_key if absent.
+        payload_key = node.config.get("payload_key") or "payload"
+        # Case A: payload nested under payload_key on a dict node-input.
+        # Case B: a bare scalar/list payload passed directly as the node input.
+        if payload_key not in inputs and isinstance(node_input, dict) and payload_key in node_input:
+            inputs[payload_key] = node_input[payload_key]
+        elif payload_key not in inputs and not isinstance(node_input, (dict, list)) and payload_key == "payload":
+            inputs[payload_key] = node_input
+
+        handler_ctx = PluginContext(
+            inputs=inputs,
+            config=dict(node.config),
+        )
+        handler = ValidateSchemaHandler()
+        errors = await handler.validate(handler_ctx)
+        # Misconfiguration (missing/invalid schema) — fail the node closed
+        # rather than executing. Note: a *payload* mismatch is NOT a node
+        # error; that is routed to on_invalid by _execute below.
+        if errors and node.config.get("schema") is None:
+            return {"success": False, "error": "; ".join(errors)}
+
+        result = await handler.execute(handler_ctx)
+        return {
+            "success": True,
+            "output": {
+                "valid": result.get("valid"),
+                "route": result.get("route"),
+                "errors": result.get("errors"),
+                "payload": result.get("payload"),
+            },
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
     # ── Condition (evaluate a boolean expression) ─────────────────
     async def _handle_condition(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
         """Evaluate node.config['expression'] against the context.
@@ -2516,6 +2589,7 @@ class NodeExecutor:
             "tokens": 0,
             "cost": 0.0,
         }
+
     # ── VariableSet (write a named run-scoped input) ───────────────
     async def _handle_variable_set(
         self,
@@ -3015,9 +3089,7 @@ class NodeExecutor:
             outgoing = [e for e in workflow.edges if e.source == node.id]
             # The "default" (main) edge has no condition; fall back to the
             # first outgoing edge if only one exists.
-            default_edge = next(
-                (e for e in outgoing if not e.condition), None
-            )
+            default_edge = next((e for e in outgoing if not e.condition), None)
             child_id = (default_edge or outgoing[0]).target if outgoing else None
 
         if not child_id or workflow is None or child_id not in workflow.node_map:

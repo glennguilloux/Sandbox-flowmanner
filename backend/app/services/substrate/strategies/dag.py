@@ -218,22 +218,12 @@ class DAGStrategy(ExecutionStrategy):
             # split). Mirrors CONDITION branch gating but is keyed on the split
             # node's resolved ``empty`` flag rather than an edge condition.
             if src.type.value == "split":
-                if not edge.condition:
-                    src_out = node_outputs.get(edge.source, {})
-                    if isinstance(src_out, dict) and src_out.get("empty"):
-                        return False
+                src_out = node_outputs.get(edge.source, {})
+                if isinstance(src_out, dict) and src_out.get("empty"):
+                    return False
                 continue
-            if src.type.value != "condition":
-                # A fan-out edge from an EMPTY split node produces no branches,
-                # so the downstream target must be skipped (the run continues
-                # past the split). Mirrors CONDITION branch gating.
-                if src.type.value == "split":
-                    src_out = node_outputs.get(edge.source, {})
-                    if isinstance(src_out, dict) and src_out.get("empty"):
-                        return False
-                continue
-            branch = edge.condition.strip().lower()
             if src.type.value == "condition":
+                branch = edge.condition.strip().lower()
                 if branch not in (_BRANCH_TRUE, _BRANCH_FALSE):
                     continue
                 cond_out = node_outputs.get(edge.source, {})
@@ -244,11 +234,28 @@ class DAGStrategy(ExecutionStrategy):
                     return False
             elif src.type.value == "timeout":
                 # The timeout node records its branch on its own output.
+                branch = edge.condition.strip().lower()
                 src_out = node_outputs.get(edge.source, {})
                 timed_out = bool(src_out.get("branch") == "on_timeout") if isinstance(src_out, dict) else False
                 if branch == "on_timeout" and not timed_out:
                     return False
                 if branch == "default" and timed_out:
+                    return False
+            elif src.type.value == "validate_schema":
+                # A validate_schema node emits its branch on its output
+                # ("route" == "default" | "on_invalid"; an optional custom
+                # on_invalid label is honoured). The edge is taken only when the
+                # branch matches. Mirrors the CONDITION/TIMEOUT branch precedent.
+                branch = edge.condition.strip().lower()
+                if branch not in ("default", "on_invalid"):
+                    continue
+                src_out = node_outputs.get(edge.source, {})
+                src_route = src_out.get("route") if isinstance(src_out, dict) else None
+                if src_route is None:
+                    src_route = (src_out.get("output", {}) or {}).get("route") if isinstance(src_out, dict) else None
+                if branch == "default" and src_route != "default":
+                    return False
+                if branch == "on_invalid" and src_route != "on_invalid":
                     return False
         return True
 

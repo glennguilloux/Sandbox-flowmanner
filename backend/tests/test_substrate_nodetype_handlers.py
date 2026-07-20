@@ -709,3 +709,148 @@ class TestDAGSplitFanout:
         # Empty collection -> no fan-out -> worker never runs.
         assert ran.get("worker", 0) == 0
         assert ran["split"] == 1
+
+
+# ── VALIDATE_SCHEMA wiring (CARD t_a688367f) ─────────────────────
+#
+# The validate_schema node was merged with an enum member + standalone
+# ValidateSchemaHandler, but no _dispatch case. These tests assert it is now
+# reachable through the substrate AND routes to on_invalid on a payload
+# mismatch (never raising).
+
+
+class TestValidateSchemaHandlerWiring:
+    _SCHEMA = {
+        "type": "object",
+        "properties": {"id": {"type": "integer"}, "name": {"type": "string"}},
+        "required": ["id"],
+        "additionalProperties": True,
+    }
+
+    @pytest.mark.asyncio
+    async def test_dispatch_routes_to_handle_validate_schema(self):
+        """_dispatch must reach a VALIDATE_SCHEMA handler (no 'Unknown node type')."""
+        ex = _executor()
+        node = _node(
+            NodeType.VALIDATE_SCHEMA,
+            {"schema": self._SCHEMA, "payload_key": "payload", "payload": {"id": 1, "name": "ok"}},
+        )
+        res = await ex._dispatch(
+            MagicMock(), node, {"input": {"payload": {"id": 1, "name": "ok"}}}, _budget(), "run-1", None
+        )
+        assert res["success"] is True
+        assert res["output"]["valid"] is True
+        assert res["output"]["route"] == "default"
+
+    @pytest.mark.asyncio
+    async def test_mismatch_routes_to_on_invalid(self):
+        """A payload mismatch routes to on_invalid (success=True, route=on_invalid)."""
+        ex = _executor()
+        # Missing required 'id' -> mismatch. Substrate context carries the
+        # payload under context['input']['payload'] (NodeExecutor convention).
+        node = _node(
+            NodeType.VALIDATE_SCHEMA,
+            {"schema": self._SCHEMA, "payload_key": "payload", "payload": {"name": "no-id"}},
+        )
+        res = await ex._dispatch(MagicMock(), node, {"input": {"payload": {"name": "no-id"}}}, _budget(), "run-1", None)
+        assert res["success"] is True
+        assert res["output"]["valid"] is False
+        assert res["output"]["route"] == "on_invalid"
+        assert res["output"]["errors"]
+
+    @pytest.mark.asyncio
+    async def test_missing_schema_fails_closed(self):
+        """A misconfigured node (no schema) fails the node, not silently passing."""
+        ex = _executor()
+        node = _node(NodeType.VALIDATE_SCHEMA, {"payload": {"id": 1}})
+        res = await ex._dispatch(MagicMock(), node, {"input": {"payload": {"id": 1}}}, _budget(), "run-1", None)
+        assert res["success"] is False
+        assert "schema" in (res.get("error") or "").lower()
+
+
+class TestValidateSchemaDAGBranching:
+    """Strategy-level branch *taking* for VALIDATE_SCHEMA sources (mirrors CONDITION/TIMEOUT)."""
+
+    @pytest.mark.asyncio
+    async def test_valid_takes_default_branch_invalid_skipped(self):
+        nodes = [
+            WorkflowNode(
+                id="vs",
+                type="validate_schema",
+                title="V",
+                config={
+                    "schema": TestValidateSchemaHandlerWiring._SCHEMA,
+                    "payload_key": "payload",
+                    "payload": {"id": 1},
+                },
+            ),
+            WorkflowNode(id="t_ok", type="llm_call", title="OK", dependencies=["vs"]),
+            WorkflowNode(id="t_bad", type="llm_call", title="BAD", dependencies=["vs"]),
+        ]
+        edges = [
+            WorkflowEdge(source="vs", target="t_ok", condition="default"),
+            WorkflowEdge(source="vs", target="t_bad", condition="on_invalid"),
+        ]
+        wf = _make_dag(nodes, edges)
+        db = MagicMock()
+        exec_mock = MagicMock()
+        exec_mock.is_aborted = MagicMock(return_value=False)
+        ran: dict[str, int] = {}
+
+        async def run_node(*a, **k):
+            n = k["node"]
+            ran[n.id] = ran.get(n.id, 0) + 1
+            if n.type.value == "validate_schema":
+                from app.services.substrate.node_executor import NodeExecutor
+
+                out = await NodeExecutor(_StubUnifiedExecutor())._handle_validate_schema(n, k["context"])
+                out.setdefault("tokens", 0)
+                out.setdefault("cost", 0.0)
+                return out
+            return {"success": True, "output": {}, "tokens": 1, "cost": 0.0}
+
+        exec_mock.execute_node = AsyncMock(side_effect=run_node)
+        result = await DAGStrategy().execute(wf, {"input": {"payload": {"id": 1}}}, exec_mock, db, run_id="r-vs-ok")
+        assert result.success is True
+        assert ran.get("t_ok", 0) == 1
+        assert ran.get("t_bad", 0) == 0
+
+    @pytest.mark.asyncio
+    async def test_invalid_takes_on_invalid_branch_default_skipped(self):
+        nodes = [
+            WorkflowNode(
+                id="vs",
+                type="validate_schema",
+                title="V",
+                config={"schema": TestValidateSchemaHandlerWiring._SCHEMA, "payload_key": "payload", "payload": {}},
+            ),
+            WorkflowNode(id="t_ok", type="llm_call", title="OK", dependencies=["vs"]),
+            WorkflowNode(id="t_bad", type="llm_call", title="BAD", dependencies=["vs"]),
+        ]
+        edges = [
+            WorkflowEdge(source="vs", target="t_ok", condition="default"),
+            WorkflowEdge(source="vs", target="t_bad", condition="on_invalid"),
+        ]
+        wf = _make_dag(nodes, edges)
+        db = MagicMock()
+        exec_mock = MagicMock()
+        exec_mock.is_aborted = MagicMock(return_value=False)
+        ran: dict[str, int] = {}
+
+        async def run_node(*a, **k):
+            n = k["node"]
+            ran[n.id] = ran.get(n.id, 0) + 1
+            if n.type.value == "validate_schema":
+                from app.services.substrate.node_executor import NodeExecutor
+
+                out = await NodeExecutor(_StubUnifiedExecutor())._handle_validate_schema(n, k["context"])
+                out.setdefault("tokens", 0)
+                out.setdefault("cost", 0.0)
+                return out
+            return {"success": True, "output": {}, "tokens": 1, "cost": 0.0}
+
+        exec_mock.execute_node = AsyncMock(side_effect=run_node)
+        result = await DAGStrategy().execute(wf, {"input": {"payload": {}}}, exec_mock, db, run_id="r-vs-bad")
+        assert result.success is True
+        assert ran.get("t_ok", 0) == 0
+        assert ran.get("t_bad", 0) == 1

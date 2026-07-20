@@ -173,6 +173,24 @@ class GraphStrategy(ExecutionStrategy):
                 return not timed_out
             # Unknown condition on a timeout edge — close it (safe default).
             return False
+        if src is not None and getattr(src.type, "value", None) == "validate_schema":
+            # A validate_schema node emits its branch on its output ("route" ==
+            # "default" | "on_invalid"). The edge is taken only when the branch
+            # matches. Mirrors the TIMEOUT branch precedent.
+            branch = edge.condition.strip().lower()
+            src_out = node_outputs.get(edge.source, {})
+            if isinstance(src_out, dict):
+                src_route = src_out.get("route")
+                if src_route is None:
+                    src_route = (src_out.get("output", {}) or {}).get("route")
+            else:
+                src_route = None
+            if branch == "on_invalid":
+                return src_route == "on_invalid"
+            if branch == "default":
+                return src_route != "on_invalid"
+            # Unknown condition on a validate_schema edge — close it (safe default).
+            return False
         try:
             resolved = self._resolve_interpolation(edge.condition, node_outputs)
             if isinstance(resolved, bool):
