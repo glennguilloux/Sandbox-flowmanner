@@ -158,3 +158,13 @@ class RunQueryHandlers(QueryHandlerBase):
         """Layered step tree for a run (DAG promotion, Phase 2)."""
         svc = RunService(self.session)
         return await svc.get_run_tree(run_id, user_id)
+
+    async def get_run_graph(self, user_id: int, run_id: str) -> dict:
+        """Full graph for a run (graph promotion, Phase 3).
+
+        Returns every node + every edge (with conditional-edge metadata and
+        which edges were taken at runtime), so the frontend can render
+        branches and the path that executed. See ``RunService.get_run_graph``.
+        """
+        svc = RunService(self.session)
+        return await svc.get_run_graph(run_id, user_id)

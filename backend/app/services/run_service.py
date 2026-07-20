@@ -622,6 +622,89 @@ class RunService:
             "layers": tree_layers,
         }
 
+    async def get_run_graph(self, run_id: str, user_id: int) -> dict:
+        """Return the full graph for a run (graph promotion, Phase 3).
+
+        Unlike ``get_run_tree`` (which collapses the topology into layers of
+        nodes), this returns the *complete* graph: every node, every edge
+        (including conditional edges and their ``condition``/``label``), the
+        layered execution order, and — derived from the event log — which
+        conditional edges were actually *taken* at runtime.  This is what lets
+        the frontend render branches and highlight the path that executed,
+        distinguishing a graph run from the DAG's pure fan-out.
+
+        Returns a dict with:
+            run_id, workflow_type, status,
+            nodes: [{
+                node_id, title, node_type, status,
+                layer, depends_on,
+            }],
+            edges: [{
+                source, target, condition, label, taken,
+            }],
+        """
+        run = await self.get(run_id, user_id)  # access check
+
+        workflow = blueprint_to_workflow(
+            snapshot=run.snapshot or {},
+            blueprint_id=str(run.blueprint_id) if run.blueprint_id else str(run.id),
+            user_id=str(user_id),
+        )
+
+        # Node status from the event log (source of truth).
+        replay = get_replay_engine()
+        state = await replay.rebuild_state(self.db, str(run.id))
+        task_states = state.task_states  # task_id -> {"status": ...}
+
+        layers = _topo_layers(workflow)
+        node_layer: dict[str, int] = {}
+        graph_nodes: list[dict] = []
+        for i, layer in enumerate(layers):
+            for nid in layer:
+                node_layer[nid] = i
+                node = workflow.node_map.get(nid)
+                if node is None:
+                    continue
+                st = task_states.get(nid, {}).get("status", "pending")
+                graph_nodes.append(
+                    {
+                        "node_id": nid,
+                        "title": node.title,
+                        "node_type": node.type.value,
+                        "status": st,
+                        "layer": i,
+                        "depends_on": _direct_deps(workflow, nid),
+                    }
+                )
+
+        # Which edges were taken? Control actually flows across an edge only
+        # if BOTH its source AND target executed (reached a terminal status).
+        # A branch edge whose source (e.g. `decide`) fired but whose target
+        # (e.g. `branch_a`) never ran is NOT taken — that is the signal the
+        # frontend uses to render "this branch was skipped." A plain
+        # dependency edge (source never ran) is also not taken.
+        executed = {nid for nid, ts in task_states.items() if ts.get("status") in ("completed", "failed")}
+        graph_edges: list[dict] = []
+        for e in workflow.edges:
+            taken = e.source in executed and e.target in executed
+            graph_edges.append(
+                {
+                    "source": e.source,
+                    "target": e.target,
+                    "condition": e.condition,
+                    "label": e.label,
+                    "taken": taken,
+                }
+            )
+
+        return {
+            "run_id": str(run.id),
+            "workflow_type": workflow.type.value,
+            "status": run.status,
+            "nodes": graph_nodes,
+            "edges": graph_edges,
+        }
+
     async def _check_access(self, run: Run, user_id: int) -> None:
         """Check if user has access to the run."""
         if run.user_id == user_id:

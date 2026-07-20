@@ -61,6 +61,9 @@ class SubstrateClient:
     def build_dag_workflow(self, **kwargs: Any) -> Workflow:
         return build_dag_workflow(**kwargs)
 
+    def build_graph_workflow(self, **kwargs: Any) -> Workflow:
+        return build_graph_workflow(**kwargs)
+
     async def stream_turn(
         self,
         db: AsyncSession,
@@ -139,12 +142,33 @@ class SubstrateClient:
             workspace_id=workspace_id,
         )
 
+    async def execute_graph(
+        self,
+        db: AsyncSession,
+        *,
+        goal: str,
+        run_id: str,
+        model: str | None = None,
+        user_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> dict[str, Any]:
+        return await execute_graph_run(
+            db,
+            goal=goal,
+            run_id=run_id,
+            model=model,
+            user_id=user_id,
+            workspace_id=workspace_id,
+        )
+
 
 __all__ = [
     "SubstrateClient",
     "build_dag_workflow",
+    "build_graph_workflow",
     "build_solo_workflow",
     "execute_dag_run",
+    "execute_graph_run",
     "execute_solo_run",
     "new_run_id",
     "run_dag_turn_sse",
@@ -379,6 +403,208 @@ async def execute_dag_run(
     frontend renders (see ``run_dag_turn_sse`` / ``RunService.get_run_tree``).
     """
     workflow = build_dag_workflow(
+        goal=goal,
+        run_id=run_id,
+        model=model,
+        user_id=user_id,
+        workspace_id=workspace_id,
+    )
+    executor = UnifiedExecutor()
+    result = await executor.execute(db, workflow, run_id=run_id)
+    return result.model_dump() if hasattr(result, "model_dump") else dict(result)
+
+
+def build_graph_workflow(
+    *,
+    goal: str,
+    run_id: str,
+    model: str | None = None,
+    user_id: str | None = None,
+    workspace_id: str | None = None,
+    budget: dict[str, Any] | None = None,
+) -> Workflow:
+    """Build a branching GRAPH Workflow from a natural-language goal.
+
+    Phase 3 promotes the ``graph`` strategy so a single chat goal can expand
+    into a genuine branching/conditional run (not just the layered fan-out of
+    the DAG).  The topology is a small conditional graph:
+
+    * ``plan`` decomposes the goal into ordered sub-steps (layer 0),
+    * ``decide`` is a branching node that evaluates the plan and emits a
+      routing signal (layer 1),
+    * two conditional branches (``branch_a`` / ``branch_b``) — e.g. "research
+      path" vs "build path" — each gated by a ``condition`` on ``decide``'s
+      output (layer 2),
+    * ``synthesize`` (layer 3) depends on whichever branch executed and
+      combines their outputs into the final answer.
+
+    This is a real ``WorkflowType.GRAPH`` (it carries ``condition`` edges the
+    ``GraphStrategy`` evaluates at runtime), so the frontend can render
+    branches + the actually-taken path, distinct from the DAG's pure fan-out.
+    The number of sub-steps per branch is capped to keep the graph bounded.
+    """
+    b = budget or {}
+
+    plan = WorkflowNode(
+        id="plan",
+        type=NodeType.LLM_CALL,
+        title="Plan decomposition",
+        description=f"Decompose the goal into ordered sub-steps: {goal}",
+        config={
+            "prompt": (
+                "Decompose the user's goal into a short, ordered list of "
+                "concrete sub-steps (max 4). Respond as a numbered list, "
+                "one sub-step per line, no prose. Goal: " + goal
+            ),
+            "system_prompt": (
+                "You are Flowmanner's planning agent. Break goals into small, executable steps. Be concise."
+            ),
+            "model": model or "llamacpp/qwen-3.6-27b",
+            "effect_class": EffectClass.REVERSIBLE.value,
+        },
+        assigned_model=model,
+        reasoning_profile=ReasoningProfile.NORMAL,
+        effect_class=EffectClass.REVERSIBLE,
+    )
+
+    decide = WorkflowNode(
+        id="decide",
+        type=NodeType.LLM_CALL,
+        title="Route decision",
+        description=f"Decide which execution path best serves the goal: {goal}",
+        config={
+            "prompt": (
+                "Given the plan, decide the single best execution path for the "
+                "goal. Respond with exactly one word: either 'research' or "
+                "'build'. Goal: " + goal
+            ),
+            "system_prompt": (
+                "You are Flowmanner's routing agent. Choose the path that best serves the user's goal. Reply with one word only."
+            ),
+            "model": model or "llamacpp/qwen-3.6-27b",
+            "effect_class": EffectClass.REVERSIBLE.value,
+        },
+        dependencies=["plan"],
+        assigned_model=model,
+        reasoning_profile=ReasoningProfile.NORMAL,
+        effect_class=EffectClass.REVERSIBLE,
+    )
+
+    branch_a = WorkflowNode(
+        id="branch_a",
+        type=NodeType.LLM_CALL,
+        title="Research path",
+        description=f"Research the goal and gather findings: {goal}",
+        config={
+            "prompt": (
+                "Research path selected. Investigate the goal and produce a concise findings brief. Goal: " + goal
+            ),
+            "system_prompt": (
+                "You are Flowmanner's research agent. Gather and summarize the key facts for the user's goal. Be concise."
+            ),
+            "model": model or "llamacpp/qwen-3.6-27b",
+            "effect_class": EffectClass.REVERSIBLE.value,
+        },
+        dependencies=["decide"],
+        assigned_model=model,
+        reasoning_profile=ReasoningProfile.NORMAL,
+        effect_class=EffectClass.REVERSIBLE,
+    )
+
+    branch_b = WorkflowNode(
+        id="branch_b",
+        type=NodeType.LLM_CALL,
+        title="Build path",
+        description=f"Build a concrete deliverable for the goal: {goal}",
+        config={
+            "prompt": (
+                "Build path selected. Produce a concrete deliverable (code, "
+                "outline, or artifact) for the goal. Goal: " + goal
+            ),
+            "system_prompt": (
+                "You are Flowmanner's build agent. Produce a concrete, usable deliverable for the user's goal. Be concise."
+            ),
+            "model": model or "llamacpp/qwen-3.6-27b",
+            "effect_class": EffectClass.REVERSIBLE.value,
+        },
+        dependencies=["decide"],
+        assigned_model=model,
+        reasoning_profile=ReasoningProfile.NORMAL,
+        effect_class=EffectClass.REVERSIBLE,
+    )
+
+    synthesize = WorkflowNode(
+        id="synthesize",
+        type=NodeType.LLM_CALL,
+        title="Synthesize",
+        description=f"Synthesize the chosen path's output into a final answer for: {goal}",
+        config={
+            "prompt": (
+                "Synthesize the chosen path's output into a single coherent final answer for the user's goal: " + goal
+            ),
+            "system_prompt": (
+                "You are Flowmanner's agent. Combine the executed path's result into a clear final answer. Be concise."
+            ),
+            "model": model or "llamacpp/qwen-3.6-27b",
+            "effect_class": EffectClass.REVERSIBLE.value,
+        },
+        dependencies=["branch_a", "branch_b"],
+        assigned_model=model,
+        reasoning_profile=ReasoningProfile.NORMAL,
+        effect_class=EffectClass.REVERSIBLE,
+    )
+
+    # Conditional edges: only the branch `decide` routes to is taken at
+    # runtime by GraphStrategy.  Both edges are declared; the strategy
+    # evaluates `condition` against `decide`'s output to pick one.
+    nodes = [plan, decide, branch_a, branch_b, synthesize]
+    edges = [
+        WorkflowEdge(source="plan", target="decide"),
+        WorkflowEdge(
+            source="decide",
+            target="branch_a",
+            condition="{{decide.output.text}} == 'research'",
+            label="research path",
+        ),
+        WorkflowEdge(
+            source="decide",
+            target="branch_b",
+            condition="{{decide.output.text}} == 'build'",
+            label="build path",
+        ),
+        WorkflowEdge(source="branch_a", target="synthesize"),
+        WorkflowEdge(source="branch_b", target="synthesize"),
+    ]
+
+    return Workflow(
+        id=run_id,
+        type=WorkflowType.GRAPH,
+        title="Chat graph run",
+        description=goal,
+        nodes=nodes,
+        edges=edges,
+        user_id=user_id,
+        workspace_id=workspace_id,
+        budget=_coerce_budget(b),
+    )
+
+
+async def execute_graph_run(
+    db: AsyncSession,
+    *,
+    goal: str,
+    run_id: str,
+    model: str | None = None,
+    user_id: str | None = None,
+    workspace_id: str | None = None,
+) -> dict[str, Any]:
+    """Build + dispatch a graph substrate run, returning the StrategyResult dict.
+
+    Thin facade over ``UnifiedExecutor.execute`` for the GRAPH strategy.  The
+    run's conditional topology (and which branch was actually taken) is
+    reflected by replaying its event log — see ``RunService.get_run_graph``.
+    """
+    workflow = build_graph_workflow(
         goal=goal,
         run_id=run_id,
         model=model,

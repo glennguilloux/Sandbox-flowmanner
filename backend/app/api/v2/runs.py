@@ -228,6 +228,27 @@ async def get_run_tree(
     return ok(tree)
 
 
+# ── Graph (full branching graph) ─────────────────────────────────
+
+
+@router.get("/{run_id}/graph")
+@router.get("/{run_id}/graph/")
+async def get_run_graph(
+    run_id: str,
+    user: User = Depends(get_current_user),
+    q: RunQueryHandlers = Depends(get_run_queries),
+):
+    """Get the full branching graph for a run (graph promotion, Phase 3).
+
+    Returns every node + every edge (including conditional-edge condition /
+    label metadata and which edges were actually taken at runtime), so the
+    frontend can render branches and highlight the executed path. Distinct
+    from /tree, which collapses the topology into layers of nodes.
+    """
+    graph = await q.get_run_graph(user.id, run_id)
+    return ok(graph)
+
+
 # ── Diff ───────────────────────────────────────────────────────────────────────
 
 
