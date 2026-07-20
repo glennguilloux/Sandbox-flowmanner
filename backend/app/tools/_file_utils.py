@@ -94,7 +94,17 @@ def decode_data(data: str) -> bytes:
 
 
 async def fetch_bytes(url: str, timeout: int = 30) -> bytes:
-    """Fetch raw bytes from a URL via HTTP GET."""
+    """Fetch raw bytes from a URL via HTTP GET.
+
+    SSRF guard: the destination is validated by :func:`validate_url_ssrf`
+    (default-deny — resolves DNS and rejects loopback/private/link-local/
+    reserved/multicast/metadata addresses) *before* any connection is opened.
+    This closes the B19 gap: previously this helper opened ``httpx`` with no
+    guard, so any direct caller could be used as an internal-network oracle.
+    """
+    reason = validate_url_ssrf(url)
+    if reason is not None:
+        raise ValueError(f"Refusing to fetch unsafe URL: {reason}")
     async with httpx.AsyncClient(timeout=timeout) as client:
         resp = await client.get(url)
         resp.raise_for_status()

@@ -289,7 +289,13 @@ class ExpenseReceiptParserTool(BaseTool):
     async def _resolve_data_uri(self, validated: ExpenseReceiptParserInput) -> str:
         """Convert input to a data: URI for the Vision API."""
         if validated.image_url:
-            # Fetch image from URL
+            # Fetch image from URL — SSRF guard: refuse loopback/private/link-local/
+            # metadata destinations before opening the connection (B19).
+            from app.tools._file_utils import validate_url_ssrf
+
+            reason = validate_url_ssrf(validated.image_url)
+            if reason is not None:
+                raise ValueError(f"Refusing to fetch unsafe image_url: {reason}")
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.get(validated.image_url)
                 resp.raise_for_status()

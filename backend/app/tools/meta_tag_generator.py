@@ -300,10 +300,17 @@ class MetaTagGeneratorTool(BaseTool):
     # ── URL fetching ─────────────────────────────────────────────
 
     async def _fetch_url(self, url: str) -> str:
-        """Fetch HTML content from a URL with SSRF protection."""
-        valid, error = _validate_url(url)
-        if not valid:
-            raise ValueError(f"URL validation failed: {error}")
+        """Fetch HTML content from a URL with SSRF protection.
+
+        Uses the shared DNS-resolving guard from ``app.tools._file_utils`` so
+        that hostnames resolving to loopback/private/link-local/metadata
+        addresses are rejected (not just blocked literal host strings).
+        """
+        from app.tools._file_utils import validate_url_ssrf
+
+        reason = validate_url_ssrf(url)
+        if reason is not None:
+            raise ValueError(f"URL validation failed: {reason}")
 
         headers = {
             "User-Agent": ("Mozilla/5.0 (compatible; FlowmannerBot/1.0; +https://flowmanner.com/bot)"),
