@@ -135,7 +135,7 @@ async def replay_from_buffer(
         # record) fall through to legacy replay behavior.
         owner_key = f"chat:stream:{stream_id}:owner"
         owner = await rds.hgetall(owner_key)
-        if owner and (user_id is None or str(owner.get("user_id")) != str(user_id)):
+        if isinstance(owner, dict) and owner and (user_id is None or str(owner.get("user_id")) != str(user_id)):
             logger.debug("sse_buffer_replay_owner_mismatch stream_id=%s", stream_id)
             return None
 
