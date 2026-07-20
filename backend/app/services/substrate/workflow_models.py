@@ -102,6 +102,11 @@ class NodeType(str, Enum):
     CACHE_GET = "cache_get"  # read-through Redis cache lookup (reversible)
     VALIDATE_SCHEMA = "validate_schema"  # assert payload against a schema; route on_invalid on mismatch
 
+    # Mission-builder expansion (Wave 3 — backend-native control nodes)
+    ROUTER = "router"  # multi-branch classifier: emit branch == selected route id
+    DELAY = "delay"  # hard wall-clock pause, then pass through (branch "default")
+    MERGE = "merge"  # synchronization / join point: combine upstream outputs
+
     # Safety & State node types (mission-builder expansion — Qdrant-backed memory)
     MEMORY_WRITE = "memory_write"  # upsert a payload into the shared memory collection
 

@@ -260,6 +260,22 @@ class DAGStrategy(ExecutionStrategy):
                     return False
                 if branch == "on_invalid" and src_route != "on_invalid":
                     return False
+            elif src.type.value == "router":
+                # A router node emits its selected route id as ``branch`` on its
+                # output (edge.condition == selected route id). The outgoing edge
+                # is taken only when its condition matches the selected route. A
+                # router with no selected route (fallback="drop") carries a
+                # None/empty branch, so no condition-gated edge fires. Mirrors
+                # the CONDITION/TIMEOUT/VALIDATE_SCHEMA branch precedent.
+                branch = (edge.condition or "").strip()
+                if not branch:
+                    continue
+                src_out = node_outputs.get(edge.source, {})
+                selected = src_out.get("branch") if isinstance(src_out, dict) else None
+                if selected is None:
+                    selected = (src_out.get("output", {}) or {}).get("branch") if isinstance(src_out, dict) else None
+                if branch != (selected or ""):
+                    return False
         return True
 
     # ── LOOP bounded iteration ───────────────────────────────────────

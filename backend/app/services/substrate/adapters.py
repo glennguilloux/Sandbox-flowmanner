@@ -64,6 +64,9 @@ _REVERSIBLE_NODE_TYPES: frozenset[NodeType] = frozenset(
         NodeType.TRANSFORM,  # pure data transform, no LLM/tool
         NodeType.CACHE_GET,  # read-through Redis cache lookup (reversible)
         NodeType.MEMORY_READ,  # read-only semantic memory read from Qdrant
+        NodeType.ROUTER,  # multi-branch classifier: reports branch, no side effect
+        NodeType.DELAY,  # wall-clock pause, passes through (reversible)
+        NodeType.MERGE,  # join point: combines upstream outputs, no side effect
     }
 )
 
@@ -109,7 +112,39 @@ _TASK_TYPE_MAP: dict[str, NodeType] = {
     "loop": NodeType.LOOP,
     "webhook": NodeType.WEBHOOK,
     "memory_read": NodeType.MEMORY_READ,
+    # Wave 3 — backend-native control nodes (real NodeType + handler owned by
+    # the substrate). These are distinct from the input_*/output_* canvas-only
+    # DATA SHIMS, which are skipped (see _DATA_SHIM_TYPES) and never mapped.
+    "router": NodeType.ROUTER,
+    "merge": NodeType.MERGE,
+    "delay": NodeType.DELAY,
+    # Data-control node types that already have real substrate handlers
+    # (Scope B / Wave 3) but were previously absent from the map and silently
+    # collapsed to LLM_CALL through the default. Map them to their true
+    # NodeType so the adapter no longer mis-routes them as LLM calls.
+    "filter": NodeType.FILTER,
+    "split": NodeType.SPLIT,
+    "validate_schema": NodeType.VALIDATE_SCHEMA,
 }
+
+
+# Canvas-only DATA SHIMS (owner decision C / Wave 3). ``input_*`` /
+# ``output_*`` nodes carry transformationConfig UI metadata but perform no
+# substrate work — the adapter serialises the real data flow onto the
+# upstream/downstream *real* nodes, so these shims must never reach the
+# substrate. They are skipped in ``blueprint_to_workflow`` (mirroring the
+# start/end sentinels) and are deliberately NOT added to ``_TASK_TYPE_MAP``
+# (adding them as LLM_CALL would make them run). If the FE palette ever ships
+# a new shim type, add it here AND to the adapter coverage test's expected set.
+_DATA_SHIM_TYPES: frozenset[str] = frozenset(
+    {
+        "input_text",
+        "input_webhook",
+        "input_dataset",
+        "output_format",
+        "output_deliver",
+    }
+)
 
 
 # ── Mission workflow type mapping ───────────────────────────────────
@@ -377,12 +412,22 @@ def blueprint_to_workflow(
     # "solo" blueprint that actually has >1 real node or any real edge is a DAG.
     _SENTINEL_NODE_TYPES = frozenset({"start", "end"})
 
+    # Canvas-only DATA SHIMS: the module-level ``_DATA_SHIM_TYPES`` frozenset
+    # is reused here. input_*/output_* carry transformationConfig UI metadata
+    # but perform no substrate work; they are skipped like sentinels (dropped
+    # from the node list AND from any referencing edge) and are NOT in
+    # _TASK_TYPE_MAP.
+
     workflow_nodes: list[WorkflowNode] = []
     sentinel_ids: set[str] = set()
+    shim_ids: set[str] = set()
     for n in snapshot.get("nodes", []):
         raw_type = n.get("type") or (n.get("data", {}) or {}).get("nodeType") or "task"
         if raw_type in _SENTINEL_NODE_TYPES:
             sentinel_ids.add(n.get("id"))
+            continue
+        if raw_type in _DATA_SHIM_TYPES:
+            shim_ids.add(n.get("id"))
             continue
         mapped = _TASK_TYPE_MAP.get(raw_type, NodeType.LLM_CALL)
         n = {**n, "type": mapped.value}
@@ -399,8 +444,9 @@ def blueprint_to_workflow(
     # Edge normalization policy (Finding 4) — applied AFATER sentinel/malformed
     # dropping so downstream strategies receive a clean graph:
     #   1. Orphan edge (source or target NOT in the surviving real-node set,
-    #      i.e. excluding the already-dropped start/end sentinels) and
-    #      NEITHER endpoint is a sentinel: RAISE InvalidBlueprintGraphError.
+    #      i.e. excluding the already-dropped start/end sentinels AND the
+    #      skipped input_*/output_* data shims) and NEITHER endpoint is a
+    #      sentinel: RAISE InvalidBlueprintGraphError.
     #      A dangling edge is silent data loss — the named node id is simply
     #      absent, so the run would be truncated with no signal. Fail loud
     #      instead, naming the offending edge + the missing node id.
@@ -412,11 +458,16 @@ def blueprint_to_workflow(
     #      dedupe; if a strategy ever needs parallel duplicate edges, document
     #      WHY and skip this dedup).
     real_node_ids: set[str] = {n.id for n in workflow_nodes}
+    _skipped_ids: set[str] = sentinel_ids | shim_ids
     workflow_edges: list[WorkflowEdge] = []
     _seen_edge_pairs: set[tuple[str, str]] = set()
     for e in snapshot.get("edges", []):
-        # Keep the existing sentinel-drop filter.
+        # Keep the existing sentinel-drop filter. Also drop edges that touch a
+        # skipped canvas-only DATA SHIM (input_*/output_*), mirroring the
+        # sentinel drop so the surviving graph only connects real nodes.
         if e.get("source") in sentinel_ids or e.get("target") in sentinel_ids:
+            continue
+        if e.get("source") in shim_ids or e.get("target") in shim_ids:
             continue
         # Skip edges that lack both `source` and `target` outright.
         if e.get("source") is None and e.get("target") is None:
@@ -439,10 +490,14 @@ def blueprint_to_workflow(
             )
             continue
         # 1. Orphan edge: an endpoint is not in the surviving real-node set
-        #    AND neither endpoint is a sentinel (sentinels were already
-        #    dropped above). This is silent data loss — a node id the
-        #    edge refers to simply does not exist. Fail loud instead of
-        #    truncating the graph.
+        #    AND neither endpoint is a sentinel or skipped data shim
+        #    (sentinels/shims were already dropped above). This is silent data
+        #    loss — a node id the edge refers to simply does not exist. Fail
+        #    loud instead of truncating the graph. An edge that merely touches
+        #    a skipped input_*/output_* shim is dropped quietly (the shim was a
+        #    real snapshot node but intentionally excluded, not a dangling ref).
+        if edge.source in _skipped_ids or edge.target in _skipped_ids:
+            continue
         if edge.source not in real_node_ids or edge.target not in real_node_ids:
             missing = edge.source if edge.source not in real_node_ids else edge.target
             raise InvalidBlueprintGraphError(
