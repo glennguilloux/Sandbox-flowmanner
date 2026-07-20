@@ -223,7 +223,10 @@ class DAGStrategy(ExecutionStrategy):
                     return False
                 continue
             if src.type.value == "condition":
-                branch = edge.condition.strip().lower()
+                # Edge condition is optional: a missing/empty condition means
+                # "no branch gating" (the historical contract — see docstring).
+                # Guard against None (some adapters / FE serialisers omit it).
+                branch = (edge.condition or "").strip().lower()
                 if branch not in (_BRANCH_TRUE, _BRANCH_FALSE):
                     continue
                 cond_out = node_outputs.get(edge.source, {})
@@ -234,7 +237,7 @@ class DAGStrategy(ExecutionStrategy):
                     return False
             elif src.type.value == "timeout":
                 # The timeout node records its branch on its own output.
-                branch = edge.condition.strip().lower()
+                branch = (edge.condition or "").strip().lower()
                 src_out = node_outputs.get(edge.source, {})
                 timed_out = bool(src_out.get("branch") == "on_timeout") if isinstance(src_out, dict) else False
                 if branch == "on_timeout" and not timed_out:
@@ -246,7 +249,7 @@ class DAGStrategy(ExecutionStrategy):
                 # ("route" == "default" | "on_invalid"; an optional custom
                 # on_invalid label is honoured). The edge is taken only when the
                 # branch matches. Mirrors the CONDITION/TIMEOUT branch precedent.
-                branch = edge.condition.strip().lower()
+                branch = (edge.condition or "").strip().lower()
                 if branch not in ("default", "on_invalid"):
                     continue
                 src_out = node_outputs.get(edge.source, {})

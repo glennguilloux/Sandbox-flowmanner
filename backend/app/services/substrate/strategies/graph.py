@@ -164,7 +164,7 @@ class GraphStrategy(ExecutionStrategy):
         # its deadline; "default" only when it completed in time.
         src = self.workflow.node_map.get(edge.source) if getattr(self, "workflow", None) else None
         if src is not None and getattr(src.type, "value", None) == "timeout":
-            branch = edge.condition.strip().lower()
+            branch = (edge.condition or "").strip().lower()
             src_out = node_outputs.get(edge.source, {})
             timed_out = bool(src_out.get("branch") == "on_timeout") if isinstance(src_out, dict) else False
             if branch == "on_timeout":
@@ -177,7 +177,7 @@ class GraphStrategy(ExecutionStrategy):
             # A validate_schema node emits its branch on its output ("route" ==
             # "default" | "on_invalid"). The edge is taken only when the branch
             # matches. Mirrors the TIMEOUT branch precedent.
-            branch = edge.condition.strip().lower()
+            branch = (edge.condition or "").strip().lower()
             src_out = node_outputs.get(edge.source, {})
             if isinstance(src_out, dict):
                 src_route = src_out.get("route")
