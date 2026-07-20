@@ -249,3 +249,50 @@ class TestSandboxParity:
         assert via_helper == via_sandbox == "run 1 and 2"
         # Prove the helper is the single source the non-sandbox nodes use.
         assert interpolate_inputs.__module__ == "app.services.substrate.interpolate"
+
+
+# ── Template render node ────────────────────────────────────────
+
+
+class TestTemplateRenderNode:
+    @pytest.mark.asyncio
+    async def test_renders_template_with_inputs(self):
+        node = _node("template_render", {"template": "Hello {{ inputs.name }}, welcome to {{ inputs.org }}."})
+        context = {"inputs": {"name": "Glenn", "org": "Flowmanner"}}
+
+        res = await _executor()._handle_template_render(node=node, context=context)
+
+        assert res["success"] is True
+        assert res["output"] == "Hello Glenn, welcome to Flowmanner."
+
+    @pytest.mark.asyncio
+    async def test_unknown_key_left_verbatim(self):
+        # Matches interpolate_inputs contract: missing input is not mangled.
+        node = _node("template_render", {"template": "Hi {{ inputs.name }}, you are {{ inputs.missing }}."})
+        context = {"inputs": {"name": "Glenn"}}
+
+        res = await _executor()._handle_template_render(node=node, context=context)
+
+        assert res["success"] is True
+        assert res["output"] == "Hi Glenn, you are {{ inputs.missing }}."
+
+    @pytest.mark.asyncio
+    async def test_empty_template_fails(self):
+        node = _node("template_render", {})
+        context = {"inputs": {}}
+
+        res = await _executor()._handle_template_render(node=node, context=context)
+
+        assert res["success"] is False
+        assert "template" in res["error"].lower()
+
+    @pytest.mark.asyncio
+    async def test_missing_inputs_dict_renders_verbatim(self):
+        # No "inputs" key in context → every placeholder stays verbatim.
+        node = _node("template_render", {"template": "{{ inputs.x }} + {{ inputs.y }}"})
+        context = {}
+
+        res = await _executor()._handle_template_render(node=node, context=context)
+
+        assert res["success"] is True
+        assert res["output"] == "{{ inputs.x }} + {{ inputs.y }}"

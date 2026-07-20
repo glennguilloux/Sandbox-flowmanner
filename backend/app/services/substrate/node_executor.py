@@ -1148,6 +1148,8 @@ class NodeExecutor:
                 return await self._handle_condition(node, context)
             case NodeType.LOG:
                 return await self._handle_log(db, node, context, run_id, workflow)
+            case NodeType.TEMPLATE_RENDER:
+                return await self._handle_template_render(node, context)
             case NodeType.LOOP:
                 # Marker node: the bounded iteration loop is driven by the
                 # strategy (see DAGStrategy). The handler just reports the
@@ -1927,6 +1929,29 @@ class NodeExecutor:
             return {"success": False, "error": f"Transform failed: {e}"}
 
         return {"success": True, "output": result, "tokens": 0, "cost": 0.0}
+
+    # ── Template render (Jinja-style string from upstream inputs) ──
+    async def _handle_template_render(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
+        """Render a ``{{ inputs.<key> }}`` template from upstream inputs.
+
+        The node carries a ``template`` string in ``node.config``. Every
+        ``{{ inputs.<key> }}`` placeholder is substituted with the matching
+        value from the run's ``inputs`` dict (which flows into the substrate
+        execution context as ``context["inputs"]``). Unknown keys are left
+        *verbatim* by ``interpolate_inputs`` so a missing input never mangles
+        the template.
+
+        The rendered string is emitted on the node's output port
+        (``{"success": True, "output": <rendered>}``) for downstream nodes to
+        consume.
+        """
+        template = node.config.get("template")
+        if not template:
+            return {"success": False, "error": "No template provided for template_render node"}
+
+        inputs = context.get("inputs") or {}
+        rendered = interpolate_inputs(template, inputs)
+        return {"success": True, "output": rendered, "tokens": 0, "cost": 0.0}
 
     # ── Condition (evaluate a boolean expression) ─────────────────
     async def _handle_condition(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
