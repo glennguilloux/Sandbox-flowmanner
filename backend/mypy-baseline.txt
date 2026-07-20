@@ -1,0 +1,5 @@
+# mypy baseline — Q1 audit closure (2026-07-20)
+# Verified: `python -m mypy app` (mypy 1.11.2, venv) => "Success: no issues found in 995 source files".
+# The audit's "~286 errors / RED baseline" claim was STALE — current source is mypy-clean.
+# An empty baseline (no expected errors) is correct. Do NOT regenerate against a dirty tree.
+# Run: cd backend && .venv/bin/python -m mypy app
