@@ -144,12 +144,17 @@ def _build_mission_metadata(mission: Any) -> dict[str, Any]:
 def mission_to_workflow(
     mission: Any,  # app.models.mission_models.Mission
     tasks: list[Any] | None = None,  # list of MissionTask
+    input_data: dict | None = None,  # per-run overrides surfaced as {{ inputs.<key> }}
 ) -> Workflow:
     """Convert a Mission + its tasks into a unified Workflow.
 
     Args:
         mission: ORM Mission object.
         tasks: Optional pre-fetched tasks (avoids extra query).
+        input_data: Optional per-run input values (e.g. {"model": "<slug>"})
+            that sandbox nodes can reference via ``{{ inputs.model }}``. When
+            present, sandbox-type nodes get ``config["model"]`` set so the
+            substrate renders it at node_executor.py:2152.
 
     Returns:
         Workflow ready for UnifiedExecutor.execute().
@@ -168,16 +173,24 @@ def mission_to_workflow(
                 getattr(task, "task_type", "llm") or "llm",
                 NodeType.LLM_CALL,
             )
+            config = {
+                "prompt": getattr(task, "description", "") or getattr(task, "title", ""),
+                "tool_name": getattr(task, "tool_id", None),
+            }
+            # Surface per-run model selection to sandbox nodes so the opencode
+            # agent uses the chosen model (node_executor.py:2152 renders
+            # {{ inputs.model }} -> submit_task(model=...)). Mirrors the
+            # blueprint path, which already threads input_data.model through.
+            if input_data and input_data.get("model") is not None and node_type == NodeType.SANDBOX:
+                config["model"] = "{{ inputs.model }}"
+
             nodes.append(
                 WorkflowNode(
                     id=str(task.id) if hasattr(task, "id") else f"task_{len(nodes)}",
                     type=node_type,
                     title=getattr(task, "title", ""),
                     description=getattr(task, "description", ""),
-                    config={
-                        "prompt": getattr(task, "description", "") or getattr(task, "title", ""),
-                        "tool_name": getattr(task, "tool_id", None),
-                    },
+                    config=config,
                     dependencies=_resolve_deps(task, tasks or []),
                     assigned_model=getattr(task, "assigned_model", None),
                     assigned_agent_id=getattr(task, "assigned_agent_id", None),
@@ -439,7 +452,7 @@ def blueprint_to_workflow(
         #    already dropped). Fail loud.
         if edge.source == edge.target:
             raise InvalidBlueprintGraphError(
-                f"Invalid blueprint {blueprint_id}: self-loop edge " f"'{edge.source}'->'{edge.target}' is not allowed"
+                f"Invalid blueprint {blueprint_id}: self-loop edge '{edge.source}'->'{edge.target}' is not allowed"
             )
         # 3. Duplicate edge: keep the first, drop later duplicates.
         _pair = (edge.source, edge.target)

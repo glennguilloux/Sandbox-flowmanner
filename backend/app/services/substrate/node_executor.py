@@ -2149,7 +2149,20 @@ class NodeExecutor:
         shared_workspace = config.get("shared_workspace", False)
         input_files = config.get("input_files", {})
         snapshot_before = config.get("snapshot_before", False)
-        model = config.get("model")
+        model = config.get("model") or node.assigned_model
+        # Render a {{ inputs.<key> }} model reference (e.g. model:
+        # "{{ inputs.model }}") from the run's input values. An empty/missing
+        # value resolves to "" so the sandbox uses its own default model.
+        _inputs = context.get("inputs") or {}
+        if model and isinstance(model, str) and "{{ inputs." in model:
+            model = (
+                re.sub(
+                    r"\{\{\s*inputs\.(\w+)\s*\}\}",
+                    lambda m: str(_inputs.get(m.group(1), "")),
+                    model,
+                )
+                or None
+            )
 
         # Blueprint/substrate runs have a run_id but no missions row
         # (Workflow.id == blueprint_id, not a mission id). Keying the
@@ -2245,12 +2258,23 @@ class NodeExecutor:
             # Render {{ inputs.<key> }} from the run's input values. Use re.sub,
             # not str.format: the sandbox wrapper carries literal {} braces.
             inputs = context.get("inputs") or {}
-            if inputs:
-                task_prompt = re.sub(
+
+            def _render_inputs(value: str) -> str:
+                if not inputs or "{{ inputs." not in value:
+                    return value
+                return re.sub(
                     r"\{\{\s*inputs\.(\w+)\s*\}\}",
-                    lambda m: str(inputs.get(m.group(1), m.group(0))),
-                    task_prompt,
+                    # Known keys are substituted; unknown keys are left
+                    # verbatim (matching interpolate_inputs for non-sandbox
+                    # nodes) so a stray token is never silently swallowed.
+                    lambda m: str(inputs[m.group(1)]) if m.group(1) in inputs else m.group(0),
+                    value,
                 )
+
+            task_prompt = _render_inputs(task_prompt)
+            # Note: `model` is already rendered from {{ inputs.model }} at the
+            # top of this handler (falling back to the sandboxd default when
+            # empty). It is passed through as-is below.
             task = await self._sandbox_client.submit_task(
                 sandbox_id=sandbox_id,
                 prompt=task_prompt,
@@ -2668,7 +2692,7 @@ class NodeExecutor:
         # ── First escalation: create inbox item and pause the run ──
         constraint_subject = verdict.constraint_subject or "standing constraint"
         title = f"Approval required: {constraint_subject}"
-        description = f"Tool '{tool_name}' is gated by standing constraint " f"'{constraint_subject}'. {verdict.reason}"
+        description = f"Tool '{tool_name}' is gated by standing constraint '{constraint_subject}'. {verdict.reason}"
         proposed_action = {
             "node_id": node.id,
             "node_title": node.title,

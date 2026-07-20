@@ -189,6 +189,33 @@ class ExecuteMissionTask(Task):
                                 },
                             )
                             fail_session.add(fail_log)
+
+                            # ── Inbox/Notifications emission (explicit, non-raising) ──
+                            # Lazy import + guarded so a notification failure can NEVER
+                            # block the mission FAILED transition. Owner is mission.user_id.
+                            try:
+                                from app.services.notification_service import send_notification
+
+                                await send_notification(
+                                    user_id=mission.user_id,
+                                    notification_type="mission_failed",
+                                    data={
+                                        "title": f"Mission failed: {mission.title}",
+                                        "message": f"Mission failed: {str(exc)[:500]}",
+                                        "mission_id": str(mission.id),
+                                        "entity_type": "mission",
+                                        "entity_id": str(mission.id),
+                                        "dashboard_url": f"/missions/{mission.id}",
+                                    },
+                                    db=fail_session,
+                                )
+                            except Exception as _notify_exc:  # pragma: no cover - defensive
+                                logger.warning(
+                                    "mission_execution_notification_emission_failed mission_id=%s error=%s",
+                                    mission_id,
+                                    _notify_exc,
+                                )
+
                             await fail_session.commit()
                 except Exception as inner:
                     logger.exception("mission_execute_async_failure_log_failed")

@@ -31,6 +31,7 @@ os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://test:test@localhost:
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from app.api._blueprint_cqrs.errors import RunNotFoundError
 from app.services.run_service import RunValidationError
 
 pytestmark = pytest.mark.integration
@@ -190,7 +191,7 @@ def app(mock_db, mock_user):
         BlueprintNotFoundError,
         BlueprintValidationError,
     )
-    from app.services.run_service import RunNotFoundError, RunValidationError
+    from app.services.run_service import RunValidationError
 
     _app = FastAPI()
 
@@ -565,7 +566,7 @@ class TestRunBlueprint:
             # sees the dangling-edge snapshot instead of a mocked one.
             instance.execute = AsyncMock(
                 side_effect=RunValidationError(
-                    "Invalid blueprint bp-x: edge 'a'->'ghost' " "references missing node 'ghost' (not in nodes)"
+                    "Invalid blueprint bp-x: edge 'a'->'ghost' references missing node 'ghost' (not in nodes)"
                 )
             )
             resp = client.post(
@@ -673,7 +674,7 @@ class TestGetRun:
         assert resp.json()["data"]["status"] == "completed"
 
     def test_get_not_found(self, client, mock_db):
-        from app.services.run_service import RunNotFoundError
+        from app.api._blueprint_cqrs.errors import RunNotFoundError
 
         with patch("app.api._blueprint_cqrs.queries.RunService") as MockSvc:
             MockSvc.return_value.get = AsyncMock(side_effect=RunNotFoundError("not found"))

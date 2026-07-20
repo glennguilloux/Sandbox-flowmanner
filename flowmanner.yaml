@@ -30,13 +30,26 @@ blueprint_type: solo
 inputs:
   repo_url:
     type: string
-    default: "https://github.com/glennguilloux/flowmanner.git"
+    default: "https://github.com/glennguilloux/FlowmannerV2.git"
   prior_clues_url:
     type: string
     default: ""
   workdir:
     type: string
     default: "/workspace/repo"
+  # Model used by the sandbox coding agent (opencode). Leave empty ("") to use
+  # the sandboxd default (glm-5 on OpenCode Zen free tier — zero cost, no key).
+  # Override the model at run time with --input model=<slug>, e.g.
+  #   flowmanner run --input model=openrouter/anthropic/claude-3.5-sonnet
+  # which routes through the credential-injecting proxy using your OpenRouter
+  # BYOK key (synced automatically from Flowmanner Settings → BYOK when you add
+  # an OpenRouter key). Provider slug must be in openrouter's namespace.
+  # This is the SAME input you use to change the sandbox agent's model — there
+  # is no separate setting; --input model=... reaches opencode directly
+  # (node_executor.py:2152 renders {{ inputs.model }} → submit_task model=...).
+  model:
+    type: string
+    default: ""
 
 definition:
   blueprint_type: solo
@@ -52,14 +65,14 @@ definition:
         shared_workspace: false
         snapshot_before: false
         agent: opencode
-        model: ""
+        model: "{{ inputs.model }}"
         task_prompt: |
           You are analyzing the Flowmanner codebase (a workflow platform).
           Execute these steps with shell commands, then output ONLY a JSON
           code block (no prose outside the block).
 
           STEP 1 — Clone
-            repo_url="${repo_url:-https://github.com/glennguilloux/flowmanner.git}"
+            repo_url="${repo_url:-https://github.com/glennguilloux/FlowmannerV2.git}"
             workdir="${workdir:-/workspace/repo}"
             rm -rf "$workdir" && git clone --depth 1 "$repo_url" "$workdir"
             cd "$workdir"

@@ -269,6 +269,37 @@ async def _execute_mission_background(mission_id: str, log_id: str, trigger_id: 
             mission.status = MissionStatus.COMPLETED if getattr(result, "success", False) else MissionStatus.FAILED
             mission.completed_at = datetime.now(UTC)
 
+            # ── Inbox/Notifications emission (explicit, non-raising) ──
+            # Lazy import + guarded so a notification failure can NEVER block the
+            # mission transition or fail the trigger. Owner is mission.user_id.
+            try:
+                from app.services.notification_service import send_notification
+
+                ntype = "mission_completed" if getattr(result, "success", False) else "mission_failed"
+                await send_notification(
+                    user_id=mission.user_id,
+                    notification_type=ntype,
+                    data={
+                        "title": f"Mission {'completed' if getattr(result, 'success', False) else 'failed'}: {mission.title}",
+                        "message": (
+                            mission.title
+                            if getattr(result, "success", False)
+                            else f"Mission failed: {str(getattr(result, 'error', ''))[:500]}"
+                        ),
+                        "mission_id": str(mission.id),
+                        "entity_type": "mission",
+                        "entity_id": str(mission.id),
+                        "dashboard_url": f"/missions/{mission.id}",
+                    },
+                    db=db,
+                )
+            except Exception as _notify_exc:  # pragma: no cover - defensive
+                logger.warning(
+                    "trigger_service_notification_emission_failed mission_id=%s error=%s",
+                    mission_id,
+                    _notify_exc,
+                )
+
             # Update log
             log = await db.get(TriggerLog, log_id)
             if log:
