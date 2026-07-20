@@ -18,6 +18,7 @@ All tool calls go through CapabilityEngine.verify().
 from __future__ import annotations
 
 import ast
+import hashlib
 import json
 import logging
 import re
@@ -1145,6 +1146,8 @@ class NodeExecutor:
                 return await self._handle_loop(node, context)
             case NodeType.WEBHOOK:
                 return await self._handle_webhook(db, node, context, run_id, workflow)
+            case NodeType.CACHE_GET:
+                return await self._handle_cache_get(node, context, workflow)
             case _:
                 return {"success": False, "error": f"Unknown node type: {node.type}"}
 
@@ -2119,6 +2122,106 @@ class NodeExecutor:
             }
         except Exception as e:
             return {"success": False, "error": f"Webhook request failed: {e}"}
+
+    # ── Cache Get (read-through Redis lookup) ───────────────────
+    async def _handle_cache_get(
+        self,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        workflow: Workflow | None = None,
+    ) -> dict[str, Any]:
+        """Read-through cache lookup backed by the shared Redis client.
+
+        Builds a deterministic cache key from ``modelId + prompt + params``
+        (the canonical LLM-call signature) and returns the cached value when
+        present (a HIT), else reports a MISS so the strategy/downstream can
+        recompute. Pure read — no external side effect, REVERSIBLE.
+
+        Config keys:
+            key: optional explicit cache key (string). When given it is used
+                 verbatim; otherwise the key is derived from the node's
+                 modelId / prompt / params (from ``node.config``).
+            modelId: model id used as part of the derived key (optional).
+            prompt: prompt text used as part of the derived key (optional).
+            params: opaque JSON-serialisable params folded into the key.
+            ttl: optional TTL hint (seconds) — accepted, not enforced here.
+
+        Returns::
+            {"success": True, "output": {"hit": bool, "value": <json|None>,
+                                         "key": <str>}, "tokens": 0, "cost": 0.0}
+        """
+        explicit_key = node.config.get("key")
+        if explicit_key:
+            cache_key = str(explicit_key)
+        else:
+            # Derived key mirrors the LLM-call signature used by BudgetEnforcer
+            # caching: model + prompt + params. Deterministic + stable across
+            # runs so identical requests collide on the same cached entry.
+            model_id = node.config.get("modelId") or node.assigned_model or ""
+            prompt = node.config.get("prompt") or node.config.get("promptTemplate") or ""
+            params = node.config.get("params", {})
+            try:
+                params_blob = json.dumps(params, sort_keys=True, default=str)
+            except (TypeError, ValueError):
+                params_blob = repr(params)
+            raw = f"{model_id}|{prompt}|{params_blob}"
+            cache_key = f"cache_get:{hashlib.sha256(raw.encode('utf-8')).hexdigest()}"
+
+        try:
+            from app.tools.redis_cache import get_redis
+
+            redis = get_redis()
+        except Exception as e:
+            logger.warning("cache_get: Redis client unavailable: %s", e)
+            return {
+                "success": True,
+                "output": {"hit": False, "value": None, "key": cache_key},
+                "tokens": 0,
+                "cost": 0.0,
+            }
+
+        if redis is None:
+            # Graceful MISS when Redis is not provisioned — never fail the run
+            # on a read-through cache miss of the infrastructure itself.
+            return {
+                "success": True,
+                "output": {"hit": False, "value": None, "key": cache_key},
+                "tokens": 0,
+                "cost": 0.0,
+            }
+
+        try:
+            raw_value = await redis.get(cache_key)
+        except Exception as e:
+            logger.warning("cache_get: Redis GET failed: %s", e)
+            return {
+                "success": True,
+                "output": {"hit": False, "value": None, "key": cache_key},
+                "tokens": 0,
+                "cost": 0.0,
+            }
+
+        if raw_value is None:
+            return {
+                "success": True,
+                "output": {"hit": False, "value": None, "key": cache_key},
+                "tokens": 0,
+                "cost": 0.0,
+            }
+
+        # Redis is configured with decode_responses=True, so GET returns str.
+        # Values are stored as JSON; fall back to the raw string on parse error.
+        try:
+            value: Any = json.loads(raw_value)
+        except (TypeError, ValueError):
+            value = raw_value
+
+        return {
+            "success": True,
+            "output": {"hit": True, "value": value, "key": cache_key},
+            "tokens": 0,
+            "cost": 0.0,
+        }
 
     # ── Sandbox node (Phase 3) ───────────────────────────────────────
 

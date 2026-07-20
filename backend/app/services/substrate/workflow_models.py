@@ -94,6 +94,7 @@ class NodeType(str, Enum):
     LOG = "log"  # append a substrate log event (read-only)
     LOOP = "loop"  # strategy-level bounded iteration marker
     WEBHOOK = "webhook"  # outbound HTTP POST (irreversible side effect)
+    CACHE_GET = "cache_get"  # read-through Redis cache lookup (reversible)
 
     # Convention: read-only / internal-passthrough node types are annotated
     # REVERSIBLE by the planner/adapter (see EffectClass + side-effect-safety
