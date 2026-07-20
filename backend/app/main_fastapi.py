@@ -1,6 +1,5 @@
 """Main FastAPI application with security middleware."""
 
-import asyncio
 import logging
 import uuid
 from typing import Any
@@ -273,36 +272,13 @@ async def app_error_handler(request: Request, exc: AppError):
     return JSONResponse(status_code=status, content={"detail": message})
 
 
-@app.exception_handler(Exception)
-async def general_error_handler(request: Request, exc: Exception):
-    # Pull the request_id set by request_id_middleware (header or generated UUID).
-    request_id = request.headers.get("X-Request-ID") or ""
-    structlog.get_logger().error("Unhandled exception", error=str(exc), exc_info=True)
-
-    # Fire-and-forget ntfy alert. ntfy failures must not block the 500
-    # response back to the caller. We use asyncio.create_task to schedule
-    # the alert in the background and return immediately. The
-    # send_5xx_alert function itself catches all exceptions, so a ntfy
-    # outage cannot raise out of the task either.
-    try:
-        from app.services.alerting import send_5xx_alert
-
-        asyncio.create_task(
-            send_5xx_alert(
-                request_id=request_id,
-                method=request.method,
-                path=request.url.path,
-                exception_class=type(exc).__name__,
-                message=str(exc),
-            )
-        )
-    except Exception as notify_err:  # pragma: no cover — defensive
-        structlog.get_logger().warning("Failed to enqueue 5xx ntfy alert", error=str(notify_err))
-
-    # Path-aware envelope (v2 / v3 / flat) — single shared serializer.
-    from app.api._shared_errors import make_unhandled_response
-
-    return make_unhandled_response(request, message="An error occurred. Please try again later.")
+# The catch-all Exception handler now lives in app/api/_shared_errors.py
+# (register_unified_exception_handlers -> unified_exception_handler), which is
+# the single source of truth for unhandled exceptions AND the only place that
+# fires a scoped ntfy alert (AUDIT-B12). A prior general_error_handler here was
+# shadowed by that unified handler (FastAPI keys handlers by exception class;
+# last registration wins) and is intentionally removed to avoid the duplicate /
+# unreachable alert path.
 
 
 # ---------------------------------------------------------------------------

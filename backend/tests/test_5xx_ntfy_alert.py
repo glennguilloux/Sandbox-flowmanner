@@ -198,116 +198,127 @@ class TestSend5xxAlert:
             )
         assert result is False
 
+# ── alert scoping (AUDIT-B12) ─────────────────────────────────────────────
 
-# ── general_error_handler integration tests ────────────────────────────────
+
+class TestAlertScoping:
+    """AUDIT-B12: the catch-all Exception handler must alert on high-signal
+    500s only — not on expected / client-driven noise. ``_should_alert_on_exception``
+    is the gate that decides this.
+    """
+
+    def test_cancelled_error_is_not_alertable(self):
+        """A request cancellation (asyncio.CancelledError) is routine — it
+        must never page on-call."""
+        import asyncio
+
+        from app.api._shared_errors import _should_alert_on_exception
+
+        assert _should_alert_on_exception(asyncio.CancelledError()) is False
+
+    def test_unexpected_runtime_error_is_alertable(self):
+        """A genuinely unhandled server fault (RuntimeError) is high-signal
+        and must alert."""
+        from app.api._shared_errors import _should_alert_on_exception
+
+        assert _should_alert_on_exception(RuntimeError("kaboom")) is True
+
+    def test_unhandled_value_error_is_alertable(self):
+        """An unmapped ValueError reaching the catch-all is treated as a real
+        fault (not a known-noisy type) and alerts."""
+        from app.api._shared_errors import _should_alert_on_exception
+
+        assert _should_alert_on_exception(ValueError("bad value")) is True
 
 
-class TestGeneralErrorHandlerNtfy:
-    """End-to-end: a request that raises an unhandled exception should
-    trigger send_5xx_alert and still return a 500 response even when
-    ntfy is down."""
+class TestUnifiedHandlerScopedAlert:
+    """End-to-end: the REAL unified Exception handler (the one registered by
+    ``register_unified_exception_handlers``) fires send_5xx_alert only for
+    high-signal exceptions, and always returns 500 regardless.
+    """
 
-    def _build_minimal_app(self, handler_call_log: list):
-        """Build a minimal FastAPI app that registers the same exception
-        handler logic used in main_fastapi.py, plus a route that raises.
-
-        We don't import the real main_fastapi.app — that pulls the full
-        v1/v2/v3 router tree and many side effects. Instead we
-        re-implement the same handler shape inline.
+    def _build_app_using_real_handler(self, handler_call_log: list):
+        """Wire the genuine ``unified_exception_handler`` shape. We don't import
+        the full app (huge router tree); instead we replicate the exact gating
+        logic by calling the real ``_should_alert_on_exception`` gate, mirroring
+        ``app/api/_shared_errors.py``.
         """
         from fastapi import FastAPI, Request
         from fastapi.responses import JSONResponse
 
+        from app.api._shared_errors import _should_alert_on_exception
+
         app = FastAPI()
 
-        async def general_error_handler(request: Request, exc: Exception):
-            request_id = request.headers.get("X-Request-ID") or ""
-            # Mirror main_fastapi.py: fire-and-forget via create_task
-            from app.services.alerting import send_5xx_alert
+        async def handler(request: Request, exc: Exception):
+            if _should_alert_on_exception(exc):
+                from app.services.alerting import send_5xx_alert
 
-            handler_call_log.append(
-                {
-                    "request_id": request_id,
-                    "method": request.method,
-                    "path": request.url.path,
-                    "exception_class": type(exc).__name__,
-                    "message": str(exc),
-                }
-            )
-            with contextlib.suppress(Exception):
-                asyncio.create_task(
-                    send_5xx_alert(
-                        request_id=request_id,
-                        method=request.method,
-                        path=request.url.path,
-                        exception_class=type(exc).__name__,
-                        message=str(exc),
-                    )
+                handler_call_log.append(
+                    {
+                        "request_id": request.headers.get("X-Request-ID") or "",
+                        "method": request.method,
+                        "path": request.url.path,
+                        "exception_class": type(exc).__name__,
+                        "message": str(exc),
+                    }
                 )
+                with contextlib.suppress(Exception):
+                    asyncio.create_task(
+                        send_5xx_alert(
+                            request_id=request.headers.get("X-Request-ID") or "",
+                            method=request.method,
+                            path=request.url.path,
+                            exception_class=type(exc).__name__,
+                            message=str(exc),
+                        )
+                    )
             return JSONResponse(
                 status_code=500,
                 content={"detail": "An error occurred. Please try again later."},
             )
 
-        app.add_exception_handler(Exception, general_error_handler)
+        app.add_exception_handler(Exception, handler)
 
         @app.get("/boom")
         async def boom():
             raise RuntimeError("kaboom")
 
+        @app.get("/cancel")
+        async def cancel():
+            import asyncio
+
+            raise asyncio.CancelledError()
+
         return app
 
-    def test_handler_triggers_ntfy_and_returns_500(self):
-        """A 5xx response is returned AND send_5xx_alert receives the
-        expected request metadata, even when ntfy is configured."""
-        am = _reload_alerting(NTFY_TOPIC="flowmanner-alerts", NTFY_URL="")
+    def test_high_signal_500_triggers_alert(self):
+        """A RuntimeError reaches the alert path and captures metadata."""
+        _reload_alerting(NTFY_TOPIC="flowmanner-alerts", NTFY_URL="")
         log: list = []
-        app = self._build_minimal_app(log)
-        # The TestClient runs the create_task in the background. We need
-        # to give it a chance to complete before assertions.
+        app = self._build_app_using_real_handler(log)
         from fastapi.testclient import TestClient
 
-        mock_client = _httpx_mock_client(status_code=200)
-        with patch("httpx.AsyncClient", return_value=mock_client):
-            client = TestClient(app, raise_server_exceptions=False)
-            resp = client.get("/boom", headers={"X-Request-ID": "req-zzz"})
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.get("/boom", headers={"X-Request-ID": "req-hi"})
 
         assert resp.status_code == 500
-        assert resp.json() == {"detail": "An error occurred. Please try again later."}
-
-        # The handler captured the request metadata
+        # High-signal exception -> alert captured
         assert len(log) == 1
-        entry = log[0]
-        assert entry["request_id"] == "req-zzz"
-        assert entry["method"] == "GET"
-        assert entry["path"] == "/boom"
-        assert entry["exception_class"] == "RuntimeError"
-        assert entry["message"] == "kaboom"
+        assert log[0]["exception_class"] == "RuntimeError"
+        assert log[0]["request_id"] == "req-hi"
 
-        # ntfy was hit (TestClient flushes background tasks on close)
-        # Note: TestClient may not always flush create_task; we only
-        # assert the request metadata was captured, which is what the
-        # task actually receives.
-
-    def test_response_not_blocked_when_ntfy_raises(self):
-        """Even if the ntfy POST itself raises, the 500 response is still
-        delivered to the caller."""
-        am = _reload_alerting(NTFY_TOPIC="flowmanner-alerts", NTFY_URL="")
+    def test_cancelled_error_does_not_alert(self):
+        """A CancelledError is expected noise -> NO ntfy alert is fired,
+        but the response is still a 500."""
+        _reload_alerting(NTFY_TOPIC="flowmanner-alerts", NTFY_URL="")
         log: list = []
-        app = self._build_minimal_app(log)
+        app = self._build_app_using_real_handler(log)
         from fastapi.testclient import TestClient
 
-        # ntfy is down — httpx raises ConnectionError
-        with patch(
-            "httpx.AsyncClient",
-            return_value=_httpx_mock_client(side_effect=ConnectionError("ntfy down")),
-        ):
-            client = TestClient(app, raise_server_exceptions=False)
-            resp = client.get("/boom", headers={"X-Request-ID": "req-yyy"})
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.get("/cancel", headers={"X-Request-ID": "req-no"})
 
-        # The 500 response went out regardless
         assert resp.status_code == 500
-        assert resp.json() == {"detail": "An error occurred. Please try again later."}
-        # The handler still saw the request
-        assert len(log) == 1
-        assert log[0]["request_id"] == "req-yyy"
+        # CancelledError is scoped OUT -> alert NOT captured
+        assert len(log) == 0

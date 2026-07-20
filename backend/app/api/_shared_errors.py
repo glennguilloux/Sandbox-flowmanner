@@ -21,6 +21,8 @@ HTTPException handler and one Exception handler (see registration in
 
 from __future__ import annotations
 
+import asyncio
+
 import structlog
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -167,6 +169,43 @@ def make_unhandled_response(
     return JSONResponse(status_code=500, content={"detail": message})
 
 
+# ── ntfy alert scoping (AUDIT-B12) ─────────────────────────────────────────
+#
+# The catch-all Exception handler is the ONLY place unhandled raw exceptions
+# surface (AppError subclasses are caught earlier by ``app_error_handler``).
+# We alert on these via ntfy, but ONLY for high-signal 500s — not for
+# expected / client-driven noise (request cancellation, client disconnects).
+# This keeps the on-call channel quiet while still catching real server faults.
+#
+# Note: a previous ``general_error_handler`` in main_fastapi.py also alerted on
+# every Exception, but it was shadowed by this unified handler (FastAPI keys
+# exception handlers by class, last registration wins) and was therefore dead
+# code. Alerting now lives ONLY here, scoped as below.
+
+# Exception types that represent expected / low-signal conditions and must
+# NEVER page on-call. These are routine (a client closes the tab mid-stream,
+# the task is cancelled on shutdown, etc.) and would otherwise spam ntfy.
+_NO_ALERT_EXCEPTION_TYPES: tuple[type[BaseException], ...] = (
+    asyncio.CancelledError,
+)
+
+
+def _should_alert_on_exception(exc: BaseException) -> bool:
+    """Return True if an unhandled exception is worth a ntfy alert.
+
+    Scopes alerting to high-signal 500s: anything that reaches the catch-all
+    Exception handler (i.e. was NOT a typed AppError) and is not a known
+    expected/noise type. ``AppError`` subclasses never reach here — they are
+    handled by ``app_error_handler`` upstream — so the remaining population is
+    genuinely unhandled server faults (DB errors, unexpected ``RuntimeError``,
+    unmapped upstream failures, etc.).
+    """
+    # Alert unless the exception is a known expected/noise type.
+    return all(
+        not isinstance(exc, noisy_type) for noisy_type in _NO_ALERT_EXCEPTION_TYPES
+    )
+
+
 def register_unified_exception_handlers(app) -> None:
     """Register ONE path-aware handler per exception class (v2 + v3 + unversioned).
 
@@ -179,6 +218,10 @@ def register_unified_exception_handlers(app) -> None:
     :func:`make_unhandled_response`, which branch on the request path to pick
     the correct envelope. No duplicate ``app.exception_handler`` calls across
     the v2/v3 middleware modules any more.
+
+    The catch-all ``Exception`` handler also fires a scoped ntfy alert for
+    high-signal 500s (see :func:`_should_alert_on_exception`). Error logging
+    is preserved for every unhandled exception regardless of alert scoping.
     """
 
     @app.exception_handler(HTTPException)
@@ -193,4 +236,28 @@ def register_unified_exception_handlers(app) -> None:
 
     @app.exception_handler(Exception)
     async def unified_exception_handler(request: Request, exc: Exception):
-        return make_unhandled_response(request, message="An error occurred. Please try again later.")
+        # Fire-and-forget ntfy alert — scoped to high-signal unhandled 500s.
+        # ntfy failures must not block the 500 response. send_5xx_alert itself
+        # catches all exceptions and returns False on ntfy outage, so the task
+        # can never raise out to the caller.
+        if _should_alert_on_exception(exc):
+            try:
+                from app.services.alerting import send_5xx_alert
+
+                asyncio.create_task(
+                    send_5xx_alert(
+                        request_id=request.headers.get("X-Request-ID") or "",
+                        method=request.method,
+                        path=request.url.path,
+                        exception_class=type(exc).__name__,
+                        message=str(exc),
+                    )
+                )
+            except Exception as notify_err:  # pragma: no cover — defensive
+                structlog.get_logger().warning(
+                    "Failed to enqueue 5xx ntfy alert", error=str(notify_err)
+                )
+
+        return make_unhandled_response(
+            request, message="An error occurred. Please try again later."
+        )
