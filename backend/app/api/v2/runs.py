@@ -83,6 +83,34 @@ async def abort_run(
     return ok(RunResponse.model_validate(run).model_dump())
 
 
+# ── Pause ──────────────────────────────────────────────────────────────────────
+
+
+@router.post("/{run_id}/pause")
+async def pause_run(
+    run_id: str,
+    user: User = Depends(get_current_user),
+    c: RunCommandHandlers = Depends(get_run_commands),
+):
+    """Pause a running execution."""
+    run = await c.pause_run(user, run_id)
+    return ok(RunResponse.model_validate(run).model_dump())
+
+
+# ── Resume ─────────────────────────────────────────────────────────────────────
+
+
+@router.post("/{run_id}/resume")
+async def resume_run(
+    run_id: str,
+    user: User = Depends(get_current_user),
+    c: RunCommandHandlers = Depends(get_run_commands),
+):
+    """Resume a paused execution."""
+    run = await c.resume_run(user, run_id)
+    return ok(RunResponse.model_validate(run).model_dump())
+
+
 # ── Retry ──────────────────────────────────────────────────────────────────────
 
 
