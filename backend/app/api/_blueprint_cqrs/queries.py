@@ -137,3 +137,8 @@ class RunQueryHandlers(QueryHandlerBase):
     async def diff_runs(self, user_id: int, run_a_id: str, run_b_id: str) -> dict:
         svc = RunService(self.session)
         return await svc.diff_runs(run_a_id, run_b_id, user_id)
+
+    async def get_run_tree(self, user_id: int, run_id: str) -> dict:
+        """Layered step tree for a run (DAG promotion, Phase 2)."""
+        svc = RunService(self.session)
+        return await svc.get_run_tree(run_id, user_id)

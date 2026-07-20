@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from sqlalchemy import func, select
@@ -25,6 +25,48 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
     from app.models.substrate_models import SubstrateEvent
+
+
+def _topo_layers(workflow: Any) -> list[list[str]]:
+    """Kahn's topological sort → execution layers for a Workflow.
+
+    Read-only helper shared by ``get_run_tree``.  Returns layers in
+    dependency order (layer 0 = roots).  A cycle (should not happen for a
+    validated substrate workflow) yields as many layers as reachable nodes
+    and drops the unreachable remainder, matching ``DAGStrategy``'s contract
+    that cycles are rejected at validate() time.
+    """
+    in_deg = workflow.get_in_degree()
+    adj: dict[str, list[str]] = {n.id: [] for n in workflow.nodes}
+    for e in workflow.edges:
+        if e.source in adj and e.target in in_deg:
+            adj[e.source].append(e.target)
+
+    queue = [nid for nid, deg in in_deg.items() if deg == 0]
+    layers: list[list[str]] = []
+    seen = 0
+    while queue:
+        layers.append(list(queue))
+        seen += len(queue)
+        next_queue: list[str] = []
+        for nid in queue:
+            for tgt in adj[nid]:
+                in_deg[tgt] -= 1
+                if in_deg[tgt] == 0:
+                    next_queue.append(tgt)
+        queue = next_queue
+    # Defensive: if a cycle left nodes unvisited, surface them in a final
+    # layer rather than silently dropping them.
+    leftover = [nid for nid, deg in in_deg.items() if deg > 0]
+    if leftover:
+        layers.append(leftover)
+    return layers
+
+
+def _direct_deps(workflow: Any, node_id: str) -> list[str]:
+    """Return node ids with a direct edge into ``node_id``."""
+    return [e.source for e in workflow.edges if e.target == node_id]
+
 
 logger = logging.getLogger(__name__)
 
@@ -476,6 +518,65 @@ class RunService:
         }
 
     # ── Internal ────────────────────────────────────────────────────
+
+    async def get_run_tree(self, run_id: str, user_id: int) -> dict:
+        """Return the layered step tree for a run, derived from its event log.
+
+        The tree structure (which node sits in which layer, and what each node
+        depends on) is the workflow topology stored in the run's ``snapshot``
+        — the substrate's durable source of truth for layering.  Node *status*
+        (pending / running / completed / failed) is read from the append-only
+        event log by replaying it through ``ReplayEngine`` (authoritative), so
+        the tree always reflects the real execution state without a separate
+        projection table.
+
+        Returns a dict with:
+            run_id, workflow_type, status, and
+            layers: list of {layer:int, nodes:[{node_id, title, node_type,
+                                                 status, depends_on}]}
+        in dependency order (layer 0 first).
+        """
+        run = await self.get(run_id, user_id)  # access check
+
+        # Topology from the stored snapshot (the durable graph). For non-DAG
+        # runs this still produces a single layer with one node.
+        workflow = blueprint_to_workflow(
+            snapshot=run.snapshot or {},
+            blueprint_id=str(run.blueprint_id) if run.blueprint_id else str(run.id),
+            user_id=str(user_id),
+        )
+
+        # Node status from the event log (source of truth).
+        replay = get_replay_engine()
+        state = await replay.rebuild_state(self.db, str(run.id))
+        task_states = state.task_states  # task_id -> {"status": ...}
+
+        layers = _topo_layers(workflow)
+        tree_layers: list[dict] = []
+        for i, layer in enumerate(layers):
+            nodes = []
+            for nid in layer:
+                node = workflow.node_map.get(nid)
+                if node is None:
+                    continue
+                st = task_states.get(nid, {}).get("status", "pending")
+                nodes.append(
+                    {
+                        "node_id": nid,
+                        "title": node.title,
+                        "node_type": node.type.value,
+                        "status": st,
+                        "depends_on": _direct_deps(workflow, nid),
+                    }
+                )
+            tree_layers.append({"layer": i, "nodes": nodes})
+
+        return {
+            "run_id": str(run.id),
+            "workflow_type": workflow.type.value,
+            "status": run.status,
+            "layers": tree_layers,
+        }
 
     async def _check_access(self, run: Run, user_id: int) -> None:
         """Check if user has access to the run."""
