@@ -2,6 +2,9 @@
 .env
 .env.*
 !.env.example
+
+# ── Generated FE snapshot (13G+, never commit) ───────────────────
+.fe-snapshot/
 *.pem
 *.key
 wireguard.txt
