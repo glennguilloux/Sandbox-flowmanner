@@ -98,7 +98,7 @@ Backend: schemas/mission.py, services/substrate/adapters.py,
 Frontend: lib/useSandboxModels.ts (new), mission-dashboard/page-client.tsx,
   (dashboard)/blueprints/page-client.tsx
 Config (this repo): flowmanner.yaml — fixed stale `repo_url` fallback
-  `flowmapper.git` → `FlowmannerV2.git` (commit not yet made).
+  `flowmanner.git` → `FlowmannerV2.git` (commit not yet made).
 
 ### Additional backend files (added post-handoff-draft, under-documented until 2026-07-19 verify)
 These two were modified as part of this feature but omitted from the original

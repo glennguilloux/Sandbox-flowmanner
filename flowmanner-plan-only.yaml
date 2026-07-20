@@ -31,7 +31,7 @@
 #     auto-JSON parse) — node_executor.py:2353-2388.
 #   - Template name that works on this host: worker-standard (config.py:306).
 #
-# Brand spelling: the product is `flowmanner` (no 'p'). Never `flowmapper`.
+# Brand spelling: the product is `flowmanner` (no 'p'). Never `flowmanner`.
 
 version: 1
 

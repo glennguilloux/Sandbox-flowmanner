@@ -181,7 +181,7 @@ and captured by the executor into a structured output envelope.
   `output.agent_output`. The blueprint layer must parse the fenced ```json```
   block out of that string to get the structured PLAN. There is no automatic
   JSON parsing by the executor — it returns raw text. (This matches
-  `flowmapper.yaml`'s STEP 5 contract: "Print exactly one fenced json block"
+  `flowmanner.yaml`'s STEP 5 contract: "Print exactly one fenced json block"
   — `flowmanner.yaml:119-124`.)
 - SSE framing: terminal event is `type == "done"` carrying `TaskResult` in
   `data`; sandboxd's live wire is SSE, persisted replay is NDJSON — both

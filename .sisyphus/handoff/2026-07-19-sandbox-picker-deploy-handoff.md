@@ -142,7 +142,7 @@ correctly — confirmed by inspecting the VPS container, not trusting the log.)
 | `GET /api/v1/byok/models` (owner) | 200 (the API the picker calls) |
 | `GET /api/v2/blueprints` | 200 |
 | `https://flowmanner.com/en/blueprints` | 200 |
-| `https://flowmapper.com/en/mission-dashboard` | 200 |
+| `https://flowmanner.com/en/mission-dashboard` | 200 |
 | frontend bundle has picker chunks | confirmed on VPS |
 
 ---
