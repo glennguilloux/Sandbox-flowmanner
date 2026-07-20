@@ -308,6 +308,38 @@ class TestWebhookHandler:
         assert res["output"]["status_code"] == 200
 
 
+# ── LLM_EVAL (LLM-as-judge: score + rationale) ──────────────
+
+
+class TestLLMEvalHandler:
+    @pytest.mark.asyncio
+    async def test_enum_member_exists(self):
+        # The new node type must be a real NodeType member so the
+        # planner/adapter and the fail-closed `case _` both see it.
+        assert NodeType.LLM_EVAL == "llm_eval"
+        assert NodeType("llm_eval") == NodeType.LLM_EVAL
+
+    @pytest.mark.asyncio
+    async def test_dispatch_routes_to_handle_llm(self):
+        # _dispatch must route LLM_EVAL -> _handle_llm (the budgeted judge
+        # path). We mock _handle_llm so no real LLM/budget call is made.
+        ex = _executor()
+        node = _node(
+            "llm_eval",
+            {
+                "prompt": "score the answer",
+                "transformationConfig": {"outputSchema": {"score": "number", "rationale": "string"}},
+            },
+        )
+        sentinel = {"success": True, "output": {"score": 0.9, "rationale": "good"}, "tokens": 12, "cost": 0.001}
+        with patch.object(ex, "_handle_llm", new=AsyncMock(return_value=sentinel)) as m:
+            res = await ex._dispatch(MagicMock(), node, {}, _budget(), "run-1", None)
+        assert res is sentinel
+        m.assert_awaited_once()
+        called_node = m.call_args.args[1]
+        assert called_node.type == NodeType.LLM_EVAL
+
+
 # ── FAIL-CLOSED DEFAULT ───────────────────────────────────
 
 
