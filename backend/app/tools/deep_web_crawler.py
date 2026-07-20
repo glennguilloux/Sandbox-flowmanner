@@ -15,6 +15,7 @@ from urllib.parse import urljoin, urlparse
 import httpx
 from pydantic import Field
 
+from app.tools._file_utils import validate_url_ssrf
 from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, register_tool
 
 logger = logging.getLogger(__name__)
@@ -113,6 +114,13 @@ class DeepWebCrawlerTool(BaseTool):
         parsed_start = urlparse(start_url)
         base_domain = parsed_start.netloc.lower()
 
+        # SSRF guard (B19): the user-supplied start URL must resolve to a
+        # public address. Refuse loopback/private/link-local/metadata hosts
+        # before we ever open a connection.
+        start_reason = validate_url_ssrf(start_url)
+        if start_reason is not None:
+            return ToolResult.error_result(tool_id=self.tool_id, error=f"start_url rejected: {start_reason}")
+
         query_terms = []
         if validated.query:
             query_terms = [t.lower().strip() for t in validated.query.split() if len(t) > 1]
@@ -185,6 +193,12 @@ class DeepWebCrawlerTool(BaseTool):
                             extractor.feed(html)
                             for link in extractor.links:
                                 full_url = urljoin(url, link["url"])
+                                # SSRF guard: never enqueue a link whose host
+                                # resolves to a non-public address (B19). This
+                                # also blocks redirects/Follow-pivots to internal
+                                # hosts via follow_redirects.
+                                if validate_url_ssrf(full_url) is not None:
+                                    continue
                                 if full_url not in visited and len(queue) < validated.max_pages * 3:
                                     queue.append((full_url, depth + 1))
 
