@@ -1,8 +1,15 @@
-"""
-Code Execution & Development Tools — Python Sandbox.
+"""Code Execution & Development Tools — Python Sandbox.
 
 python_sandbox → Execute Python scripts in an isolated subprocess with
     timeout, memory limits, output capture, and import denylist scanning.
+
+⚠️ NOT A SECURITY BOUNDARY (audit B23, §4.3/§9/§12). This tool relies on an
+   IMPORT-LEVEL DENYLIST plus regex/string pre-scans only. There is no
+   namespace, seccomp, or network-namespace isolation. A determined payload
+   can still bypass these checks (ctypes/importlib/__loader__/dunder tricks,
+   or modules reachable without a literal `import`). The guard is defense-in-
+   depth, not containment. Do not run untrusted or adversarial code assuming
+   it is isolated. Real isolation (seccomp/netns) is tracked out of scope.
 """
 
 from __future__ import annotations
@@ -22,6 +29,14 @@ from app.tools._rlimits import analyze_exit_code, make_preexec_fn
 from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, register_tool
 
 logger = logging.getLogger(__name__)
+
+
+class SecurityError(Exception):
+    """Raised when sandbox code violates a hard security gate (audit B23).
+
+    Distinct from normal execution errors so callers cannot confuse a blocked
+    bypass attempt with a runtime failure.
+    """
 
 # ── Configuration ─────────────────────────────────────────────────────
 
@@ -149,6 +164,48 @@ def _is_code_allowed(code: str) -> tuple[bool, str | None]:
     return True, None
 
 
+# Bypass-token pre-scan — defense in depth on top of the denylist (audit B23).
+# These tokens are how a payload escapes an import-only denylist without ever
+# writing a literal `import <blocked>`. They are blocked outright; there is no
+# allowlist exception because each is a direct escape primitive.
+_SECURITY_PRESCAN_TOKENS: list[str] = [
+    "ctypes",
+    "importlib",
+    "__import__",
+    "compile(",
+    "__loader__",
+]
+
+# sys.modules probing patterns that reach already-loaded escape modules
+# (e.g. `sys.modules["subprocess"]`) without an import statement.
+_SECURITY_PRESCAN_PATTERNS: list[str] = [
+    r"sys\s*\.\s*modules",
+]
+
+
+def _security_prescan(code: str) -> None:
+    """Refuse code that uses known denylist-bypass primitives.
+
+    Raises SecurityError if the code contains tokens used to escape an
+    import-level denylist (ctypes/importlib/__import__/compile(/__loader__)
+    or probes sys.modules for already-loaded escape modules. This is
+    additive defense-in-depth; it is NOT a substitute for real isolation.
+    """
+    for token in _SECURITY_PRESCAN_TOKENS:
+        if token in code:
+            raise SecurityError(
+                f"Blocked by security pre-scan (audit B23): '{token}' is a "
+                "known sandbox-bypass primitive and is not allowed"
+            )
+
+    for pattern in _SECURITY_PRESCAN_PATTERNS:
+        if re.search(pattern, code):
+            raise SecurityError(
+                "Blocked by security pre-scan (audit B23): sys.modules probing "
+                "is a known sandbox-bypass primitive and is not allowed"
+            )
+
+
 # ── Input ─────────────────────────────────────────────────────────────
 
 
@@ -203,6 +260,16 @@ class PythonSandboxTool(BaseTool):
     # ── execute ──────────────────────────────────────────────────
 
     async def execute(self, input_data: dict) -> ToolResult:
+        # ⚠️ SECURITY BOUNDARY — NOT A TRUST BOUNDARY (audit B23, §4.3/§9/§12).
+        #
+        # The sandbox guards code with an IMPORT-LEVEL DENYLIST + regex pre-scan
+        # only. There is NO namespace, seccomp, or network-namespace isolation for
+        # the executed code — a determined payload can still bypass the checks
+        # (e.g. ctypes/importlib/__loader__/dunder tricks, or modules reachable
+        # without a literal `import`). Treat this as defense-in-depth, NOT as a
+        # security boundary. Do not execute untrusted, adversarial, or
+        # third-party-supplied code with the assumption it is contained. Full
+        # seccomp/netns isolation is tracked separately and is out of scope here.
         try:
             validated = PythonSandboxInput(**input_data)
         except Exception as e:
@@ -213,6 +280,15 @@ class PythonSandboxTool(BaseTool):
             allowed, reason = _is_code_allowed(validated.code)
             if not allowed:
                 return ToolResult.error_result(tool_id=self.tool_id, error=reason)
+
+            # Defense-in-depth pre-scan on top of the denylist (audit B23).
+            # Refuses code that probes for escape vectors via sys.modules or uses
+            # known bypass tokens. Raises SecurityError so callers cannot confuse
+            # it with a normal execution error.
+            try:
+                _security_prescan(validated.code)
+            except SecurityError as sec_err:
+                return ToolResult.error_result(tool_id=self.tool_id, error=str(sec_err))
 
             result = await self._run_python(
                 validated.code,
