@@ -101,6 +101,9 @@ class NodeType(str, Enum):
     # Safety & State node types (mission-builder expansion — Qdrant-backed memory)
     MEMORY_WRITE = "memory_write"  # upsert a payload into the shared memory collection
 
+    # Data Control (Scope B — real handlers in node_executor)
+    VARIABLE_SET = "variable_set"  # write a named value into the run-scoped inputs dict
+
     # Convention: read-only / internal-passthrough node types are annotated
     # REVERSIBLE by the planner/adapter (see EffectClass + side-effect-safety
     # skill). The IRREVERSIBLE default otherwise applies to TOOL_CALL,
