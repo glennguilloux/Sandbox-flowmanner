@@ -1,0 +1,199 @@
+# flowmanner-plan-only.yaml — version 1
+#
+# PLAN-ONLY blueprint: analyze inputs + the target codebase (read-only) and
+# EMIT a structured PLAN as JSON. It executes NOTHING — no code change, no
+# repo mutation, no side effects. Designed by a 3-persona kanban deep-dive
+# (architect / backend-architect / onboarding-engineer) on 2026-07-19; see
+# .sisyphus/plan-only-blueprint/{ARCHITECT,BACKEND,ONBOARDING}.md.
+#
+# Author with the `cli/` package (NOT the SDK CLI):
+#   node cli/bin/flowmanner.js validate [path]   # checks this file
+#   node cli/bin/flowmanner.js push               # creates a draft Blueprint, prints id
+#   node cli/bin/flowmanner.js publish <id>       # mark ready to run
+#   node cli/bin/flowmanner.js run <id> --input repo_url=... --input goal=... [--no-follow]
+#
+# Substrate facts (verified against live source 2026-07-19):
+#   - `sandbox` is the ONLY egress-capable, repo-cloning node type.
+#     Dispatch: node_executor.py:1131-1132 -> _handle_sandbox_node at :2125.
+#   - `code`/`tool` nodes are NETWORK-ISOLATED and cannot see /opt/flowmanner.
+#     code-node no-network comment: node_executor.py:1682-1683.
+#   - `agent` is NOT a node type (NodeType enum workflow_models.py:57-101);
+#     agentic behavior is delivered inside a sandbox via agent="opencode"
+#     (hardcoded at node_executor.py:2281).
+#   - Read-only nodes MUST be annotated effect_class: reversible or the
+#     two-phase STAGE->CONFIRM gate pauses them (workflow_models.py:37-54,
+#     default IRREVERSIBLE at :164).
+#   - The executor forces NO host mutation for a sandbox node unless
+#     input_files / snapshot_before are set (guards at node_executor.py:2238
+#     and :2218). A task_prompt that clones to /tmp, analyzes, and prints JSON
+#     without git commit/push has ZERO host side effects.
+#   - Plan text surfaces in node.output_data["agent_output"] (raw text, no
+#     auto-JSON parse) — node_executor.py:2353-2388.
+#   - Template name that works on this host: worker-standard (config.py:306).
+#
+# Brand spelling: the product is `flowmanner` (no 'p'). Never `flowmapper`.
+
+version: 1
+
+name: "plan-only-analyzer"
+description: |
+  Plan-only analyzer. A single reversible sandbox node observes the inputs and
+  the target codebase (read-only) and prints a structured PLAN as JSON. It
+  never edits files, pushes, or opens PRs.
+
+blueprint_type: dag               # NOT solo/pipeline — keeps edges explicit for future growth
+
+inputs:
+  repo_url:
+    type: string
+    default: "https://github.com/glennguilloux/FlowmapperV2.git"
+  # Free-text objective the plan must satisfy. Empty default keeps ad-hoc runs
+  # possible; set a required goal per-run with --input goal=...
+  goal:
+    type: string
+    default: ""
+  # Optional subtree/glob filter so the plan run stays focused and cheap
+  # (e.g. "backend/app/services/substrate"). "" = whole repo.
+  scope:
+    type: string
+    default: ""
+  # Optional URL to a previous PLAN for drift reconciliation (mirrors the
+  # self-audit blueprint's prior_clues_url).
+  prior_plan_url:
+    type: string
+    default: ""
+  workdir:
+    type: string
+    default: "/workspace/repo"
+  # Model used by the sandbox coding agent (opencode). Leave empty ("") to use
+  # the sandboxd default (glm-5 on OpenCode Zen free tier — zero cost, no key).
+  # Override at run time with --input model=<slug>, e.g.
+  #   flowmanner run --input model=openrouter/anthropic/claude-3.5-sonnet
+  # which routes through the credential-injecting proxy using your OpenRouter
+  # BYOK key (synced from Flowmanner Settings -> BYOK). Provider slug must be
+  # in openrouter's namespace.
+  model:
+    type: string
+    default: ""
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: plan_only
+      type: sandbox
+      title: "Observe + reason + emit plan (read-only)"
+      description: >
+        Egress-capable sandbox that clones the repo, gathers read-only signals,
+        reasons into a plan, and PRINTS one fenced ```json block. No mutation.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        input_files: {}
+        agent: opencode
+        model: "{{ inputs.model }}"
+        # CRITICAL: prevents the STAGE->CONFIRM side-effect gate from pausing
+        # the run (workflow_models.py:37-54; default is IRREVERSIBLE at :164).
+        effect_class: reversible
+        task_prompt: |
+          You are a PLANNING agent. You do NOT implement anything.
+
+          HARD RULES (violation = failure):
+          - Do NOT edit, create, push, or open PRs on any repository.
+          - Observe only with read-only commands (git, grep, pytest --co, ruff, ast).
+          - Output EXACTLY one fenced ```json block. No prose outside it.
+
+          STEP 1 — Clone / locate
+            repo_url="${repo_url:-https://github.com/glennguilloux/FlowmapperV2.git}"
+            workdir="${workdir:-/workspace/repo}"
+            rm -rf "$workdir" && git clone --depth 1 "$repo_url" "$workdir" || cd "$workdir"
+            cd "$workdir"
+
+          STEP 2 — Gather signals, ANCHORED ON THE LIVE SYSTEM AUDIT
+            The target repo was last audited in .hermes/audit/SYSTEM-AUDIT-2026-07-20.md
+            (and its priors). The dominant risks are engineering-debt, process-drift,
+            and test-baseline tolerance — NOT critical security holes. Your plan MUST
+            be structured around the audit's REAL findings, not a generic TODO/FIXME
+            scrape. Gather evidence for each relevant audit finding:
+
+            scope="${scope:-.}"
+
+            a) CI / quality gates (audit §8, §12 Q1/Q2/Q3):
+               - mypy baseline drift: compare committed mypy-baseline.txt against a
+                 fresh `python -m mypy backend/app` count; cite the gap.
+               - ruff version skew: `ruff --version` in pre-commit vs backend venv
+                 (backend/.venv/bin/ruff --version). Cite both.
+               - test baseline: `pytest backend/app/tests -q` -> failed/passed; cross
+                 check vs the ~97-failing accepted baseline. List tests/_quarantine/.
+
+            b) Security gaps flagged MEDIUM (audit §9, §12 B-IDs):
+               - B19 SSRF in tool helpers: grep -rn 'fetch_bytes\|httpx.AsyncClient' \
+                 backend/app/tools/ and check whether _is_safe_outbound_url guards them.
+               - B23 Python sandbox isolation: read backend/app/tools/python_sandbox.py
+                 import-denylist; note it is bypassable (no namespace/firewall).
+               - B9 OAuth key rotation: grep -n 'key_version\|rotation' \
+                 backend/app/integrations/oauth.py; likely absent.
+               - B12 v1 500-alert spam: grep -n 'ntfy' backend/app/api/v1/*.py.
+               - B18 auth-error collapse: read get_current_user_optional in
+                 backend/app/api/deps.py (or v1/v2 auth deps).
+
+            c) Doc / process sprawl (audit §10, D1):
+               ls .sisyphus/plans/ .hermes/plans/ 2>/dev/null | wc -l
+               ls backend/app/agent_definitions/ 2>/dev/null
+
+            d) Housekeeping (audit §11, H1/H2):
+               ls *.log database.db 2>/dev/null; git status --short | head
+
+            For EVERY plan step you emit, attach the audit finding ID (B9/B12/B18/
+            B19/B23/Q1/Q2/Q3/D1/H1/H2) it resolves, plus a real path:line. Do NOT
+            invent finding IDs — only use ones present in the audit or that you
+            verify exist in the live code.
+
+          STEP 3 — Optional prior-state reconciliation
+            prior_plan_url="${prior_plan_url:-}"
+            If prior_plan_url is non-empty, curl -fsSL "$prior_plan_url" and
+            read the previous plan; carry over any still-open items.
+            Otherwise all items are new.
+
+          STEP 4 — Plan
+            Produce a JSON object. Each step:
+              {
+                "id": "step-1",
+                "title": "one-line summary",
+                "owner_persona": "backend-engineer|frontend-engineer|architect|qa|devops|researcher",
+                "depends_on": ["step-0"],
+                "acceptance": "measurable done-condition (test passes / file exists / metric < X)",
+                "effort": "s|m|l|xl",
+                "risk": "low|medium|high",
+                "evidence": ["path:line", "signal source"]
+              }
+            Rules:
+              - steps is a topological order; depends_on references only ids
+                that appear earlier (no cycles).
+              - acceptance MUST be testable, not prose.
+              - evidence MUST cite real path:line gathered in STEP 2 — no invented refs.
+              - goal (if provided) must be satisfiable by the plan.
+
+          STEP 5 — Output
+            Print exactly one fenced json block:
+              ```json
+              {
+                "blueprint": "plan-only-analyzer",
+                "generated_at": "<ISO-8601>",
+                "inputs_received": { "repo_url": "...", "goal": "...", "scope": "..." },
+                "steps": [ ... ],
+                "assumptions": ["explicit premises the plan relies on"],
+                "open_questions": ["decisions a human must make before/while executing"],
+                "risks": ["cross-cutting risks not tied to one step"],
+                "estimated_total_effort": "s|m|l|xl"
+              }
+              ```
+            Nothing else.
+
+  edges: []                        # single node; empty edge list
+  budget:
+    max_cost_usd: 2.00
+    max_wall_time_seconds: 600
+    max_iterations: 20
+    max_depth: 1
+  config: {}

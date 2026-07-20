@@ -9,10 +9,11 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, select
 
+from app.api._blueprint_cqrs.errors import RunNotFoundError, RunValidationError
 from app.models.blueprint_models import Blueprint, Run, RunStatus
 from app.models.mission_models import Mission
 from app.models.workspace_models import WorkspaceMember
@@ -27,18 +28,6 @@ if TYPE_CHECKING:
     from app.models.substrate_models import SubstrateEvent
 
 logger = logging.getLogger(__name__)
-
-
-class RunNotFoundError(Exception):
-    """Raised when a run is not found or access is denied."""
-
-    pass
-
-
-class RunValidationError(Exception):
-    """Raised when a run operation is invalid."""
-
-    pass
 
 
 class RunService:
@@ -276,11 +265,28 @@ class RunService:
     # ── Read ────────────────────────────────────────────────────────
 
     async def get(self, run_id: str, user_id: int) -> Run:
-        """Get run with ownership/workspace check."""
-        result = await self.db.execute(select(Run).where(Run.id == str(run_id)))
-        run = result.scalar_one_or_none()
-        if run is None:
-            raise RunNotFoundError(f"Run {run_id} not found")
+        """Get run with ownership/workspace check.
+
+        Accepts both full UUID strings (36 chars) and short prefixes
+        (e.g. ``d0a940a3``) — the latter are resolved via a LIKE query
+        against the text representation of the UUID column.
+        """
+        try:
+            uuid_val = UUID(run_id)
+        except ValueError:
+            # Short prefix — resolve via LIKE on the text representation.
+            # The ``id`` column is UUID; casting to text lets us prefix-match.
+            result = await self.db.execute(select(Run).where(cast(Run.id, String).like(f"{run_id}%")))
+            run = result.scalar_one_or_none()
+            if run is None:
+                raise RunNotFoundError(f"Run {run_id} not found")
+            # Normalise to the full UUID string so callers see the canonical form.
+            run_id = str(run.id)
+        else:
+            result = await self.db.execute(select(Run).where(Run.id == uuid_val))
+            run = result.scalar_one_or_none()
+            if run is None:
+                raise RunNotFoundError(f"Run {run_id} not found")
 
         await self._check_access(run, user_id)
         return run
@@ -334,15 +340,21 @@ class RunService:
         from_sequence: int = 0,
         limit: int = 1000,
     ) -> list[SubstrateEvent]:
-        """Get substrate events for a run."""
-        await self.get(run_id, user_id)  # access check
+        """Get substrate events for a run.
+
+        Resolves short UUID prefixes so the event log query also receives
+        a canonical UUID string.
+        """
+        # Resolve any short prefix via the access check (also normalises run_id).
+        run = await self.get(run_id, user_id)
+        canonical_run_id = str(run.id)
 
         from app.services.substrate.event_log import get_event_log
 
         event_log = get_event_log()
         return await event_log.get_events(
             self.db,
-            str(run_id),
+            canonical_run_id,
             from_sequence=from_sequence,
             limit=limit,
         )
@@ -354,13 +366,14 @@ class RunService:
 
         If at_sequence is provided, rebuild state at that point (time-travel).
         """
-        await self.get(run_id, user_id)  # access check
+        run = await self.get(run_id, user_id)  # access check + prefix resolve
+        canonical_run_id = str(run.id)
 
         replay = get_replay_engine()
         if at_sequence is not None:
-            state = await replay.rebuild_state_at_sequence(self.db, str(run_id), at_sequence)
+            state = await replay.rebuild_state_at_sequence(self.db, canonical_run_id, at_sequence)
         else:
-            state = await replay.rebuild_state(self.db, str(run_id))
+            state = await replay.rebuild_state(self.db, canonical_run_id)
         return state.to_dict()
 
     # ── Assertions ──────────────────────────────────────────────────
@@ -371,7 +384,8 @@ class RunService:
         Uses BaselineExtractor to generate expected behaviors from the run,
         then evaluates them with ReplayAssertionEngine.
         """
-        run = await self.get(run_id, user_id)  # access check
+        run = await self.get(run_id, user_id)  # access check + prefix resolve
+        canonical_run_id = str(run.id)
 
         from app.services.substrate.assertion_engine import get_assertion_engine
         from app.services.substrate.baseline_extractor import get_baseline_extractor
@@ -380,13 +394,13 @@ class RunService:
         engine = get_assertion_engine()
 
         # Extract expected behaviors from this run
-        expected_behaviors = await extractor.extract_from_run(self.db, str(run_id))
+        expected_behaviors = await extractor.extract_from_run(self.db, canonical_run_id)
 
         # Evaluate them
-        results = await engine.evaluate(self.db, str(run_id), expected_behaviors)
+        results = await engine.evaluate(self.db, canonical_run_id, expected_behaviors)
 
         return {
-            "run_id": str(run_id),
+            "run_id": canonical_run_id,
             "status": run.status,
             "total_cost_usd": run.total_cost_usd,
             "total_tokens": run.total_tokens,
@@ -402,21 +416,23 @@ class RunService:
         """Compare two runs of the same blueprint."""
         run_a = await self.get(run_a_id, user_id)
         run_b = await self.get(run_b_id, user_id)
+        canonical_a = str(run_a.id)
+        canonical_b = str(run_b.id)
 
         replay = get_replay_engine()
-        state_a = await replay.rebuild_state(self.db, str(run_a_id))
-        state_b = await replay.rebuild_state(self.db, str(run_b_id))
+        state_a = await replay.rebuild_state(self.db, canonical_a)
+        state_b = await replay.rebuild_state(self.db, canonical_b)
 
         return {
             "run_a": {
-                "id": str(run_a.id),
+                "id": canonical_a,
                 "status": run_a.status,
                 "total_tokens": run_a.total_tokens,
                 "total_cost_usd": run_a.total_cost_usd,
                 "state": state_a.to_dict(),
             },
             "run_b": {
-                "id": str(run_b.id),
+                "id": canonical_b,
                 "status": run_b.status,
                 "total_tokens": run_b.total_tokens,
                 "total_cost_usd": run_b.total_cost_usd,

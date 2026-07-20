@@ -12,8 +12,10 @@
 #
 # Design + verification: see .hermes audit SELFREF-BLUEPRINT-DESIGN.md (P1),
 # SELFREF-RUNTIME-UNKNOWNS.md (P2). The `sandbox` node is the ONLY egress-capable
-# substrate type (node_executor.py:1485); `code`/`tool` nodes are network-isolated
-# and cannot clone (node_executor.py:1285). sandboxd-base image ships `git`.
+# substrate type (node_executor.py:1131-1132 dispatch -> _handle_sandbox_node at
+# :2125); `code`/`tool` nodes are network-isolated and cannot clone
+# (code-node no-network comment at node_executor.py:1682-1683). sandboxd-base
+# image ships `git`.
 #
 # Spelling note: the product name is `flowmanner` (no 'p').
 
