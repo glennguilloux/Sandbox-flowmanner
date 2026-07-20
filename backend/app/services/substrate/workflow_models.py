@@ -95,6 +95,9 @@ class NodeType(str, Enum):
     LOOP = "loop"  # strategy-level bounded iteration marker
     WEBHOOK = "webhook"  # outbound HTTP POST (irreversible side effect)
 
+    # Safety & State node types (mission-builder expansion — Qdrant-backed memory)
+    MEMORY_WRITE = "memory_write"  # upsert a payload into the shared memory collection
+
     # Convention: read-only / internal-passthrough node types are annotated
     # REVERSIBLE by the planner/adapter (see EffectClass + side-effect-safety
     # skill). The IRREVERSIBLE default otherwise applies to TOOL_CALL,

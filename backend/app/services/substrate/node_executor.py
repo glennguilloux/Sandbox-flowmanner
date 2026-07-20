@@ -23,6 +23,7 @@ import logging
 import re
 import time
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 from app.integrations.sandboxd_client import SandboxdClient, get_sandboxd_client
 from app.models.capability_models import Action, Budget, BudgetExhausted, ResourceRef
@@ -1145,6 +1146,8 @@ class NodeExecutor:
                 return await self._handle_loop(node, context)
             case NodeType.WEBHOOK:
                 return await self._handle_webhook(db, node, context, run_id, workflow)
+            case NodeType.MEMORY_WRITE:
+                return await self._handle_memory_write(node, context, workflow)
             case _:
                 return {"success": False, "error": f"Unknown node type: {node.type}"}
 
@@ -2119,6 +2122,106 @@ class NodeExecutor:
             }
         except Exception as e:
             return {"success": False, "error": f"Webhook request failed: {e}"}
+
+    # ── Memory (Safety & State) ──────────────────────────────────────
+
+    # Shared memory collection for the memory_read / memory_write node pair.
+    # Both handlers MUST target the SAME Qdrant collection so a write is
+    # readable by a later read node in the same (or a different) workflow.
+    _MEMORY_COLLECTION = "flowmanner_memory"
+    _MEMORY_EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+    _MEMORY_EMBEDDING_DIM = 384
+
+    @classmethod
+    def _memory_collection(cls, node: WorkflowNode | None = None) -> str:
+        """Resolve the Qdrant collection name for memory nodes.
+
+        Defaults to the shared ``flowmanner_memory`` collection; a node may
+        override it via ``node.config['collection']`` so callers can scope
+        memory per-workflow/tenant. Kept as a classmethod helper so the
+        memory_read handler (T3-01) can reuse the exact same resolution.
+        """
+        if node is not None:
+            override = node.config.get("collection")
+            if isinstance(override, str) and override.strip():
+                return override.strip()
+        return cls._MEMORY_COLLECTION
+
+    @classmethod
+    def _embed_memory(cls, text: str) -> list[float] | None:
+        """Embed ``text`` into a vector, or ``None`` when the model is absent."""
+        try:
+            from sentence_transformers import SentenceTransformer
+
+            model = SentenceTransformer(cls._MEMORY_EMBEDDING_MODEL)
+            return model.encode(text).tolist()
+        except Exception as e:  # pragma: no cover - model unavailability path
+            logger.warning("Memory embedding unavailable: %s", e)
+            return None
+
+    async def _handle_memory_write(
+        self,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        workflow: Workflow | None = None,
+    ) -> dict[str, Any]:
+        """Upsert a payload into the shared Qdrant memory collection.
+
+        Config keys:
+            collection: optional Qdrant collection override (defaults to the
+                        shared ``flowmanner_memory`` collection)
+            payload: the value to persist (dict/str/etc.); defaults to the
+                     node input / context
+            text: optional text used to compute the embedding vector; defaults
+                  to a string rendering of the payload
+
+        The point id is a fresh UUID per write. The embedding vector is a
+        cosine-space MiniLM embedding of ``text`` (falls back to a zero vector
+        if the embedding model is unavailable, so the write still lands).
+        """
+        inputs = context.get("inputs") or {}
+        payload = node.config["payload"] if "payload" in node.config else context.get("input", inputs)
+
+        # Text used for the embedding: explicit config wins, else render payload.
+        text = node.config.get("text")
+        if not text:
+            text = payload if isinstance(payload, str) else json.dumps(payload, default=str, sort_keys=True)
+        text = interpolate_inputs(text, inputs) if isinstance(text, str) else text
+
+        collection = self._memory_collection(node)
+
+        try:
+            from qdrant_client import QdrantClient
+            from qdrant_client.models import PointStruct
+
+            from app.config import settings
+
+            client = QdrantClient(url=settings.QDRANT_URL, timeout=15)
+
+            vector = self._embed_memory(text) or [0.0] * self._MEMORY_EMBEDDING_DIM
+            point_id = str(uuid4())
+            stored_payload = {
+                "payload": payload,
+                "workflow_id": workflow.id if workflow else None,
+                "node_id": node.id,
+            }
+
+            client.upsert(
+                collection_name=collection,
+                points=[PointStruct(id=point_id, vector=vector, payload=stored_payload)],
+            )
+
+            return {
+                "success": True,
+                "output": {
+                    "id": point_id,
+                    "collection": collection,
+                },
+                "tokens": 0,
+                "cost": 0.0,
+            }
+        except Exception as e:
+            return {"success": False, "error": f"Memory write failed: {e}"}
 
     # ── Sandbox node (Phase 3) ───────────────────────────────────────
 
