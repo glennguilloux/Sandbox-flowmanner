@@ -94,6 +94,7 @@ class NodeType(str, Enum):
     LOG = "log"  # append a substrate log event (read-only)
     LOOP = "loop"  # strategy-level bounded iteration marker
     WEBHOOK = "webhook"  # outbound HTTP POST (irreversible side effect)
+    VALIDATE_SCHEMA = "validate_schema"  # assert payload against a schema; route on_invalid on mismatch
 
     # Convention: read-only / internal-passthrough node types are annotated
     # REVERSIBLE by the planner/adapter (see EffectClass + side-effect-safety
