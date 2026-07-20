@@ -1145,6 +1145,11 @@ class NodeExecutor:
                 return await self._handle_loop(node, context)
             case NodeType.WEBHOOK:
                 return await self._handle_webhook(db, node, context, run_id, workflow)
+            case NodeType.VARIABLE_SET:
+                # Data Control: write a named value into the run-scoped inputs
+                # dict that interpolate_inputs() reads, so downstream
+                # {{ inputs.<varName> }} tokens resolve.
+                return await self._handle_variable_set(db, node, context, run_id, workflow)
             case _:
                 return {"success": False, "error": f"Unknown node type: {node.type}"}
 
@@ -1999,6 +2004,91 @@ class NodeExecutor:
         return {
             "success": True,
             "output": {"level": level, "message": str(message)[:2000]},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    # ── VariableSet (write a named run-scoped input) ───────────────
+    async def _handle_variable_set(
+        self,
+        db: AsyncSession | None,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        run_id: str,
+        workflow: Workflow | None = None,
+    ) -> dict[str, Any]:
+        """Write a named value into the run-scoped ``inputs`` dict.
+
+        The run-scoped ``inputs`` dict is the SAME object every node reads via
+        ``interpolate_inputs(text, context.get("inputs"))`` — so a value written
+        here is visible to every downstream node's ``{{ inputs.<varName> }}``
+        tokens. We mutate the nested dict in place (the per-node context passed
+        to handlers is a shallow ``{**context}`` copy, so the inner ``inputs``
+        dict is shared by reference across the whole run).
+
+        Config keys:
+            varName: the variable name (required). May not be empty / whitespace.
+            varValue: an explicit literal value (str/int/float/bool/None).
+            varExpr: an OPTIONAL safe expression (whitelisted ``_safe_eval``
+                     scope) evaluated against the current context; when present
+                     it takes precedence over ``varValue``.
+            prefix: OPTIONAL scope prefix prepended to the key (e.g. "step1."
+                     isolates this variable from other scopes).
+
+        REVERSIBLE: writing to the in-run inputs dict has no external side
+        effect, so the node is fail-closed as a data-control transform.
+        """
+        var_name = (node.config.get("varName") or "").strip()
+        if not var_name:
+            return {"success": False, "error": "variable_set requires a non-empty 'varName'"}
+
+        prefix = (node.config.get("prefix") or "").strip()
+        key = f"{prefix}{var_name}" if prefix else var_name
+
+        # Resolve the value: varExpr (safe) wins over varValue literal.
+        if node.config.get("varExpr") not in (None, ""):
+            try:
+                value = _safe_eval(node.config["varExpr"], context)
+            except Exception as e:
+                return {"success": False, "error": f"variable_set expr failed: {e}"}
+        else:
+            value = node.config.get("varValue")
+
+        # Ensure the inputs store exists, then write in place.
+        inputs = context.get("inputs")
+        if not isinstance(inputs, dict):
+            inputs = {}
+            context["inputs"] = inputs
+        inputs[key] = value
+
+        # Emit a substrate event so the write is auditable in the run log.
+        try:
+            if db and run_id:
+                event_log = get_event_log()
+                await event_log.append(
+                    db,
+                    run_id,
+                    [
+                        {
+                            "type": "node.variable_set",
+                            "payload": {
+                                "node_id": node.id,
+                                "key": key,
+                                "value": value,
+                                "prefix": prefix or None,
+                            },
+                            "actor": "node_executor",
+                            "mission_id": workflow.id if workflow else None,
+                            "task_id": node.id,
+                        }
+                    ],
+                )
+        except Exception as e:
+            logger.debug("variable_set event write skipped: %s", e)
+
+        return {
+            "success": True,
+            "output": {"key": key, "value": value},
             "tokens": 0,
             "cost": 0.0,
         }
