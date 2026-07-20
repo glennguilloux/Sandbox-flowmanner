@@ -98,6 +98,9 @@ class NodeType(str, Enum):
     CACHE_GET = "cache_get"  # read-through Redis cache lookup (reversible)
     VALIDATE_SCHEMA = "validate_schema"  # assert payload against a schema; route on_invalid on mismatch
 
+    # Safety & State node types (mission-builder expansion — Qdrant-backed memory)
+    MEMORY_WRITE = "memory_write"  # upsert a payload into the shared memory collection
+
     # Convention: read-only / internal-passthrough node types are annotated
     # REVERSIBLE by the planner/adapter (see EffectClass + side-effect-safety
     # skill). The IRREVERSIBLE default otherwise applies to TOOL_CALL,
