@@ -93,6 +93,7 @@ class NodeType(str, Enum):
     FILTER = "filter"  # pure data-control transform: keep collection items matching a predicate
     CONDITION = "condition"  # evaluate a boolean expression, drive branching
     TEMPLATE_RENDER = "template_render"  # render a {{ inputs.* }} template to a string
+    SPLIT = "split"  # fan a collection out into one branch per item (runtime)
     LOG = "log"  # append a substrate log event (read-only)
     LOOP = "loop"  # strategy-level bounded iteration marker
     WEBHOOK = "webhook"  # outbound HTTP POST (irreversible side effect)
