@@ -337,6 +337,33 @@ class TestNodeTypeMapping:
         assert types["x"] == NodeType.LLM_CALL
         assert types["y"] == NodeType.TOOL_CALL
 
+    def test_filter_split_present_in_task_type_map(self):
+        """Wave 2: `filter`/`split` must be registered in _TASK_TYPE_MAP with
+        their canonical NodeTypes (they have real handlers; previously they were
+        absent and collapsed to LLM_CALL on load).
+        """
+        from app.services.substrate.adapters import _TASK_TYPE_MAP
+
+        assert _TASK_TYPE_MAP["filter"] is NodeType.FILTER
+        assert _TASK_TYPE_MAP["split"] is NodeType.SPLIT
+
+    def test_filter_split_round_trip_not_llm_call(self):
+        """Wave 2: blueprint nodes typed `filter`/`split` load as FILTER/SPLIT
+        through blueprint_to_workflow (NOT the LLM_CALL fallback).
+        """
+        snapshot = {
+            "blueprint_type": "solo",
+            "title": "filter-split",
+            "nodes": [_node("f", "filter"), _node("s", "split")],
+            "edges": [],
+        }
+        wf = _convert(snapshot)
+        by_id = {n.id: n.type for n in wf.nodes}
+        assert by_id["f"] == NodeType.FILTER
+        assert by_id["s"] == NodeType.SPLIT
+        assert by_id["f"] is not NodeType.LLM_CALL
+        assert by_id["s"] is not NodeType.LLM_CALL
+
 
 # ── FINDING 4 (new). Focused normalization-count assertions ───────────────────
 # Each of the three normalizations (orphan drop, self-loop drop, duplicate

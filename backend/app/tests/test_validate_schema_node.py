@@ -32,6 +32,7 @@ from app.services.substrate.workflow_models import (
 
 # ── builders ────────────────────────────────────────────────────────
 
+
 def _schema_node(node_id: str = "v1", config: dict | None = None) -> WorkflowNode:
     return WorkflowNode(
         id=node_id,
@@ -58,6 +59,7 @@ def _dag(edges: list[WorkflowEdge], nodes=None) -> Workflow:
 
 
 # ── handler dispatch (mirrors the substrate wiring in node_executor) ──
+
 
 async def test_dispatch_routes_to_handle_validate_schema():
     """NodeExecutor wires VALIDATE_SCHEMA to _handle_validate_schema."""
@@ -109,6 +111,7 @@ async def test_missing_schema_fails_closed():
 
 # ── DAG branch gating (honours condition, tolerates None) ───────────
 
+
 def test_no_condition_edge_does_not_crash():
     """The historical FE emits edges with no `condition`. Gating must pass,
     not raise AttributeError on None.strip()."""
@@ -137,3 +140,48 @@ def test_on_invalid_edge_taken_on_mismatch():
     wf = _dag([WorkflowEdge(source="v1", target="t1", condition="on_invalid")])
     strat.workflow = wf
     assert strat._incoming_branch_passed(wf, "t1", {"v1": {"route": "on_invalid"}}) is True
+
+
+# ── adapter wiring (the actual Wave-1 fix) ──────────────────────────
+
+
+def test_task_type_map_reaches_validate_schema():
+    """The FE emits the string "validate_schema". It MUST map to the
+    NodeType.VALIDATE_SCHEMA enum (not silently collapse to LLM_CALL)."""
+    from app.services.substrate.adapters import _TASK_TYPE_MAP
+
+    assert _TASK_TYPE_MAP["validate_schema"] is NodeType.VALIDATE_SCHEMA
+
+
+def test_blueprint_round_trip_validate_schema():
+    """A minimal blueprint payload whose node carries type "validate_schema"
+    (mirroring the FE missionToBlueprintPayload shape) must round-trip through
+    blueprint_to_workflow into a WorkflowNode typed NodeType.VALIDATE_SCHEMA.
+    Regression guard: previously it collapsed to LLM_CALL."""
+    from app.services.substrate.adapters import blueprint_to_workflow
+
+    snapshot = {
+        "title": "schema-check",
+        "blueprint_type": "solo",
+        "nodes": [
+            {
+                "id": "v1",
+                "type": "validate_schema",
+                "title": "Validate payload",
+                "config": {
+                    "schema": {
+                        "type": "object",
+                        "required": ["id"],
+                        "properties": {"id": {"type": "integer"}},
+                    }
+                },
+            }
+        ],
+        "edges": [],
+    }
+
+    wf = blueprint_to_workflow(snapshot, blueprint_id="bp_1")
+
+    assert len(wf.nodes) == 1
+    assert wf.nodes[0].type == NodeType.VALIDATE_SCHEMA
+    assert wf.nodes[0].type is not NodeType.LLM_CALL
