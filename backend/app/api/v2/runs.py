@@ -151,6 +151,26 @@ async def get_run_assertions(
     return ok(result)
 
 
+# ── Tree (layered step tree) ───────────────────────────────────────
+
+
+@router.get("/{run_id}/tree")
+@router.get("/{run_id}/tree/")
+async def get_run_tree(
+    run_id: str,
+    user: User = Depends(get_current_user),
+    q: RunQueryHandlers = Depends(get_run_queries),
+):
+    """Get the layered step tree for a run (DAG promotion, Phase 2).
+
+    Returns the run's nodes grouped by execution layer, each node carrying
+    its current status (derived from the event log) and what it depends on.
+    Solo/single-node runs return a single layer with one node.
+    """
+    tree = await q.get_run_tree(user.id, run_id)
+    return ok(tree)
+
+
 # ── Diff ───────────────────────────────────────────────────────────────────────
 
 
