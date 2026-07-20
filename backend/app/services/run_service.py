@@ -409,9 +409,7 @@ class RunService:
         if fork_node_id is None:
             # Fall back to the event at from_sequence itself, if any.
             event_log = get_event_log()
-            events = await event_log.get_events(
-                self.db, str(original.id), from_sequence=from_sequence, limit=1
-            )
+            events = await event_log.get_events(self.db, str(original.id), from_sequence=from_sequence, limit=1)
             if events:
                 payload = events[0].payload or {}
                 fork_node_id = payload.get("node_id") or payload.get("task_id")
@@ -467,10 +465,17 @@ class RunService:
         # when the run_id already has events; here there are none yet).
         executor = get_unified_executor()
         definition = workflow.model_dump()
+        # Pass blueprint_id so the executor marks this as a blueprint-sourced
+        # run (no missions row). Without it, _active_blueprint_id stays None and
+        # the sandbox node handler derives mission_id = workflow.id (a runs.id
+        # UUID, not a missions.id) → ForeignKeyViolation on mission_sandboxes.
+        # blueprint_to_workflow assigns workflow.id == blueprint_id, so this is
+        # the same value used to build the workflow above.
         result = await executor.execute(
             db=self.db,
             workflow=workflow,
             run_id=new_run_id,
+            blueprint_id=str(workflow.id),
             context={"previous_outputs": dict(task_states)},
         )
 

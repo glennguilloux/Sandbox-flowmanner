@@ -77,23 +77,17 @@ async def test_fork_run_patches_node_and_dispatches_new_run():
     db = MagicMock()
     service = RunService(db=db)
 
-    fake_executor = SimpleNamespace(
-        execute=AsyncMock(return_value=_fake_strategy_result())
-    )
+    fake_executor = SimpleNamespace(execute=AsyncMock(return_value=_fake_strategy_result()))
 
     with (
         patch.object(RunService, "get", new=AsyncMock(return_value=original)),
         patch(
             "app.services.run_service.get_replay_engine",
-            return_value=SimpleNamespace(
-                rebuild_state_at_sequence=AsyncMock(return_value=replay_state)
-            ),
+            return_value=SimpleNamespace(rebuild_state_at_sequence=AsyncMock(return_value=replay_state)),
         ),
         patch(
             "app.services.run_service.get_event_log",
-            return_value=SimpleNamespace(
-                get_events=AsyncMock(return_value=[])
-            ),
+            return_value=SimpleNamespace(get_events=AsyncMock(return_value=[])),
         ),
         patch(
             "app.services.run_service.get_unified_executor",
@@ -113,9 +107,7 @@ async def test_fork_run_patches_node_and_dispatches_new_run():
         db.add = _add
         db.flush = AsyncMock()
 
-        result = await service.fork_run(
-            "orig-1", 1, from_sequence=3, instruction="Do it better, with citations."
-        )
+        result = await service.fork_run("orig-1", 1, from_sequence=3, instruction="Do it better, with citations.")
 
     # Returns fork metadata + the new run id.
     assert result["new_run_id"]
@@ -132,8 +124,16 @@ async def test_fork_run_patches_node_and_dispatches_new_run():
     # The executor was called to dispatch the fork.
     fake_executor.execute.assert_awaited_once()
 
-    # The patched instruction landed on the fork node's prompt.
+    # REGRESSION: fork must pass blueprint_id to the executor. Without it the
+    # substrate sandbox handler derives mission_id = workflow.id (a runs.id
+    # UUID, not a missions.id) and the mission_sandboxes FK insert violates.
+    # blueprint_to_workflow assigns workflow.id == blueprint_id, so the value
+    # handed to execute must equal the workflow id used to build it.
     call_kwargs = fake_executor.execute.await_args.kwargs
+    assert call_kwargs.get("blueprint_id") == call_kwargs["workflow"].id
+    assert call_kwargs["blueprint_id"] == "bp-1"
+
+    # The patched instruction landed on the fork node's prompt.
     wf = call_kwargs["workflow"]
     goal_node = next(n for n in wf.nodes if n.id == "goal")
     assert "Do it better, with citations." in goal_node.config["prompt"]
@@ -164,16 +164,12 @@ async def test_fork_run_falls_back_to_first_node_when_no_state():
 
     db = MagicMock()
     service = RunService(db=db)
-    fake_executor = SimpleNamespace(
-        execute=AsyncMock(return_value=_fake_strategy_result())
-    )
+    fake_executor = SimpleNamespace(execute=AsyncMock(return_value=_fake_strategy_result()))
     with (
         patch.object(RunService, "get", new=AsyncMock(return_value=original)),
         patch(
             "app.services.run_service.get_replay_engine",
-            return_value=SimpleNamespace(
-                rebuild_state_at_sequence=AsyncMock(return_value=replay_state)
-            ),
+            return_value=SimpleNamespace(rebuild_state_at_sequence=AsyncMock(return_value=replay_state)),
         ),
         patch(
             "app.services.run_service.get_event_log",
@@ -186,9 +182,7 @@ async def test_fork_run_falls_back_to_first_node_when_no_state():
     ):
         db.add = MagicMock()
         db.flush = AsyncMock()
-        result = await service.fork_run(
-            "orig-1", 1, from_sequence=0, instruction="Start over, cleaner."
-        )
+        result = await service.fork_run("orig-1", 1, from_sequence=0, instruction="Start over, cleaner.")
 
     # Falls back to the first topology node.
     assert result["forked_node"] == "goal"
