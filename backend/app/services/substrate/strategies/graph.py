@@ -191,6 +191,24 @@ class GraphStrategy(ExecutionStrategy):
                 return src_route != "on_invalid"
             # Unknown condition on a validate_schema edge — close it (safe default).
             return False
+        if src is not None and getattr(src.type, "value", None) == "router":
+            # A router node emits its selected route id as ``branch`` on its
+            # output (edge.condition == selected route id). The outgoing edge is
+            # taken only when its condition matches the selected route. A router
+            # with no selected route (fallback="drop") carries a None/empty
+            # branch, so no condition-gated edge fires. Mirrors the
+            # CONDITION/TIMEOUT/VALIDATE_SCHEMA branch precedent.
+            branch = (edge.condition or "").strip()
+            src_out = node_outputs.get(edge.source, {})
+            if isinstance(src_out, dict):
+                selected = src_out.get("branch")
+                if selected is None:
+                    selected = (src_out.get("output", {}) or {}).get("branch")
+            else:
+                selected = None
+            if not branch:
+                return True
+            return branch == (selected or "")
         try:
             resolved = self._resolve_interpolation(edge.condition, node_outputs)
             if isinstance(resolved, bool):

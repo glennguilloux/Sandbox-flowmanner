@@ -1274,6 +1274,23 @@ class NodeExecutor:
                 # the on_timeout branch on deadline miss. Actual branch *taking*
                 # is strategy-level (see DAGStrategy/GraphStrategy gating).
                 return await self._handle_timeout(db, node, context, budget, run_id, workflow)
+            case NodeType.ROUTER:
+                # Multi-branch classifier: evaluates the configured routes
+                # deterministically (LLM-free) and emits ``branch == <routeId>``
+                # so the strategy takes the matching outgoing edge (mirrors the
+                # CONDITION/TIMEOUT/VALIDATE_SCHEMA branch-gating precedent).
+                return await self._handle_router(node, context)
+            case NodeType.DELAY:
+                # Hard wall-clock pause: sleeps delayMs then passes through
+                # (branch "default"). Mirrors _handle_timeout but with NO
+                # wrapped child — a bare asyncio.sleep.
+                return await self._handle_delay(node, context)
+            case NodeType.MERGE:
+                # Synchronization / join point: collect the upstream node
+                # outputs already present in the context and combine them per
+                # the configured mergeStrategy. Passes through (branch
+                # "default").
+                return await self._handle_merge(node, context, workflow)
             case _:
                 return {"success": False, "error": f"Unknown node type: {node.type}"}
 
@@ -1590,10 +1607,7 @@ class NodeExecutor:
         interpolation) → the in-flight node ``input`` → the upstream output's
         ``text`` field → a stringified fallback of the whole context input.
         """
-        if "input" in node.config:
-            raw = node.config["input"]
-        else:
-            raw = context.get("input", context)
+        raw = node.config["input"] if "input" in node.config else context.get("input", context)
         if isinstance(raw, dict):
             # Common upstream shape: {"output": {"text": "..."}} or {"text": "..."}
             out = raw.get("output", raw)
@@ -1747,10 +1761,7 @@ class NodeExecutor:
             redact_with = node.config.get("redactWith", "[REDACTED]")
             redacted = content
             # Redact from the end of the string so earlier spans stay valid.
-            spans: list[tuple[int, int]] = []
-            for v in violations:
-                for s in v.get("spans", []):
-                    spans.append((int(s[0]), int(s[1])))
+            spans: list[tuple[int, int]] = [(int(s[0]), int(s[1])) for v in violations for s in v.get("spans", [])]
             for start, end in sorted(spans, key=lambda t: t[0], reverse=True):
                 redacted = redacted[:start] + redact_with + redacted[end:]
             return {
@@ -2509,7 +2520,7 @@ class NodeExecutor:
             }
 
         if isinstance(collection, (list, tuple, set)):
-            items = [x for x in collection]
+            items = list(collection)
         elif isinstance(collection, dict):
             # Fan out over values, preserving insertion order (py3.7+).
             items = list(collection.values())
@@ -3102,6 +3113,196 @@ class NodeExecutor:
         return await self.executor.execute_with_timeout(
             db, node, child, context, budget, run_id, workflow, int(timeout_ms)
         )
+
+    # ── Router (multi-branch classifier) ──────────────────────────
+    async def _handle_router(
+        self,
+        node: WorkflowNode,
+        context: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Select a branch deterministically and report it as ``branch``.
+
+        Config keys (mirror the FE ``RouterNodeConfig``):
+            routerConfig: { routes: [{ id, name, enabled, isDefault }],
+                            fallbackBehavior: "drop" | "route_to_default",
+                            defaultRouteId?: str }
+            routes: legacy alias for routerConfig.routes.
+
+        Selection rule (LLM-free, deterministic):
+            1. Iterate the enabled routes in order. A route whose ``expression``
+               (a boolean expression over the context, evaluated through the
+               shared whitelisted ``_safe_eval``) is truthy is selected.
+            2. On no match, honour ``fallbackBehavior``:
+                 - "route_to_default" -> the route marked ``isDefault`` (or
+                   ``defaultRouteId``) is selected.
+                 - "drop" (default) -> no branch is selected; the node still
+                   succeeds but emits ``branch == None`` so no outgoing edge
+                   (every edge is condition-gated on a concrete route id) fires.
+
+        The selected route id is emitted as ``output.route_id`` / ``branch`` so
+        the DAG/Graph strategy takes the matching outgoing edge (its
+        ``edge.condition == <routeId>``). See DAGStrategy._incoming_branch_passed
+        and GraphStrategy._evaluate_condition (router branch gating).
+        """
+        config = node.config or {}
+        router_config = config.get("routerConfig") or {}
+        routes = router_config.get("routes") or config.get("routes") or []
+        fallback = router_config.get("fallbackBehavior") or config.get("fallbackBehavior") or "drop"
+        default_route_id = router_config.get("defaultRouteId") or config.get("defaultRouteId")
+
+        selected: str | None = None
+        available_ids: list[str] = []
+        for route in routes:
+            if not isinstance(route, dict):
+                continue
+            rid = route.get("id")
+            if rid is None:
+                continue
+            available_ids.append(rid)
+            if not route.get("enabled", True):
+                continue
+            expr = route.get("expression")
+            if expr:
+                try:
+                    if _safe_eval(str(expr), context):
+                        selected = rid
+                        break
+                except Exception:
+                    # A bad expression on one route must not crash routing —
+                    # skip this route and continue evaluating the rest.
+                    continue
+            else:
+                # A route with no expression acts as an unconditional fallback
+                # marker within the enabled set; record it as a candidate but
+                # keep scanning subsequent (more specific) routes first.
+                if selected is None:
+                    selected = rid
+
+        if selected is None and fallback == "route_to_default":
+            # Prefer the explicitly-marked default, then the configured id.
+            default = next(
+                (r.get("id") for r in routes if isinstance(r, dict) and r.get("isDefault")),
+                default_route_id,
+            )
+            if default in available_ids:
+                selected = default
+
+        return {
+            "success": True,
+            "output": {
+                "route_id": selected,
+                "branch": selected,  # also inside output (DAG stores output)
+                "available_routes": available_ids,
+                "fallback_behavior": fallback,
+            },
+            "branch": selected,  # None => no condition-gated edge fires
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    # ── Delay (hard wall-clock pause) ─────────────────────────────
+    async def _handle_delay(
+        self,
+        node: WorkflowNode,
+        context: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Pause the run for ``delayMs`` (wall-clock), then pass through.
+
+        Config keys:
+            delayMs: pause duration in milliseconds (REQUIRED, must be a
+                positive number).
+
+        Mirrors ``_handle_timeout``'s guard: a missing / non-positive
+        ``delayMs`` is a node failure (returned, never raised), so the run
+        records the node as failed rather than crashing. There is NO wrapped
+        child — just a bare ``asyncio.sleep``. On success the node passes
+        through with ``branch == "default"`` so the main outgoing edge fires.
+
+        ``exponential`` delayType is not yet supported on the backend and is
+        treated as a fixed pause using delayMs (the FE ``exponential`` mode is a
+        client-side preview convenience; surface it as a logged no-op).
+        """
+        delay_ms = node.config.get("delayMs")
+        if not isinstance(delay_ms, (int, float)) or delay_ms <= 0:
+            return {
+                "success": False,
+                "error": f"delay node {node.id} requires a positive config.delayMs",
+            }
+
+        await asyncio.sleep(delay_ms / 1000.0)
+
+        return {
+            "success": True,
+            "output": {"delayed_ms": int(delay_ms)},
+            "branch": "default",
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    # ── Merge (synchronization / join point) ────────────────────
+    async def _handle_merge(
+        self,
+        node: WorkflowNode,
+        context: dict[str, Any],
+        workflow: Workflow | None = None,
+    ) -> dict[str, Any]:
+        """Join point: combine the upstream node outputs already in context.
+
+        A MERGE is a synchronization barrier. Its upstream (dependency) nodes
+        have already executed by the time the strategy reaches this node (the
+        substrate dispatches DAG layers in dependency order), so their outputs
+        live in ``context["previous_outputs"]`` (the strategy's node_outputs
+        map) keyed by source node id. This handler collects those upstream
+        outputs and combines them per ``mergeStrategy``:
+
+            - "concat" (default): concatenate list/iterable outputs (or wrap
+              each non-list output as an element of a list).
+            - "merge_dict": deep-merge mapping outputs into one dict (later
+              keys win on collision — same as Python dict union order).
+            - "first": return only the first non-null upstream output.
+
+        The combined result passes through with ``branch == "default"``.
+        """
+        config = node.config or {}
+        strategy = config.get("mergeStrategy") or "concat"
+
+        previous_outputs: dict[str, Any] = dict(context.get("previous_outputs") or {})
+        # Restrict to the node's configured dependencies (its join set). If the
+        # adapter/planner did not set dependencies, fall back to every upstream
+        # node that produced output (best-effort join).
+        deps = node.dependencies or list(previous_outputs.keys())
+        upstream = [previous_outputs[d] for d in deps if d in previous_outputs]
+
+        if strategy == "first":
+            combined: Any = None
+            for out in upstream:
+                if out is not None:
+                    combined = out
+                    break
+        elif strategy == "merge_dict":
+            combined = {}
+            for out in upstream:
+                if isinstance(out, dict):
+                    combined.update(out)
+        else:  # "concat" (default)
+            combined = []
+            for out in upstream:
+                if isinstance(out, list | tuple | set):
+                    combined.extend(out)
+                elif out is not None:
+                    combined.append(out)
+
+        return {
+            "success": True,
+            "output": {
+                "merged": combined,
+                "strategy": strategy,
+                "upstream_count": len(upstream),
+            },
+            "branch": "default",
+            "tokens": 0,
+            "cost": 0.0,
+        }
 
     # ── Sandbox node (Phase 3) ───────────────────────────────────────
 
