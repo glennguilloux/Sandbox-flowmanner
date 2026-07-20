@@ -107,6 +107,7 @@ class NodeType(str, Enum):
     # Data Control (Scope B — real handlers in node_executor)
     VARIABLE_SET = "variable_set"  # write a named value into the run-scoped inputs dict
     LLM_EVAL = "llm_eval"  # LLM-as-judge: score + rationale (read-only output)
+    MEMORY_READ = "memory_read"  # read from the flowmanner_memory Qdrant collection
 
     # Convention: read-only / internal-passthrough node types are annotated
     # REVERSIBLE by the planner/adapter (see EffectClass + side-effect-safety

@@ -906,3 +906,183 @@ class TestHandleToolRouting:
 
         assert result["success"] is False
         assert "Capability denied" in result["error"]
+
+
+# ── _handle_memory_read (Qdrant semantic memory read) ──────────────
+
+
+class TestHandleMemoryRead:
+    """Handler pulls from a Qdrant collection and returns normalized points.
+
+    The Qdrant client + embedding model are module-level helpers, so we
+    patch them on the node_executor module to avoid any live Qdrant / model
+    dependency. The handler must NOT instantiate its own client — it reuses
+    the shared ``_get_qdrant_client``.
+    """
+
+    @pytest.mark.asyncio
+    async def test_memory_read_success_returns_n_points(self):
+        ne, _ = _make_executor_with_node_executor()
+        node = _make_node(
+            node_type=NodeType.MEMORY_READ,
+            config={"query": "what did we learn about retries", "topK": 3},
+        )
+
+        mock_hit_1 = MagicMock()
+        mock_hit_1.id = "pt-1"
+        mock_hit_1.score = 0.91
+        mock_hit_1.payload = {"text": "retries need backoff"}
+        mock_hit_2 = MagicMock()
+        mock_hit_2.id = "pt-2"
+        mock_hit_2.score = 0.74
+        mock_hit_2.payload = {"text": "cap retries at 5"}
+
+        mock_client = MagicMock()
+        mock_client.search.return_value = [mock_hit_1, mock_hit_2]
+
+        with (
+            patch(
+                "app.services.substrate.node_executor._get_qdrant_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "app.services.substrate.node_executor._embed_query",
+                return_value=[0.1] * 384,
+            ),
+        ):
+            result = await ne._handle_memory_read(node, {})
+
+        assert result["success"] is True
+        # Output shape: query + collection + results list
+        assert result["output"]["query"] == "what did we learn about retries"
+        assert result["output"]["collection"] == "flowmanner_memory"
+        assert len(result["output"]["results"]) == 2
+        assert result["output"]["results"][0]["id"] == "pt-1"
+        assert result["output"]["results"][0]["score"] == 0.91
+        assert result["output"]["results"][0]["payload"]["text"] == "retries need backoff"
+        # No LLM/token cost on a pure read
+        assert result["tokens"] == 0
+        assert result["cost"] == 0.0
+        # It searched the default collection with the embedded vector
+        mock_client.search.assert_called_once()
+        call_kwargs = mock_client.search.call_args.kwargs
+        assert call_kwargs["collection_name"] == "flowmanner_memory"
+        assert call_kwargs["limit"] == 3
+        assert call_kwargs["query_vector"] == [0.1] * 384
+
+    @pytest.mark.asyncio
+    async def test_memory_read_custom_collection_and_threshold(self):
+        ne, _ = _make_executor_with_node_executor()
+        node = _make_node(
+            node_type=NodeType.MEMORY_READ,
+            config={
+                "collection": "book_notes_1",
+                "query": "q",
+                "topK": 10,
+                "scoreThreshold": 0.5,
+            },
+        )
+        mock_client = MagicMock()
+        mock_client.search.return_value = []
+
+        with (
+            patch(
+                "app.services.substrate.node_executor._get_qdrant_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "app.services.substrate.node_executor._embed_query",
+                return_value=[0.2] * 384,
+            ),
+        ):
+            result = await ne._handle_memory_read(node, {})
+
+        assert result["success"] is True
+        assert result["output"]["collection"] == "book_notes_1"
+        assert result["output"]["results"] == []
+        call_kwargs = mock_client.search.call_args.kwargs
+        assert call_kwargs["collection_name"] == "book_notes_1"
+        assert call_kwargs["limit"] == 10
+        assert call_kwargs["score_threshold"] == 0.5
+
+    @pytest.mark.asyncio
+    async def test_memory_read_query_from_context(self):
+        ne, _ = _make_executor_with_node_executor()
+        node = _make_node(node_type=NodeType.MEMORY_READ, config={})
+
+        mock_client = MagicMock()
+        mock_client.search.return_value = []
+        with (
+            patch(
+                "app.services.substrate.node_executor._get_qdrant_client",
+                return_value=mock_client,
+            ),
+            patch(
+                "app.services.substrate.node_executor._embed_query",
+                return_value=[0.0] * 384,
+            ),
+        ):
+            result = await ne._handle_memory_read(node, {"query": "from-context"})
+
+        assert result["success"] is True
+        assert result["output"]["query"] == "from-context"
+
+    @pytest.mark.asyncio
+    async def test_memory_read_no_query_fails(self):
+        ne, _ = _make_executor_with_node_executor()
+        node = _make_node(node_type=NodeType.MEMORY_READ, config={})
+
+        with (
+            patch(
+                "app.services.substrate.node_executor._get_qdrant_client",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "app.services.substrate.node_executor._embed_query",
+                return_value=[0.0] * 384,
+            ),
+        ):
+            result = await ne._handle_memory_read(node, {})
+
+        assert result["success"] is False
+        assert "No query provided" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_memory_read_qdrant_unavailable_fails(self):
+        ne, _ = _make_executor_with_node_executor()
+        node = _make_node(node_type=NodeType.MEMORY_READ, config={"query": "q"})
+
+        with (
+            patch(
+                "app.services.substrate.node_executor._get_qdrant_client",
+                return_value=None,
+            ),
+            patch(
+                "app.services.substrate.node_executor._embed_query",
+                return_value=[0.0] * 384,
+            ),
+        ):
+            result = await ne._handle_memory_read(node, {})
+
+        assert result["success"] is False
+        assert "Qdrant client unavailable" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_memory_read_embed_unavailable_fails(self):
+        ne, _ = _make_executor_with_node_executor()
+        node = _make_node(node_type=NodeType.MEMORY_READ, config={"query": "q"})
+
+        with (
+            patch(
+                "app.services.substrate.node_executor._get_qdrant_client",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "app.services.substrate.node_executor._embed_query",
+                return_value=None,
+            ),
+        ):
+            result = await ne._handle_memory_read(node, {})
+
+        assert result["success"] is False
+        assert "Memory embedding model unavailable" in result["error"]

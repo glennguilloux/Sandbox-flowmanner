@@ -63,6 +63,7 @@ _REVERSIBLE_NODE_TYPES: frozenset[NodeType] = frozenset(
         NodeType.CONDITION,  # handler only evaluates + reports branch
         NodeType.TRANSFORM,  # pure data transform, no LLM/tool
         NodeType.CACHE_GET,  # read-through Redis cache lookup (reversible)
+        NodeType.MEMORY_READ,  # read-only semantic memory read from Qdrant
     }
 )
 
@@ -107,6 +108,7 @@ _TASK_TYPE_MAP: dict[str, NodeType] = {
     "log": NodeType.LOG,
     "loop": NodeType.LOOP,
     "webhook": NodeType.WEBHOOK,
+    "memory_read": NodeType.MEMORY_READ,
 }
 
 
