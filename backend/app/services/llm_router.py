@@ -19,15 +19,13 @@ from urllib.parse import urlparse
 
 from openai import AsyncOpenAI
 
-from app.services.chat_service import (
+from app.services.llm_providers import (
     PROVIDER_MAP,
+    _detect_provider_from_key,
     _get_provider_for_model,
     _normalize_provider,
-    _resolve_provider,
-)
-from app.services.llm_providers import (
-    _detect_provider_from_key,
     _providers_compatible,
+    _resolve_provider,
 )
 
 logger = logging.getLogger(__name__)

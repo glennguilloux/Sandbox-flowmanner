@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 
-from app.services.chat_service import _CANVAS_UPDATE_TOOLS, _build_canvas_update
+from app.services.sse_protocol import _CANVAS_UPDATE_TOOLS, _build_canvas_update
 
 
 class TestCanvasUpdateRegistry:
