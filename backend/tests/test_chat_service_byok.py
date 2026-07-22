@@ -22,7 +22,9 @@ class FakeCompletion:
 
 class FakeChunk:
     def __init__(self, content: str):
-        self.choices = [MagicMock(delta=MagicMock(content=content))]
+        delta = MagicMock(content=content, tool_calls=None)
+        delta.tool_calls = None  # explicit: MagicMock auto-creates truthy attrs
+        self.choices = [MagicMock(delta=delta)]
 
 
 @pytest.fixture
@@ -187,11 +189,17 @@ async def test_stream_message_byok_creates_per_request_client(mock_db):
     fake_stream_response.__aiter__ = lambda self: fake_stream().__aiter__()
 
     with (
+        patch(
+            "app.services.chat.streaming._resolve_provider",
+            return_value=(_LLM_API_BASE, _LLM_API_KEY, "openai/gpt-4o"),
+        ),
         patch("app.services.chat.streaming.AsyncOpenAI") as MockAsyncOpenAI,
         patch("app.services.chat.streaming.create_chat_message", new_callable=AsyncMock) as mock_msg,
         patch("app.services.chat.streaming.create_chat_message_fresh_session", new_callable=AsyncMock) as mock_fresh,
+        patch("app.services.chat.streaming._get_chat_openai_tools", return_value=None),
     ):
         mock_msg.return_value = MagicMock(id=10)
+        mock_fresh.return_value = MagicMock(id=11)
         per_req_client = MagicMock()
         per_req_client.chat.completions.create = AsyncMock(return_value=fake_stream_response)
         MockAsyncOpenAI.return_value = per_req_client
