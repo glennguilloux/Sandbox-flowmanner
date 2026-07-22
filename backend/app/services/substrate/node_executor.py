@@ -1390,18 +1390,24 @@ class NodeExecutor:
                 _budget_remaining = budget.remaining().get("cost_usd")
             except Exception:
                 _budget_remaining = None
+        # Phase 3: let the blueprint runner override the model via run inputs.
+        # context["inputs"]["model"] takes precedence over node.assigned_model
+        # so a blueprint run started with {"inputs": {"model": "gpt-4o"}} flows
+        # the choice to every llm_call node in the graph.
+        _run_model_override = (context.get("inputs") or {}).get("model")
+        _explicit = _run_model_override or node.assigned_model
         _sel = select_model_for_depth(
             _profile,
             budget_remaining_usd=_budget_remaining,
-            explicit_model=node.assigned_model,
+            explicit_model=_explicit,
         )
         model_id = _sel.model_id
         reasoning_options = _sel.reasoning
-        if node.assigned_model and node.assigned_model != _sel.model_id:
+        if _explicit and _explicit != _sel.model_id:
             logger.info(
-                "Depth profile %s overrode node model %s -> %s%s",
+                "Depth profile %s overrode model %s -> %s%s",
                 _profile.value,
-                node.assigned_model,
+                _explicit,
                 _sel.model_id,
                 f" (degraded: {_sel.degradation_note})" if _sel.degraded else "",
             )

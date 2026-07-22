@@ -789,3 +789,146 @@ class TestHandleLLM:
         assert messages[0]["role"] == "system"
         assert messages[0]["content"] == "You are helpful"
         assert messages[1]["role"] == "user"
+
+    # ── Phase 3: run-input model override ──────────────────────────────
+
+    @pytest.mark.asyncio
+    async def test_handle_llm_model_override_from_run_inputs(self):
+        """context["inputs"]["model"] overrides node.assigned_model."""
+        from app.services.substrate.depth_selection import SelectedModel
+        from app.services.substrate.workflow_models import ReasoningProfile
+
+        ne, _mock_executor = _make_mock_node_executor()
+        # node has NO assigned_model — the override should supply it
+        node = _make_node(node_type="llm_call", config={"prompt": "Hello"})
+        assert node.assigned_model is None
+
+        db = AsyncMock()
+        run_id = str(uuid4())
+        budget = MagicMock()
+        budget.remaining.return_value = {"cost_usd": 0.81}
+        context = {
+            "mission_id": "m1",
+            "inputs": {"model": "gpt-4o-override-test"},
+        }
+
+        mock_enforcer = MagicMock()
+        mock_enforcer.call = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "ok",
+                "budget": {
+                    "prompt_tokens": 5,
+                    "completion_tokens": 5,
+                    "spent_usd": 0.01,
+                },
+            }
+        )
+
+        mock_event_log = MagicMock()
+        mock_event_log.find_by_idempotency_key = AsyncMock(return_value=None)
+
+        # Capture the explicit_model argument passed to select_model_for_depth
+        captured_kwargs = {}
+
+        def _capture_select(profile, *, budget_remaining_usd=None, explicit_model=None):
+            captured_kwargs["explicit_model"] = explicit_model
+            captured_kwargs["profile"] = profile
+            return SelectedModel(
+                model_id=explicit_model or "default-model",
+                reasoning=MagicMock(),
+                profile=profile,
+                reflection_iterations=0,
+            )
+
+        with (
+            patch(
+                "app.services.budget_enforcer.get_budget_enforcer",
+                return_value=mock_enforcer,
+            ),
+            patch("app.services.circuit_breaker_service.CircuitBreakerService") as mock_cb_cls,
+            patch(
+                "app.services.substrate.node_executor.get_event_log",
+                return_value=mock_event_log,
+            ),
+            patch(
+                "app.services.substrate.depth_selection.select_model_for_depth",
+                side_effect=_capture_select,
+            ),
+        ):
+            mock_cb = MagicMock()
+            mock_cb.get_breaker = AsyncMock(return_value=None)
+            mock_cb_cls.return_value = mock_cb
+            result = await ne._handle_llm(db, node, context, budget, run_id)
+
+        assert result["success"] is True
+        # The override from context["inputs"]["model"] must reach select_model_for_depth
+        assert captured_kwargs["explicit_model"] == "gpt-4o-override-test"
+        assert captured_kwargs["profile"] == ReasoningProfile.NORMAL
+
+    @pytest.mark.asyncio
+    async def test_handle_llm_falls_back_to_node_assigned_model_without_override(self):
+        """Without context["inputs"]["model"], node.assigned_model is used."""
+        from app.services.substrate.depth_selection import SelectedModel
+
+        ne, _mock_executor = _make_mock_node_executor()
+        node = _make_node(node_type="llm_call", config={"prompt": "Hello"})
+        # Simulate an assigned model on the node
+        node.assigned_model = "node-assigned-model-id"
+        # No "model" key in inputs
+        db = AsyncMock()
+        run_id = str(uuid4())
+        budget = MagicMock()
+        budget.remaining.return_value = {"cost_usd": 0.81}
+        context = {"mission_id": "m1", "inputs": {}}
+
+        mock_enforcer = MagicMock()
+        mock_enforcer.call = AsyncMock(
+            return_value={
+                "success": True,
+                "response": "ok",
+                "budget": {
+                    "prompt_tokens": 5,
+                    "completion_tokens": 5,
+                    "spent_usd": 0.01,
+                },
+            }
+        )
+
+        mock_event_log = MagicMock()
+        mock_event_log.find_by_idempotency_key = AsyncMock(return_value=None)
+
+        captured_kwargs = {}
+
+        def _capture_select(profile, *, budget_remaining_usd=None, explicit_model=None):
+            captured_kwargs["explicit_model"] = explicit_model
+            return SelectedModel(
+                model_id=explicit_model or "default-model",
+                reasoning=MagicMock(),
+                profile=profile,
+                reflection_iterations=0,
+            )
+
+        with (
+            patch(
+                "app.services.budget_enforcer.get_budget_enforcer",
+                return_value=mock_enforcer,
+            ),
+            patch("app.services.circuit_breaker_service.CircuitBreakerService") as mock_cb_cls,
+            patch(
+                "app.services.substrate.node_executor.get_event_log",
+                return_value=mock_event_log,
+            ),
+            patch(
+                "app.services.substrate.depth_selection.select_model_for_depth",
+                side_effect=_capture_select,
+            ),
+        ):
+            mock_cb = MagicMock()
+            mock_cb.get_breaker = AsyncMock(return_value=None)
+            mock_cb_cls.return_value = mock_cb
+            result = await ne._handle_llm(db, node, context, budget, run_id)
+
+        assert result["success"] is True
+        # No override → falls back to node.assigned_model
+        assert captured_kwargs["explicit_model"] == "node-assigned-model-id"
