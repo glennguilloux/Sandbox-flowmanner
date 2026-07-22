@@ -497,6 +497,7 @@ class UnifiedExecutor:
             logger.warning("Budget exhausted for run %s: %s", run_id, e)
             await self._record_budget_exhausted(db, run_id, workflow, str(e))
             await self._finalize_run(db, workflow, run_id, "failed", str(e))
+            await self._cleanup_browser_session(run_id)
             return StrategyResult(
                 success=False,
                 status="failed",
@@ -504,7 +505,9 @@ class UnifiedExecutor:
                 execution_time_ms=(time.monotonic() - start_time) * 1000,
             )
         except HITLPaused as e:
-            # Q1-B chunk 1: HITL pause — release lease, emit RUN_PAUSED, return paused status
+            # Q1-B chunk 1: HITL pause — release lease, emit RUN_PAUSED, return paused status.
+            # NOTE: deliberately NO browser cleanup — the session must persist
+            # so the resumed run can continue on the same page.
             logger.info(
                 "HITL paused for run %s: node=%s inbox_item=%s",
                 run_id,
@@ -527,6 +530,7 @@ class UnifiedExecutor:
         except LeaseLostError as e:
             logger.warning("Lease lost for run %s: %s", run_id, e)
             await self._finalize_run(db, workflow, run_id, "aborted", str(e))
+            await self._cleanup_browser_session(run_id)
             return StrategyResult(
                 success=False,
                 status="aborted",
@@ -536,6 +540,7 @@ class UnifiedExecutor:
         except Exception as e:
             logger.exception("Unhandled error in run %s", run_id)
             await self._finalize_run(db, workflow, run_id, "failed", str(e))
+            await self._cleanup_browser_session(run_id)
             return StrategyResult(
                 success=False,
                 status="failed",
@@ -555,6 +560,7 @@ class UnifiedExecutor:
         await self._run_post_hooks(db, workflow, result)
 
         # Cleanup
+        await self._cleanup_browser_session(run_id)
         self._abort_signals.pop(run_id, None)
 
         span.set_attribute("workflow.status", result.status)
@@ -1157,6 +1163,26 @@ class UnifiedExecutor:
             hitl.interrupt_type,
             hitl.node_id,
         )
+
+    async def _cleanup_browser_session(self, run_id: str) -> None:
+        """Close any browser session opened by this workflow run.
+
+        Browser sessions created during blueprint execution are keyed by
+        ``blueprint:<run_id>`` (see ``node_executor._handle_browser``).
+        Closing them here prevents leaked headless Chromium processes from
+        exhausting the 2-session capacity after a run completes or fails.
+
+        Intentionally NOT called on the HITL-pause path — the session must
+        survive so the resumed run continues on the same page.
+        """
+        session_key = f"blueprint:{run_id}"
+        try:
+            from app.services.browser_manager import get_browser_manager
+
+            manager = get_browser_manager()
+            await manager.close_user_session(session_key)
+        except Exception:
+            logger.debug("Browser session cleanup skipped for run %s", run_id, exc_info=True)
 
     async def _run_post_hooks(
         self,

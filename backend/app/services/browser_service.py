@@ -155,7 +155,7 @@ class BrowserService:
             current_url = page.url
             title = await page.title()
 
-            session.touch()
+            session.touch_user_interaction()
 
             return {
                 "success": True,
@@ -291,7 +291,7 @@ class BrowserService:
                 )
 
             session.snapshot_fingerprint = fingerprint
-            session.touch()
+            session.touch_user_interaction()
 
             current_url = page.url
             title = await page.title()
@@ -502,7 +502,7 @@ class BrowserService:
             page = session.page
 
             await page.evaluate(f"window.scrollBy({x}, {y})")
-            session.touch()
+            session.touch_user_interaction()
 
             return {"success": True}
         except Exception as e:
@@ -560,7 +560,7 @@ class BrowserService:
 
         try:
             await session.resize_viewport(width, height)
-            session.touch()
+            session.touch_user_interaction()
             return {"success": True, "width": width, "height": height}
         except Exception as e:
             logger.error("Viewport resize error for user %s: %s", user_id, e, exc_info=True)
@@ -588,7 +588,7 @@ class BrowserService:
             page = session.page
             screenshot_bytes = await page.screenshot(type="png", full_page=True)
             screenshot_b64 = base64.b64encode(screenshot_bytes).decode("utf-8")
-            session.touch()
+            session.touch_user_interaction()
             return {
                 "success": True,
                 "screenshot": screenshot_b64,
@@ -608,7 +608,7 @@ class BrowserService:
 
         try:
             await session.set_ad_blocking(enabled)
-            session.touch()
+            session.touch_user_interaction()
             return {"success": True, "ad_blocking": enabled}
         except Exception as e:
             logger.error("Ad blocking toggle error for user %s: %s", user_id, e)
