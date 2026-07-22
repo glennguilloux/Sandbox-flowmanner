@@ -4,7 +4,11 @@ from app.tools.base import BaseTool, ToolInput, ToolMetadata, ToolResult, regist
 
 
 class BrowserTypeInput(ToolInput):
-    ref: str = Field(..., description="Element reference ID")
+    ref: str | None = Field(default=None, description="Element reference ID from a prior snapshot")
+    selector: str | None = Field(
+        default=None,
+        description="CSS selector to type into directly (bypasses ref system)",
+    )
     text: str = Field(..., description="Text to type")
     submit: bool = Field(default=False, description="Submit after typing")
 
@@ -14,7 +18,7 @@ class BrowserTypeTool(BaseTool):
         metadata = ToolMetadata(
             tool_id="browser_type",
             name="Type Text",
-            description="Type text into an element by reference ID",
+            description="Type text into an element by reference ID or CSS selector",
             category="browser",
             input_schema=BrowserTypeInput.schema_extra(),
             tags=["browser"],
@@ -24,12 +28,13 @@ class BrowserTypeTool(BaseTool):
     async def execute(self, input_data: dict) -> ToolResult:
         from app.services.browser_service import get_browser_service
 
+        context = input_data.pop("context", None)
+
         try:
             validated = BrowserTypeInput(**input_data)
         except Exception as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
-        context = input_data.get("context")
         if not context:
             return ToolResult.error_result(tool_id=self.tool_id, error="No context provided")
 
@@ -37,8 +42,28 @@ class BrowserTypeTool(BaseTool):
         if not user_id:
             return ToolResult.error_result(tool_id=self.tool_id, error="No user_id in context")
 
+        if not validated.ref and not validated.selector:
+            return ToolResult.error_result(
+                tool_id=self.tool_id,
+                error="Either 'ref' or 'selector' must be provided",
+            )
+
         service = get_browser_service()
-        result = await service.type_text(user_id, validated.ref, validated.text, validated.submit)
+
+        if validated.selector:
+            result = await service.type_by_selector(
+                user_id,
+                validated.selector,
+                validated.text,
+                validated.submit,
+            )
+        else:
+            result = await service.type_text(
+                user_id,
+                validated.ref,
+                validated.text,
+                validated.submit,
+            )
 
         if result.get("success"):
             return ToolResult.success_result(tool_id=self.tool_id, result=result)

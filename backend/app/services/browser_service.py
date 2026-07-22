@@ -1,4 +1,6 @@
+import ipaddress
 import logging
+import socket
 from urllib.parse import urlparse
 
 from app.services.browser_manager import SessionCapacityError, get_browser_manager
@@ -7,33 +9,87 @@ logger = logging.getLogger(__name__)
 
 BLOCKED_SCHEMES = {"file", "ftp", "data", "javascript"}
 BLOCKED_HOSTS = {"localhost", "0.0.0.0", "::1"}
-BLOCKED_IP_RANGES = [
-    "10.0.0.0/8",
-    "172.16.0.0/12",
-    "192.168.0.0/16",
-    "127.0.0.0/8",
-    "169.254.0.0/16",
+
+# Private / reserved CIDR ranges that must never be reached from a browser node.
+_BLOCKED_NETWORKS = [
+    ipaddress.ip_network(cidr)
+    for cidr in [
+        "10.0.0.0/8",
+        "172.16.0.0/12",
+        "192.168.0.0/16",
+        "127.0.0.0/8",
+        "169.254.0.0/16",
+        "0.0.0.0/8",
+        "100.64.0.0/10",   # CGNAT
+        "fc00::/7",         # IPv6 ULA
+        "::1/128",          # IPv6 loopback
+    ]
 ]
 
 
+def _is_blocked_ip(ip_str: str) -> bool:
+    """True if *ip_str* is in a private / reserved range."""
+    try:
+        addr = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return True  # unparseable → treat as blocked (fail-closed)
+    return any(addr in net for net in _BLOCKED_NETWORKS)
+
+
+def _resolve_host(host: str) -> list[str]:
+    """Resolve *host* to IP address strings via DNS.
+
+    Returns a list of resolved IP strings.  An empty list means resolution
+    failed — the caller should treat this as blocked (fail-closed).
+    """
+    try:
+        infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
+        return list({str(info[4][0]) for info in infos})
+    except Exception:
+        return []
+
+
 def validate_url_for_navigation(url: str) -> tuple[bool, str | None]:
+    """Validate *url* against the SSRF block-list.
+
+    Two-pass check:
+    1. Scheme / hostname string checks (fast path).
+    2. DNS resolution of the hostname → check every resolved IP against
+       private/reserved CIDR ranges.  This catches DNS rebinding and
+       hex/octal IP-encoding attacks that bypass string-prefix checks.
+    """
     try:
         parsed = urlparse(url)
         scheme = parsed.scheme.lower()
         host = parsed.hostname.lower() if parsed.hostname else ""
 
+        if not host:
+            return False, "URL has no hostname"
+
         if scheme in BLOCKED_SCHEMES:
             return False, f"URL scheme '{scheme}://' is blocked"
 
         if host in BLOCKED_HOSTS:
-            return False, f"localhost URLs are blocked"
+            return False, f"Blocked host: {host}"
 
-        if host.startswith("127."):
-            return False, f"127.x.x.x addresses are blocked"
+        # Fast path: literal IP in the URL (no DNS needed).
+        try:
+            addr = ipaddress.ip_address(host)
+            if _is_blocked_ip(str(addr)):
+                return False, f"Blocked IP address: {host}"
+        except ValueError:
+            pass  # not a literal IP → needs DNS resolution below
 
-        for ip_range in BLOCKED_IP_RANGES:
-            if host.startswith(ip_range.split("/")[0].rsplit(".", 1)[0]):
-                return False, f"Private IP ranges are blocked: {host}"
+        # DNS resolution pass: resolve the hostname and check every IP.
+        # A hostname that resolves to *any* private IP is blocked.
+        resolved_ips = _resolve_host(host)
+        if not resolved_ips:
+            # DNS resolution failed — fail-closed.
+            return False, f"DNS resolution failed for host: {host}"
+
+        for ip_str in resolved_ips:
+            if _is_blocked_ip(ip_str):
+                return False, f"Host '{host}' resolves to blocked IP: {ip_str}"
 
         return True, None
     except Exception as e:
@@ -383,6 +439,56 @@ class BrowserService:
             }
         except Exception as e:
             logger.error("Type error for user %s: %s", user_id, e)
+            return {"success": False, "error": str(e)}
+
+    async def click_by_selector(self, user_id: str, selector: str) -> dict:
+        """Click an element by CSS selector, bypassing the ref system.
+
+        This is the blueprint-friendly path: the author specifies a CSS
+        selector directly (e.g. ``#login-button``, ``button[type=submit]``)
+        instead of depending on a dynamically-generated ref from a prior
+        ``snapshot`` call.
+        """
+        manager = get_browser_manager()
+        session = manager.get_user_session(user_id)
+
+        if not session or not session.is_active():
+            return {"success": False, "error": "No active browser session"}
+
+        try:
+            page = session.page
+            handle = await page.query_selector(selector)
+            if not handle:
+                return {"success": False, "error": f"No element found for selector: {selector}"}
+            await handle.click(timeout=5000)
+            session.touch_user_interaction()
+            return {"success": True, "method": "selector", "selector": selector}
+        except Exception as e:
+            logger.error("Click-by-selector error for user %s: %s", user_id, e)
+            return {"success": False, "error": str(e)}
+
+    async def type_by_selector(
+        self, user_id: str, selector: str, text: str, submit: bool = False
+    ) -> dict:
+        """Type text into an element by CSS selector, bypassing the ref system."""
+        manager = get_browser_manager()
+        session = manager.get_user_session(user_id)
+
+        if not session or not session.is_active():
+            return {"success": False, "error": "No active browser session"}
+
+        try:
+            page = session.page
+            handle = await page.query_selector(selector)
+            if not handle:
+                return {"success": False, "error": f"No element found for selector: {selector}"}
+            await handle.fill(text)
+            if submit:
+                await page.keyboard.press("Enter")
+            session.touch_user_interaction()
+            return {"success": True, "method": "selector", "selector": selector}
+        except Exception as e:
+            logger.error("Type-by-selector error for user %s: %s", user_id, e)
             return {"success": False, "error": str(e)}
 
     async def scroll(self, user_id: str, x: int = 0, y: int = 300) -> dict:

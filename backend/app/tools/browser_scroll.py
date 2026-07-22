@@ -23,12 +23,13 @@ class BrowserScrollTool(BaseTool):
     async def execute(self, input_data: dict) -> ToolResult:
         from app.services.browser_service import get_browser_service
 
+        context = input_data.pop("context", None)
+
         try:
             validated = BrowserScrollInput(**input_data)
         except Exception as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
-        context = input_data.get("context")
         if not context:
             return ToolResult.error_result(tool_id=self.tool_id, error="No context provided")
 

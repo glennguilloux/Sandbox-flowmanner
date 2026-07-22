@@ -23,12 +23,14 @@ class BrowserNavigateTool(BaseTool):
     async def execute(self, input_data: dict) -> ToolResult:
         from app.services.browser_service import get_browser_service
 
+        # Extract context before Pydantic validation (extra="forbid" rejects it).
+        context = input_data.pop("context", None)
+
         try:
             validated = BrowserNavigateInput(**input_data)
         except Exception as e:
             return ToolResult.error_result(tool_id=self.tool_id, error=f"Invalid input: {e}")
 
-        context = input_data.get("context")
         if not context:
             return ToolResult.error_result(tool_id=self.tool_id, error="No context provided")
 

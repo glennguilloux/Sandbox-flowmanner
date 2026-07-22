@@ -191,24 +191,31 @@ class TestHandleBrowser:
 
         mock_tool = MagicMock()
         mock_result = MagicMock()
-        mock_result.status.value = "success"
-        mock_result.data = {"title": "Example", "url": "https://example.com"}
-        mock_tool.run = AsyncMock(return_value=mock_result)
+        mock_result.success = True
+        mock_result.result = {"title": "Example", "url": "https://example.com"}
+        mock_result.error = None
+        mock_tool.execute = AsyncMock(return_value=mock_result)
 
-        with patch("app.tools.base.ToolRegistry") as mock_registry:
-            mock_registry.get.return_value = mock_tool
-            result = await ne._handle_browser(node, {})
+        with patch("app.tools.base.get_tool_registry") as mock_get_registry:
+            mock_get_registry.return_value.get.return_value = mock_tool
+            result = await ne._handle_browser(node, {"run_id": "test-run-123"})
 
         assert result["success"] is True
         assert result["output"]["title"] == "Example"
+        # Verify the tool was called with .execute (not .run) and that context
+        # is nested inside input_data with a run-scoped session identity.
+        mock_tool.execute.assert_awaited_once()
+        call_args = mock_tool.execute.await_args
+        assert "context" in call_args.args[0]
+        assert call_args.args[0]["context"]["user_id"] == "blueprint:test-run-123"
 
     @pytest.mark.asyncio
     async def test_browser_tool_not_registered(self):
         ne, _ = _make_executor_with_node_executor()
         node = _make_node(node_type=NodeType.BROWSER_CLICK, config={})
 
-        with patch("app.tools.base.ToolRegistry") as mock_registry:
-            mock_registry.get.return_value = None
+        with patch("app.tools.base.get_tool_registry") as mock_get_registry:
+            mock_get_registry.return_value.get.return_value = None
             result = await ne._handle_browser(node, {})
 
         assert result["success"] is False
@@ -221,13 +228,14 @@ class TestHandleBrowser:
 
         mock_tool = MagicMock()
         mock_result = MagicMock()
-        mock_result.status.value = "error"
+        mock_result.success = False
+        mock_result.result = None
         mock_result.error = "Page not found"
-        mock_tool.run = AsyncMock(return_value=mock_result)
+        mock_tool.execute = AsyncMock(return_value=mock_result)
 
-        with patch("app.tools.base.ToolRegistry") as mock_registry:
-            mock_registry.get.return_value = mock_tool
-            result = await ne._handle_browser(node, {})
+        with patch("app.tools.base.get_tool_registry") as mock_get_registry:
+            mock_get_registry.return_value.get.return_value = mock_tool
+            result = await ne._handle_browser(node, {"run_id": "r1"})
 
         assert result["success"] is False
         assert "Page not found" in result["error"]
@@ -237,8 +245,8 @@ class TestHandleBrowser:
         ne, _ = _make_executor_with_node_executor()
         node = _make_node(node_type=NodeType.BROWSER_NAVIGATE, config={})
 
-        with patch("app.tools.base.ToolRegistry") as mock_registry:
-            mock_registry.get.side_effect = RuntimeError("registry crash")
+        with patch("app.tools.base.get_tool_registry") as mock_get_registry:
+            mock_get_registry.return_value.get.side_effect = RuntimeError("registry crash")
             result = await ne._handle_browser(node, {})
 
         assert result["success"] is False
@@ -252,9 +260,10 @@ class TestHandleBrowser:
 
         mock_tool = MagicMock()
         mock_result = MagicMock()
-        mock_result.status.value = "success"
-        mock_result.data = {"ok": True}
-        mock_tool.run = AsyncMock(return_value=mock_result)
+        mock_result.success = True
+        mock_result.result = {"ok": True}
+        mock_result.error = None
+        mock_tool.execute = AsyncMock(return_value=mock_result)
 
         for bt in [
             NodeType.BROWSER_NAVIGATE,
@@ -266,10 +275,34 @@ class TestHandleBrowser:
             NodeType.BROWSER_CLOSE,
         ]:
             node = _make_node(node_type=bt, config={"params": {}})
-            with patch("app.tools.base.ToolRegistry") as mock_registry:
-                mock_registry.get.return_value = mock_tool
-                result = await ne._dispatch(db, node, {}, budget, "run-1")
+            with patch("app.tools.base.get_tool_registry") as mock_get_registry:
+                mock_get_registry.return_value.get.return_value = mock_tool
+                result = await ne._dispatch(db, node, {"run_id": "dispatch-run"}, budget, "run-1")
             assert result["success"] is True, f"Failed for {bt}"
+
+    @pytest.mark.asyncio
+    async def test_browser_falls_back_to_system_without_run_id(self):
+        """Without a run_id in context, session key falls back to 'system'."""
+        ne, _ = _make_executor_with_node_executor()
+        node = _make_node(
+            node_type=NodeType.BROWSER_NAVIGATE,
+            config={"params": {"url": "https://example.com"}},
+        )
+
+        mock_tool = MagicMock()
+        mock_result = MagicMock()
+        mock_result.success = True
+        mock_result.result = {"title": "Example"}
+        mock_result.error = None
+        mock_tool.execute = AsyncMock(return_value=mock_result)
+
+        with patch("app.tools.base.get_tool_registry") as mock_get_registry:
+            mock_get_registry.return_value.get.return_value = mock_tool
+            result = await ne._handle_browser(node, {})
+
+        assert result["success"] is True
+        call_args = mock_tool.execute.await_args
+        assert call_args.args[0]["context"]["user_id"] == "blueprint:system"
 
 
 # ── _handle_file ────────────────────────────────────────────────────

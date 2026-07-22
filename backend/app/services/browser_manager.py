@@ -5,7 +5,10 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-MAX_SESSIONS = 5
+# Minimum viable: 1 active session + 1 headroom for a concurrent run.
+# Each session is a full headless Chromium (~300-500 MB RSS), so we keep
+# this low to stay within the backend container's 4g mem_limit.
+MAX_SESSIONS = 2
 
 
 class SessionCapacityError(Exception):

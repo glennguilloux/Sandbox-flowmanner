@@ -2278,7 +2278,15 @@ class NodeExecutor:
     # ── Browser ─────────────────────────────────────────────────────
 
     async def _handle_browser(self, node: WorkflowNode, context: dict[str, Any]) -> dict[str, Any]:
-        """Execute a browser action through the tool registry."""
+        """Execute a browser action through the tool registry.
+
+        Tools implement ``execute(input_data)`` (not ``run``).  The browser
+        tools expect ``context`` with a ``user_id`` key nested *inside*
+        ``input_data`` — not as a separate positional argument.  We use a
+        per-run session identity (``blueprint:<run_id>``) so concurrent
+        blueprint executions get isolated browser sessions instead of all
+        sharing a single ``"system"`` session.
+        """
         try:
             from app.tools.base import get_tool_registry
 
@@ -2291,11 +2299,17 @@ class NodeExecutor:
                 }
 
             tool_input = node.config.get("params", {})
-            result = await tool.run(tool_input, {"user_id": "system"})  # type: ignore[attr-defined]
+            # Per-run session identity so concurrent blueprints don't collide
+            # on the same browser page.  Fall back to "system" only when no
+            # run_id is available (e.g. direct dispatch outside a workflow).
+            run_id = context.get("run_id") or context.get("__run_id__") or "system"
+            session_key = f"blueprint:{run_id}"
+            full_input = {**tool_input, "context": {"user_id": session_key}}
+            result = await tool.execute(full_input)
 
-            if result.status.value == "success":
-                return {"success": True, "output": result.data}
-            return {"success": False, "error": result.error}
+            if result.success:
+                return {"success": True, "output": result.result}
+            return {"success": False, "error": result.error or "Unknown browser tool error"}
         except Exception as e:
             return {"success": False, "error": f"Browser tool failed: {e}"}
 
