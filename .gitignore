@@ -117,3 +117,5 @@ backend/seed_templates.py
 # ── SQLite / database files (app uses Postgres; never track local *.db) ──
 *.db
 database.db
+.sisyphus/Analysis/
+.sisyphus/mission-builder-probe.md
