@@ -99,6 +99,8 @@ REQUIRED_NODE_CONFIG: dict[str, list[NodeConfigSpec]] = {
     "router": [["routerConfig", "routes"]],
     "delay": ["delayMs"],
     "retry": ["maxRetries"],
+    "loop": ["body"],
+    "sub_workflow": ["workflow_id"],
     "timeout": ["timeoutMs"],
     "cache_get": ["key"],
     "browser_navigate": ["params"],
@@ -436,6 +438,29 @@ def validate_node_config_values(definition: dict) -> list[str]:
             if not isinstance(routes, list) or len(routes) == 0:
                 _error(node_id, node_type, "config.routerConfig.routes or config.routes must be a non-empty list")
 
+        elif node_type == "loop":
+            body = config.get("body")
+            if not isinstance(body, list) or len(body) == 0:
+                _error(node_id, node_type, "config.body must be a non-empty list of node ids")
+            elif not all(isinstance(n, str) and n.strip() for n in body):
+                _error(node_id, node_type, "config.body must contain only non-empty node id strings")
+            else:
+                max_iterations = config.get("max_iterations")
+                if max_iterations is not None and (
+                    not isinstance(max_iterations, int) or isinstance(max_iterations, bool) or max_iterations <= 0
+                ):
+                    _error(node_id, node_type, "config.max_iterations must be a positive integer")
+                stop_condition = config.get("stop_condition")
+                if stop_condition is not None and not _is_non_empty_string(stop_condition):
+                    _error(node_id, node_type, "config.stop_condition must be a non-empty string")
+
+        elif node_type == "sub_workflow":
+            # sub_workflow references an external workflow by id; there is no
+            # local wrapped child or edge structure to validate here.
+            workflow_id = config.get("workflow_id")
+            if not _is_non_empty_string(workflow_id):
+                _error(node_id, node_type, "config.workflow_id must be a non-empty string")
+
     return errors
 
 
@@ -517,6 +542,56 @@ def _delay_cycle_nodes(nodes: list[Any], edges: list[Any]) -> set[str]:
     return cycle_nodes
 
 
+def _validate_wrapper_node(
+    node_id: str,
+    node_type: str,
+    config: dict[str, Any],
+    outgoing: list[dict[str, Any]],
+    valid_node_ids: set[str],
+) -> list[str]:
+    """Validate structural constraints for wrapper-like nodes.
+
+    Applies to ``timeout`` and ``retry`` nodes, which wrap a child via
+    ``config.wrapped_node_id`` / default edge, and to ``loop`` nodes, which
+    reference body nodes by id. Returns a list of human-readable error strings.
+    """
+    errors: list[str] = []
+
+    if node_type in ("timeout", "retry"):
+        wrapped_node_id = config.get("wrapped_node_id")
+        has_wrapped = _is_non_empty_string(wrapped_node_id)
+        if has_wrapped and wrapped_node_id not in valid_node_ids:
+            errors.append(f"{node_type.capitalize()} node '{node_id}' wraps unknown node id '{wrapped_node_id}'")
+    else:
+        has_wrapped = False
+
+    if node_type == "timeout":
+        has_default = any(e.get("condition") in (None, "default") for e in outgoing)
+        has_on_timeout = any(e.get("condition") == "on_timeout" for e in outgoing)
+        if not has_wrapped and not has_default:
+            errors.append(
+                f"Timeout node '{node_id}' must specify config.wrapped_node_id or have a default outgoing edge"
+            )
+        if not has_on_timeout:
+            errors.append(f"Timeout node '{node_id}' should have an outgoing 'on_timeout' edge")
+
+    elif node_type == "retry":
+        default_edges = [e for e in outgoing if e.get("condition") in (None, "default")]
+        if not has_wrapped and len(default_edges) != 1:
+            errors.append(
+                f"Retry node '{node_id}' must specify config.wrapped_node_id or have exactly one default outgoing edge"
+            )
+
+    elif node_type == "loop":
+        body = config.get("body")
+        if isinstance(body, list):
+            for i, body_id in enumerate(body):
+                if _is_non_empty_string(body_id) and body_id not in valid_node_ids:
+                    errors.append(f"Loop node '{node_id}' body references unknown node id '{body_id}' at index {i}")
+
+    return errors
+
+
 def validate_edge_semantics(definition: dict, *, blueprint_type: str = "dag") -> list[str]:
     """Return a list of validation errors for edge conditions.
 
@@ -585,8 +660,9 @@ def validate_edge_semantics(definition: dict, *, blueprint_type: str = "dag") ->
                     )
 
     delay_cycle_nodes = _delay_cycle_nodes(nodes, edges)
+    valid_node_ids = set(node_types.keys())
 
-    # Timeout-specific structural checks.
+    # Structural checks for wrapper-like nodes (timeout, retry, loop).
     for node in nodes:
         if not isinstance(node, dict):
             continue
@@ -595,20 +671,11 @@ def validate_edge_semantics(definition: dict, *, blueprint_type: str = "dag") ->
         if not isinstance(node_id, str):
             continue
         outgoing = [e for e in edges if isinstance(e, dict) and e.get("source") == node_id]
+        raw_config = node.get("config")
+        config = raw_config if isinstance(raw_config, dict) else {}
 
-        if node_type == "timeout":
-            raw_config = node.get("config")
-            config = raw_config if isinstance(raw_config, dict) else {}
-            has_wrapped = _is_non_empty_string(config.get("wrapped_node_id"))
-            has_default = any(e.get("condition") in (None, "default") for e in outgoing if isinstance(e, dict))
-            has_on_timeout = any(e.get("condition") == "on_timeout" for e in outgoing if isinstance(e, dict))
-
-            if not has_wrapped and not has_default:
-                errors.append(
-                    f"Timeout node '{node_id}' must specify config.wrapped_node_id or have a default outgoing edge"
-                )
-            if not has_on_timeout:
-                errors.append(f"Timeout node '{node_id}' should have an outgoing 'on_timeout' edge")
+        if node_type in ("timeout", "retry", "loop"):
+            errors.extend(_validate_wrapper_node(node_id, node_type, config, outgoing, valid_node_ids))
 
         if node_type == "validate_schema":
             default_edges = [e for e in outgoing if e.get("condition") == "default"]
@@ -626,16 +693,6 @@ def validate_edge_semantics(definition: dict, *, blueprint_type: str = "dag") ->
             ):
                 errors.append(
                     f"Validate schema node '{node_id}' must route 'default' and 'on_invalid' to different targets"
-                )  # Retry nodes wrap a single child via outgoing edge or wrapped_node_id.
-        if node_type == "retry":
-            raw_config = node.get("config")
-            config = raw_config if isinstance(raw_config, dict) else {}
-            has_wrapped = _is_non_empty_string(config.get("wrapped_node_id"))
-            default_edges = [e for e in outgoing if e.get("condition") in (None, "default")]
-
-            if not has_wrapped and len(default_edges) != 1:
-                errors.append(
-                    f"Retry node '{node_id}' must specify config.wrapped_node_id or have exactly one default outgoing edge"
                 )
 
         # Delay nodes must not form cycles composed entirely of delay nodes.

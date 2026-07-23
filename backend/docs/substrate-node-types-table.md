@@ -23,7 +23,7 @@ This table is generated automatically from the substrate source.
 | `browser_close` | `_handle_browser` | `params` (O) |
 | `approval` | `_handle_hitl_interrupt` | `approval_prompt` (O), `description` (O) |
 | `guardrail` | `_handle_guardrail` | `classifierPrompt` (O), `guardrailMode` (O), `max_tokens` (O), `onViolation` (O), `patterns` (O), `redactWith` (O), `temperature` (O), `useClassifier` (O) |
-| `sub_workflow` | `_handle_sub_workflow` | `workflow_id` (O) |
+| `sub_workflow` | `_handle_sub_workflow` | `workflow_id` (R) |
 | `phase_gate` | `—` | — |
 | `fan_out` | `—` | — |
 | `fan_in` | `—` | — |

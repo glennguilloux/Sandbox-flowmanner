@@ -434,6 +434,41 @@ class TestValidateNodeConfigValues:
         errors = lint.validate_node_config_values(definition)
         assert any("wrapped_node_id" in e and "non-empty" in e for e in errors)
 
+    def test_loop_requires_non_empty_body(self, lint: ModuleType) -> None:
+        definition = self._node("loop", {"body": []})
+        errors = lint.validate_node_config_values(definition)
+        assert any("body" in e and "non-empty list" in e for e in errors)
+
+    def test_loop_requires_body_node_ids(self, lint: ModuleType) -> None:
+        definition = self._node("loop", {"body": ["a", ""]})
+        errors = lint.validate_node_config_values(definition)
+        assert any("body" in e and "non-empty node id" in e for e in errors)
+
+    def test_loop_valid_body_passes(self, lint: ModuleType) -> None:
+        definition = self._node("loop", {"body": ["a", "b"]})
+        assert lint.validate_node_config_values(definition) == []
+
+    @pytest.mark.parametrize("value", [-1, 0, "10", True])
+    def test_loop_requires_positive_integer_max_iterations(self, lint: ModuleType, value: Any) -> None:
+        definition = self._node("loop", {"body": ["a"], "max_iterations": value})
+        errors = lint.validate_node_config_values(definition)
+        assert any("max_iterations" in e and "positive integer" in e for e in errors)
+
+    @pytest.mark.parametrize("value", ["", "   "])
+    def test_loop_requires_non_empty_stop_condition(self, lint: ModuleType, value: Any) -> None:
+        definition = self._node("loop", {"body": ["a"], "stop_condition": value})
+        errors = lint.validate_node_config_values(definition)
+        assert any("stop_condition" in e and "non-empty" in e for e in errors)
+
+    def test_sub_workflow_requires_non_empty_workflow_id(self, lint: ModuleType) -> None:
+        definition = self._node("sub_workflow", {"workflow_id": "   "})
+        errors = lint.validate_node_config_values(definition)
+        assert any("workflow_id" in e and "non-empty" in e for e in errors)
+
+    def test_sub_workflow_valid_workflow_id_passes(self, lint: ModuleType) -> None:
+        definition = self._node("sub_workflow", {"workflow_id": "child-workflow-1"})
+        assert lint.validate_node_config_values(definition) == []
+
     @pytest.mark.parametrize("level", ["info", "warning", "error"])
     def test_log_valid_level_and_message_passes(self, lint: ModuleType, level: str) -> None:
         definition = self._node("log", {"level": level, "message": "hello"})
@@ -680,6 +715,7 @@ class TestValidateEdgeSemantics:
         definition = self._definition(
             [
                 {"id": "t", "type": "timeout", "config": {"timeoutMs": 1000, "wrapped_node_id": "child"}},
+                {"id": "child", "type": "log", "config": {"level": "info", "message": "x"}},
                 {"id": "fallback", "type": "log", "config": {"level": "info", "message": "x"}},
             ],
             [{"source": "t", "target": "fallback", "condition": "on_timeout"}],
@@ -1016,6 +1052,49 @@ class TestValidateEdgeSemantics:
             ],
         )
         assert lint.validate_edge_semantics(definition) == []
+
+    def test_loop_body_references_unknown_node(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "l", "type": "loop", "config": {"body": ["missing"]}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "l", "target": "a"}],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("Loop node 'l'" in e and "missing" in e for e in errors)
+
+    def test_loop_body_with_valid_nodes_passes(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "l", "type": "loop", "config": {"body": ["a"]}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "l", "target": "a"}],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
+    def test_wrapper_unknown_wrapped_node_id(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "t", "type": "timeout", "config": {"timeoutMs": 1000, "wrapped_node_id": "missing"}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "t", "target": "a", "condition": "on_timeout"}],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("Timeout node 't'" in e and "missing" in e for e in errors)
+
+    def test_retry_unknown_wrapped_node_id(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "r", "type": "retry", "config": {"maxRetries": 3, "wrapped_node_id": "missing"}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("Retry node 'r'" in e and "missing" in e for e in errors)
 
 
 class TestValidateBlueprint:
