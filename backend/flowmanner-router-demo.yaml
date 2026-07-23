@@ -1,0 +1,107 @@
+# flowmanner-router-demo.yaml — version 1
+#
+# Demonstrates the router node with multiple route ids. The router
+# evaluates simple boolean expressions over the context and selects the
+# first matching route; the strategy then takes the outgoing edge whose
+# condition equals the selected route id.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-router-demo"
+description: |
+  Demo blueprint for the router node. Routes an incoming request to a
+  code-path, a docs-path, or a default catch-all based on context.
+
+blueprint_type: dag
+
+inputs:
+  intent:
+    type: string
+    default: "code"
+    description: "One of 'code', 'docs', or any other value for the default route."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: classify
+      type: router
+      title: "Classify incoming intent"
+      description: |
+        Select a branch based on the user's intent. Routes are evaluated
+        in order; the first matching route wins.
+      config:
+        routerConfig:
+          routes:
+            - id: "code"
+              name: "Code route"
+              enabled: true
+              expression: "inputs['intent'] == 'code'"
+            - id: "docs"
+              name: "Docs route"
+              enabled: true
+              expression: "inputs['intent'] == 'docs'"
+            - id: "default"
+              name: "Default route"
+              enabled: true
+          defaultRouteId: "default"
+          fallbackBehavior: "route_to_default"
+
+    - id: handle_code
+      type: log
+      title: "Handle code intent"
+      config:
+        level: info
+        message: "Routing to code path for intent: {{ inputs.intent }}"
+
+    - id: handle_docs
+      type: log
+      title: "Handle docs intent"
+      config:
+        level: info
+        message: "Routing to docs path for intent: {{ inputs.intent }}"
+
+    - id: handle_default
+      type: log
+      title: "Handle default intent"
+      config:
+        level: info
+        message: "Routing to default path for intent: {{ inputs.intent }}"
+
+    - id: finalize
+      type: log
+      title: "Finalize"
+      config:
+        level: info
+        message: "Router demo completed for intent: {{ inputs.intent }}"
+
+  edges:
+    - source: classify
+      target: handle_code
+      condition: "code"
+
+    - source: classify
+      target: handle_docs
+      condition: "docs"
+
+    - source: classify
+      target: handle_default
+      condition: "default"
+
+    - source: handle_code
+      target: finalize
+
+    - source: handle_docs
+      target: finalize
+
+    - source: handle_default
+      target: finalize
+
+  budget:
+    max_cost_usd: 1.00
+    max_wall_time_seconds: 120
+    max_iterations: 30
+
+  config: {}

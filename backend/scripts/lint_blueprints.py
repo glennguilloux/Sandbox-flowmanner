@@ -96,7 +96,7 @@ REQUIRED_NODE_CONFIG: dict[str, list[NodeConfigSpec]] = {
     "memory_read": ["query"],
     "webhook": ["url"],
     "log": ["level", "message"],
-    "router": ["routes"],
+    "router": [["routerConfig", "routes"]],
     "delay": ["delayMs"],
     "retry": ["maxRetries"],
     "timeout": ["timeoutMs"],
@@ -431,9 +431,10 @@ def validate_node_config_values(definition: dict) -> list[str]:
                 _error(node_id, node_type, "config.query must be a non-empty string")
 
         elif node_type == "router":
-            routes = config.get("routes")
+            router_config = config.get("routerConfig") if isinstance(config.get("routerConfig"), dict) else {}
+            routes = router_config.get("routes") if router_config.get("routes") is not None else config.get("routes")
             if not isinstance(routes, list) or len(routes) == 0:
-                _error(node_id, node_type, "config.routes must be a non-empty list")
+                _error(node_id, node_type, "config.routerConfig.routes or config.routes must be a non-empty list")
 
     return errors
 

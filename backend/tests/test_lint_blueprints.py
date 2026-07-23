@@ -291,7 +291,7 @@ class TestValidateNodeConstraints:
     def test_router_requires_routes(self, lint: ModuleType) -> None:
         definition = {"nodes": [{"id": "r", "type": "router", "config": {}}]}
         errors = lint.validate_node_constraints(definition)
-        assert any("routes" in e for e in errors)
+        assert any("routerConfig" in e or "routes" in e for e in errors)
 
     def test_delay_requires_delay_ms(self, lint: ModuleType) -> None:
         definition = {"nodes": [{"id": "d", "type": "delay", "config": {}}]}
@@ -884,6 +884,19 @@ class TestValidateEdgeSemantics:
         )
         assert lint.validate_edge_semantics(definition) == []
 
+    def test_router_config_routes_satisfies_required_routes(self, lint: ModuleType) -> None:
+        definition = {
+            "nodes": [
+                {
+                    "id": "r",
+                    "type": "router",
+                    "config": {"routerConfig": {"routes": [{"id": "alpha"}]}},
+                }
+            ]
+        }
+        assert lint.validate_node_constraints(definition) == []
+        assert lint.validate_node_config_values(definition) == []
+
     def test_router_edge_accepts_default_route_id(self, lint: ModuleType) -> None:
         definition = self._definition(
             [
@@ -1149,6 +1162,12 @@ class TestMain:
     def test_reliability_example_blueprint_passes(self, lint: ModuleType) -> None:
         repo_root = Path(__file__).resolve().parent.parent.parent
         path = repo_root / "backend" / "flowmanner-reliability-blueprint.yaml"
+        result = lint.main([str(path)])
+        assert result == 0
+
+    def test_router_demo_blueprint_passes(self, lint: ModuleType) -> None:
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        path = repo_root / "backend" / "flowmanner-router-demo.yaml"
         result = lint.main([str(path)])
         assert result == 0
 
