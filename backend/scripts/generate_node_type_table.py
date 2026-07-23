@@ -208,6 +208,30 @@ def generate_table() -> str:
         keys_str = ", ".join(_format_key(k, node_required, node_alt_groups) for k in sorted(keys)) if keys else "—"
         lines.append(f"| `{value}` | `{handler}` | {keys_str} |")
 
+    lines.append("\n## HITL Output Contract\n")
+    lines.append(
+        "Nodes of type `approval` and `human_review` pause execution until a human "
+        "resolves the created inbox item. On resume, the resolved node returns a dict "
+        "under `output` with the following keys:\n"
+    )
+    lines.append("\n| Key | Type | Description |")
+    lines.append("|-----|------|-------------|")
+    lines.append(
+        "| `hitl_resolution` | string | Resolution status returned by the resolver. "
+        "One of `approved`, `clarified`, `rejected`, `expired`, or `cancelled`. |"
+    )
+    lines.append(
+        "| `resolution_payload` | dict \\| null | Optional payload supplied by the resolver "
+        "(e.g. form data, selected values, structured notes). |"
+    )
+    lines.append("| `resolution_note` | string \\| null | Free-text note left by the resolver. |")
+    lines.append("| `inbox_item_id` | string | UUID of the resolved inbox item. |")
+    lines.append("\nThe top-level node result sets `success: true` for `approved`/`clarified` ")
+    lines.append(
+        "and `success: false` (with an `error` key) for `rejected`/`expired`/`cancelled`. "
+        "Blueprint conditions should branch on `inputs['<node_id>']['hitl_resolution']` "
+        "using these exact strings.\n"
+    )
     return "\n".join(lines) + "\n"
 
 

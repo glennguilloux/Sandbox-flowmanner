@@ -47,3 +47,18 @@ This table is generated automatically from the substrate source.
 | `llm_eval` | `_handle_llm` | `context_query` (O), `context_token_budget` (O), `long_context` (O), `max_tokens` (O), `prompt` (R), `system_prompt` (O), `temperature` (O) |
 | `memory_read` | `_handle_memory_read` | `collection` (O), `query` (R), `scoreThreshold` (O), `topK` (O) |
 | `timeout` | `_handle_timeout` | `timeoutMs` (R), `wrapped_node_id` (O) |
+
+## HITL Output Contract
+
+Nodes of type `approval` and `human_review` pause execution until a human resolves the created inbox item. On resume, the resolved node returns a dict under `output` with the following keys:
+
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `hitl_resolution` | string | Resolution status returned by the resolver. One of `approved`, `clarified`, `rejected`, `expired`, or `cancelled`. |
+| `resolution_payload` | dict \| null | Optional payload supplied by the resolver (e.g. form data, selected values, structured notes). |
+| `resolution_note` | string \| null | Free-text note left by the resolver. |
+| `inbox_item_id` | string | UUID of the resolved inbox item. |
+
+The top-level node result sets `success: true` for `approved`/`clarified`
+and `success: false` (with an `error` key) for `rejected`/`expired`/`cancelled`. Blueprint conditions should branch on `inputs['<node_id>']['hitl_resolution']` using these exact strings.
