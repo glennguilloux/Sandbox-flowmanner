@@ -157,7 +157,16 @@ class FakeNodeExecutor:
         return await handler(node, context)
 
     async def _handle_unknown(self, node, context):
-        raise NotImplementedError(f"FakeNodeExecutor has no handler for node type {node.type.value!r}")
+        # Generic fallback for node types that do not need special behavior
+        # in these blueprint-structure tests. Returns a success response with a
+        # default output so execution can continue.
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {"processed": True},
+            "tokens": 0,
+            "cost": 0.0,
+        }
 
     async def _handle_split(self, node, context):
         # Mirrors the real _handle_split resolution logic:
@@ -375,6 +384,197 @@ class FakeNodeExecutor:
             "success": True,
             "task_id": node.id,
             "output": {"stored": True},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    async def _handle_condition(self, node, context):
+        # Node-id-aware responses so tests can exercise both true and false
+        # branches. Default to true (approved/passed) for most gates; override
+        # individual ids below when the test needs the false branch.
+        node_id = node.id
+        value = True
+        inputs = _get(context, "inputs", {})
+        if node_id == "check_skip":
+            # chaos-drill: route based on the run's chaos_mode input.
+            # "skip_step" takes the true branch; otherwise take the false branch
+            # so timeout/retry wrapper recovery is exercised.
+            value = inputs.get("chaos_mode") == "skip_step"
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {"value": value},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    async def _handle_loop(self, node, context):
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {
+                "max_iterations": node.config.get("max_iterations", 10),
+                "stop_condition": node.config.get("stop_condition"),
+            },
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    async def _handle_retry(self, node, context):
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {"maxRetries": node.config.get("maxRetries"), "backoffMs": node.config.get("backoffMs")},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    async def _handle_timeout(self, node, context):
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {
+                "timeoutMs": node.config.get("timeoutMs"),
+                "wrapped_node_id": node.config.get("wrapped_node_id"),
+            },
+            "branch": "default",
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    async def _handle_template_render(self, node, context):
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {"rendered": node.config.get("template", "")},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    async def _handle_approval(self, node, context):
+        # Approval gates are treated as already-approved for structure tests so
+        # that downstream deletion/webhook nodes can run. Human_review still
+        # pauses (see _handle_human_review above).
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {"hitl_resolution": "approved", "approved": True},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    async def _handle_llm_eval(self, node, context):
+        # Mirror _handle_llm_call: downstream variable_set expressions read
+        # previous_outputs["judge"]["output"], so wrap the evaluation payload.
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {"output": {"winner": "candidate", "rationale": "fake evaluation"}},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    # Browser nodes
+    async def _handle_browser_navigate(self, node, context):
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {"url": _get(_get(node.config, "params"), "url", "")},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    async def _handle_browser_snapshot(self, node, context):
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {"url": "https://example.com", "title": "Test Page", "fingerprint": "abc123"},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    async def _handle_browser_screenshot(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"screenshot": "fake-base64"}, "tokens": 0, "cost": 0.0}
+
+    async def _handle_browser_click(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"clicked": True}, "tokens": 0, "cost": 0.0}
+
+    async def _handle_browser_type(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"typed": True}, "tokens": 0, "cost": 0.0}
+
+    async def _handle_browser_scroll(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"scrolled": True}, "tokens": 0, "cost": 0.0}
+
+    async def _handle_browser_close(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"closed": True}, "tokens": 0, "cost": 0.0}
+
+    # Passthrough transform/filter/guardrail nodes
+    async def _handle_transform(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"transformed": True}, "tokens": 0, "cost": 0.0}
+
+    async def _handle_filter(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"filtered": True}, "tokens": 0, "cost": 0.0}
+
+    async def _handle_guardrail(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"violation": False}, "tokens": 0, "cost": 0.0}
+
+    async def _handle_sub_workflow(self, node, context):
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {"sub_workflow_id": node.config.get("workflow_id")},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    async def _handle_cache_get(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"cache_value": None}, "tokens": 0, "cost": 0.0}
+
+    async def _handle_delay(self, node, context):
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {"delayMs": node.config.get("delayMs")},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    async def _handle_fan_out(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"fan_out": True}, "tokens": 0, "cost": 0.0}
+
+    async def _handle_fan_in(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"fan_in": True}, "tokens": 0, "cost": 0.0}
+
+    async def _handle_phase_gate(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"phase_gate": True}, "tokens": 0, "cost": 0.0}
+
+    async def _handle_router(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"branch": "default"}, "tokens": 0, "cost": 0.0}
+
+    async def _handle_code_execution(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"executed": True}, "tokens": 0, "cost": 0.0}
+
+    async def _handle_tool_call(self, node, context):
+        return {"success": True, "task_id": node.id, "output": {"tool_result": True}, "tokens": 0, "cost": 0.0}
+
+    async def _handle_file_operation(self, node, context):
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {"file_id": node.config.get("file_id")},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    async def _handle_rag_query(self, node, context):
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {
+                "query": node.config.get("query"),
+                "context": self.rag_context,
+                "collection": node.config.get("collection"),
+            },
             "tokens": 0,
             "cost": 0.0,
         }
@@ -609,3 +809,237 @@ async def test_multi_repo_audit_blueprint_splits_merges_and_ranks(executor, fake
     assert len(merge_calls) == 1, "Expected exactly one merge_results invocation"
     assert merge_calls[0]["upstream_count"] == len(repos), "Expected one upstream output per repo"
     assert len(merge_calls[0]["merged"]) == len(repos), "Expected merged list to contain all repo outputs"
+
+
+# ---------------------------------------------------------------------------
+# New blueprint tests (TODO-03 patterns)
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_web_recon_batch_blueprint(executor, fake_node_executor, db):
+    """The dag web-recon-batch blueprint splits URLs and processes each branch."""
+    workflow = _load_workflow("flowmanner-web-recon-batch")
+    urls = ["https://example.com", "https://flowmanner.com"]
+
+    result = await executor.execute(
+        db=db,
+        workflow=workflow,
+        run_id="test-web-recon-batch-001",
+        blueprint_id="00000000-0000-0000-0000-000000000001",
+        context={"inputs": {"urls": urls, "model": ""}},
+    )
+
+    assert result.success is True
+    assert result.status == "completed"
+    assert "split_urls" in result.completed_nodes
+    assert "merge_results" in result.completed_nodes
+    assert "log_summary" in result.completed_nodes
+
+
+@pytest.mark.asyncio
+async def test_support_agent_blueprint(executor, fake_node_executor, db):
+    """The dag support-agent blueprint runs its loop body."""
+    workflow = _load_workflow("flowmanner-support-agent")
+
+    result = await executor.execute(
+        db=db,
+        workflow=workflow,
+        run_id="test-support-agent-001",
+        blueprint_id="00000000-0000-0000-0000-000000000001",
+        context={"inputs": {"ticket_text": "I cannot log in", "model": ""}},
+    )
+
+    assert result.success is True
+    assert result.status == "completed"
+    assert "support_loop" in result.completed_nodes
+    assert "save_context" in result.completed_nodes
+
+
+@pytest.mark.asyncio
+async def test_budget_governor_blueprint(executor, fake_node_executor, db):
+    """The dag budget-governor blueprint tracks cost with variable_set."""
+    workflow = _load_workflow("flowmanner-budget-governor")
+
+    result = await executor.execute(
+        db=db,
+        workflow=workflow,
+        run_id="test-budget-governor-001",
+        blueprint_id="00000000-0000-0000-0000-000000000001",
+        context={"inputs": {"task_prompt": "Summarize the docs", "budget_ceiling": 5.0, "model": ""}},
+    )
+
+    assert result.success is True
+    assert result.status == "completed"
+    assert "budget_loop" in result.completed_nodes
+    assert "finalize" in result.completed_nodes
+
+
+@pytest.mark.asyncio
+async def test_spend_anomaly_sentinel_blueprint(executor, fake_node_executor, db):
+    """The solo spend-anomaly sentinel blueprint runs its full node chain."""
+    workflow = _load_workflow("flowmanner-spend-anomaly-sentinel")
+
+    result = await executor.execute(
+        db=db,
+        workflow=workflow,
+        run_id="test-spend-anomaly-001",
+        blueprint_id="00000000-0000-0000-0000-000000000001",
+        context={"inputs": {"spend_threshold": 50.0, "alert_webhook_url": "https://example.com/alerts"}},
+    )
+
+    assert result.success is True
+    assert result.status == "completed"
+    assert "detect_anomaly" in result.completed_nodes
+    assert "send_alert" in result.completed_nodes
+
+
+@pytest.mark.asyncio
+async def test_shadow_rollout_blueprint(executor, fake_node_executor, db):
+    """The dag shadow-rollout blueprint splits current/candidate branches."""
+    workflow = _load_workflow("flowmanner-shadow-rollout")
+
+    result = await executor.execute(
+        db=db,
+        workflow=workflow,
+        run_id="test-shadow-rollout-001",
+        blueprint_id="00000000-0000-0000-0000-000000000001",
+        context={
+            "inputs": {
+                "task_prompt": "Implement a login endpoint",
+                "current_model": "model-a",
+                "candidate_model": "model-b",
+                "publish_webhook_url": "https://example.com/publish",
+            }
+        },
+    )
+
+    assert result.success is True
+    assert result.status == "completed"
+    assert "split_branches" in result.completed_nodes
+    assert "judge" in result.completed_nodes
+    assert "log_result" in result.completed_nodes
+
+
+@pytest.mark.asyncio
+async def test_dry_run_preview_blueprint(executor, fake_node_executor, db):
+    """The graph dry-run-preview blueprint pauses at human_review."""
+    workflow = _load_workflow("flowmanner-dry-run-preview")
+
+    result = await executor.execute(
+        db=db,
+        workflow=workflow,
+        run_id="test-dry-run-preview-001",
+        blueprint_id="00000000-0000-0000-0000-000000000001",
+        context={
+            "inputs": {
+                "webhook_url": "https://example.com/webhook",
+                "payload_template": '{"event": "test"}',
+                "context_data": '{"event": "test"}',
+            }
+        },
+    )
+
+    # Human review pauses the graph run before the webhook publishes.
+    assert result.success is False
+    assert result.status == "paused"
+    assert "render_preview" in result.completed_nodes
+    assert "review" in result.completed_nodes
+    assert "publish" not in result.completed_nodes
+
+
+@pytest.mark.asyncio
+async def test_chaos_drill_blueprint(executor, fake_node_executor, db):
+    """The dag chaos-drill blueprint runs retry and timeout wrappers."""
+    workflow = _load_workflow("flowmanner-chaos-drill")
+
+    result = await executor.execute(
+        db=db,
+        workflow=workflow,
+        run_id="test-chaos-drill-001",
+        blueprint_id="00000000-0000-0000-0000-000000000001",
+        context={"inputs": {"chaos_mode": "off"}},
+    )
+
+    assert result.success is True
+    assert result.status == "completed"
+    # With chaos_mode != "skip_step", the fake condition routes check_skip
+    # through the false branch so the timeout/retry wrapper chain is exercised.
+    assert "check_skip" in result.completed_nodes
+    assert "timeout_wrapper" in result.completed_nodes
+    assert "retry_wrapper" in result.completed_nodes
+    assert "protected_step" in result.completed_nodes
+    assert "summarize" in result.completed_nodes
+    # log_recovery is on the true branch of check_skip, so it is not reached
+    # when the false branch is taken.
+    assert "log_recovery" not in result.completed_nodes
+
+
+@pytest.mark.asyncio
+async def test_chaos_drill_skip_step_branch(executor, fake_node_executor, db):
+    """The chaos-drill true branch skips the wrapper chain and logs recovery."""
+    workflow = _load_workflow("flowmanner-chaos-drill")
+
+    result = await executor.execute(
+        db=db,
+        workflow=workflow,
+        run_id="test-chaos-drill-skip-001",
+        blueprint_id="00000000-0000-0000-0000-000000000001",
+        context={"inputs": {"chaos_mode": "skip_step"}},
+    )
+
+    assert result.success is True
+    assert result.status == "completed"
+    # True branch: short-circuit to log_recovery.
+    assert "check_skip" in result.completed_nodes
+    assert "log_recovery" in result.completed_nodes
+    # timeout_wrapper is the gated child of check_skip and should not execute
+    # when the true branch is taken. However, the DAG strategy does not cascade
+    # skipped status to grandchildren, so retry_wrapper/protected_step may still
+    # execute because their incoming edge from timeout_wrapper is unconditional.
+    # TODO(substrate-dag): Once skip-cascading is implemented, also assert that
+    # retry_wrapper and protected_step are absent.
+    assert "timeout_wrapper" not in result.completed_nodes
+
+
+@pytest.mark.asyncio
+async def test_audit_log_blueprint(executor, fake_node_executor, db):
+    """The dag audit-log blueprint reads prior memory and writes a new entry."""
+    workflow = _load_workflow("flowmanner-audit-log")
+
+    result = await executor.execute(
+        db=db,
+        workflow=workflow,
+        run_id="test-audit-log-001",
+        blueprint_id="00000000-0000-0000-0000-000000000001",
+        context={"inputs": {"audit_topic": "blueprint-validation", "collection": "flowmanner_memory"}},
+    )
+
+    assert result.success is True
+    assert result.status == "completed"
+    assert "read_prior" in result.completed_nodes
+    assert "write_entry" in result.completed_nodes
+
+
+@pytest.mark.asyncio
+async def test_retention_enforcer_blueprint(executor, fake_node_executor, db):
+    """The dag retention-enforcer blueprint runs dual approvals and deletion."""
+    workflow = _load_workflow("flowmanner-retention-enforcer")
+
+    result = await executor.execute(
+        db=db,
+        workflow=workflow,
+        run_id="test-retention-enforcer-001",
+        blueprint_id="00000000-0000-0000-0000-000000000001",
+        context={
+            "inputs": {
+                "collection": "flowmanner_memory",
+                "retention_days": 90,
+                "alert_webhook_url": "https://example.com/notify",
+            }
+        },
+    )
+
+    assert result.success is True
+    assert result.status == "completed"
+    assert "first_approval" in result.completed_nodes
+    assert "second_approval" in result.completed_nodes
+    assert "delete_entries" in result.completed_nodes
