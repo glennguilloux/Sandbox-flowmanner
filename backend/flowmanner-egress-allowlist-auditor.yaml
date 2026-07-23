@@ -1,0 +1,148 @@
+# flowmanner-egress-allowlist-auditor.yaml — version 1
+#
+# Pattern #35: Egress allowlist auditor.
+#
+# Audits the network egress behavior of a sandbox run. The sandbox runs a
+# controlled task while logging every external host it contacts. A second
+# sandbox parses the egress log, compares contacted hosts against an allowlist,
+# and reports violations. Violations trigger a webhook alert.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-egress-allowlist-auditor"
+description: |
+  Network-egress allowlist auditor. Runs a sandboxed task, captures the list
+  of external hosts it contacts, compares them against an allowlist, and
+  alerts via webhook when a violation is detected.
+
+blueprint_type: dag
+
+inputs:
+  task_prompt:
+    type: string
+    description: "The task to run while auditing egress."
+  allowlist:
+    type: array
+    default:
+      - "github.com"
+      - "registry.npmjs.org"
+      - "pypi.org"
+    description: "Allowed external hosts."
+  alert_webhook_url:
+    type: string
+    default: ""
+    description: "Webhook URL to alert on egress violations."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: set_allowlist
+      type: variable_set
+      title: "Load allowed hosts"
+      description: |
+        Store the allowlist in a run-scoped variable for downstream nodes.
+      config:
+        varName: "allowed_hosts"
+        varExpr: 'inputs["allowlist"]'
+
+    - id: run_task
+      type: sandbox
+      title: "Run audited task"
+      description: |
+        Run the requested task while capturing every external host the
+        sandbox contacts.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        task_prompt: |
+          Run the following task while logging every external host you contact
+          (DNS lookups, HTTP requests, git operations):
+
+          Task: {{ inputs.task_prompt }}
+
+          After completing the task, output a JSON array of all unique external
+          hosts contacted, like: ["github.com", "registry.npmjs.org"]
+
+    - id: parse_egress
+      type: sandbox
+      title: "Parse and compare egress"
+      description: |
+        Parse the captured egress hosts and compare them against the allowlist.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        task_prompt: |
+          Compare the contacted hosts against the allowlist.
+          Output JSON with keys: {"allowed": [...], "violations": [...], "total": N}
+
+          Contacted hosts: {{ previous_outputs["run_task"]["output"] }}
+          Allowlist: {{ inputs.allowlist }}
+
+    - id: check_violations
+      type: condition
+      title: "Are there allowlist violations?"
+      description: |
+        Branch based on whether any contacted hosts violated the allowlist.
+      config:
+        expression: 'len(previous_outputs["parse_egress"]["output"]["violations"]) > 0'
+
+    - id: log_clean
+      type: log
+      title: "Log clean egress"
+      description: |
+        Record that no allowlist violations were detected.
+      config:
+        level: info
+        message: "Sandbox egress stayed within the allowlist."
+
+    - id: alert_violation
+      type: webhook
+      title: "Alert on egress violation"
+      description: |
+        POST an alert when the sandbox contacted a host outside the
+        allowlist.
+      config:
+        url: "{{ inputs.alert_webhook_url }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+
+    - id: log_violation
+      type: log
+      title: "Log egress violation"
+      description: |
+        Record the detected egress allowlist violation.
+      config:
+        level: error
+        message: "Sandbox egress violated the allowlist."
+
+  edges:
+    - source: set_allowlist
+      target: run_task
+    - source: run_task
+      target: parse_egress
+    - source: parse_egress
+      target: check_violations
+    - source: check_violations
+      target: alert_violation
+      condition: "true"
+    - source: check_violations
+      target: log_clean
+      condition: "false"
+    - source: alert_violation
+      target: log_violation
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 600
+    max_iterations: 50
+    max_depth: 3
+
+  config: {}

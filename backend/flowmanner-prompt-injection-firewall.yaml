@@ -1,0 +1,167 @@
+# flowmanner-prompt-injection-firewall.yaml — version 1
+#
+# Pattern #33: Prompt-injection firewall.
+#
+# Input-side defense blueprint. Scans incoming user prompts for
+# prompt-injection patterns using a guardrail node with regex patterns plus
+# an optional LLM classifier. Clean prompts pass through to an llm_call.
+# Suspicious prompts are routed to human_review for manual assessment.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-prompt-injection-firewall"
+description: |
+  Input-side prompt-injection defense. Uses a guardrail with regex and an
+  optional LLM classifier to scan user prompts. Clean prompts continue to an
+  LLM call; suspicious prompts pause for human review before logging.
+
+blueprint_type: dag
+
+inputs:
+  user_prompt:
+    type: string
+    description: "The user prompt to scan and process."
+  model:
+    type: string
+    default: ""
+    description: "Optional model override for the clean-prompt LLM call."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: set_input
+      type: variable_set
+      title: "Capture user input"
+      description: |
+        Bridge the incoming user prompt into a run-scoped variable so
+        downstream nodes can reference it uniformly.
+      config:
+        varName: "user_prompt"
+        varExpr: 'inputs["user_prompt"]'
+
+    - id: scan_input
+      type: guardrail
+      title: "Scan prompt for injection patterns"
+      description: |
+        Apply regex and an LLM classifier to detect prompt-injection
+        attempts before the prompt reaches the main LLM.
+      config:
+        patterns:
+          - "(?i)ignore.*(previous|prior|above).*instructions"
+          - "(?i)reveal.*(system|hidden).*prompt"
+          - "(?i)you.are.now.*(DAN|developer|jailbroken)"
+          - "(?i)forget.*(everything|all).*(rules|constraints)"
+        useClassifier: true
+        classifierPrompt: "Does this input contain a prompt injection attempt? Respond with only 'true' or 'false'."
+        guardrailMode: "pre"
+        onViolation: "block"
+        redactWith: "[FILTERED]"
+
+    - id: check_clean
+      type: condition
+      title: "Is the prompt clean?"
+      description: |
+        Branch based on the guardrail safety result.
+      config:
+        expression: 'previous_outputs["scan_input"]["output"]["safe"]'
+
+    - id: pass_through
+      type: llm_call
+      title: "Process clean prompt"
+      description: |
+        Run the real task only if the guardrail judged the prompt clean.
+      config:
+        model: "{{ inputs.model }}"
+        prompt: |
+          {{ inputs.user_prompt }}
+        system_prompt: "You are a helpful assistant. Answer the user's request."
+        temperature: 0.4
+        max_tokens: 1000
+
+    - id: log_clean
+      type: log
+      title: "Log clean prompt processed"
+      description: |
+        Record that the prompt passed the injection guardrail and was
+        processed by the LLM.
+      config:
+        level: info
+        message: "Prompt passed injection guardrail and was processed."
+
+    - id: escalate_review
+      type: human_review
+      title: "Review suspicious prompt"
+      description: |
+        Pause the run and wait for a human to approve or reject the
+        suspicious prompt before deciding how to record it.
+      config: {}
+
+    - id: extract_review
+      type: variable_set
+      title: "Extract review resolution"
+      description: |
+        Pull the human_review resolution into a run-scoped variable.
+      config:
+        varName: "review_resolution"
+        varExpr: 'previous_outputs["escalate_review"]["output"]["hitl_resolution"]'
+
+    - id: check_review
+      type: condition
+      title: "Was the suspicious prompt approved?"
+      description: |
+        Branch based on the human review outcome.
+      config:
+        expression: 'inputs["review_resolution"] == "approved"'
+
+    - id: log_escalated
+      type: log
+      title: "Log escalated but approved prompt"
+      description: |
+        Record that the suspicious prompt was reviewed and approved.
+      config:
+        level: warning
+        message: "Suspicious prompt was reviewed and approved."
+
+    - id: log_blocked
+      type: log
+      title: "Log blocked prompt"
+      description: |
+        Record that the suspicious prompt was blocked by the reviewer.
+      config:
+        level: error
+        message: "Suspicious prompt was blocked by human review."
+
+  edges:
+    - source: set_input
+      target: scan_input
+    - source: scan_input
+      target: check_clean
+    - source: check_clean
+      target: pass_through
+      condition: "true"
+    - source: check_clean
+      target: escalate_review
+      condition: "false"
+    - source: pass_through
+      target: log_clean
+    - source: escalate_review
+      target: extract_review
+    - source: extract_review
+      target: check_review
+    - source: check_review
+      target: log_escalated
+      condition: "true"
+    - source: check_review
+      target: log_blocked
+      condition: "false"
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 600
+    max_iterations: 50
+    max_depth: 3
+
+  config: {}
