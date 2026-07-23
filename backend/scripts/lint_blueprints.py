@@ -443,6 +443,30 @@ def _looks_like_template(value: Any) -> bool:
     return isinstance(value, str) and "{{" in value and "}}" in value
 
 
+def _get_router_route_ids(config: dict[str, Any]) -> set[str]:
+    """Return the set of declared route ids for a router node config.
+
+    Supports both the modern ``routerConfig.routes`` shape and the legacy
+    top-level ``routes`` key, plus ``defaultRouteId``.
+    """
+    route_ids: set[str] = set()
+    router_config = config.get("routerConfig") if isinstance(config.get("routerConfig"), dict) else {}
+    routes = router_config.get("routes") if router_config.get("routes") is not None else config.get("routes")
+
+    if isinstance(routes, list):
+        for route in routes:
+            if isinstance(route, dict):
+                rid = route.get("id")
+                if _is_non_empty_string(rid):
+                    route_ids.add(rid)
+
+    default_route_id = router_config.get("defaultRouteId") or config.get("defaultRouteId")
+    if _is_non_empty_string(default_route_id):
+        route_ids.add(default_route_id)
+
+    return route_ids
+
+
 def validate_edge_semantics(definition: dict, *, blueprint_type: str = "dag") -> list[str]:
     """Return a list of validation errors for edge conditions.
 
@@ -458,12 +482,14 @@ def validate_edge_semantics(definition: dict, *, blueprint_type: str = "dag") ->
         return errors
 
     node_types: dict[str, str] = {}
+    node_configs: dict[str, dict[str, Any]] = {}
     for node in nodes:
         if isinstance(node, dict):
             node_id = node.get("id")
             node_type = node.get("type")
             if isinstance(node_id, str) and isinstance(node_type, str):
                 node_types[node_id] = node_type
+                node_configs[node_id] = node.get("config") or {}
 
     for edge in edges:
         if not isinstance(edge, dict):
@@ -490,13 +516,23 @@ def validate_edge_semantics(definition: dict, *, blueprint_type: str = "dag") ->
                     "must have condition 'on_timeout', 'default', or no condition"
                 )
         elif source_type == "validate_schema":
-            if condition not in (None, "default", "on_invalid"):
+            if condition not in ("default", "on_invalid"):
                 errors.append(
                     f"Edge from validate_schema node '{source}' to '{target}' "
-                    "must have condition 'default', 'on_invalid', or no condition"
+                    "must have condition 'default' or 'on_invalid'"
                 )
-        elif source_type == "router" and not _is_non_empty_string(condition):
-            errors.append(f"Edge from router node '{source}' to '{target}' must have a non-empty condition (route id)")
+        elif source_type == "router":
+            if not _is_non_empty_string(condition):
+                errors.append(
+                    f"Edge from router node '{source}' to '{target}' must have a non-empty condition (route id)"
+                )
+            elif not _looks_like_template(condition):
+                valid_route_ids = _get_router_route_ids(node_configs.get(source) or {})
+                if valid_route_ids and condition not in valid_route_ids:
+                    errors.append(
+                        f"Edge from router node '{source}' to '{target}' has condition '{condition}' "
+                        "which does not match any declared route id"
+                    )
 
     # Timeout-specific structural checks.
     for node in nodes:
@@ -521,6 +557,24 @@ def validate_edge_semantics(definition: dict, *, blueprint_type: str = "dag") ->
                 )
             if not has_on_timeout:
                 errors.append(f"Timeout node '{node_id}' should have an outgoing 'on_timeout' edge")
+
+        if node_type == "validate_schema":
+            default_edges = [e for e in outgoing if e.get("condition") == "default"]
+            on_invalid_edges = [e for e in outgoing if e.get("condition") == "on_invalid"]
+
+            if outgoing and not default_edges and not on_invalid_edges:
+                errors.append(
+                    f"Validate schema node '{node_id}' has outgoing edges but none use 'default' or 'on_invalid'"
+                )
+
+            if (
+                default_edges
+                and on_invalid_edges
+                and default_edges[0].get("target") == on_invalid_edges[0].get("target")
+            ):
+                errors.append(
+                    f"Validate schema node '{node_id}' must route 'default' and 'on_invalid' to different targets"
+                )
 
         # DAG condition nodes must branch to exactly one true and one false target.
         if blueprint_type == "dag" and node_type == "condition":

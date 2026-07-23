@@ -777,6 +777,137 @@ class TestValidateEdgeSemantics:
         errors = lint.validate_edge_semantics(definition)
         assert any("different targets" in e for e in errors)
 
+    def test_validate_schema_rejects_invalid_condition(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "vs", "type": "validate_schema", "config": {"schema": {}}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "vs", "target": "a", "condition": "other"}],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("must have condition 'default' or 'on_invalid'" in e for e in errors)
+
+    def test_validate_schema_structural_check_flags_edges_without_default_or_on_invalid(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "vs", "type": "validate_schema", "config": {"schema": {}}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+                {"id": "b", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [
+                {"source": "vs", "target": "a"},
+                {"source": "vs", "target": "b"},
+            ],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("has outgoing edges but none use" in e for e in errors)
+
+    def test_validate_schema_rejects_unconditioned_edge(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "vs", "type": "validate_schema", "config": {"schema": {}}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "vs", "target": "a"}],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("must have condition 'default' or 'on_invalid'" in e for e in errors)
+
+    def test_validate_schema_allows_terminal_node(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "vs", "type": "validate_schema", "config": {"schema": {}}},
+            ],
+            [],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
+    def test_validate_schema_default_and_on_invalid_must_target_different_nodes(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "vs", "type": "validate_schema", "config": {"schema": {}}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [
+                {"source": "vs", "target": "a", "condition": "default"},
+                {"source": "vs", "target": "a", "condition": "on_invalid"},
+            ],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("different targets" in e for e in errors)
+
+    def test_router_edge_matches_declared_route_id(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {
+                    "id": "r",
+                    "type": "router",
+                    "config": {"routes": [{"id": "route_a"}, {"id": "route_b"}]},
+                },
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+                {"id": "b", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [
+                {"source": "r", "target": "a", "condition": "route_a"},
+                {"source": "r", "target": "b", "condition": "route_b"},
+            ],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
+    def test_router_edge_rejects_unknown_route_id(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {
+                    "id": "r",
+                    "type": "router",
+                    "config": {"routes": [{"id": "route_a"}]},
+                },
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "r", "target": "a", "condition": "route_b"}],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("route_b" in e and "does not match any declared route id" in e for e in errors)
+
+    def test_router_edge_accepts_route_id_from_router_config(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {
+                    "id": "r",
+                    "type": "router",
+                    "config": {"routerConfig": {"routes": [{"id": "alpha"}]}},
+                },
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "r", "target": "a", "condition": "alpha"}],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
+    def test_router_edge_accepts_default_route_id(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {
+                    "id": "r",
+                    "type": "router",
+                    "config": {"routes": [], "defaultRouteId": "fallback"},
+                },
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "r", "target": "a", "condition": "fallback"}],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
+    def test_router_edge_skips_template_condition_when_route_ids_unknown(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "r", "type": "router", "config": {"routes": []}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "r", "target": "a", "condition": "{{ inputs.route }}"}],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
 
 class TestValidateBlueprint:
     """Validation path: required keys, graph errors, and adapter conversion."""
