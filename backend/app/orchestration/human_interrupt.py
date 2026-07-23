@@ -46,7 +46,7 @@ class HumanInterruptRecord(Base, TimestampMixin):
         default=lambda: str(uuid4()),
     )
     mission_id: Mapped[str] = mapped_column(
-        String(36),
+        UUID(as_uuid=False),
         ForeignKey("missions.id"),
         nullable=False,
         index=True,
