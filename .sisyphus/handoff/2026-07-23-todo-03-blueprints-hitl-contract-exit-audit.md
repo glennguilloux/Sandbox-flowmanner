@@ -3,7 +3,13 @@
 **Agent:** Buffy (moonshotai/kimi-k2.7-code)
 **Project:** Flowmanner
 **Date:** 2026-07-23
-**Commits:** (to be created by this audit — see "Status" below)
+**Commits:**
+
+- `442f8836` — feat(blueprints): add 9 TODO-03 mission-builder blueprints
+- `35cc8349` — test(blueprints): add per-blueprint integration test behaviors for TODO-03
+- `762dc454` — docs(substrate): document HITL output contract in node type table
+- `8cee60b6` — feat(tests): add live-substrate blueprint smoke harness
+- `bc24153e` — docs(handoff): add TODO-03 exit audit and handoff
 
 ---
 
@@ -37,6 +43,7 @@ Created the remaining mission-builder blueprints under `backend/`, following the
 ### HITL output contract documentation
 - `backend/scripts/generate_node_type_table.py`
   - Updated to append an "HITL Output Contract" section to the generated documentation.
+  - Fixed generator drift: removed a trailing space after `clarified` and changed the return statement from `return "\n".join(lines) + "\n"` to `return "\n".join(lines)` so the generated table matches the committed file.
 - `backend/docs/substrate-node-types-table.md`
   - Regenerated to document the `approval` / `human_review` output keys:
     - `hitl_resolution` (`approved` | `clarified` | `rejected` | `expired` | `cancelled`)
@@ -149,13 +156,7 @@ Untracked files:
 
 ## Commits produced by this audit
 
-(Recorded at handoff time; commit hashes will be available after push.)
-
-1. `feat(blueprints): add 9 TODO-03 mission-builder blueprints`
-2. `test(blueprints): add per-blueprint integration test behaviors for TODO-03`
-3. `docs(substrate): document HITL output contract in node type table`
-4. `feat(tests): add live-substrate blueprint smoke harness`
-5. `docs(handoff): add TODO-03 exit audit and handoff`
+(Commit hashes are now recorded above.)
 
 ---
 

@@ -226,13 +226,13 @@ def generate_table() -> str:
     )
     lines.append("| `resolution_note` | string \\| null | Free-text note left by the resolver. |")
     lines.append("| `inbox_item_id` | string | UUID of the resolved inbox item. |")
-    lines.append("\nThe top-level node result sets `success: true` for `approved`/`clarified` ")
     lines.append(
+        "\nThe top-level node result sets `success: true` for `approved`/`clarified`\n"
         "and `success: false` (with an `error` key) for `rejected`/`expired`/`cancelled`. "
         "Blueprint conditions should branch on `inputs['<node_id>']['hitl_resolution']` "
         "using these exact strings.\n"
     )
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":
