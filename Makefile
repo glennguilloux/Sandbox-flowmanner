@@ -48,15 +48,13 @@ RESET  := \033[0m
 .PHONY: dev
 dev: ## [HOMELAB] Start full dev environment with hot reload (requires production compose)
 	@echo -e "$(GREEN)Starting dev environment...$(RESET)"
-	$(COMPOSE_DEV) up -d
-	@echo -e "$(GREEN)Backend: http://localhost:8000/docs$(RESET)"
+	$(COMPOSE_DEV) up -d	@echo -e "$(GREEN)  Backend: http://localhost:8001/docs$(RESET)"
 	@echo -e "$(GREEN)Jaeger:  http://localhost:16686$(RESET)"
 
 .PHONY: dev-backend
 dev-backend: ## [HOMELAB] Start only backend in dev mode (dependencies must be running)
 	@echo -e "$(GREEN)Starting backend in dev mode...$(RESET)"
-	$(COMPOSE_DEV) up -d --no-deps backend
-	@echo -e "$(GREEN)Backend: http://localhost:8000/docs$(RESET)"
+	$(COMPOSE_DEV) up -d --no-deps backend	@echo -e "$(GREEN)  Backend: http://localhost:8001/docs$(RESET)"
 
 .PHONY: dev-frontend
 dev-frontend: ## Start frontend dev server
@@ -89,7 +87,7 @@ dev-up: ## Start self-contained dev environment (works on any machine with Docke
 	@echo ""
 	@echo -e "$(GREEN)Waiting for backend to be healthy (first boot may take 60-90s)...$(RESET)"
 	@for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do \
-		if curl -sf http://localhost:8000/health > /dev/null 2>&1; then \
+		if curl -sf http://localhost:8001/health > /dev/null 2>&1; then \
 			echo -e "$(GREEN)✅ Backend is ready!$(RESET)"; \
 			break; \
 		fi; \
@@ -99,8 +97,8 @@ dev-up: ## Start self-contained dev environment (works on any machine with Docke
 	@echo ""
 	@echo -e "$(GREEN)==========================================$(RESET)"
 	@echo -e "$(GREEN)  Flowmanner Dev is running!$(RESET)"
-	@echo -e "$(GREEN)  API docs:  http://localhost:8000/docs$(RESET)"
-	@echo -e "$(GREEN)  Health:    http://localhost:8000/health$(RESET)"
+	@echo -e "$(GREEN)  API docs:  http://localhost:8001/docs$(RESET)"
+	@echo -e "$(GREEN)  Health:    http://localhost:8001/health$(RESET)"
 	@echo -e "$(GREEN)  RabbitMQ:  http://localhost:15672 (guest/dev_rabbitmq)$(RESET)"
 	@echo -e "$(GREEN)==========================================$(RESET)"
 

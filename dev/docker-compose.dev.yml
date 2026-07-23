@@ -21,7 +21,7 @@
 #
 # To stop:  docker compose -f dev/docker-compose.dev.yml down
 # To reset: docker compose -f dev/docker-compose.dev.yml down -v
-# Ports: API=8000, PG=5432, Redis=6379, Qdrant=6333, RabbitMQ=5672/15672
+# Ports: API=8001, PG=5435, Redis=6380, Qdrant=6335/6336, RabbitMQ=5673/15673
 # ============================================================
 
 networks:
@@ -45,7 +45,7 @@ services:
     volumes:
       - dev_postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5435:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flowmanner} -d ${POSTGRES_DB:-flowmanner}"]
       interval: 10s
@@ -70,7 +70,7 @@ services:
     volumes:
       - dev_redis_data:/data
     ports:
-      - "6379:6379"
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-dev_redis}", "ping"]
       interval: 10s
@@ -94,8 +94,8 @@ services:
     volumes:
       - dev_qdrant_data:/qdrant/storage
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "6335:6333"
+      - "6336:6334"
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
       interval: 10s
@@ -119,8 +119,8 @@ services:
     volumes:
       - dev_rabbitmq_data:/var/lib/rabbitmq
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5673:5672"
+      - "15673:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 15s
@@ -139,7 +139,7 @@ services:
       - flowmanner-dev
     command: celery -A app.tasks.celery_app worker --loglevel=info --concurrency=2 --max-tasks-per-child=100
     env_file:
-      - dev/.env.dev
+      - .env.dev
     environment:
       PYTHONUNBUFFERED: "1"
       PYTHONDONTWRITEBYTECODE: "1"
@@ -163,7 +163,7 @@ services:
   # ── Backend (FastAPI + hot-reload) ──────────────────
   dev-backend:
     build:
-      context: ./backend
+      context: ../backend
       dockerfile: Dockerfile.dev
     image: workflows-backend:dev
     container_name: dev-backend
@@ -171,7 +171,7 @@ services:
     networks:
       - flowmanner-dev
     env_file:
-      - dev/.env.dev
+      - .env.dev
     environment:
       APP_ENV: development
       PYTHONUNBUFFERED: "1"
@@ -180,15 +180,15 @@ services:
       UPLOAD_DIR: /app/uploads
     volumes:
       # Mount source code for hot-reload
-      - ./backend/app:/app/app:ro
-      - ./backend/alembic:/app/alembic:ro
-      - ./backend/alembic.ini:/app/alembic.ini:ro
+      - ../backend/app:/app/app:ro
+      - ../backend/alembic:/app/alembic:ro
+      - ../backend/alembic.ini:/app/alembic.ini:ro
       # Mount entrypoint
-      - ./dev/docker-entrypoint.dev.sh:/docker-entrypoint.dev.sh:ro
+      - ./docker-entrypoint.dev.sh:/docker-entrypoint.dev.sh:ro
       # Uploads
       - dev_uploads_data:/app/uploads
     ports:
-      - "8000:8000"
+      - "8001:8000"
     entrypoint: ["/bin/bash", "/docker-entrypoint.dev.sh"]
     depends_on:
       dev-postgres:
