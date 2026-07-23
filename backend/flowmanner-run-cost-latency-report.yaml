@@ -1,0 +1,172 @@
+# flowmanner-run-cost-latency-report.yaml — version 1
+#
+# Pattern #37: Run-cost/latency report.
+#
+# Gathers run cost and latency metrics from a sandbox, computes totals and
+# averages in a transform, renders a markdown report, persists the report to
+# memory, and fires a webhook alert when the cost exceeds a threshold.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-run-cost-latency-report"
+description: |
+  Run-cost and latency report. Collects per-step cost/latency metrics via a
+  sandbox, computes totals, renders a markdown report, writes it to shared
+  memory, and alerts through a webhook when the total cost exceeds the
+  configured threshold.
+
+blueprint_type: dag
+
+inputs:
+  run_id:
+    type: string
+    default: "run-12345"
+    description: "Identifier for the run being reported."
+  cost_threshold:
+    type: number
+    default: 10.0
+    description: "Cost threshold (USD) that triggers the alert."
+  alert_webhook_url:
+    type: string
+    default: ""
+    description: "Webhook URL to alert when the cost threshold is exceeded."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: gather_metrics
+      type: sandbox
+      title: "Gather cost and latency metrics"
+      description: |
+        Collect (or simulate) per-step cost and latency data. The output
+        must be a JSON object with keys: cost, latency_ms, steps.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        task_prompt: |
+          import json
+          print(json.dumps({"cost": 15.50, "latency_ms": 1250, "steps": 5}))
+
+    - id: store_metrics
+      type: variable_set
+      title: "Store raw metrics"
+      description: |
+        Bridge the sandbox output into a run-scoped variable.
+      config:
+        varName: "raw_metrics"
+        varExpr: 'previous_outputs["gather_metrics"]["output"]'
+
+    - id: compute_totals
+      type: transform
+      title: "Compute totals and averages"
+      description: |
+        Calculate total cost, average latency, and whether the threshold
+        is exceeded.
+      config:
+        transformType: "expression"
+        transformExpression: '{"total_cost": inputs["raw_metrics"]["cost"], "avg_latency_ms": inputs["raw_metrics"]["latency_ms"] / inputs["raw_metrics"]["steps"], "exceeds": inputs["raw_metrics"]["cost"] > inputs["cost_threshold"]}'
+
+    - id: store_report_data
+      type: variable_set
+      title: "Store report data"
+      description: |
+        Capture the computed totals for the template renderer.
+      config:
+        varName: "report_data"
+        varExpr: 'previous_outputs["compute_totals"]["output"]'
+
+    - id: render_report
+      type: template_render
+      title: "Render cost/latency report"
+      description: |
+        Format the computed totals into a markdown report.
+      config:
+        template: |
+          # Run Report — {{ inputs.run_id }}
+
+          - Total cost: ${{ inputs.report_data['total_cost'] }}
+          - Average latency: {{ inputs.report_data['avg_latency_ms'] }} ms
+          - Threshold exceeded: {{ inputs.report_data['exceeds'] }}
+
+    - id: store_report_text
+      type: variable_set
+      title: "Store rendered report"
+      description: |
+        Capture the rendered report text for persistence.
+      config:
+        varName: "report_text"
+        varExpr: 'previous_outputs["render_report"]["output"]'
+
+    - id: write_report
+      type: memory_write
+      title: "Persist report to memory"
+      description: |
+        Write the rendered report to the shared memory collection.
+      config:
+        collection: "flowmanner_reports"
+        text: |
+          {{ inputs.report_text }}
+
+    - id: check_cost
+      type: condition
+      title: "Cost exceeds threshold?"
+      description: |
+        Branch based on whether the total cost exceeds the threshold.
+      config:
+        expression: 'inputs["report_data"]["exceeds"]'
+
+    - id: alert_webhook
+      type: webhook
+      title: "Alert on high cost"
+      description: |
+        POST the report to the configured alert webhook.
+      config:
+        url: "{{ inputs.alert_webhook_url }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+
+    - id: log_report
+      type: log
+      title: "Log report within threshold"
+      description: |
+        Record that the report was generated and the cost stayed within
+        the threshold.
+      config:
+        level: info
+        message: "Cost/latency report generated within threshold."
+
+  edges:
+    - source: gather_metrics
+      target: store_metrics
+    - source: store_metrics
+      target: compute_totals
+    - source: compute_totals
+      target: store_report_data
+    - source: store_report_data
+      target: render_report
+    - source: render_report
+      target: store_report_text
+    - source: store_report_text
+      target: write_report
+    - source: write_report
+      target: check_cost
+    - source: check_cost
+      target: alert_webhook
+      condition: "true"
+    - source: check_cost
+      target: log_report
+      condition: "false"
+
+  budget:
+    max_cost_usd: 2.00
+    max_wall_time_seconds: 300
+    max_iterations: 20
+    max_depth: 3
+
+  config: {}

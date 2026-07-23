@@ -1,0 +1,150 @@
+# flowmanner-provenance-tracker.yaml — version 1
+#
+# Pattern #47: Provenance tracker.
+#
+# Builds a provenance record with input/output hashes, a timestamp, and a
+# stable chain hash via a sandbox, validates the record schema, writes the
+# record to shared memory, and logs success.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-provenance-tracker"
+description: |
+  Provenance tracker. Computes SHA-256 hashes of the raw input and processed
+  output, builds a stable chain hash, validates the provenance record
+  schema, persists the record to shared memory, and logs the chain signature.
+
+blueprint_type: dag
+
+inputs:
+  raw_input:
+    type: string
+    default: "Hello world"
+    description: "The original input to track."
+  processed_output:
+    type: string
+    default: "HELLO WORLD"
+    description: "The processed output to track."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: build_record
+      type: sandbox
+      title: "Build provenance record"
+      description: |
+        Compute input/output SHA-256 hashes, a current timestamp, and a
+        stable chain hash. Output must be JSON with keys: input_hash,
+        output_hash, chain_hash, timestamp.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        task_prompt: |
+          import json
+          import hashlib
+          import time
+
+          in_data = """{{ inputs.raw_input }}"""
+          out_data = """{{ inputs.processed_output }}"""
+
+          in_hash = hashlib.sha256(in_data.encode()).hexdigest()
+          out_hash = hashlib.sha256(out_data.encode()).hexdigest()
+          chain = hashlib.sha256((in_hash + out_hash).encode()).hexdigest()
+
+          print(json.dumps({
+              "input_hash": in_hash,
+              "output_hash": out_hash,
+              "chain_hash": chain,
+              "timestamp": int(time.time()),
+          }))
+
+    - id: validate_record
+      type: validate_schema
+      title: "Validate provenance schema"
+      description: |
+        Ensure the provenance record has the required structure.
+      config:
+        payload_key: "output"
+        schema:
+          type: object
+          properties:
+            input_hash:
+              type: string
+            output_hash:
+              type: string
+            chain_hash:
+              type: string
+            timestamp:
+              type: integer
+          required:
+            - "input_hash"
+            - "output_hash"
+            - "chain_hash"
+            - "timestamp"
+
+    - id: store_record
+      type: variable_set
+      title: "Store provenance record"
+      description: |
+        Bridge the validated record into a run-scoped variable.
+      config:
+        varName: "record"
+        varExpr: 'previous_outputs["build_record"]["output"]'
+
+    - id: write_memory
+      type: memory_write
+      title: "Persist provenance record"
+      description: |
+        Write the provenance record and chain hash to shared memory.
+      config:
+        collection: "flowmanner_provenance"
+        text: |
+          chain_hash: {{ inputs.record['chain_hash'] }}
+          input_hash: {{ inputs.record['input_hash'] }}
+          output_hash: {{ inputs.record['output_hash'] }}
+          timestamp: {{ inputs.record['timestamp'] }}
+
+    - id: log_invalid
+      type: log
+      title: "Log invalid provenance"
+      description: |
+        Record that the provenance record failed schema validation.
+      config:
+        level: error
+        message: "Provenance record failed schema validation."
+
+    - id: log_success
+      type: log
+      title: "Log provenance success"
+      description: |
+        Record the chain hash for the tracked input/output.
+      config:
+        level: info
+        message: "Provenance record persisted. Chain hash: {{ inputs.record['chain_hash'] }}"
+
+  edges:
+    - source: build_record
+      target: validate_record
+    - source: validate_record
+      target: store_record
+      condition: "default"
+    - source: validate_record
+      target: log_invalid
+      condition: "on_invalid"
+    - source: store_record
+      target: write_memory
+    - source: write_memory
+      target: log_success
+
+  budget:
+    max_cost_usd: 2.00
+    max_wall_time_seconds: 300
+    max_iterations: 20
+    max_depth: 3
+
+  config: {}

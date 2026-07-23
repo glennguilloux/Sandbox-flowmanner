@@ -1,0 +1,143 @@
+# flowmanner-sla-breach-predictor.yaml — version 1
+#
+# Pattern #38: SLA-breach predictor.
+#
+# Collects latency and availability metrics via a sandbox, validates the
+# payload against a JSON schema, predicts whether an SLA breach is imminent,
+# and routes to a webhook alert or a healthy log.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-sla-breach-predictor"
+description: |
+  SLA-breach predictor. Gathers current latency and availability metrics,
+  validates the payload shape, and branches to a webhook alert when a
+  breach is predicted or to a healthy-status log otherwise.
+
+blueprint_type: dag
+
+inputs:
+  alert_webhook_url:
+    type: string
+    default: ""
+    description: "Webhook URL to alert when an SLA breach is predicted."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: collect_metrics
+      type: sandbox
+      title: "Collect SLA metrics"
+      description: |
+        Gather current latency, availability, and breach-prediction
+        flag. Output must be a JSON object with keys: latency_ms,
+        availability, breach_predicted.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        task_prompt: |
+          import json
+          print(json.dumps({
+              "latency_ms": 1200,
+              "availability": 98.5,
+              "breach_predicted": True,
+          }))
+
+    - id: validate_metrics
+      type: validate_schema
+      title: "Validate metric payload"
+      description: |
+        Ensure the sandbox payload has the expected schema.
+      config:
+        payload_key: "output"
+        schema:
+          type: object
+          properties:
+            latency_ms:
+              type: integer
+            availability:
+              type: number
+            breach_predicted:
+              type: boolean
+          required:
+            - "latency_ms"
+            - "availability"
+            - "breach_predicted"
+
+    - id: store_metrics
+      type: variable_set
+      title: "Store validated metrics"
+      description: |
+        Bridge the validated metrics into a run-scoped variable.
+      config:
+        varName: "metrics"
+        varExpr: 'previous_outputs["collect_metrics"]["output"]'
+
+    - id: check_breach
+      type: condition
+      title: "Breach predicted?"
+      description: |
+        Branch based on the breach-prediction flag.
+      config:
+        expression: 'inputs["metrics"]["breach_predicted"]'
+
+    - id: alert_breach
+      type: webhook
+      title: "Alert on predicted breach"
+      description: |
+        POST an alert when an SLA breach is predicted.
+      config:
+        url: "{{ inputs.alert_webhook_url }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+
+    - id: log_healthy
+      type: log
+      title: "Log healthy SLA status"
+      description: |
+        Record that the SLA metrics are healthy.
+      config:
+        level: info
+        message: "SLA metrics are healthy; no breach predicted."
+
+    - id: log_invalid
+      type: log
+      title: "Log invalid metric payload"
+      description: |
+        Record that the collected metrics did not match the expected
+        schema.
+      config:
+        level: error
+        message: "SLA metric payload failed schema validation."
+
+  edges:
+    - source: collect_metrics
+      target: validate_metrics
+    - source: validate_metrics
+      target: store_metrics
+      condition: "default"
+    - source: validate_metrics
+      target: log_invalid
+      condition: "on_invalid"
+    - source: store_metrics
+      target: check_breach
+    - source: check_breach
+      target: alert_breach
+      condition: "true"
+    - source: check_breach
+      target: log_healthy
+      condition: "false"
+
+  budget:
+    max_cost_usd: 2.00
+    max_wall_time_seconds: 300
+    max_iterations: 20
+    max_depth: 3
+
+  config: {}
