@@ -72,7 +72,7 @@ class TestExtractionSkippedWhenFlagOff:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=False,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,
@@ -100,7 +100,7 @@ class TestExtractionSkippedWhenPaused:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,
@@ -165,7 +165,7 @@ class TestExtractionPersistsClaims:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,
@@ -256,7 +256,7 @@ class TestTeamWorkspaceStaging:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,
@@ -363,7 +363,7 @@ class TestTeamWorkspaceStaging:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,
@@ -458,7 +458,7 @@ class TestDefensiveFilterApplied:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,
@@ -549,7 +549,7 @@ class TestExtractionIsFireAndForget:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,
@@ -633,7 +633,7 @@ class TestExtractionSkipsWhenNoWorkspace:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,
@@ -686,7 +686,7 @@ class TestExtractionErrorDoesNotPropagate:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,
@@ -721,7 +721,7 @@ class TestLLMExtractionWithFallback:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,
@@ -797,7 +797,7 @@ class TestLLMExtractionWithFallback:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,
@@ -884,7 +884,7 @@ class TestLLMExtractionWithFallback:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,
@@ -1017,7 +1017,7 @@ class TestExtractionCalledInStreamPath:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,

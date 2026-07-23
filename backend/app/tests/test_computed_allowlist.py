@@ -67,7 +67,7 @@ class TestComputedAllowlist:
         """default_on tools are exposed in the tool list."""
         from app.services.chat_service import _get_chat_openai_tools
 
-        with patch("app.services.chat_service.settings") as mock_settings:
+        with patch("app.services.chat.toolcall.settings") as mock_settings:
             mock_settings.SANDBOXD_ENABLED = True
             with patch("app.tools.base._tool_registry", mock_registry):
                 tools = await _get_chat_openai_tools()
@@ -81,7 +81,7 @@ class TestComputedAllowlist:
         """opt_in tools are exposed (visible to LLM)."""
         from app.services.chat_service import _get_chat_openai_tools
 
-        with patch("app.services.chat_service.settings") as mock_settings:
+        with patch("app.services.chat.toolcall.settings") as mock_settings:
             mock_settings.SANDBOXD_ENABLED = True
             with patch("app.tools.base._tool_registry", mock_registry):
                 tools = await _get_chat_openai_tools()
@@ -95,7 +95,7 @@ class TestComputedAllowlist:
         """Hidden tools (write ops) are NOT exposed."""
         from app.services.chat_service import _get_chat_openai_tools
 
-        with patch("app.services.chat_service.settings") as mock_settings:
+        with patch("app.services.chat.toolcall.settings") as mock_settings:
             mock_settings.SANDBOXD_ENABLED = True
             with patch("app.tools.base._tool_registry", mock_registry):
                 tools = await _get_chat_openai_tools()
@@ -109,7 +109,7 @@ class TestComputedAllowlist:
         """Tools not tagged in-file default to hidden (ToolMetadata default)."""
         from app.services.chat_service import _get_chat_openai_tools
 
-        with patch("app.services.chat_service.settings") as mock_settings:
+        with patch("app.services.chat.toolcall.settings") as mock_settings:
             mock_settings.SANDBOXD_ENABLED = True
             with patch("app.tools.base._tool_registry", mock_registry):
                 tools = await _get_chat_openai_tools()
@@ -123,7 +123,7 @@ class TestComputedAllowlist:
         """sandboxd tools excluded when SANDBOXD_ENABLED=False."""
         from app.services.chat_service import _get_chat_openai_tools
 
-        with patch("app.services.chat_service.settings") as mock_settings:
+        with patch("app.services.chat.toolcall.settings") as mock_settings:
             mock_settings.SANDBOXD_ENABLED = False
             with patch("app.tools.base._tool_registry", mock_registry):
                 tools = await _get_chat_openai_tools()
@@ -137,7 +137,7 @@ class TestComputedAllowlist:
         """sandboxd tools included when SANDBOXD_ENABLED=True."""
         from app.services.chat_service import _get_chat_openai_tools
 
-        with patch("app.services.chat_service.settings") as mock_settings:
+        with patch("app.services.chat.toolcall.settings") as mock_settings:
             mock_settings.SANDBOXD_ENABLED = True
             with patch("app.tools.base._tool_registry", mock_registry):
                 tools = await _get_chat_openai_tools()

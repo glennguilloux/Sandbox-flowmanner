@@ -66,7 +66,7 @@ def patched_settings(monkeypatch: pytest.MonkeyPatch):
         )
         if not hasattr(ns, "CHAT_PREPARE_STEP_HOOK_ENABLED"):
             ns.CHAT_PREPARE_STEP_HOOK_ENABLED = False
-        monkeypatch.setattr("app.services.chat_service.settings", ns)
+        monkeypatch.setattr("app.services.chat.messages.settings", ns)
         return ns
 
     _set()

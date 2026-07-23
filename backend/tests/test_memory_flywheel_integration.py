@@ -292,7 +292,7 @@ class TestFullFlywheel:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=True,
@@ -563,7 +563,7 @@ class TestPauseToggleInFlywheel:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,
@@ -690,7 +690,7 @@ class TestNonStreamingExtraction:
         from app.services import chat_service
 
         monkeypatch.setattr(
-            "app.services.chat_service.settings",
+            "app.services.chat.toolcall.settings",
             SimpleNamespace(
                 FLOWMANNER_CROSS_MISSION_MEMORY=True,
                 CHAT_MEMORY_CITATIONS_ENABLED=False,

@@ -218,7 +218,7 @@ class TestChatToolAllowlist:
         """If registry is empty, returns None."""
         from app.services.chat_service import _get_chat_openai_tools
 
-        with patch("app.services.chat_service.settings") as mock_settings:
+        with patch("app.services.chat.toolcall.settings") as mock_settings:
             mock_settings.SANDBOXD_ENABLED = True
             with patch("app.tools.base.get_tool_registry") as mock_registry:
                 mock_registry.return_value.list_all.return_value = []

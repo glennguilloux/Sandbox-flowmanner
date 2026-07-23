@@ -65,7 +65,7 @@ class TestSandboxdSystemPromptInjection:
                 new_callable=AsyncMock,
                 return_value=thread,
             ),
-            patch("app.services.chat_service.settings") as mock_settings,
+            patch("app.services.chat.toolcall.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = True
             mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
@@ -91,7 +91,7 @@ class TestSandboxdSystemPromptInjection:
                 new_callable=AsyncMock,
                 return_value=thread,
             ),
-            patch("app.services.chat_service.settings") as mock_settings,
+            patch("app.services.chat.toolcall.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = False
             mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
@@ -116,7 +116,7 @@ class TestSandboxdSystemPromptInjection:
                 new_callable=AsyncMock,
                 return_value=thread,
             ),
-            patch("app.services.chat_service.settings") as mock_settings,
+            patch("app.services.chat.toolcall.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = True
             mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
@@ -140,7 +140,7 @@ class TestSandboxdSystemPromptInjection:
                 new_callable=AsyncMock,
                 return_value=thread,
             ),
-            patch("app.services.chat_service.settings") as mock_settings,
+            patch("app.services.chat.toolcall.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = True
             mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
@@ -164,7 +164,7 @@ class TestSandboxdSystemPromptInjection:
                 new_callable=AsyncMock,
                 return_value=thread,
             ),
-            patch("app.services.chat_service.settings") as mock_settings,
+            patch("app.services.chat.toolcall.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = False
             mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
@@ -188,7 +188,7 @@ class TestSandboxdSystemPromptInjection:
                 new_callable=AsyncMock,
                 return_value=thread,
             ),
-            patch("app.services.chat_service.settings") as mock_settings,
+            patch("app.services.chat.toolcall.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = True
             mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
@@ -212,7 +212,7 @@ class TestSandboxdSystemPromptInjection:
                 new_callable=AsyncMock,
                 return_value=thread,
             ),
-            patch("app.services.chat_service.settings") as mock_settings,
+            patch("app.services.chat.toolcall.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = True
             mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
@@ -238,7 +238,7 @@ class TestSandboxdSystemPromptInjection:
                 new_callable=AsyncMock,
                 return_value=thread,
             ),
-            patch("app.services.chat_service.settings") as mock_settings,
+            patch("app.services.chat.toolcall.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = True
             mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False
@@ -263,7 +263,7 @@ class TestSandboxdSystemPromptInjection:
                 new_callable=AsyncMock,
                 return_value=None,
             ),
-            patch("app.services.chat_service.settings") as mock_settings,
+            patch("app.services.chat.toolcall.settings") as mock_settings,
         ):
             mock_settings.SANDBOXD_ENABLED = True
             mock_settings.CHAT_CONTEXT_PRUNING_ENABLED = False

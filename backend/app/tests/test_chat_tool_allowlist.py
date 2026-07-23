@@ -77,7 +77,7 @@ def test_write_tools_absent():
 
 def test_sandboxd_absent_when_disabled():
     """sandboxd tools should be absent when SANDBOXD_ENABLED is False."""
-    with patch("app.services.chat_service.settings") as mock_settings:
+    with patch("app.services.chat.toolcall.settings") as mock_settings:
         mock_settings.SANDBOXD_ENABLED = False
         from app.services.chat_service import _get_chat_openai_tools
 
