@@ -3,7 +3,9 @@
 **Agent:** Buffy (moonshotai/kimi-k2.7-code)
 **Project:** Flowmanner
 **Date:** 2026-07-23
-**Commit:** `52f45498` — feat(blueprints): add reliability blueprint and extend linter edge semantics
+**Commits:**
+- `52f45498` — feat(blueprints): add reliability blueprint and extend linter edge semantics
+- `6ab4c8fb` — feat(blueprints): add circuit-breaker simulation blueprint
 
 ---
 
@@ -51,6 +53,23 @@
 ### `backend/docs/substrate-node-types-table.md`
 - Regenerated; only change is `timeoutMs` now correctly marked as required (`R`).
 
+### `backend/flowmanner-circuit-breaker-blueprint.yaml` (new)
+- Added a DAG blueprint that simulates circuit-breaker semantics using existing node types.
+- **Substrate gap analysis** (in `.sisyphus/analysis/2026-07-23-circuit-breaker-substrate-gap.md`) found:
+  - No `circuit_breaker`, `lease_reclaim`, or `resume` node types exist.
+  - The real circuit breaker is internal (`app/core/circuit_breaker.py` and `app/services/substrate/circuit_breaker.py`); it cannot be manipulated from a blueprint.
+  - Lease reclamation runs as a Celery background thread; no cron/DB-admin node exists.
+  - Resume validation is automatic in `UnifiedExecutor.execute`; no `resume`/`checkpoint` node exists.
+  - **Most feasible option:** simulate the circuit breaker pattern within a single run.
+- Blueprint structure:
+  - `condition` node branches on `inputs['circuit_state'] == 'open'`.
+  - `retry` node wraps a `sandbox` that performs the protected HTTP call and returns a structured `{success: bool}` payload.
+  - On success: `variable_set` resets `failure_count` to 0 and `circuit_state` to `"closed"`, then logs.
+  - On failure: `variable_set` increments `failure_count`, `condition` checks the threshold, and if reached the circuit is opened; logs and webhook alert fire.
+  - Open branch: fail-fast log, `delay` cooldown, transition to `"half_open"`, then re-enters the protected call for a probe.
+- Uses literal integers for `retry.maxRetries`, `retry.backoffMs`, and `delay.delayMs` (required by the linter/substrate).
+- Uses valid Python subscript expressions in `condition`/`variable_set` (e.g. `inputs['failure_count'] >= inputs['failure_threshold']`).
+
 ---
 
 ## What did not change but was inspected
@@ -77,9 +96,10 @@ cd /opt/flowmanner && make lint-blueprints
 ```
 
 ```
-Scanning 9 YAML file(s) for blueprints...
+Scanning 10 YAML file(s) for blueprints...
 ✅ backend/flowmanner-ab-arena.yaml
 ✅ backend/flowmanner-cache-warmer.yaml
+✅ backend/flowmanner-circuit-breaker-blueprint.yaml
 ✅ backend/flowmanner-institutional-memory.yaml
 ✅ backend/flowmanner-multi-repo-audit.yaml
 ✅ backend/flowmanner-rag-report.yaml
@@ -87,7 +107,7 @@ Scanning 9 YAML file(s) for blueprints...
 ✅ blueprints/auth-flow-tester.yaml
 ✅ blueprints/scrape-diff-alert.yaml
 ✅ blueprints/web-recon.yaml
-All 9 blueprint(s) passed validation.
+All 10 blueprint(s) passed validation.
 ```
 
 ```
@@ -153,12 +173,12 @@ Not run inside Docker; the relevant test subset was run directly against the bac
 
 ## Next session handoff
 
-The reliability blueprint and linter edge-semantics validation are now committed and pushed to `origin/main`. The linter now guards timeout-node config, edge conditions for condition/timeout/validate_schema/router nodes, and DAG condition-node branch structure. All 9 project blueprints pass validation and the linter/docs test suite is green (181 tests).
+The reliability blueprint, linter edge-semantics validation, and circuit-breaker simulation blueprint are now committed and pushed to `origin/main`. The linter now guards timeout-node config, edge conditions for condition/timeout/validate_schema/router nodes, and DAG condition-node branch structure. All 10 project blueprints pass validation and the linter/docs test suite is green (181 tests).
 
 Potential next work:
 
-1. **Build the next reliability blueprint from TODO-05 options** — circuit breaker, lease reclamation cron, or resume validation. Note: the substrate does not currently expose dedicated node types for these, so the first step would be either adding substrate support or simulating the pattern with existing nodes.
-2. **Extend linter further** — e.g., validate that router nodes emit route ids matching their outgoing edge conditions, or that validate_schema nodes have both `default` and `on_invalid` branches.
+1. **Add a dedicated `circuit_breaker` substrate node type** backed by the existing `circuit_breaker_state` table, so blueprints can share real circuit-breaker state across runs instead of simulating it per-run.
+2. **Extend the linter** — e.g., validate that router nodes emit route ids matching their outgoing edge conditions, or that validate_schema nodes have both `default` and `on_invalid` branches.
 3. **Run the full backend test suite in a properly provisioned environment** to separate pre-existing environment failures from real regressions.
 4. **Deploy** — no deploy was attempted. Glenn can deploy manually after review.
 
