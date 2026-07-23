@@ -36,9 +36,9 @@ from app.services.substrate.event_log import _compute_idempotency_key, get_event
 from app.services.substrate.hitl_pause import HITLPaused
 from app.services.substrate.interpolate import interpolate_inputs
 from app.services.substrate.workflow_models import (
+    SPLIT_AGGREGATE_MARKER,
     EffectClass,
     NodeType,
-    SPLIT_AGGREGATE_MARKER,
     Workflow,
     WorkflowNode,
 )
@@ -2865,13 +2865,20 @@ class NodeExecutor:
                 "error": "retry wrapper requires a workflow graph to resolve its child",
             }
 
-        child_ids = [edge.target for edge in workflow.edges if edge.source == node.id]
-        if not child_ids:
+        child_id: str | None = None
+        wrapped_node_id = node.config.get("wrapped_node_id")
+        if isinstance(wrapped_node_id, str) and wrapped_node_id.strip():
+            child_id = wrapped_node_id.strip()
+        else:
+            child_ids = [edge.target for edge in workflow.edges if edge.source == node.id]
+            if child_ids:
+                child_id = child_ids[0]
+
+        if child_id is None:
             return {
                 "success": False,
-                "error": "retry wrapper has no wrapped child (no outgoing edge)",
+                "error": "retry wrapper has no wrapped child (no outgoing edge or config.wrapped_node_id)",
             }
-        child_id = child_ids[0]
         child = workflow.node_map.get(child_id)
         if child is None:
             return {

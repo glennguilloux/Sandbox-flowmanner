@@ -467,6 +467,55 @@ def _get_router_route_ids(config: dict[str, Any]) -> set[str]:
     return route_ids
 
 
+def _delay_cycle_nodes(nodes: list[Any], edges: list[Any]) -> set[str]:
+    """Return ids of delay nodes that participate in a cycle of only delay nodes.
+
+    A cycle made up exclusively of delay nodes would sleep forever, so every
+    node in such a cycle is flagged. Cycles that mix delay nodes with other
+    node types (e.g. polling loops with conditions) are intentionally allowed.
+    """
+    delay_ids = {n.get("id") for n in nodes if isinstance(n, dict) and n.get("type") == "delay"}
+    adj: dict[str, list[str]] = {nid: [] for nid in delay_ids}
+
+    for edge in edges:
+        if not isinstance(edge, dict):
+            continue
+        src = edge.get("source")
+        tgt = edge.get("target")
+        if src in delay_ids and tgt in delay_ids:
+            adj[src].append(tgt)
+
+    visiting: set[str] = set()
+    visited: set[str] = set()
+    cycle_nodes: set[str] = set()
+
+    def dfs(node: str, stack: list[str]) -> None:
+        if node in visiting:
+            # Found a cycle; all nodes in the current stack from the first
+            # occurrence of this node are part of the cycle.
+            if node in stack:
+                idx = stack.index(node)
+                cycle_nodes.update(stack[idx:])
+            return
+        if node in visited:
+            return
+
+        visiting.add(node)
+        stack.append(node)
+        for neighbor in adj.get(node, []):
+            if neighbor not in visited:
+                dfs(neighbor, stack)
+        stack.pop()
+        visiting.remove(node)
+        visited.add(node)
+
+    for node in delay_ids:
+        if node not in visited:
+            dfs(node, [])
+
+    return cycle_nodes
+
+
 def validate_edge_semantics(definition: dict, *, blueprint_type: str = "dag") -> list[str]:
     """Return a list of validation errors for edge conditions.
 
@@ -534,6 +583,8 @@ def validate_edge_semantics(definition: dict, *, blueprint_type: str = "dag") ->
                         "which does not match any declared route id"
                     )
 
+    delay_cycle_nodes = _delay_cycle_nodes(nodes, edges)
+
     # Timeout-specific structural checks.
     for node in nodes:
         if not isinstance(node, dict):
@@ -574,7 +625,21 @@ def validate_edge_semantics(definition: dict, *, blueprint_type: str = "dag") ->
             ):
                 errors.append(
                     f"Validate schema node '{node_id}' must route 'default' and 'on_invalid' to different targets"
+                )  # Retry nodes wrap a single child via outgoing edge or wrapped_node_id.
+        if node_type == "retry":
+            raw_config = node.get("config")
+            config = raw_config if isinstance(raw_config, dict) else {}
+            has_wrapped = _is_non_empty_string(config.get("wrapped_node_id"))
+            default_edges = [e for e in outgoing if e.get("condition") in (None, "default")]
+
+            if not has_wrapped and len(default_edges) != 1:
+                errors.append(
+                    f"Retry node '{node_id}' must specify config.wrapped_node_id or have exactly one default outgoing edge"
                 )
+
+        # Delay nodes must not form cycles composed entirely of delay nodes.
+        if node_type == "delay" and node_id in delay_cycle_nodes:
+            errors.append(f"Delay node '{node_id}' is part of a cycle composed entirely of delay nodes")
 
         # DAG condition nodes must branch to exactly one true and one false target.
         if blueprint_type == "dag" and node_type == "condition":

@@ -908,6 +908,102 @@ class TestValidateEdgeSemantics:
         )
         assert lint.validate_edge_semantics(definition) == []
 
+    def test_retry_with_one_default_edge_passes(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "r", "type": "retry", "config": {"maxRetries": 3}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "r", "target": "a"}],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
+    def test_retry_with_wrapped_node_id_passes(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "r", "type": "retry", "config": {"maxRetries": 3, "wrapped_node_id": "a"}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
+    def test_retry_requires_default_edge_or_wrapped_node_id(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "r", "type": "retry", "config": {"maxRetries": 3}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("exactly one default outgoing edge" in e for e in errors)
+
+    def test_retry_rejects_multiple_outgoing_edges(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "r", "type": "retry", "config": {"maxRetries": 3}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+                {"id": "b", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [
+                {"source": "r", "target": "a"},
+                {"source": "r", "target": "b"},
+            ],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("exactly one default outgoing edge" in e for e in errors)
+
+    def test_retry_rejects_conditioned_edge_as_only_outgoing(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "r", "type": "retry", "config": {"maxRetries": 3}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "r", "target": "a", "condition": "default"}],
+        )
+        # condition 'default' is allowed as a default edge
+        assert lint.validate_edge_semantics(definition) == []
+
+    def test_delay_cycle_two_nodes(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "d1", "type": "delay", "config": {"delayMs": 1000}},
+                {"id": "d2", "type": "delay", "config": {"delayMs": 1000}},
+            ],
+            [
+                {"source": "d1", "target": "d2"},
+                {"source": "d2", "target": "d1"},
+            ],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("part of a cycle" in e for e in errors)
+
+    def test_delay_self_loop(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "d", "type": "delay", "config": {"delayMs": 1000}},
+            ],
+            [{"source": "d", "target": "d"}],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("part of a cycle" in e for e in errors)
+
+    def test_delay_no_cycle_when_mixed_with_other_nodes(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "d1", "type": "delay", "config": {"delayMs": 1000}},
+                {"id": "c", "type": "condition", "config": {"expression": "x"}},
+                {"id": "d2", "type": "delay", "config": {"delayMs": 1000}},
+            ],
+            [
+                {"source": "d1", "target": "c"},
+                {"source": "c", "target": "d2", "condition": "true"},
+                {"source": "c", "target": "d1", "condition": "false"},
+            ],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
 
 class TestValidateBlueprint:
     """Validation path: required keys, graph errors, and adapter conversion."""

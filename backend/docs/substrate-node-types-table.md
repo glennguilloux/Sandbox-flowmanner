@@ -36,7 +36,7 @@ This table is generated automatically from the substrate source.
 | `log` | `_handle_log` | `level` (R), `message` (R) |
 | `loop` | `_handle_loop` | `loop_var` (O), `max_iterations` (O), `stop_condition` (O) |
 | `webhook` | `_handle_webhook` | `headers` (O), `method` (O), `url` (R) |
-| `retry` | `_handle_retry` | `backoffMs` (O), `maxRetries` (R) |
+| `retry` | `_handle_retry` | `backoffMs` (O), `maxRetries` (R), `wrapped_node_id` (O) |
 | `cache_get` | `_handle_cache_get` | `key` (R), `modelId` (O), `params` (O), `prompt` (O), `promptTemplate` (O) |
 | `validate_schema` | `_handle_validate_schema` | `payload_key` (O), `schema` (R) |
 | `router` | `_handle_router` | — |
