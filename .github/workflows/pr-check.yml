@@ -145,6 +145,11 @@ jobs:
       # data. This runs with no DB and lives under app/tests/ (outside the
       # default testpaths=["tests"]), so it is invoked explicitly here rather
       # than relying on the broad `pytest tests/` collection above.
+      - name: Lint blueprints
+        run: |
+          source /tmp/prcheck-venv/bin/activate
+          make lint-blueprints
+
       - name: Model-registration drift guard
         env:
           APP_ENV: test

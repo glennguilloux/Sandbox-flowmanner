@@ -334,12 +334,21 @@ clean: ## Remove build artifacts and caches
 	rm -rf $(FRONTEND_DIR)/node_modules/.cache 2>/dev/null || true
 	@echo -e "$(GREEN)Clean complete.$(RESET)"
 
-.PHONY: lint
+.PHONY: lint lint-blueprints
 lint: ## Run linters
 	@echo -e "$(GREEN)Running backend linter...$(RESET)"
 	cd $(BACKEND_DIR) && $(RUFF) check app/ --select E,F,W --ignore E501
 	@echo -e "$(GREEN)Running frontend linter...$(RESET)"
 	cd $(FRONTEND_DIR) && npx next lint 2>/dev/null || true
+
+lint-blueprints: ## Validate all blueprint YAML files
+	@echo -e "$(GREEN)Validating blueprint YAML files...$(RESET)"
+	cd $(BACKEND_DIR) && $(PYTHON) scripts/lint_blueprints.py
+
+.PHONY: test-lint-blueprints
+test-lint-blueprints: ## Run unit tests for the blueprint linter
+	@echo -e "$(GREEN)Running blueprint linter unit tests...$(RESET)"
+	cd $(BACKEND_DIR) && $(PYTHON) -m pytest tests/test_lint_blueprints.py -q
 
 .PHONY: format
 format: ## Run formatters

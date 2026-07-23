@@ -1,0 +1,170 @@
+# flowmanner-multi-repo-audit.yaml — version 1
+#
+# Pattern B multi-repo audit using TRUE node-level parallelism via the
+# substrate split → merge path.  A split node fans out one branch per
+# repository URL; each branch runs a sandbox audit in parallel.  A merge
+# node (mergeStrategy: concat) aggregates ALL per-item outputs, which is
+# then bridged into run-scoped inputs by a variable_set node so the
+# downstream llm_call can rank the findings.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-multi-repo-audit"
+description: |
+  Audit multiple repositories in parallel. Each repository is cloned and
+  analyzed for test collection, lint findings, and technical-debt markers.
+  Per-repo results are aggregated and ranked by an LLM into a concise
+  severity report.
+
+blueprint_type: dag
+
+inputs:
+  repos:
+    type: array
+    default:
+      - "https://github.com/glennguillou/FlowmannerV2.git"
+      - "https://github.com/glennguillou/FlowmannerV2-frontend.git"
+      - "https://github.com/glennguillou/flowmanner-substrate.git"
+  model:
+    type: string
+    default: ""
+  workdir:
+    type: string
+    default: "/workspace/repo"
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: split_repos
+      type: split
+      title: "Split repositories into per-item branches"
+      description: |
+        Fan out the repos array so each repository URL is audited in its
+        own parallel branch. The current item is injected as {{ input }}.
+      config:
+        splitOn: "inputs.repos"
+        mode: "item"
+
+    - id: audit_repo
+      type: sandbox
+      title: "Audit a single repository"
+      description: |
+        Clone the per-item repository and run pytest collection, ruff lint,
+        and a technical-debt grep. Output a single fenced JSON block with
+        repo, tests, lint, and debt keys.
+      config:
+        template: python-img
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        model: "{{ inputs.model }}"
+        task_prompt: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          repo_url="{{ input }}"
+          workdir="{{ inputs.workdir }}"
+
+          # Clean workspace and clone the repository
+          rm -rf "${workdir}"
+          git clone --depth 1 "${repo_url}" "${workdir}" >/dev/null 2>&1
+          cd "${workdir}"
+
+          # Collect pytest test plan (best-effort; repo may not have tests)
+          tests_output=$(pytest --co -q 2>/dev/null | tail -3 || true)
+
+          # Run ruff lint (best-effort; ruff may not be installed)
+          lint_output=$(ruff check . 2>/dev/null | tail -5 || true)
+
+          # Search for technical-debt markers in backend Python files
+          debt_output=$(grep -rnE '\b(TODO|FIXME|HACK|XXX)\b' backend --include='*.py' 2>/dev/null | head -20 || true)
+
+          # Emit exactly one fenced JSON block via Python (avoids shell quoting pitfalls)
+          REPO="${repo_url}" \
+          TESTS="${tests_output}" \
+          LINT="${lint_output}" \
+          DEBT="${debt_output}" \
+          python3 <<'PY'
+          import json, os
+
+          result = {
+              "repo": os.environ["REPO"],
+              "tests": os.environ["TESTS"],
+              "lint": os.environ["LINT"],
+              "debt": os.environ["DEBT"],
+          }
+
+          print("""```json""")
+          print(json.dumps(result))
+          print("""```""")
+          PY
+
+    - id: merge_results
+      type: merge
+      title: "Merge per-repo audit outputs"
+      description: |
+        Collect all per-item outputs from the audit_repo branches into a
+        single list. mergeStrategy: concat ensures every result is kept.
+      dependencies:
+        - audit_repo
+      config:
+        mergeStrategy: "concat"
+
+    - id: set_merged
+      type: variable_set
+      title: "Bridge merge output into inputs"
+      description: |
+        Pull the merged list out of node outputs and write it into the
+        run-scoped inputs dict so the downstream llm_call can reference
+        it with {{ inputs.merged_results }}.
+      config:
+        varName: "merged_results"
+        varExpr: 'previous_outputs["merge_results"]["merged"]'
+
+    - id: rank_findings
+      type: llm_call
+      title: "Rank findings by severity"
+      description: |
+        Use an LLM to rank the aggregated repo audit results by severity.
+      config:
+        prompt: |
+          You are a code health analyst. Rank the following repo audit
+          results by severity of issues found. Output a JSON array of
+          objects with keys: repo, severity, summary.
+
+          Results: {{ inputs.merged_results }}
+        system_prompt: "You are a code health analyst. Be concise and factual. Output only valid JSON."
+        temperature: 0.3
+        max_tokens: 2000
+
+    - id: log_summary
+      type: log
+      title: "Log audit completion"
+      description: |
+        Emit an info-level log summarizing the completed multi-repo audit.
+      config:
+        level: "info"
+        message: "Multi-repo audit complete. Ranked {{ inputs.repos }} repos."
+
+  edges:
+    - source: split_repos
+      target: audit_repo
+    - source: audit_repo
+      target: merge_results
+    - source: merge_results
+      target: set_merged
+    - source: set_merged
+      target: rank_findings
+    - source: rank_findings
+      target: log_summary
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 900
+    max_iterations: 50
+    max_depth: 3
+
+  config: {}

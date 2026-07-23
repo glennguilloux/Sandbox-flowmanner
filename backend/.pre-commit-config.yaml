@@ -63,3 +63,21 @@ repos:
         language: system
         pass_filenames: false
         files: ^backend/alembic/.*$
+
+      - id: lint-blueprints
+        name: lint-blueprints
+        description: Validate all blueprint YAML files via `make lint-blueprints`.
+        entry: make lint-blueprints
+        language: system
+        pass_filenames: false
+        # Run when any blueprint YAML changes, or when the linter script itself
+        # changes, so logic updates are immediately validated locally.
+        files: "(^(backend/|blueprints/).*\\.(yaml|yml)$)|(^backend/scripts/lint_blueprints\\.py$)"
+
+      - id: lint-blueprints-unit-tests
+        name: lint-blueprints unit tests
+        description: Run unit tests for the blueprint linter when the linter or its tests change.
+        entry: make test-lint-blueprints
+        language: system
+        pass_filenames: false
+        files: "^(backend/scripts/lint_blueprints\\.py|backend/tests/test_lint_blueprints\\.py)$"

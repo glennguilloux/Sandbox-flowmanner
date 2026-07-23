@@ -56,6 +56,11 @@ jobs:
       - name: Lint with ruff
         run: ruff check app/ --ignore E501,E402,F811 --target-version py311 || echo "Lint issues found (non-blocking)"
 
+      - name: Lint blueprints
+        run: |
+          cd ..
+          make lint-blueprints
+
       - name: Run core tests
         run: |
           pytest tests/ \

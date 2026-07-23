@@ -19,12 +19,13 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import yaml
 
+import app.services.substrate.node_executor as node_executor_mod
 from app.services.substrate.adapters import blueprint_to_workflow
 from app.services.substrate.executor import UnifiedExecutor
+
 # HITLPaused intentionally not imported here; the graph-strategy pause contract
 # uses output["pause"] in these integration tests.
-from app.services.substrate.workflow_models import NodeType
-import app.services.substrate.node_executor as node_executor_mod
+from app.services.substrate.workflow_models import SPLIT_AGGREGATE_MARKER, NodeType
 
 
 # ---------------------------------------------------------------------------
@@ -87,10 +88,7 @@ def _load_workflow(blueprint_name: str, *, remove_edges: list[tuple[str, str]] |
 
     if remove_edges:
         edges = snapshot.get("edges", [])
-        snapshot["edges"] = [
-            e for e in edges
-            if (e.get("source"), e.get("target")) not in remove_edges
-        ]
+        snapshot["edges"] = [e for e in edges if (e.get("source"), e.get("target")) not in remove_edges]
 
     return blueprint_to_workflow(
         snapshot,
@@ -135,6 +133,7 @@ class FakeNodeExecutor:
     calls: list[dict[str, Any]] = []
     sandbox_calls: list[dict[str, Any]] = []
     webhook_calls: list[dict[str, Any]] = []
+    merge_calls: list[dict[str, Any]] = []
 
     def __init__(self, *args, **kwargs) -> None:
         self.rag_context = ["RAG context item 1", "RAG context item 2"]
@@ -146,11 +145,13 @@ class FakeNodeExecutor:
         }
 
     async def execute(self, db, node, context, budget, run_id, workflow=None):
-        FakeNodeExecutor.calls.append({
-            "node_id": node.id,
-            "node_type": node.type.value,
-            "context_inputs": context.get("inputs") if isinstance(context, dict) else None,
-        })
+        FakeNodeExecutor.calls.append(
+            {
+                "node_id": node.id,
+                "node_type": node.type.value,
+                "context_inputs": context.get("inputs") if isinstance(context, dict) else None,
+            }
+        )
 
         handler = getattr(self, f"_handle_{node.type.value}", self._handle_unknown)
         return await handler(node, context)
@@ -193,17 +194,25 @@ class FakeNodeExecutor:
         return {
             "success": True,
             "task_id": node.id,
-            "output": {"items": items, "count": len(items), "empty": len(items) == 0, "split_on": split_on, "mode": mode},
+            "output": {
+                "items": items,
+                "count": len(items),
+                "empty": len(items) == 0,
+                "split_on": split_on,
+                "mode": mode,
+            },
             "tokens": 0,
             "cost": 0.0,
         }
 
     async def _handle_sandbox(self, node, context):
-        FakeNodeExecutor.sandbox_calls.append({
-            "node_id": node.id,
-            "input": context.get("input"),
-            "inputs": _get(context, "inputs"),
-        })
+        FakeNodeExecutor.sandbox_calls.append(
+            {
+                "node_id": node.id,
+                "input": context.get("input"),
+                "inputs": _get(context, "inputs"),
+            }
+        )
         return {
             "success": True,
             "task_id": node.id,
@@ -225,7 +234,11 @@ class FakeNodeExecutor:
         return {
             "success": True,
             "task_id": node.id,
-            "output": {"query": node.config.get("query"), "context": self.rag_context, "collection": node.config.get("collection")},
+            "output": {
+                "query": node.config.get("query"),
+                "context": self.rag_context,
+                "collection": node.config.get("collection"),
+            },
             "tokens": 0,
             "cost": 0.0,
         }
@@ -257,7 +270,7 @@ class FakeNodeExecutor:
             previous_outputs = context.get("previous_outputs", {})
             inputs = context.get("inputs", {})
             try:
-                result = eval(  # noqa: S307
+                result = eval(
                     expr,
                     {"__builtins__": {}},
                     {
@@ -333,11 +346,13 @@ class FakeNodeExecutor:
         }
 
     async def _handle_webhook(self, node, context):
-        FakeNodeExecutor.webhook_calls.append({
-            "node_id": node.id,
-            "url": node.config.get("url"),
-            "inputs": _get(context, "inputs"),
-        })
+        FakeNodeExecutor.webhook_calls.append(
+            {
+                "node_id": node.id,
+                "url": node.config.get("url"),
+                "inputs": _get(context, "inputs"),
+            }
+        )
         return {
             "success": True,
             "task_id": node.id,
@@ -360,6 +375,61 @@ class FakeNodeExecutor:
             "success": True,
             "task_id": node.id,
             "output": {"stored": True},
+            "tokens": 0,
+            "cost": 0.0,
+        }
+
+    async def _handle_merge(self, node, context):
+        # Collect upstream split-aggregate outputs.  A merge node in a split path
+        # should only aggregate the per-item outputs produced by the fan-out;
+        # other upstream nodes (e.g. the split node itself) are not part of the
+        # join set.  This mirrors the intended use of merge as a join point.
+        previous_outputs = dict(context.get("previous_outputs") or {})
+        raw_upstream = [previous_outputs[d] for d in node.dependencies if d in previous_outputs]
+
+        # If no explicit dependencies are set, fall back to upstreams that carry
+        # the split-aggregate marker (best-effort join) instead of every node.
+        if not raw_upstream:
+            raw_upstream = [
+                out for out in previous_outputs.values() if isinstance(out, dict) and out.get(SPLIT_AGGREGATE_MARKER)
+            ]
+
+        upstream: list[Any] = []
+        for out in raw_upstream:
+            if isinstance(out, dict) and out.get(SPLIT_AGGREGATE_MARKER):
+                upstream.extend(out.get("items", []))
+            else:
+                upstream.append(out)
+
+        strategy = node.config.get("mergeStrategy") or "concat"
+        if strategy == "first":
+            combined: Any = next((out for out in upstream if out is not None), None)
+        elif strategy == "merge_dict":
+            combined = {}
+            for out in upstream:
+                if isinstance(out, dict):
+                    combined.update(out)
+        else:  # concat
+            combined = []
+            for out in upstream:
+                if isinstance(out, (list, tuple, set)):
+                    combined.extend(out)
+                elif out is not None:
+                    combined.append(out)
+
+        FakeNodeExecutor.merge_calls.append(
+            {
+                "node_id": node.id,
+                "upstream_count": len(upstream),
+                "merged": combined,
+            }
+        )
+
+        return {
+            "success": True,
+            "task_id": node.id,
+            "output": {"merged": combined, "strategy": strategy, "upstream_count": len(upstream)},
+            "branch": "default",
             "tokens": 0,
             "cost": 0.0,
         }
@@ -394,6 +464,7 @@ def fake_node_executor(monkeypatch):
     FakeNodeExecutor.calls.clear()
     FakeNodeExecutor.sandbox_calls.clear()
     FakeNodeExecutor.webhook_calls.clear()
+    FakeNodeExecutor.merge_calls.clear()
     monkeypatch.setattr(node_executor_mod, "NodeExecutor", FakeNodeExecutor)
     return FakeNodeExecutor
 
@@ -488,3 +559,53 @@ async def test_cache_warmer_blueprint_splits_and_runs_per_item(executor, fake_no
     warm_entries = [c for c in FakeNodeExecutor.sandbox_calls if c["node_id"] == "warm_entry"]
     assert len(warm_entries) == len(queries), "Expected one warm_entry invocation per query"
     assert sorted(c["input"] for c in warm_entries) == sorted(queries)
+
+
+@pytest.mark.asyncio
+async def test_multi_repo_audit_blueprint_splits_merges_and_ranks(executor, fake_node_executor, db):
+    """The dag multi-repo audit splits repos, audits each, merges results, and ranks.
+
+    Exercises the full split → merge → variable_set → llm_call → log path and
+    verifies that the aggregation fix collects ALL per-item outputs, not just
+    the last one.
+    """
+    workflow = _load_workflow("flowmanner-multi-repo-audit")
+    repos = [
+        "https://github.com/example/repo-alpha.git",
+        "https://github.com/example/repo-beta.git",
+        "https://github.com/example/repo-gamma.git",
+    ]
+
+    result = await executor.execute(
+        db=db,
+        workflow=workflow,
+        run_id="test-multi-repo-audit-001",
+        blueprint_id="00000000-0000-0000-0000-000000000001",
+        context={"inputs": {"repos": repos, "model": "", "workdir": "/workspace/repo"}},
+    )
+
+    assert result.success is True
+    assert result.status == "completed"
+
+    expected_nodes = {
+        "split_repos",
+        "audit_repo",
+        "merge_results",
+        "set_merged",
+        "rank_findings",
+        "log_summary",
+    }
+    assert expected_nodes.issubset(set(result.completed_nodes)), (
+        f"Expected nodes {expected_nodes} to complete, got {result.completed_nodes}"
+    )
+
+    # FakeNodeExecutor.sandbox_calls accumulates one audit per split item.
+    audit_calls = [c for c in FakeNodeExecutor.sandbox_calls if c["node_id"] == "audit_repo"]
+    assert len(audit_calls) == len(repos), "Expected one sandbox audit per repository"
+    assert sorted(c["input"] for c in audit_calls) == sorted(repos)
+
+    # Verify the merge node aggregated ALL per-item outputs, not just one.
+    merge_calls = [c for c in FakeNodeExecutor.merge_calls if c["node_id"] == "merge_results"]
+    assert len(merge_calls) == 1, "Expected exactly one merge_results invocation"
+    assert merge_calls[0]["upstream_count"] == len(repos), "Expected one upstream output per repo"
+    assert len(merge_calls[0]["merged"]) == len(repos), "Expected merged list to contain all repo outputs"
