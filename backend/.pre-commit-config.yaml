@@ -81,3 +81,11 @@ repos:
         language: system
         pass_filenames: false
         files: "^(backend/scripts/lint_blueprints\\.py|backend/tests/test_lint_blueprints\\.py)$"
+
+      - id: lint-blueprints-doctests
+        name: lint-blueprints doctests
+        description: Run doctests on the blueprint linter script.
+        entry: python -m doctest backend/scripts/lint_blueprints.py
+        language: system
+        pass_filenames: false
+        files: ^backend/scripts/lint_blueprints\.py$

@@ -67,6 +67,38 @@ jobs:
           LANGFUSE_ENABLED: "false"
         run: python -m pytest tests/test_nexus_orchestrator_singleton.py tests/chaos/test_kill_worker_mid_mission.py tests/chaos/test_kill_worker_mid_mission_process.py -v --tb=short
 
+  # ── Blueprint substrate validation (Python substrate) ─────────
+  lint-blueprints:
+    name: Lint blueprints
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            run_lint:
+              - 'backend/flowmanner-*.yaml'
+              - 'blueprints/**/*.yaml'
+              - 'backend/scripts/lint_blueprints.py'
+
+      - uses: actions/setup-python@v5
+        if: steps.filter.outputs.run_lint == 'true'
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        if: steps.filter.outputs.run_lint == 'true'
+        run: pip install -r backend/requirements.txt
+
+      - name: Lint blueprints
+        if: steps.filter.outputs.run_lint == 'true'
+        run: make lint-blueprints
+
   # ── Backend lint + type check + tests ──────────────────────────
   backend:
     name: Backend (lint, typecheck, tests)
@@ -186,48 +218,42 @@ jobs:
           AUTH_TRUST_HOST: "true"
         run: npm run build
 
-  # ── Blueprint substrate validation (Python substrate) ─────────
-  lint-blueprints:
-    name: Lint blueprints
+  # ── Docs + node type table drift guard ────────────────────────
+  docs-and-node-type-table-drift:
+    name: Docs + node type table drift guard
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            run_drift:
+              - 'backend/scripts/lint_blueprints.py'
+              - 'backend/scripts/generate_node_type_table.py'
+              - 'backend/app/services/substrate/node_executor.py'
+              - 'backend/app/services/substrate/workflow_models.py'
+              - 'backend/docs/substrate-node-types-table.md'
+              - 'docs/**/*.md'
+              - '.github/**/*.md'
+
       - uses: actions/setup-python@v5
+        if: steps.filter.outputs.run_drift == 'true'
         with:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: backend/requirements.txt
 
       - name: Install dependencies
+        if: steps.filter.outputs.run_drift == 'true'
         run: pip install -r backend/requirements.txt
 
-      - name: Lint blueprints
-        run: make lint-blueprints
-
-  # ── Node type table drift guard ───────────────────────────────
-  node-type-table-drift:
-    name: Node type table drift guard
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-          cache-dependency-path: backend/requirements.txt
-
-      - name: Install dependencies
-        run: pip install -r backend/requirements.txt
-
-      - name: Regenerate node type table
-        run: python backend/scripts/generate_node_type_table.py
-
-      - name: Fail if the generated table has drifted
-        run: git diff --exit-code backend/docs/substrate-node-types-table.md
+      - name: Run drift tests (node type table + docs)
+        if: steps.filter.outputs.run_drift == 'true'
+        working-directory: backend
+        run: python -m pytest tests/test_lint_blueprints.py::TestNodeTypeTableDrift tests/test_docs_drift.py -v --tb=short
 
   # ── Blueprint schema validation ────────────────────────────────
   validate-blueprints:

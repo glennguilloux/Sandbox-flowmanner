@@ -88,6 +88,8 @@ REQUIRED_NODE_CONFIG: dict[str, list[NodeConfigSpec]] = {
     "llm_call": ["prompt"],
     "variable_set": ["varName", ["varValue", "varExpr"]],
     "transform": ["transformType", "transformExpression"],
+    "filter": ["transformType", "transformExpression"],
+    "llm_eval": ["prompt"],
     "condition": ["expression"],
     "validate_schema": ["schema"],
     "memory_write": ["collection"],
@@ -98,6 +100,10 @@ REQUIRED_NODE_CONFIG: dict[str, list[NodeConfigSpec]] = {
     "delay": ["delayMs"],
     "retry": ["maxRetries"],
     "cache_get": ["key"],
+    "browser_navigate": ["params"],
+    "browser_click": ["params"],
+    "browser_type": ["params"],
+    "browser_scroll": ["params"],
 }
 
 
@@ -171,8 +177,116 @@ def validate_node_constraints(definition: dict) -> list[str]:
 
 
 def _is_non_empty_string(value: Any) -> bool:
-    """Return True if ``value`` is a string with at least one non-whitespace character."""
+    """Return True if ``value`` is a string with at least one non-whitespace character.
+
+    Example:
+        >>> _is_non_empty_string("hello")
+        True
+        >>> _is_non_empty_string("   ")
+        False
+        >>> _is_non_empty_string(None)
+        False
+    """
     return isinstance(value, str) and value.strip() != ""
+
+
+def _validate_browser_params(
+    node_id: str,
+    node_type: str,
+    config: dict[str, Any],
+    *,
+    required_param_key: str | None = None,
+    require_ref_or_selector: bool = False,
+) -> list[str]:
+    """Validate the ``params`` mapping for browser action nodes.
+
+    Returns a list of validation errors. ``params`` must be a dict. If
+    ``required_param_key`` is provided, it must map to a non-empty string.
+    When ``require_ref_or_selector`` is true, at least one of ``params.ref``
+    or ``params.selector`` must be a non-empty string.
+
+    Args:
+        node_id: Identifier of the node being validated.
+        node_type: The node type (e.g. ``browser_click``).
+        config: The node's ``config`` mapping.
+        required_param_key: Optional key inside ``params`` that must be a non-empty string.
+        require_ref_or_selector: If true, require ``params.ref`` or ``params.selector``.
+
+    Returns:
+        A list of error strings. Empty when the config is valid.
+
+    Example:
+        >>> _validate_browser_params(
+        ...     "b1", "browser_click", {"params": {"selector": "#btn"}},
+        ...     require_ref_or_selector=True,
+        ... )
+        []
+        >>> _validate_browser_params(
+        ...     "b1", "browser_click", {"params": {}}, require_ref_or_selector=True,
+        ... )
+        ["Node 'b1' of type 'browser_click': config.params must contain either 'ref' or 'selector'"]
+    """
+    errors: list[str] = []
+    params = config.get("params")
+    if not isinstance(params, dict):
+        errors.append(f"Node '{node_id}' of type '{node_type}': config.params must be a mapping")
+        return errors
+
+    if required_param_key is not None:
+        value = params.get(required_param_key)
+        if not _is_non_empty_string(value):
+            errors.append(
+                f"Node '{node_id}' of type '{node_type}': config.params.{required_param_key} must be a non-empty string"
+            )
+
+    if require_ref_or_selector:
+        ref = params.get("ref")
+        selector = params.get("selector")
+        if not _is_non_empty_string(ref) and not _is_non_empty_string(selector):
+            errors.append(
+                f"Node '{node_id}' of type '{node_type}': config.params must contain either 'ref' or 'selector'"
+            )
+
+    return errors
+
+
+def _validate_transform_like_node(
+    node_id: str,
+    node_type: str,
+    config: dict[str, Any],
+    allowed_types: tuple[str, ...],
+    transform_type_error: str,
+) -> list[str]:
+    """Validate shared transform/filter config keys.
+
+    Returns a list of validation errors for ``transformType`` and
+    ``transformExpression``.
+
+    Args:
+        node_id: Identifier of the node being validated.
+        node_type: The node type (e.g. ``transform`` or ``filter``).
+        config: The node's ``config`` mapping.
+        allowed_types: Tuple of valid values for ``transformType``.
+        transform_type_error: Human-readable error message appended when
+            ``transformType`` is not in ``allowed_types``.
+
+    Returns:
+        A list of error strings. Empty when the config is valid.
+
+    Example:
+        >>> _validate_transform_like_node(
+        ...     "f1", "filter", {"transformType": "map"}, ("filter",), "must be filter"
+        ... )
+        ["Node 'f1' of type 'filter': must be filter", \"Node 'f1' of type 'filter': config.transformExpression must be a non-empty string\"]
+    """
+    errors: list[str] = []
+    transform_type = config.get("transformType")
+    if transform_type not in allowed_types:
+        errors.append(f"Node '{node_id}' of type '{node_type}': {transform_type_error}")
+    transform_expression = config.get("transformExpression")
+    if not _is_non_empty_string(transform_expression):
+        errors.append(f"Node '{node_id}' of type '{node_type}': config.transformExpression must be a non-empty string")
+    return errors
 
 
 def validate_node_config_values(definition: dict) -> list[str]:
@@ -221,9 +335,51 @@ def validate_node_config_values(definition: dict) -> list[str]:
                 _error(node_id, node_type, "config.message must be a non-empty string")
 
         elif node_type == "transform":
-            transform_type = config.get("transformType")
-            if transform_type not in ("map", "filter", "expression"):
-                _error(node_id, node_type, "config.transformType must be one of 'map', 'filter', or 'expression'")
+            errors.extend(
+                _validate_transform_like_node(
+                    node_id,
+                    node_type,
+                    config,
+                    ("map", "filter", "expression"),
+                    "config.transformType must be one of 'map', 'filter', or 'expression'",
+                )
+            )
+
+        elif node_type == "filter":
+            errors.extend(
+                _validate_transform_like_node(
+                    node_id,
+                    node_type,
+                    config,
+                    ("filter",),
+                    "config.transformType must be 'filter'",
+                )
+            )
+
+        elif node_type == "llm_eval":
+            prompt = config.get("prompt")
+            if not _is_non_empty_string(prompt):
+                _error(node_id, node_type, "config.prompt must be a non-empty string")
+
+        elif node_type == "browser_navigate":
+            errors.extend(_validate_browser_params(node_id, node_type, config, required_param_key="url"))
+
+        elif node_type == "browser_click":
+            errors.extend(_validate_browser_params(node_id, node_type, config, require_ref_or_selector=True))
+
+        elif node_type == "browser_type":
+            errors.extend(
+                _validate_browser_params(
+                    node_id,
+                    node_type,
+                    config,
+                    required_param_key="text",
+                    require_ref_or_selector=True,
+                )
+            )
+
+        elif node_type == "browser_scroll":
+            errors.extend(_validate_browser_params(node_id, node_type, config))
 
         elif node_type == "validate_schema":
             schema = config.get("schema")

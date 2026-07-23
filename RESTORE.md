@@ -7,8 +7,8 @@ in `/mnt/apps/Flowmanner-Backups/latest/`.
 
 - Fresh homelab install (or a replacement Linux box)
 - A copy of the GitHub repos (already pushed):
-  - `git clone https://github.com/glennguilloux/flowmanner.git /opt/flowmanner`
-  - `git clone https://github.com/glennguilloux/flowmanner.git /home/glenn/FlowmannerV2-frontend`
+  - `git clone https://github.com/glennguilloux/Sandbox-flowmanner.git /opt/flowmanner`
+  - `git clone https://github.com/glennguilloux/Sandbox-flowmanner.git /home/glenn/FlowmannerV2-frontend`
 - The latest backup directory: `/mnt/apps/Flowmanner-Backups/latest/` (or
   any dated subdir)
 - WireGuard keys for the homelab<->VPS tunnel (in the backup under `ssh/`)

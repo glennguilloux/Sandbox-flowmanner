@@ -1,7 +1,7 @@
 # Flowmanner Memory System — Verification Checklist (reconciled, 5 items)
 
 > Owner of verification: the agent (Hermes) — GitHub repo is outside the Opus reviewer's GitLab-only reach.
-> Repo: `https://github.com/glennguilloux/flowmanner` (branch `main`, last verified commit `58e434a`, 2026-07-08).
+> Repo: `https://github.com/glennguilloux/Sandbox-flowmanner` (branch `main`, last verified commit `58e434a`, 2026-07-08).
 > Method: `grep` + targeted file reads. Each item has a one-shot command to re-verify.
 > Reconciliation: down-scoped from 8 anchors to 5 load-bearing items per Opus's second-trace review
 > (which used the on-disk `HERMES-MEMORY-PATTERNS-FOR-FLOWMANNER.md` as a second, same-day read-based trace).

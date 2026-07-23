@@ -6,6 +6,7 @@ without requiring a live database or the full FastAPI app.
 
 from __future__ import annotations
 
+import importlib
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -13,6 +14,19 @@ from unittest.mock import patch
 
 import pytest
 import yaml
+
+
+def _import_generator_module() -> ModuleType:
+    """Import generate_node_type_table.py by file location."""
+    generator_path = Path(__file__).resolve().parent.parent / "scripts" / "generate_node_type_table.py"
+    spec = importlib.util.spec_from_file_location("generate_node_type_table", generator_path)
+    if spec is None or spec.loader is None:  # type: ignore[union-attr]
+        raise ImportError(f"Could not load {generator_path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["generate_node_type_table"] = module
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    return module
+
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -294,6 +308,23 @@ class TestValidateNodeConstraints:
         errors = lint.validate_node_constraints(definition)
         assert any("key" in e for e in errors)
 
+    def test_filter_requires_transformType_and_transformExpression(self, lint: ModuleType) -> None:
+        definition = {"nodes": [{"id": "f", "type": "filter", "config": {}}]}
+        errors = lint.validate_node_constraints(definition)
+        assert any("transformType" in e for e in errors)
+        assert any("transformExpression" in e for e in errors)
+
+    def test_llm_eval_requires_prompt(self, lint: ModuleType) -> None:
+        definition = {"nodes": [{"id": "ev", "type": "llm_eval", "config": {}}]}
+        errors = lint.validate_node_constraints(definition)
+        assert any("prompt" in e for e in errors)
+
+    @pytest.mark.parametrize("node_type", ["browser_navigate", "browser_click", "browser_type", "browser_scroll"])
+    def test_browser_nodes_require_params(self, lint: ModuleType, node_type: str) -> None:
+        definition = {"nodes": [{"id": "b", "type": node_type, "config": {}}]}
+        errors = lint.validate_node_constraints(definition)
+        assert any("params" in e for e in errors)
+
 
 class TestValidateNodeConfigValues:
     """Stricter validation of config *values* beyond simple key presence."""
@@ -338,7 +369,7 @@ class TestValidateNodeConfigValues:
 
     def test_transform_valid_transformType_passes(self, lint: ModuleType) -> None:
         for ttype in ("map", "filter", "expression"):
-            definition = self._node("transform", {"transformType": ttype})
+            definition = self._node("transform", {"transformType": ttype, "transformExpression": "x"})
             assert lint.validate_node_config_values(definition) == []
 
     def test_validate_schema_requires_dict_schema(self, lint: ModuleType) -> None:
@@ -444,6 +475,112 @@ class TestValidateNodeConfigValues:
     def test_router_valid_routes_passes(self, lint: ModuleType) -> None:
         definition = self._node("router", {"routes": [{"target": "node_a"}]})
         assert lint.validate_node_config_values(definition) == []
+
+    # ---- New node type value validation ----------------------------------
+
+    def test_filter_requires_filter_transformType_and_expression(self, lint: ModuleType) -> None:
+        definition = self._node("filter", {"transformType": "filter", "transformExpression": "x > 1"})
+        assert lint.validate_node_config_values(definition) == []
+
+    @pytest.mark.parametrize("value", ["", "   ", None])
+    def test_filter_rejects_empty_transformExpression(self, lint: ModuleType, value: Any) -> None:
+        definition = self._node("filter", {"transformType": "filter", "transformExpression": value})
+        errors = lint.validate_node_config_values(definition)
+        assert any("transformExpression" in e and "non-empty" in e for e in errors)
+
+    def test_filter_transformType_must_be_filter(self, lint: ModuleType) -> None:
+        definition = self._node("filter", {"transformType": "map", "transformExpression": "x > 1"})
+        errors = lint.validate_node_config_values(definition)
+        assert any("transformType must be 'filter'" in e for e in errors)
+
+    def test_llm_eval_requires_non_empty_prompt(self, lint: ModuleType) -> None:
+        definition = self._node("llm_eval", {"prompt": ""})
+        errors = lint.validate_node_config_values(definition)
+        assert any("prompt" in e and "non-empty" in e for e in errors)
+
+    def test_llm_eval_valid_prompt_passes(self, lint: ModuleType) -> None:
+        definition = self._node("llm_eval", {"prompt": "judge this output"})
+        assert lint.validate_node_config_values(definition) == []
+
+    def test_browser_navigate_requires_dict_params_with_url(self, lint: ModuleType) -> None:
+        definition = self._node("browser_navigate", {"params": {"url": "https://example.com"}})
+        assert lint.validate_node_config_values(definition) == []
+
+    @pytest.mark.parametrize("value", ["not-a-dict", None])
+    def test_browser_navigate_rejects_non_dict_params(self, lint: ModuleType, value: Any) -> None:
+        definition = self._node("browser_navigate", {"params": value})
+        errors = lint.validate_node_config_values(definition)
+        assert any("params must be a mapping" in e for e in errors)
+
+    def test_browser_navigate_requires_non_empty_url(self, lint: ModuleType) -> None:
+        definition = self._node("browser_navigate", {"params": {"url": ""}})
+        errors = lint.validate_node_config_values(definition)
+        assert any("params.url" in e and "non-empty" in e for e in errors)
+
+    def test_browser_click_requires_dict_params(self, lint: ModuleType) -> None:
+        definition = self._node("browser_click", {"params": {"selector": "#btn"}})
+        assert lint.validate_node_config_values(definition) == []
+
+    def test_browser_click_requires_ref_or_selector(self, lint: ModuleType) -> None:
+        definition = self._node("browser_click", {"params": {"other": "value"}})
+        errors = lint.validate_node_config_values(definition)
+        assert any("ref" in e and "selector" in e for e in errors)
+
+    def test_browser_click_accepts_ref(self, lint: ModuleType) -> None:
+        definition = self._node("browser_click", {"params": {"ref": "e1"}})
+        assert lint.validate_node_config_values(definition) == []
+
+    def test_browser_click_rejects_non_dict_params(self, lint: ModuleType) -> None:
+        definition = self._node("browser_click", {"params": "bad"})
+        errors = lint.validate_node_config_values(definition)
+        assert any("params must be a mapping" in e for e in errors)
+
+    def test_browser_type_requires_dict_params_with_text(self, lint: ModuleType) -> None:
+        definition = self._node("browser_type", {"params": {"selector": "#input", "text": "hello"}})
+        assert lint.validate_node_config_values(definition) == []
+
+    def test_browser_type_requires_non_empty_text(self, lint: ModuleType) -> None:
+        definition = self._node("browser_type", {"params": {"text": ""}})
+        errors = lint.validate_node_config_values(definition)
+        assert any("params.text" in e and "non-empty" in e for e in errors)
+
+    def test_browser_type_requires_ref_or_selector(self, lint: ModuleType) -> None:
+        definition = self._node("browser_type", {"params": {"text": "hello"}})
+        errors = lint.validate_node_config_values(definition)
+        assert any("ref" in e and "selector" in e for e in errors)
+
+    def test_browser_type_accepts_ref(self, lint: ModuleType) -> None:
+        definition = self._node("browser_type", {"params": {"ref": "e1", "text": "hello"}})
+        assert lint.validate_node_config_values(definition) == []
+
+    def test_browser_scroll_accepts_empty_dict_params(self, lint: ModuleType) -> None:
+        definition = self._node("browser_scroll", {"params": {}})
+        assert lint.validate_node_config_values(definition) == []
+
+    def test_browser_scroll_requires_dict_params(self, lint: ModuleType) -> None:
+        definition = self._node("browser_scroll", {"params": "bad"})
+        errors = lint.validate_node_config_values(definition)
+        assert any("params must be a mapping" in e for e in errors)
+
+    @pytest.mark.parametrize("node_type", ["browser_snapshot", "browser_screenshot", "browser_close"])
+    def test_optional_browser_nodes_pass_with_empty_params(self, lint: ModuleType, node_type: str) -> None:
+        definition = self._node(node_type, {})
+        assert lint.validate_node_config_values(definition) == []
+
+
+class TestNodeTypeTableDrift:
+    """Ensure generated node type table stays in sync with the linter/source."""
+
+    def test_generated_table_matches_committed_table(self) -> None:
+        """Regenerate the table and assert it matches the committed version."""
+        generator = _import_generator_module()
+        generated = generator.generate_table()
+        table_path = Path(__file__).resolve().parent.parent / "docs" / "substrate-node-types-table.md"
+        committed = table_path.read_text(encoding="utf-8")
+        assert generated == committed, (
+            "Generated node type table drifts from committed table. "
+            f"Run `python {generator.__file__}` to regenerate it."
+        )
 
 
 class TestValidateBlueprint:

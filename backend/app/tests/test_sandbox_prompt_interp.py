@@ -65,7 +65,7 @@ class TestSandboxPromptInputsInterp:
             result = await executor._handle_sandbox_node(
                 db=AsyncMock(),
                 node=node,
-                context={"inputs": {"repo_url": "https://github.com/flowmanner/flowmanner"}},
+                context={"inputs": {"repo_url": "https://github.com/glennguilloux/Sandbox-flowmanner"}},
                 budget=Budget(),
                 run_id="run-1",
                 workflow=MagicMock(id="m1", user_id="u1"),
@@ -73,7 +73,7 @@ class TestSandboxPromptInputsInterp:
 
         assert result["success"] is True
         submitted_prompt = mock_client.submit_task.call_args.kwargs["prompt"]
-        assert "https://github.com/flowmanner/flowmanner" in submitted_prompt
+        assert "https://github.com/glennguilloux/Sandbox-flowmanner" in submitted_prompt
         assert "{{ inputs.repo_url }}" not in submitted_prompt
 
     @pytest.mark.asyncio
@@ -115,7 +115,7 @@ class TestSandboxPromptInputsInterp:
             result = await executor._handle_sandbox_node(
                 db=AsyncMock(),
                 node=node,
-                context={"inputs": {"repo_url": "https://github.com/flowmanner/flowmanner"}},
+                context={"inputs": {"repo_url": "https://github.com/glennguilloux/Sandbox-flowmanner"}},
                 budget=Budget(),
                 run_id="run-1",
                 workflow=MagicMock(id="m1", user_id="u1"),
@@ -127,7 +127,7 @@ class TestSandboxPromptInputsInterp:
         assert "{agent}" in submitted_prompt
         # The inputs token is replaced.
         assert "{{ inputs.repo_url }}" not in submitted_prompt
-        assert "https://github.com/flowmanner/flowmanner" in submitted_prompt
+        assert "https://github.com/glennguilloux/Sandbox-flowmanner" in submitted_prompt
 
     @pytest.mark.asyncio
     async def test_unknown_input_token_is_left_untouched(self):

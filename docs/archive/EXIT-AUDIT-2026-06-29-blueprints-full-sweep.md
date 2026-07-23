@@ -60,7 +60,7 @@ nothing to commit, working tree clean
 
 ### □ git fetch origin && git log --oneline origin/main..main
 ```
-From https://github.com/glennguilloux/flowmanner
+From https://github.com/glennguilloux/Sandbox-flowmanner
    826581e..c5825eb  master     -> origin/master
 (empty — all pushed)
 ```
@@ -75,7 +75,7 @@ nothing to commit, working tree clean
 
 ### □ git fetch origin && git log --oneline origin/master..master
 ```
-From https://github.com/glennguilloux/flowmanner
+From https://github.com/glennguilloux/Sandbox-flowmanner
    9c846f4..ce538a4  main       -> origin/main
 (empty — all pushed)
 ```
