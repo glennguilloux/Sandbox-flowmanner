@@ -1,0 +1,209 @@
+# flowmanner-support-agent.yaml — version 1
+#
+# Pattern #28: Stateful support agent (DAG + LOOP node).
+#
+# A support-ticket resolution agent that uses the DAG LOOP node for bounded
+# iteration. The loop body reasons about the ticket, checks whether the
+# issue is resolved, acts on a tool call via sandbox, and increments a step
+# counter. Cross-run state is read from and written to shared Qdrant memory.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-support-agent"
+description: |
+  Stateful support-ticket resolution agent. Uses the DAG LOOP node to
+  iteratively reason about a ticket, check for resolution, act via an
+  egress-capable sandbox, and track the step count. Reads prior context
+  from Qdrant on entry and writes updated context back on exit.
+
+blueprint_type: dag
+
+inputs:
+  ticket_text:
+    type: string
+    description: "The support ticket text to resolve."
+  model:
+    type: string
+    default: ""
+    description: "Optional model override for reasoning and action steps."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: load_context
+      type: memory_read
+      title: "Load prior support context"
+      description: |
+        Retrieve prior support interactions from the shared memory
+        collection to seed this run with cross-run context.
+      config:
+        collection: "flowmanner_memory"
+        query: "{{ inputs.ticket_text }}"
+        topK: 3
+
+    - id: set_context
+      type: variable_set
+      title: "Bridge prior context into inputs"
+      description: |
+        Capture the retrieved memory results so downstream nodes can
+        reference them as {{ inputs.prior_context }}.
+      config:
+        varName: "prior_context"
+        varExpr: 'previous_outputs["load_context"]["results"]'
+
+    - id: init_step_count
+      type: variable_set
+      title: "Initialize step counter"
+      description: |
+        Seed the step counter used by the loop body.
+      config:
+        varName: "step_count"
+        varValue: 0
+
+    - id: support_loop
+      type: loop
+      title: "Bounded resolution loop"
+      description: |
+        Iterate the resolution body until the ticket is resolved or the
+        iteration cap is reached. The body is executed in order each pass.
+      config:
+        body:
+          - reason
+          - check_done
+          - act
+          - increment_step
+        max_iterations: 5
+        stop_condition: 'previous_outputs["check_done"]["value"]'
+
+    - id: reason
+      type: llm_call
+      title: "Reason about the ticket"
+      description: |
+        Analyze the ticket and prior context, then propose the next
+        action. Prefix the response with "RESOLVED:" if the issue is
+        fully resolved.
+      config:
+        model: "{{ inputs.model }}"
+        prompt: |
+          You are a senior support engineer. The following ticket has
+          been open for {{ inputs.step_count }} step(s).
+
+          Ticket: {{ inputs.ticket_text }}
+
+          Prior context: {{ inputs.prior_context }}
+
+          Propose the single next action to take. If the issue is now
+          fully resolved, start your response with "RESOLVED:".
+          Otherwise, explain the next action and why.
+        system_prompt: "You are a senior support engineer. Be concise."
+        temperature: 0.4
+        max_tokens: 1000
+
+    - id: check_done
+      type: condition
+      title: "Is the ticket resolved?"
+      description: |
+        Check whether the reason node declared the issue resolved.
+      config:
+        expression: '"RESOLVED:" in previous_outputs["reason"]["output"]'
+
+    - id: act
+      type: sandbox
+      title: "Act on proposed next step"
+      description: |
+        Execute the proposed action in an egress-capable sandbox. This
+        is the only node with network egress.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        model: "{{ inputs.model }}"
+        task_prompt: |
+          You are executing the next action for a support ticket.
+
+          Ticket: {{ inputs.ticket_text }}
+          Reasoned next action: {{ previous_outputs["reason"]["output"] }}
+
+          Perform the action (e.g. query a knowledge base, call an API,
+          or synthesize a response). Return a concise markdown summary
+          of what you did and the result.
+
+    - id: increment_step
+      type: variable_set
+      title: "Increment step counter"
+      description: |
+        Track how many resolution steps have been attempted.
+      config:
+        varName: "step_count"
+        varExpr: 'inputs["step_count"] + 1'
+
+    - id: summarize_resolution
+      type: llm_call
+      title: "Summarize final resolution"
+      description: |
+        Produce a concise final resolution summary from the loop's
+        outputs.
+      config:
+        model: "{{ inputs.model }}"
+        prompt: |
+          Summarize the support resolution for the following ticket.
+          Include the final status and the key actions taken.
+
+          Ticket: {{ inputs.ticket_text }}
+          Final reason output: {{ previous_outputs["reason"]["output"] }}
+          Action result: {{ previous_outputs["act"]["output"] }}
+          Steps taken: {{ inputs.step_count }}
+        system_prompt: "You are a support engineer. Be concise and factual."
+        temperature: 0.3
+        max_tokens: 800
+
+    - id: save_context
+      type: memory_write
+      title: "Persist updated support context"
+      description: |
+        Write the updated ticket context back to shared Qdrant memory
+        for future runs.
+      config:
+        collection: "flowmanner_memory"
+        text: |
+          support ticket: {{ inputs.ticket_text }}
+          resolution: {{ previous_outputs["summarize_resolution"]["output"] }}
+          steps: {{ inputs.step_count }}
+        payload:
+          schema: support_context
+          source: flowmanner-support-agent
+
+  edges:
+    - source: load_context
+      target: set_context
+    - source: set_context
+      target: init_step_count
+    - source: init_step_count
+      target: support_loop
+    # Loop body edges (order is also enforced by loop.body).
+    - source: support_loop
+      target: reason
+    - source: reason
+      target: check_done
+    - source: check_done
+      target: act
+      condition: "false"
+    - source: check_done
+      target: summarize_resolution
+      condition: "true"
+    - source: act
+      target: increment_step
+    - source: summarize_resolution
+      target: save_context
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 900
+    max_iterations: 50
+    max_depth: 3
+
+  config: {}

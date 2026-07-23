@@ -1,0 +1,152 @@
+# flowmanner-budget-governor.yaml — version 1
+#
+# Pattern #31: Token-budget governor (DAG with condition-based budget tracking).
+#
+# Tracks estimated per-call token cost with variable_set and short-circuits
+# further LLM work once the accumulated estimate reaches the budget ceiling.
+# Uses the DAG LOOP node so the budget check is re-evaluated after each call.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-budget-governor"
+description: |
+  Token-budget governor blueprint. Accumulates estimated per-call token costs
+  in run-scoped inputs, checks the running total against a budget ceiling,
+  and stops further LLM calls once the ceiling is reached.
+
+blueprint_type: dag
+
+inputs:
+  task_prompt:
+    type: string
+    description: "The task to execute under the budget cap."
+  budget_ceiling:
+    type: number
+    default: 5.0
+    description: "Estimated budget ceiling in USD."
+  model:
+    type: string
+    default: ""
+    description: "Optional model override for LLM calls."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: init_cost
+      type: variable_set
+      title: "Initialize accumulated cost"
+      description: |
+        Seed the accumulated cost tracker used by the budget loop.
+      config:
+        varName: "accumulated_cost"
+        varValue: 0.0
+
+    - id: budget_loop
+      type: loop
+      title: "Budget-guarded LLM loop"
+      description: |
+        Iterate the LLM work while the accumulated cost estimate stays
+        below the budget ceiling.
+      config:
+        body:
+          - check_budget
+          - run_llm_step
+          - update_cost
+        max_iterations: 5
+        stop_condition: 'previous_outputs["check_budget"]["value"]'
+
+    - id: check_budget
+      type: condition
+      title: "Budget ceiling reached?"
+      description: |
+        True when the accumulated cost estimate meets or exceeds the
+        configured ceiling.
+      config:
+        expression: 'inputs["accumulated_cost"] >= inputs["budget_ceiling"]'
+
+    - id: run_llm_step
+      type: llm_call
+      title: "Execute one budgeted LLM step"
+      description: |
+        Process a slice of the task. This node only runs while the
+        budget allows.
+      config:
+        model: "{{ inputs.model }}"
+        prompt: |
+          You are executing a task within a strict token budget. The
+          current accumulated estimate is ${{ inputs.accumulated_cost }}
+          and the ceiling is ${{ inputs.budget_ceiling }}.
+
+          Task: {{ inputs.task_prompt }}
+
+          Produce the next useful chunk of work without exceeding the
+          budget. Be concise.
+        system_prompt: "You are a careful assistant that respects budgets."
+        temperature: 0.3
+        max_tokens: 500
+
+    - id: update_cost
+      type: variable_set
+      title: "Accumulate estimated step cost"
+      description: |
+        Add a per-call cost estimate to the running total. The substrate
+        does not expose cumulative cost mid-run, so we track an explicit
+        estimate here.
+      config:
+        varName: "accumulated_cost"
+        varExpr: 'inputs["accumulated_cost"] + 0.05'
+
+    - id: finalize
+      type: llm_call
+      title: "Summarize work under budget"
+      description: |
+        Produce a concise summary of the work completed before the
+        budget was reached.
+      config:
+        model: "{{ inputs.model }}"
+        prompt: |
+          Summarize the work completed for the following task. The final
+          accumulated cost estimate was ${{ inputs.accumulated_cost }}.
+
+          Task: {{ inputs.task_prompt }}
+
+          Last LLM output: {{ previous_outputs["run_llm_step"]["output"] }}
+        system_prompt: "You are a concise summarizer."
+        temperature: 0.3
+        max_tokens: 600
+
+    - id: log_budget
+      type: log
+      title: "Log budget status"
+      description: |
+        Emit the final accumulated cost estimate.
+      config:
+        level: info
+        message: "Budget governor finished. Accumulated estimate: ${{ inputs.accumulated_cost }} / ${{ inputs.budget_ceiling }}"
+
+  edges:
+    - source: init_cost
+      target: budget_loop
+    - source: budget_loop
+      target: check_budget
+    - source: check_budget
+      target: run_llm_step
+      condition: "false"
+    - source: run_llm_step
+      target: update_cost
+    - source: check_budget
+      target: finalize
+      condition: "true"
+    - source: finalize
+      target: log_budget
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 600
+    max_iterations: 50
+    max_depth: 3
+
+  config: {}

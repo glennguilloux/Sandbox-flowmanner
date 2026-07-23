@@ -1,0 +1,115 @@
+# flowmanner-dry-run-preview.yaml — version 1
+#
+# Pattern #43: Dry-run preview (graph with human_review).
+#
+# Renders a webhook payload preview from a template and context, pauses for
+# human review/approval, then branches: approved → publish via webhook,
+# rejected → log and stop. Graph strategy is required so conditional edges
+# can reference the human_review node's output.
+#
+# blueprint_type: graph
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-dry-run-preview"
+description: |
+  Dry-run preview blueprint. Renders a webhook payload from a template,
+  pauses for human review, and then either publishes the payload via
+  webhook (approved) or logs the rejection (rejected).
+
+blueprint_type: graph
+
+inputs:
+  webhook_url:
+    type: string
+    default: ""
+    description: "Webhook URL to publish the rendered payload to."
+  payload_template:
+    type: string
+    default: '{"event": "{{ event }}", "value": "{{ value }}"}'
+    description: "Jinja-style template for the payload to preview and publish."
+  context_data:
+    type: string
+    default: '{"event": "example_event", "value": "example_value"}'
+    description: "JSON object used to render the payload template."
+
+definition:
+  blueprint_type: graph
+  nodes:
+    - id: render_preview
+      type: template_render
+      title: "Render payload preview"
+      description: |
+        Render the final webhook payload from the template and context.
+      config:
+        template: "{{ inputs.payload_template }}"
+
+    - id: review
+      type: human_review
+      title: "Review payload before publishing"
+      description: |
+        Pause the run and wait for a human to approve or reject the
+        rendered payload before it is sent.
+      config: {}
+
+    - id: extract_approval
+      type: variable_set
+      title: "Extract approval status"
+      description: |
+        Pull the human_review resolution into run-scoped inputs so the
+        condition node can branch on it. HITL nodes expose the resolution
+        under output.hitl_resolution (e.g. "approved" / "rejected").
+      config:
+        varName: "approved"
+        varExpr: 'previous_outputs["review"]["output"]["hitl_resolution"] == "approved"'
+
+    - id: check_approval
+      type: condition
+      title: "Payload approved?"
+      description: |
+        Branch based on the human review outcome.
+      config:
+        expression: 'inputs["approved"]'
+
+    - id: publish
+      type: webhook
+      title: "Publish approved payload"
+      description: |
+        POST the approved payload to the configured webhook URL.
+      config:
+        url: "{{ inputs.webhook_url }}"
+        method: "POST"
+        headers:
+          Content-Type: "application/json"
+
+    - id: log_rejected
+      type: log
+      title: "Log rejected preview"
+      description: |
+        Record that the payload was rejected by the reviewer.
+      config:
+        level: warning
+        message: "Payload rejected by reviewer."
+
+  edges:
+    - source: render_preview
+      target: review
+    - source: review
+      target: extract_approval
+    - source: extract_approval
+      target: check_approval
+    - source: check_approval
+      target: publish
+      condition: "true"
+    - source: check_approval
+      target: log_rejected
+      condition: "false"
+
+  budget:
+    max_cost_usd: 2.00
+    max_wall_time_seconds: 600
+    max_iterations: 30
+    max_depth: 3
+
+  config: {}

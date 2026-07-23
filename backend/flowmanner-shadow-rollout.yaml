@@ -1,0 +1,248 @@
+# flowmanner-shadow-rollout.yaml — version 1
+#
+# Pattern #42: Shadow-mode rollout (DAG with split + condition).
+#
+# Runs the current and candidate models in parallel against the same task.
+# An LLM-as-judge compares the outputs. The candidate branch is routed to a
+# log node instead of a webhook, demonstrating the "dry-run / suppress egress"
+# convention. The current branch may still publish to a webhook.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-shadow-rollout"
+description: |
+  Shadow-mode rollout blueprint. Splits execution across "current" and
+  "candidate" model branches. Both process the same prompt. An LLM judge
+  compares quality. Candidate output is suppressed to a log node rather
+  than an external webhook, while current output is published normally.
+
+blueprint_type: dag
+
+inputs:
+  task_prompt:
+    type: string
+    description: "The task/prompt to run against both models."
+  current_model:
+    type: string
+    default: "openrouter/anthropic/claude-3.5-sonnet"
+  candidate_model:
+    type: string
+    default: "moonshotai/kimi-k2.7-code"
+  publish_webhook_url:
+    type: string
+    default: ""
+    description: "Webhook URL to publish the current-model result."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: set_branches
+      type: variable_set
+      title: "Define rollout branches"
+      description: |
+        Materialize the list of branch names so the split node can fan
+        out one branch per model role.
+      config:
+        varName: "branches"
+        varValue:
+          - "current"
+          - "candidate"
+
+    - id: split_branches
+      type: split
+      title: "Split into current/candidate branches"
+      description: |
+        Fan out one branch for the current model and one for the
+        candidate model.
+      config:
+        splitOn: "inputs.branches"
+        mode: "item"
+
+    - id: set_branch
+      type: variable_set
+      title: "Capture current branch name"
+      description: |
+        Store the split item so downstream nodes can branch on it.
+      config:
+        varName: "branch"
+        varValue: "{{ input }}"
+
+    - id: set_model
+      type: variable_set
+      title: "Select model for this branch"
+      description: |
+        Map the branch name to the appropriate model slug.
+      config:
+        varName: "model_name"
+        varExpr: 'inputs["current_model"] if inputs["branch"] == "current" else inputs["candidate_model"]'
+
+    - id: run_model
+      type: sandbox
+      title: "Run model in sandbox"
+      description: |
+        Execute the task with the selected model. The branch name is
+        included in the output so the merge node can distinguish the
+        results.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        model: "{{ inputs.model_name }}"
+        task_prompt: |
+          You are running in an egress-capable sandbox. Complete the
+          following task using the model assigned to this branch.
+
+          Branch: {{ inputs.branch }}
+          Model: {{ inputs.model_name }}
+
+          Task: {{ inputs.task_prompt }}
+
+          Return a concise, structured summary of your result. Start your
+          response with a line exactly like:
+          BRANCH: {{ inputs.branch }}
+          MODEL: {{ inputs.model_name }}
+
+    - id: merge_outputs
+      type: merge
+      title: "Merge model outputs"
+      description: |
+        Aggregate the per-branch sandbox outputs.
+      config:
+        mergeStrategy: "concat"
+
+    - id: extract_current
+      type: variable_set
+      title: "Extract current model output"
+      description: |
+        The split order is deterministic; the first merged item is the
+        current branch output.
+      config:
+        varName: "current_output"
+        varExpr: 'previous_outputs["merge_outputs"]["merged"][0]'
+
+    - id: extract_candidate
+      type: variable_set
+      title: "Extract candidate model output"
+      description: |
+        The second merged item is the candidate branch output.
+      config:
+        varName: "candidate_output"
+        varExpr: 'previous_outputs["merge_outputs"]["merged"][1]'
+
+    - id: judge
+      type: llm_eval
+      title: "Judge current vs candidate"
+      description: |
+        Compare the current and candidate outputs and decide which is
+        better overall.
+      config:
+        model: "openrouter/anthropic/claude-3.5-sonnet"
+        prompt: |
+          You are an output-quality judge. Two models were asked to
+          complete the same task. Decide which output is better and by
+          how much. Return a JSON object with keys:
+          {"winner": "current" or "candidate", "current_score": int,
+           "candidate_score": int, "rationale": "string"}
+
+          Task: {{ inputs.task_prompt }}
+
+          Current output:
+          {{ inputs.current_output }}
+
+          Candidate output:
+          {{ inputs.candidate_output }}
+        system_prompt: "You are an expert LLM evaluator. Output valid JSON only."
+        temperature: 0.3
+        max_tokens: 800
+
+    - id: store_verdict
+      type: variable_set
+      title: "Store judge verdict"
+      description: |
+        Capture the judge output for branching.
+      config:
+        varName: "verdict"
+        varExpr: 'previous_outputs["judge"]["output"]'
+
+    - id: candidate_wins
+      type: condition
+      title: "Candidate wins?"
+      description: |
+        Route to the candidate-suppression log when the candidate is the
+        winner; otherwise publish the current result via webhook.
+      config:
+        expression: 'inputs["verdict"]["winner"] == "candidate"'
+
+    - id: publish_current
+      type: webhook
+      title: "Publish current-model result"
+      description: |
+        POST the current-model result to the configured webhook.
+      config:
+        url: "{{ inputs.publish_webhook_url }}"
+        method: "POST"
+        headers:
+          Content-Type: "application/json"
+
+    - id: suppress_candidate
+      type: log
+      title: "Suppress candidate webhook"
+      description: |
+        Candidate output is logged instead of sent to a webhook. This is
+        the shadow-mode egress-suppression convention.
+      config:
+        level: info
+        message: "Candidate branch suppressed: {{ inputs.candidate_output }}"
+
+    - id: log_result
+      type: log
+      title: "Log rollout result"
+      description: |
+        Emit the final judge verdict.
+      config:
+        level: info
+        message: 'Shadow rollout verdict: {{ inputs.verdict }}'
+
+  edges:
+    - source: set_branches
+      target: split_branches
+    - source: split_branches
+      target: set_branch
+    - source: set_branch
+      target: set_model
+    - source: set_model
+      target: run_model
+    - source: run_model
+      target: merge_outputs
+    - source: merge_outputs
+      target: extract_current
+    - source: extract_current
+      target: extract_candidate
+    - source: extract_candidate
+      target: judge
+    - source: judge
+      target: store_verdict
+    - source: store_verdict
+      target: candidate_wins
+    - source: candidate_wins
+      target: suppress_candidate
+      condition: "true"
+    - source: candidate_wins
+      target: publish_current
+      condition: "false"
+    - source: suppress_candidate
+      target: log_result
+    - source: publish_current
+      target: log_result
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 600
+    max_iterations: 50
+    max_depth: 3
+
+  config: {}

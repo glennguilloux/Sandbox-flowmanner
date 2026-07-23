@@ -1,0 +1,128 @@
+# flowmanner-audit-log.yaml — version 1
+#
+# Pattern #45: Hash-chained audit log (DAG with memory_read/write).
+#
+# Each run reads the prior audit-log entry from Qdrant, computes a hash
+# chaining the prior entry with the new findings, and writes the new entry
+# back to Qdrant. Creates an immutable, verifiable audit trail.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-audit-log"
+description: |
+  Hash-chained audit log blueprint. Reads the previous audit entry from
+  Qdrant, computes a hash of the prior entry plus new findings inside a
+  sandbox, and writes the new chained entry back to Qdrant memory.
+
+blueprint_type: dag
+
+inputs:
+  audit_topic:
+    type: string
+    default: "blueprint-validation"
+  collection:
+    type: string
+    default: "flowmanner_memory"
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: read_prior
+      type: memory_read
+      title: "Read prior audit entry"
+      description: |
+        Retrieve the most recent audit entry for this topic from the
+        shared memory collection.
+      config:
+        collection: "{{ inputs.collection }}"
+        query: "{{ inputs.audit_topic }}"
+        topK: 1
+
+    - id: bridge_prior
+      type: variable_set
+      title: "Bridge prior entry into inputs"
+      description: |
+        Capture the prior entry so the sandbox can chain the hash.
+      config:
+        varName: "prior_entry"
+        varExpr: 'previous_outputs["read_prior"]["results"][0] if previous_outputs["read_prior"]["results"] else {}'
+
+    - id: compute_hash
+      type: sandbox
+      title: "Compute chained hash and new entry"
+      description: |
+        Hash the prior entry together with the current topic and
+        timestamp to produce the next link in the audit chain.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        task_prompt: |
+          #!/usr/bin/env python3
+          import json
+          import hashlib
+          from datetime import datetime, timezone
+
+          prior = '''{{ inputs.prior_entry }}'''
+          topic = "{{ inputs.audit_topic }}"
+
+          # Build the new audit link.
+          new_entry = {
+              "topic": topic,
+              "timestamp": datetime.now(timezone.utc).isoformat(),
+              "prior_entry": prior,
+          }
+
+          # Compute a deterministic hash of the prior entry + new entry.
+          hasher = hashlib.sha256()
+          hasher.update(str(prior).encode("utf-8"))
+          hasher.update(json.dumps(new_entry, sort_keys=True, default=str).encode("utf-8"))
+          new_entry["hash"] = hasher.hexdigest()
+
+          print(json.dumps(new_entry, indent=2))
+
+    - id: write_entry
+      type: memory_write
+      title: "Write new audit entry"
+      description: |
+        Persist the new chained audit entry to Qdrant memory.
+      config:
+        collection: "{{ inputs.collection }}"
+        text: |
+          audit topic: {{ inputs.audit_topic }}
+          entry: {{ previous_outputs["compute_hash"]["output"] }}
+        payload:
+          schema: audit_log
+          source: flowmanner-audit-log
+          topic: "{{ inputs.audit_topic }}"
+
+    - id: log_entry
+      type: log
+      title: "Log audit entry"
+      description: |
+        Emit an info-level log with the new audit hash.
+      config:
+        level: info
+        message: "Audit log updated for {{ inputs.audit_topic }}: {{ previous_outputs['compute_hash']['output'] }}"
+
+  edges:
+    - source: read_prior
+      target: bridge_prior
+    - source: bridge_prior
+      target: compute_hash
+    - source: compute_hash
+      target: write_entry
+    - source: write_entry
+      target: log_entry
+
+  budget:
+    max_cost_usd: 2.00
+    max_wall_time_seconds: 300
+    max_iterations: 30
+    max_depth: 3
+
+  config: {}

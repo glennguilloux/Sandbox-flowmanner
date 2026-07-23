@@ -1,0 +1,105 @@
+# flowmanner-spend-anomaly-sentinel.yaml — version 1
+#
+# Pattern #32: Spend-anomaly sentinel (solo, cron-triggerable).
+#
+# A solo blueprint that reads a cost ledger via the sandbox (the only egress
+# node), checks for anomalous spend patterns, and posts an alert through an
+# approval gate (HITL) to a webhook. Designed to be triggered periodically by
+# a cron trigger such as trigger_bridge.py.
+#
+# blueprint_type: solo
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-spend-anomaly-sentinel"
+description: |
+  Spend-anomaly sentinel blueprint. Runs in solo mode so it can be invoked
+  by a cron trigger. The sandbox reads the cost ledger and decides whether
+  spend exceeds the threshold. An approval gate (passthrough HITL) guards
+  the irreversible webhook alert.
+
+blueprint_type: solo
+
+inputs:
+  alert_webhook_url:
+    type: string
+    default: ""
+    description: "Webhook URL to POST the spend alert to."
+  spend_threshold:
+    type: number
+    default: 50.0
+    description: "Spend threshold in USD that triggers an alert."
+
+definition:
+  blueprint_type: solo
+  nodes:
+    - id: detect_anomaly
+      type: sandbox
+      title: "Detect anomalous spend"
+      description: |
+        Read the cost ledger (via sandbox egress) and determine whether
+        spend exceeds the configured threshold. Returns a JSON payload
+        describing the finding.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        task_prompt: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          threshold="{{ inputs.spend_threshold }}"
+
+          # Simulate reading a cost ledger. In production this would query
+          # the billing API or a local cost database.
+          spend_usd=$(awk -v seed="$$" 'BEGIN{srand(seed); print int(20+rand()*100)}')
+
+          if (( $(echo "${spend_usd} >= ${threshold}" | bc -l) )); then
+            status="ALERT"
+          else
+            status="OK"
+          fi
+
+          echo "Status: ${status}"
+          echo "Spend: $${spend_usd}"
+          echo "Threshold: $${threshold}"
+
+          # Emit a fenced JSON payload for downstream nodes.
+          python3 -c 'import json,os; print(json.dumps({"status": os.environ["status"], "spend_usd": os.environ["spend_usd"], "threshold": os.environ["threshold"]}))' <<<""
+
+
+    - id: approve_alert
+      type: approval
+      title: "Approve spend alert"
+      description: |
+        Human-in-the-loop gate before the irreversible webhook alert is
+        sent. Approval is a passthrough HITL node.
+      config:
+        approval_prompt: "Approve sending the spend anomaly alert?"
+
+    - id: send_alert
+      type: webhook
+      title: "Publish spend alert"
+      description: |
+        POST the anomaly payload to the configured alert webhook URL.
+      config:
+        url: "{{ inputs.alert_webhook_url }}"
+        method: "POST"
+        headers:
+          Content-Type: "application/json"
+
+  edges:
+    - source: detect_anomaly
+      target: approve_alert
+    - source: approve_alert
+      target: send_alert
+
+  budget:
+    max_cost_usd: 2.00
+    max_wall_time_seconds: 300
+    max_iterations: 20
+    max_depth: 1
+
+  config: {}

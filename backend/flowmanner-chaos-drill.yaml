@@ -1,0 +1,159 @@
+# flowmanner-chaos-drill.yaml — version 1
+#
+# Pattern #44: Chaos drill (DAG with variable_set flag + retry/timeout).
+#
+# Sets a chaos_mode flag that drives a fallback path and exercises the
+# substrate's retry and timeout handlers. The sandbox reads the flag and
+# either behaves normally, injects a failure, or skips work.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-chaos-drill"
+description: |
+  Chaos drill blueprint. Uses a chaos_mode flag to drive fault injection
+  and recovery measurement. Wraps a sandbox step in retry and timeout
+  handlers; the sandbox adjusts its behavior based on the flag.
+
+blueprint_type: dag
+
+inputs:
+  chaos_mode:
+    type: string
+    default: "off"
+    description: 'One of "off", "inject_failure", or "skip_step".'
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: set_chaos_flag
+      type: variable_set
+      title: "Set chaos_mode flag"
+      description: |
+        Copy the run input into run-scoped inputs so downstream nodes
+        can branch on it.
+      config:
+        varName: "chaos_mode"
+        varExpr: 'inputs["chaos_mode"]'
+
+    - id: check_skip
+      type: condition
+      title: "Skip step?"
+      description: |
+        If chaos_mode is skip_step, bypass the protected work and go
+        straight to the recovery log.
+      config:
+        expression: 'inputs["chaos_mode"] == "skip_step"'
+
+    - id: retry_wrapper
+      type: retry
+      title: "Retry wrapper for flaky step"
+      description: |
+        Wrap the protected sandbox step with a retry policy so the drill
+        can demonstrate recovery from injected failures.
+      config:
+        maxRetries: 3
+        backoffMs: 1000
+
+    - id: timeout_wrapper
+      type: timeout
+      title: "Timeout wrapper for slow step"
+      description: |
+        Bound the retry-wrapped sandbox with a deadline so the drill can
+        measure timeout recovery.
+      config:
+        timeoutMs: 10000
+
+    - id: protected_step
+      type: sandbox
+      title: "Protected sandbox step"
+      description: |
+        The step under test. Reads the chaos_mode flag and either works
+        normally, injects a failure, or returns immediately (skip).
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        task_prompt: |
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          mode="{{ inputs.chaos_mode }}"
+
+          if [ "${mode}" = "inject_failure" ]; then
+            echo '{"status": "injected_failure", "message": "chaos: injected failure"}'
+            exit 1
+          elif [ "${mode}" = "skip_step" ]; then
+            echo '{"status": "skipped", "message": "chaos: step skipped"}'
+            exit 0
+          else
+            echo '{"status": "ok", "message": "chaos: normal execution"}'
+            exit 0
+          fi
+
+    - id: log_recovery
+      type: log
+      title: "Log recovery outcome"
+      description: |
+        Emit the recovery outcome of the chaos drill.
+      config:
+        level: info
+        message: "Chaos drill completed. Mode: {{ inputs.chaos_mode }}"
+
+    - id: log_timeout
+      type: log
+      title: "Log timeout recovery"
+      description: |
+        Record that the protected step timed out and recovery was attempted.
+      config:
+        level: warning
+        message: "Chaos drill: protected step timed out under timeout wrapper."
+
+    - id: summarize
+      type: llm_call
+      title: "Summarize chaos drill"
+      description: |
+        Produce a short narrative summary of the drill for human review.
+      config:
+        prompt: |
+          Summarize the following chaos-drill outcome in one sentence.
+
+          Mode: {{ inputs.chaos_mode }}
+          Protected step output: {{ previous_outputs["protected_step"]["output"] }}
+        system_prompt: "You are a reliability engineer. Be concise."
+        temperature: 0.3
+        max_tokens: 200
+
+  edges:
+    - source: set_chaos_flag
+      target: check_skip
+    - source: check_skip
+      target: log_recovery
+      condition: "true"
+    - source: check_skip
+      target: timeout_wrapper
+      condition: "false"
+    - source: timeout_wrapper
+      target: retry_wrapper
+    - source: timeout_wrapper
+      target: log_timeout
+      condition: "on_timeout"
+    - source: retry_wrapper
+      target: protected_step
+    - source: protected_step
+      target: summarize
+    - source: log_timeout
+      target: summarize
+    - source: summarize
+      target: log_recovery
+
+  budget:
+    max_cost_usd: 2.00
+    max_wall_time_seconds: 300
+    max_iterations: 30
+    max_depth: 3
+
+  config: {}

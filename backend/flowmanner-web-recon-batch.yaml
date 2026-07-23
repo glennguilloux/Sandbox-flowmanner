@@ -1,0 +1,142 @@
+# flowmanner-web-recon-batch.yaml — version 1
+#
+# Pattern #18: Batch web reconnaissance (DAG split → merge).
+#
+# Extends the single-URL graph-strategy web-recon blueprint into a batch DAG.
+# A split node fans out one parallel branch per URL. Each branch navigates,
+# snapshots, screenshots, and summarizes one URL. A merge node aggregates all
+# per-URL summaries into a single report.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-web-recon-batch"
+description: |
+  Batch web reconnaissance blueprint. Splits a list of target URLs into
+  parallel branches; each branch navigates, snapshots, screenshots, and
+  summarizes one URL. Per-URL summaries are merged into a single report.
+
+blueprint_type: dag
+
+inputs:
+  urls:
+    type: array
+    default:
+      - "https://example.com"
+      - "https://flowmanner.com"
+      - "https://github.com/glennguillou/FlowmannerV2"
+  model:
+    type: string
+    default: ""
+    description: "Optional model override for the per-URL summarizer."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: split_urls
+      type: split
+      title: "Split URLs into per-item branches"
+      description: |
+        Fan out the URL list so each URL is processed in its own parallel
+        branch. The current item is injected as {{ input }}.
+      config:
+        splitOn: "inputs.urls"
+        mode: "item"
+
+    # Bridge the split item into run-scoped inputs so nested config keys
+    # (e.g. browser_navigate.params.url) can reference it.
+    - id: set_url
+      type: variable_set
+      title: "Capture per-item URL"
+      description: |
+        Store the current split item as a run-scoped input so the browser
+        navigate node can reference it as {{ inputs.page_url }}.
+      config:
+        varName: "page_url"
+        varValue: "{{ input }}"
+
+    - id: browser_navigate
+      type: browser_navigate
+      title: "Navigate to target URL"
+      description: |
+        Open the browser and navigate to the current per-item URL.
+      config:
+        params:
+          url: "{{ inputs.page_url }}"
+
+    - id: browser_snapshot
+      type: browser_snapshot
+      title: "Capture page snapshot"
+      description: |
+        Capture the page's interactive elements and text content.
+      config:
+        params: {}
+
+    - id: browser_screenshot
+      type: browser_screenshot
+      title: "Capture screenshot"
+      description: |
+        Take a full-page screenshot for visual evidence.
+      config:
+        params: {}
+
+    - id: summarize_url
+      type: llm_call
+      title: "Summarize page content"
+      description: |
+        Summarize the page content for the recon report.
+      config:
+        model: "{{ inputs.model }}"
+        prompt: |
+          You are a web reconnaissance analyst. Summarize the key content
+          of the following page. Provide a concise summary (3-5 sentences)
+          of what this page is about, its main purpose, and any notable
+          content or features.
+
+          Page URL: {{ inputs.page_url }}
+        system_prompt: "You are a web reconnaissance analyst. Be concise and factual."
+        temperature: 0.3
+        max_tokens: 500
+
+    - id: merge_results
+      type: merge
+      title: "Merge per-URL summaries"
+      description: |
+        Aggregate all per-URL summaries into a single list.
+      config:
+        mergeStrategy: "concat"
+
+    - id: log_summary
+      type: log
+      title: "Log batch recon completion"
+      description: |
+        Emit an info-level log summarizing the completed batch recon.
+      config:
+        level: info
+        message: "Batch web recon complete for {{ inputs.urls }}"
+
+  edges:
+    - source: split_urls
+      target: set_url
+    - source: set_url
+      target: browser_navigate
+    - source: browser_navigate
+      target: browser_snapshot
+    - source: browser_snapshot
+      target: browser_screenshot
+    - source: browser_screenshot
+      target: summarize_url
+    - source: summarize_url
+      target: merge_results
+    - source: merge_results
+      target: log_summary
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 600
+    max_iterations: 50
+    max_depth: 3
+
+  config: {}
