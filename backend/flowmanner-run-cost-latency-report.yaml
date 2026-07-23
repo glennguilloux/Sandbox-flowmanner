@@ -1,10 +1,12 @@
 # flowmanner-run-cost-latency-report.yaml — version 1
 #
-# Pattern #37: Run-cost/latency report.
+# Pattern #37: Run cost/latency report.
 #
-# Gathers run cost and latency metrics from a sandbox, computes totals and
-# averages in a transform, renders a markdown report, persists the report to
-# memory, and fires a webhook alert when the cost exceeds a threshold.
+# Aggregates run cost and latency metrics from the Flowmanner API, renders
+# them into a formatted report via template_render, validates the report data
+# shape, stores it in Qdrant for historical tracking, and optionally publishes
+# via webhook. The sandbox is the only node with network egress, so it calls
+# the API.
 #
 # blueprint_type: dag
 # Product name: flowmanner (double-n, no 'p').
@@ -13,159 +15,183 @@ version: 1
 
 name: "flowmanner-run-cost-latency-report"
 description: |
-  Run-cost and latency report. Collects per-step cost/latency metrics via a
-  sandbox, computes totals, renders a markdown report, writes it to shared
-  memory, and alerts through a webhook when the total cost exceeds the
-  configured threshold.
+  Run cost/latency report. Fetches recent run metrics from the Flowmanner
+  API, renders a markdown report, validates the metrics schema, persists
+  the report to memory, and optionally publishes it via webhook.
 
 blueprint_type: dag
 
 inputs:
-  run_id:
+  api_base_url:
     type: string
-    default: "run-12345"
-    description: "Identifier for the run being reported."
-  cost_threshold:
-    type: number
-    default: 10.0
-    description: "Cost threshold (USD) that triggers the alert."
-  alert_webhook_url:
+    default: "http://127.0.0.1:8000"
+    description: "Flowmanner API base URL."
+  publish_webhook_url:
     type: string
     default: ""
-    description: "Webhook URL to alert when the cost threshold is exceeded."
+    description: "Optional webhook to publish the report."
 
 definition:
   blueprint_type: dag
   nodes:
-    - id: gather_metrics
+    - id: collect_metrics
       type: sandbox
-      title: "Gather cost and latency metrics"
+      title: "Collect run metrics"
       description: |
-        Collect (or simulate) per-step cost and latency data. The output
-        must be a JSON object with keys: cost, latency_ms, steps.
+        Query the Flowmanner API for recent run metrics and aggregate
+        cost, latency, token usage, and status counts.
       config:
         template: worker-standard
         shared_workspace: false
         snapshot_before: false
         agent: opencode
         task_prompt: |
-          import json
-          print(json.dumps({"cost": 15.50, "latency_ms": 1250, "steps": 5}))
+          Query the Flowmanner API for recent run metrics and aggregate them.
 
-    - id: store_metrics
+          Use curl to call: {{ inputs.api_base_url }}/api/v2/runs?limit=50
+
+          Aggregate:
+          - Total cost (sum of cost_usd)
+          - Average latency (mean of duration_seconds)
+          - P95 latency
+          - Total tokens consumed
+          - Run count by status (completed, failed, running)
+
+          Output a JSON object with these keys. If the API is unreachable,
+          output: {"error": "api_unreachable", "runs": []}
+
+    - id: bridge_metrics
       type: variable_set
-      title: "Store raw metrics"
+      title: "Bridge metrics"
       description: |
-        Bridge the sandbox output into a run-scoped variable.
+        Capture the metrics JSON into a run-scoped variable.
       config:
-        varName: "raw_metrics"
-        varExpr: 'previous_outputs["gather_metrics"]["output"]'
-
-    - id: compute_totals
-      type: transform
-      title: "Compute totals and averages"
-      description: |
-        Calculate total cost, average latency, and whether the threshold
-        is exceeded.
-      config:
-        transformType: "expression"
-        transformExpression: '{"total_cost": inputs["raw_metrics"]["cost"], "avg_latency_ms": inputs["raw_metrics"]["latency_ms"] / inputs["raw_metrics"]["steps"], "exceeds": inputs["raw_metrics"]["cost"] > inputs["cost_threshold"]}'
-
-    - id: store_report_data
-      type: variable_set
-      title: "Store report data"
-      description: |
-        Capture the computed totals for the template renderer.
-      config:
-        varName: "report_data"
-        varExpr: 'previous_outputs["compute_totals"]["output"]'
+        varName: "metrics"
+        varExpr: 'previous_outputs["collect_metrics"]["output"]'
 
     - id: render_report
       type: template_render
-      title: "Render cost/latency report"
+      title: "Render report"
       description: |
-        Format the computed totals into a markdown report.
+        Render a markdown report from the aggregated metrics.
       config:
         template: |
-          # Run Report — {{ inputs.run_id }}
+          ## Run Metrics Report
 
-          - Total cost: ${{ inputs.report_data['total_cost'] }}
-          - Average latency: {{ inputs.report_data['avg_latency_ms'] }} ms
-          - Threshold exceeded: {{ inputs.report_data['exceeds'] }}
+          **Generated:** {{ inputs.metrics['timestamp'] }}
+          **Period:** Last {{ inputs.metrics['run_count'] }} runs
 
-    - id: store_report_text
-      type: variable_set
-      title: "Store rendered report"
+          ### Cost
+          - Total: ${{ inputs.metrics['total_cost'] }}
+          - Average per run: ${{ inputs.metrics['avg_cost'] }}
+
+          ### Latency
+          - Average: {{ inputs.metrics['avg_latency'] }}s
+          - P95: {{ inputs.metrics['p95_latency'] }}s
+
+          ### Volume
+          - Total runs: {{ inputs.metrics['run_count'] }}
+          - Total tokens: {{ inputs.metrics['total_tokens'] }}
+          - Status breakdown: {{ inputs.metrics['status_breakdown'] }}
+
+    - id: validate_report
+      type: validate_schema
+      title: "Validate metrics schema"
       description: |
-        Capture the rendered report text for persistence.
+        Ensure the collected metrics contain the expected keys.
       config:
-        varName: "report_text"
-        varExpr: 'previous_outputs["render_report"]["output"]'
+        payload_key: "metrics"
+        schema:
+          type: object
+          required:
+            - total_cost
+            - avg_latency
+            - run_count
+          properties:
+            total_cost:
+              type: number
+            avg_latency:
+              type: number
+            run_count:
+              type: integer
 
-    - id: write_report
-      type: memory_write
-      title: "Persist report to memory"
+    - id: check_valid
+      type: condition
+      title: "Metrics valid?"
       description: |
-        Write the rendered report to the shared memory collection.
+        Branch based on whether the metrics passed schema validation.
+      config:
+        expression: 'previous_outputs["validate_report"]["output"]["valid"]'
+
+    - id: log_invalid
+      type: log
+      title: "Log invalid metrics"
+      description: |
+        Record that the collected metrics did not match the expected schema.
+      config:
+        level: error
+        message: "Run metrics failed schema validation."
+
+    - id: store_report
+      type: memory_write
+      title: "Store report"
+      description: |
+        Persist the report to Qdrant for historical tracking.
       config:
         collection: "flowmanner_reports"
         text: |
-          {{ inputs.report_text }}
+          {{ previous_outputs["render_report"]["output"] }}
+        payload:
+          schema: run_metrics_report
+          source: flowmanner-run-cost-latency-report
 
-    - id: check_cost
-      type: condition
-      title: "Cost exceeds threshold?"
-      description: |
-        Branch based on whether the total cost exceeds the threshold.
-      config:
-        expression: 'inputs["report_data"]["exceeds"]'
-
-    - id: alert_webhook
+    - id: publish_report
       type: webhook
-      title: "Alert on high cost"
+      title: "Publish report"
       description: |
-        POST the report to the configured alert webhook.
+        Optionally publish the report via webhook.
       config:
-        url: "{{ inputs.alert_webhook_url }}"
+        url: "{{ inputs.publish_webhook_url }}"
         method: POST
         headers:
           Content-Type: "application/json"
 
-    - id: log_report
+    - id: log_done
       type: log
-      title: "Log report within threshold"
+      title: "Log report published"
       description: |
-        Record that the report was generated and the cost stayed within
-        the threshold.
+        Record that the report was stored and published.
       config:
         level: info
-        message: "Cost/latency report generated within threshold."
+        message: "Run cost/latency report stored and published."
 
   edges:
-    - source: gather_metrics
-      target: store_metrics
-    - source: store_metrics
-      target: compute_totals
-    - source: compute_totals
-      target: store_report_data
-    - source: store_report_data
+    - source: collect_metrics
+      target: bridge_metrics
+    - source: bridge_metrics
       target: render_report
     - source: render_report
-      target: store_report_text
-    - source: store_report_text
-      target: write_report
-    - source: write_report
-      target: check_cost
-    - source: check_cost
-      target: alert_webhook
+      target: validate_report
+    - source: validate_report
+      target: check_valid
+      condition: "default"
+    - source: validate_report
+      target: log_invalid
+      condition: "on_invalid"
+    - source: check_valid
+      target: store_report
       condition: "true"
-    - source: check_cost
-      target: log_report
+    - source: check_valid
+      target: log_invalid
       condition: "false"
+    - source: store_report
+      target: publish_report
+    - source: publish_report
+      target: log_done
 
   budget:
-    max_cost_usd: 2.00
-    max_wall_time_seconds: 300
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 600
     max_iterations: 20
     max_depth: 3
 

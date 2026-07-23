@@ -2,9 +2,10 @@
 #
 # Pattern #38: SLA-breach predictor.
 #
-# Collects latency and availability metrics via a sandbox, validates the
-# payload against a JSON schema, predicts whether an SLA breach is imminent,
-# and routes to a webhook alert or a healthy log.
+# Predicts SLA breaches by computing a latency trend from recent runs. A
+# sandbox fetches run history from the API and computes a moving average of
+# latency. A condition checks if the trend is approaching the SLA threshold.
+# If predicted to breach, a webhook alert fires. Otherwise, the trend is logged.
 #
 # blueprint_type: dag
 # Product name: flowmanner (double-n, no 'p').
@@ -13,126 +14,216 @@ version: 1
 
 name: "flowmanner-sla-breach-predictor"
 description: |
-  SLA-breach predictor. Gathers current latency and availability metrics,
-  validates the payload shape, and branches to a webhook alert when a
-  breach is predicted or to a healthy-status log otherwise.
+  SLA-breach predictor. Computes a latency trend from recent runs and fires
+  a webhook alert when the trend predicts an SLA breach.
 
 blueprint_type: dag
 
 inputs:
+  api_base_url:
+    type: string
+    default: "http://127.0.0.1:8000"
+    description: "Flowmanner API base URL."
+  sla_threshold_seconds:
+    type: float
+    default: 30.0
+    description: "SLA latency threshold in seconds."
   alert_webhook_url:
     type: string
     default: ""
-    description: "Webhook URL to alert when an SLA breach is predicted."
+    description: "Webhook URL for breach alerts."
 
 definition:
   blueprint_type: dag
   nodes:
-    - id: collect_metrics
+    - id: collect_trend
       type: sandbox
-      title: "Collect SLA metrics"
+      title: "Collect latency trend"
       description: |
-        Gather current latency, availability, and breach-prediction
-        flag. Output must be a JSON object with keys: latency_ms,
-        availability, breach_predicted.
+        Fetch recent runs, compute moving average latency, and predict
+        whether the trend will breach the SLA threshold.
       config:
         template: worker-standard
         shared_workspace: false
         snapshot_before: false
         agent: opencode
         task_prompt: |
-          import json
-          print(json.dumps({
-              "latency_ms": 1200,
-              "availability": 98.5,
-              "breach_predicted": True,
-          }))
+          #!/usr/bin/env bash
+          set -euo pipefail
 
-    - id: validate_metrics
-      type: validate_schema
-      title: "Validate metric payload"
-      description: |
-        Ensure the sandbox payload has the expected schema.
-      config:
-        payload_key: "output"
-        schema:
-          type: object
-          properties:
-            latency_ms:
-              type: integer
-            availability:
-              type: number
-            breach_predicted:
-              type: boolean
-          required:
-            - "latency_ms"
-            - "availability"
-            - "breach_predicted"
+          api_url="{{ inputs.api_base_url }}/api/v2/runs?limit=20"
 
-    - id: store_metrics
+          # Fetch recent runs and compute latency trend
+          response=$(curl -s "${api_url}" 2>/dev/null || echo '{"data": []}')
+          echo "${response}" | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          runs = data.get("data", []) if isinstance(data, dict) else data
+          if not isinstance(runs, list):
+              runs = []
+          # Extract latencies
+          latencies = []
+          for r in runs:
+              d = r.get("duration_seconds") or r.get("duration") or 0
+              if d and isinstance(d, (int, float)):
+                  latencies.append(float(d))
+          if not latencies:
+              print(json.dumps({"avg_latency": 0, "trend": "unknown", "will_breach": False}))
+              sys.exit(0)
+          avg = sum(latencies) / len(latencies)
+          # Simple trend: compare last 3 vs first 3
+          recent = latencies[-3:] if len(latencies) >= 3 else latencies
+          older = latencies[:3] if len(latencies) >= 3 else latencies
+          recent_avg = sum(recent) / len(recent) if recent else 0
+          older_avg = sum(older) / len(older) if older else 0
+          threshold = float("{{ inputs.sla_threshold_seconds }}")
+          will_breach = recent_avg > threshold or (recent_avg > older_avg and recent_avg > threshold * 0.8)
+          trend = "accelerating" if recent_avg > older_avg else "decelerating" if recent_avg < older_avg else "stable"
+          print(json.dumps({"avg_latency": round(avg, 2), "recent_avg": round(recent_avg, 2),
+                             "trend": trend, "will_breach": will_breach, "threshold": threshold}))
+          '
+
+    - id: bridge_trend
       type: variable_set
-      title: "Store validated metrics"
+      title: "Bridge trend data"
       description: |
-        Bridge the validated metrics into a run-scoped variable.
+        Capture the latency trend data for downstream routing.
       config:
-        varName: "metrics"
-        varExpr: 'previous_outputs["collect_metrics"]["output"]'
+        varName: "trend"
+        varExpr: 'previous_outputs["collect_trend"]["output"]'
 
-    - id: check_breach
+    - id: set_avg_latency
+      type: variable_set
+      title: "Set avg_latency"
+      description: |
+        Flatten the average latency into a top-level input variable.
+      config:
+        varName: "avg_latency"
+        varExpr: 'inputs["trend"]["avg_latency"]'
+
+    - id: set_recent_avg
+      type: variable_set
+      title: "Set recent_avg"
+      description: |
+        Flatten the recent average latency into a top-level input variable.
+      config:
+        varName: "recent_avg"
+        varExpr: 'inputs["trend"]["recent_avg"]'
+
+    - id: set_trend
+      type: variable_set
+      title: "Set trend"
+      description: |
+        Flatten the trend direction into a top-level input variable.
+      config:
+        varName: "trend_label"
+        varExpr: 'inputs["trend"]["trend"]'
+
+    - id: set_will_breach
+      type: variable_set
+      title: "Set will_breach"
+      description: |
+        Flatten the breach prediction flag into a top-level input variable.
+      config:
+        varName: "will_breach"
+        varExpr: 'inputs["trend"]["will_breach"]'
+
+    - id: set_threshold
+      type: variable_set
+      title: "Set threshold"
+      description: |
+        Flatten the SLA threshold into a top-level input variable.
+      config:
+        varName: "threshold"
+        varExpr: 'inputs["trend"]["threshold"]'
+
+    - id: check_breach_risk
       type: condition
       title: "Breach predicted?"
       description: |
-        Branch based on the breach-prediction flag.
+        True when the trend predicts an SLA breach.
       config:
-        expression: 'inputs["metrics"]["breach_predicted"]'
+        expression: 'inputs["will_breach"]'
+
+    - id: log_safe
+      type: log
+      title: "Log healthy trend"
+      description: |
+        Record that no breach is predicted.
+      config:
+        level: info
+        message: "SLA trend healthy. avg_latency={{ inputs.avg_latency }}s, trend={{ inputs.trend_label }}"
+
+    - id: predict_breach
+      type: llm_call
+      title: "Generate breach prediction"
+      description: |
+        Produce a detailed breach prediction narrative with ETA and
+        recommended actions.
+      config:
+        prompt: |
+          The SLA breach predictor has identified a risk. Generate a detailed alert.
+
+          Average latency: {{ inputs.avg_latency }}s
+          Recent average: {{ inputs.recent_avg }}s
+          Trend: {{ inputs.trend_label }}
+          SLA threshold: {{ inputs.threshold }}s
+
+          Provide:
+          1. A clear breach warning
+          2. Estimated time to breach (if trend continues)
+          3. Recommended mitigation actions
+
+          Be concise and actionable.
+        system_prompt: "You are an SRE alert generator. Be direct and actionable."
+        temperature: 0.3
+        max_tokens: 500
 
     - id: alert_breach
       type: webhook
       title: "Alert on predicted breach"
       description: |
-        POST an alert when an SLA breach is predicted.
+        POST the breach prediction to the configured alert webhook.
       config:
         url: "{{ inputs.alert_webhook_url }}"
         method: POST
         headers:
           Content-Type: "application/json"
 
-    - id: log_healthy
+    - id: log_alert
       type: log
-      title: "Log healthy SLA status"
+      title: "Log breach alert"
       description: |
-        Record that the SLA metrics are healthy.
+        Record that a breach alert was sent.
       config:
-        level: info
-        message: "SLA metrics are healthy; no breach predicted."
-
-    - id: log_invalid
-      type: log
-      title: "Log invalid metric payload"
-      description: |
-        Record that the collected metrics did not match the expected
-        schema.
-      config:
-        level: error
-        message: "SLA metric payload failed schema validation."
+        level: warning
+        message: "SLA breach alert sent. avg_latency={{ inputs.trend['avg_latency'] }}s"
 
   edges:
-    - source: collect_metrics
-      target: validate_metrics
-    - source: validate_metrics
-      target: store_metrics
-      condition: "default"
-    - source: validate_metrics
-      target: log_invalid
-      condition: "on_invalid"
-    - source: store_metrics
-      target: check_breach
-    - source: check_breach
-      target: alert_breach
-      condition: "true"
-    - source: check_breach
-      target: log_healthy
+    - source: collect_trend
+      target: bridge_trend
+    - source: bridge_trend
+      target: set_avg_latency
+    - source: set_avg_latency
+      target: set_recent_avg
+    - source: set_recent_avg
+      target: set_trend
+    - source: set_trend
+      target: set_will_breach
+    - source: set_will_breach
+      target: set_threshold
+    - source: set_threshold
+      target: check_breach_risk
+    - source: check_breach_risk
+      target: log_safe
       condition: "false"
+    - source: check_breach_risk
+      target: predict_breach
+      condition: "true"
+    - source: predict_breach
+      target: alert_breach
+    - source: alert_breach
+      target: log_alert
 
   budget:
     max_cost_usd: 2.00

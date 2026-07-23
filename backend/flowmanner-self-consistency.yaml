@@ -1,10 +1,11 @@
 # flowmanner-self-consistency.yaml — version 1
 #
-# Pattern #49: Self-consistency sampler.
+# Pattern #49: Self-consistency voting.
 #
-# Runs the same prompt multiple times in parallel, merges the outputs, and uses
-# an LLM-as-judge to select the most consistent answer. The chosen answer is
-# logged, and a confidence score is persisted to shared memory.
+# Samples the same prompt N times in parallel using split, then uses an
+# llm_eval to cluster outputs by similarity and identify the majority answer.
+# If there is no clear majority, a tie-breaker llm_eval selects the best answer.
+# The consensus answer is persisted to Qdrant.
 #
 # blueprint_type: dag
 # Product name: flowmanner (double-n, no 'p').
@@ -13,160 +14,214 @@ version: 1
 
 name: "flowmanner-self-consistency"
 description: |
-  Self-consistency sampler. Runs the same prompt several times in parallel,
-  collects the outputs, and asks an LLM judge to pick the most consistent
-  answer and estimate a confidence score. The result is written to memory.
+  Self-consistency voting blueprint. Samples the same prompt N times in
+  parallel, uses an LLM to find a majority cluster, and either logs the
+  consensus or breaks the tie. The consensus is persisted to memory.
 
 blueprint_type: dag
 
 inputs:
-  task_prompt:
+  question:
     type: string
-    default: "What is the capital of Australia?"
-    description: "The prompt to sample for self-consistency."
+    description: "The question to sample and find consensus on."
   model:
     type: string
     default: ""
-    description: "Optional model override for the parallel calls and judge."
-  num_runs:
-    type: integer
-    default: 3
-    description: "Number of parallel samples to generate."
+    description: "Optional model override."
 
 definition:
   blueprint_type: dag
   nodes:
-    - id: build_runs
+    - id: set_samples
       type: variable_set
-      title: "Build run identifiers"
+      title: "Set sample indices"
       description: |
-        Create a list of run identifiers from the requested sample count.
+        Create the list of parallel sample indices.
       config:
-        varName: "runs"
-        varExpr: 'list(range(inputs["num_runs"]))'
+        varName: "sample_indices"
+        varValue: [0, 1, 2, 3, 4]
 
-    - id: split_runs
+    - id: split_samples
       type: split
-      title: "Split into parallel runs"
+      title: "Split into parallel samples"
       description: |
-        Fan out one branch per consistency sample.
+        Create one branch for each consistency sample.
       config:
-        splitOn: "inputs.runs"
+        splitOn: "inputs.sample_indices"
         mode: "item"
 
-    - id: sample_call
+    - id: generate_sample
       type: llm_call
-      title: "Sample model output"
+      title: "Generate sample answer"
       description: |
-        Run the model once for this sample.
+        Generate one answer sample with high temperature for diversity.
       config:
         model: "{{ inputs.model }}"
         prompt: |
-          {{ inputs.task_prompt }}
-        system_prompt: "You are a helpful assistant. Answer concisely."
-        temperature: 0.7
+          Answer the following question. Be concise.
+
+          Question: {{ inputs.question }}
+        system_prompt: "You are a helpful assistant. Provide a direct answer."
+        temperature: 0.8
         max_tokens: 500
 
     - id: merge_samples
       type: merge
-      title: "Merge sampled outputs"
+      title: "Merge sample answers"
       description: |
         Gather all parallel sample outputs.
       config:
         mergeStrategy: "concat"
 
-    - id: format_outputs
-      type: transform
-      title: "Format samples for judge"
-      description: |
-        Convert the merged sample list into a single string the judge
-        can reason over.
-      config:
-        transformType: "expression"
-        transformExpression: '"\\n---\\n".join(str(item) for item in previous_outputs["merge_samples"]["merged"]) if previous_outputs["merge_samples"]["merged"] else ""'
-
-    - id: store_formatted
+    - id: bridge_samples
       type: variable_set
-      title: "Store formatted samples"
+      title: "Bridge sample list"
       description: |
-        Capture the formatted samples for the consensus evaluator.
+        Capture the merged samples for majority analysis.
       config:
-        varName: "formatted_samples"
-        varExpr: 'previous_outputs["format_outputs"]["output"]'
+        varName: "samples"
+        varExpr: 'previous_outputs["merge_samples"]["merged"]'
 
-    - id: consensus_eval
+    - id: find_majority
       type: llm_eval
-      title: "Determine consensus"
+      title: "Find majority cluster"
       description: |
-        Pick the most consistent answer across the samples and estimate
-        a confidence score.
+        Cluster the samples by semantic similarity and identify a majority.
       config:
         model: "{{ inputs.model }}"
-        output_schema:
-          best_answer: string
-          confidence_score: integer
         prompt: |
-          The same question was answered multiple times. Choose the most
-          consistent answer and provide a confidence score (0-100). Return
-          a JSON object with keys:
-            {"best_answer": "the chosen answer", "confidence_score": 0-100}
+          You are finding the majority answer from multiple samples of the same question.
 
-          Question: {{ inputs.task_prompt }}
+          Question: {{ inputs.question }}
 
-          Sample answers:
-          {{ inputs.formatted_samples }}
-        system_prompt: "You are a consensus evaluator. Return valid JSON only."
+          Samples:
+          {{ inputs.samples }}
+
+          Cluster the outputs by semantic similarity. Identify if there is a clear
+          majority (more than 50% of samples agree).
+
+          Return JSON: {"has_majority": true/false, "majority_answer": "...",
+          "confidence": 0-100, "clusters": [["sample1", "sample2"], ["sample3"]]}
+        system_prompt: "You are a consistency analyzer. Output valid JSON only."
         temperature: 0.2
-        max_tokens: 300
+        max_tokens: 800
+        output_schema:
+          has_majority: boolean
+          majority_answer: string
+          confidence: integer
+          clusters: array
 
-    - id: store_consensus
+    - id: bridge_majority
       type: variable_set
-      title: "Store consensus answer"
+      title: "Bridge majority result"
       description: |
-        Capture the chosen answer for logging and memory.
+        Capture the majority result for the condition check.
       config:
-        varName: "final_answer"
-        varExpr: 'previous_outputs["consensus_eval"]["output"]["best_answer"]'
+        varName: "majority"
+        varExpr: 'previous_outputs["find_majority"]["output"]["has_majority"]'
 
-    - id: log_result
-      type: log
-      title: "Log consensus result"
+    - id: check_majority
+      type: condition
+      title: "Clear majority found?"
       description: |
-        Record the chosen answer and confidence.
+        True when a clear majority answer was identified.
+      config:
+        expression: 'inputs["majority"]'
+
+    - id: log_consensus
+      type: log
+      title: "Log consensus answer"
+      description: |
+        Record the majority consensus answer.
       config:
         level: info
-        message: "Self-consensus answer: {{ inputs.final_answer }}"
+        message: "Consensus answer found."
 
-    - id: memory_store
+    - id: store_consensus
       type: memory_write
-      title: "Persist consensus"
+      title: "Store consensus answer"
       description: |
-        Write the final consensus answer to shared memory.
+        Persist the majority consensus answer to memory.
       config:
         collection: "flowmanner_memory"
         text: |
-          Self-consistency result for: {{ inputs.task_prompt }}
-          Consensus answer: {{ inputs.final_answer }}
+          Question: {{ inputs.question }}
+          Consensus answer: {{ previous_outputs["find_majority"]["output"]["majority_answer"] }}
+        payload:
+          schema: self_consensus_record
+          source: flowmanner-self-consistency
+
+    - id: break_tie
+      type: llm_eval
+      title: "Break tie"
+      description: |
+        Select the best answer when no clear majority exists.
+      config:
+        model: "{{ inputs.model }}"
+        prompt: |
+          No clear majority was found across these samples. Select the best answer.
+
+          Question: {{ inputs.question }}
+
+          Samples:
+          {{ inputs.samples }}
+
+          Return JSON: {"best_answer": "...", "rationale": "..."}
+        system_prompt: "You are a tie-breaker judge. Output valid JSON only."
+        temperature: 0.2
+        max_tokens: 500
+        output_schema:
+          best_answer: string
+          rationale: string
+
+    - id: log_tiebreak
+      type: log
+      title: "Log tiebreak answer"
+      description: |
+        Record the tie-breaker answer.
+      config:
+        level: info
+        message: "Tie-breaker selected the best answer."
+
+    - id: store_tiebreak
+      type: memory_write
+      title: "Store tiebreak answer"
+      description: |
+        Persist the tie-breaker answer to memory.
+      config:
+        collection: "flowmanner_memory"
+        text: |
+          Question: {{ inputs.question }}
+          Tiebreak answer: {{ previous_outputs["break_tie"]["output"]["best_answer"] }}
+        payload:
+          schema: self_consensus_record
+          source: flowmanner-self-consistency
 
   edges:
-    - source: build_runs
-      target: split_runs
-    - source: split_runs
-      target: sample_call
-    - source: sample_call
+    - source: set_samples
+      target: split_samples
+    - source: split_samples
+      target: generate_sample
+    - source: generate_sample
       target: merge_samples
     - source: merge_samples
-      target: format_outputs
-    - source: format_outputs
-      target: store_formatted
-    - source: store_formatted
-      target: consensus_eval
-    - source: consensus_eval
+      target: bridge_samples
+    - source: bridge_samples
+      target: find_majority
+    - source: find_majority
+      target: bridge_majority
+    - source: bridge_majority
+      target: check_majority
+    - source: check_majority
+      target: log_consensus
+      condition: "true"
+    - source: check_majority
+      target: break_tie
+      condition: "false"
+    - source: log_consensus
       target: store_consensus
-    - source: store_consensus
-      target: log_result
-    - source: log_result
-      target: memory_store
+    - source: break_tie
+      target: store_tiebreak
 
   budget:
     max_cost_usd: 5.00

@@ -2,9 +2,10 @@
 #
 # Pattern #47: Provenance tracker.
 #
-# Builds a provenance record with input/output hashes, a timestamp, and a
-# stable chain hash via a sandbox, validates the record schema, writes the
-# record to shared memory, and logs success.
+# Renders a provenance/lineage document for a run, validates its schema, and
+# stores it immutably in Qdrant. The lineage captures inputs, outputs, node
+# execution trace, and timing data. This creates an immutable, queryable
+# audit trail for compliance and debugging.
 #
 # blueprint_type: dag
 # Product name: flowmanner (double-n, no 'p').
@@ -13,133 +14,179 @@ version: 1
 
 name: "flowmanner-provenance-tracker"
 description: |
-  Provenance tracker. Computes SHA-256 hashes of the raw input and processed
-  output, builds a stable chain hash, validates the provenance record
-  schema, persists the record to shared memory, and logs the chain signature.
+  Provenance tracker. Fetches run lineage from the API, renders a formatted
+  provenance document, validates its schema, and persists it immutably to
+  memory.
 
 blueprint_type: dag
 
 inputs:
-  raw_input:
+  run_id:
     type: string
-    default: "Hello world"
-    description: "The original input to track."
-  processed_output:
+    description: "The run ID to generate provenance for."
+  api_base_url:
     type: string
-    default: "HELLO WORLD"
-    description: "The processed output to track."
+    default: "http://127.0.0.1:8000"
+    description: "Flowmanner API base URL."
 
 definition:
   blueprint_type: dag
   nodes:
-    - id: build_record
+    - id: collect_lineage
       type: sandbox
-      title: "Build provenance record"
+      title: "Collect run lineage"
       description: |
-        Compute input/output SHA-256 hashes, a current timestamp, and a
-        stable chain hash. Output must be JSON with keys: input_hash,
-        output_hash, chain_hash, timestamp.
+        Fetch provenance data and events for the given run from the
+        Flowmanner API.
       config:
         template: worker-standard
         shared_workspace: false
         snapshot_before: false
         agent: opencode
         task_prompt: |
-          import json
-          import hashlib
-          import time
+          Fetch the provenance data for run {{ inputs.run_id }} from the Flowmanner API.
 
-          in_data = """{{ inputs.raw_input }}"""
-          out_data = """{{ inputs.processed_output }}"""
+          Call: {{ inputs.api_base_url }}/api/v2/runs/{{ inputs.run_id }}/provenance
 
-          in_hash = hashlib.sha256(in_data.encode()).hexdigest()
-          out_hash = hashlib.sha256(out_data.encode()).hexdigest()
-          chain = hashlib.sha256((in_hash + out_hash).encode()).hexdigest()
+          Also fetch events: {{ inputs.api_base_url }}/api/v2/runs/{{ inputs.run_id }}/events
 
-          print(json.dumps({
-              "input_hash": in_hash,
-              "output_hash": out_hash,
-              "chain_hash": chain,
-              "timestamp": int(time.time()),
-          }))
+          Construct a lineage JSON object with:
+          - run_id
+          - blueprint_id
+          - inputs (the run's input parameters)
+          - outputs (final outputs)
+          - node_trace (list of nodes executed, with timing)
+          - total_cost_usd
+          - total_duration_seconds
+          - timestamp
 
-    - id: validate_record
+          If the API is unreachable, output: {"error": "unreachable", "run_id": "{{ inputs.run_id }}"}
+
+    - id: bridge_lineage
+      type: variable_set
+      title: "Bridge lineage data"
+      description: |
+        Capture the lineage JSON into a run-scoped variable.
+      config:
+        varName: "lineage"
+        varExpr: 'previous_outputs["collect_lineage"]["output"]'
+
+    - id: render_provenance
+      type: template_render
+      title: "Render provenance document"
+      description: |
+        Render a formatted provenance document from the lineage data.
+      config:
+        template: |
+          # Provenance Record
+
+          **Run ID:** {{ inputs.lineage['run_id'] }}
+          **Blueprint:** {{ inputs.lineage['blueprint_id'] }}
+          **Timestamp:** {{ inputs.lineage['timestamp'] }}
+
+          ## Inputs
+          {{ inputs.lineage['inputs'] }}
+
+          ## Outputs
+          {{ inputs.lineage['outputs'] }}
+
+          ## Execution Trace
+          {{ inputs.lineage['node_trace'] }}
+
+          ## Metrics
+          - Total cost: ${{ inputs.lineage['total_cost_usd'] }}
+          - Total duration: {{ inputs.lineage['total_duration_seconds'] }}s
+
+    - id: validate_provenance
       type: validate_schema
       title: "Validate provenance schema"
       description: |
-        Ensure the provenance record has the required structure.
+        Ensure the lineage document contains the required fields.
       config:
-        payload_key: "output"
+        payload_key: "lineage"
         schema:
           type: object
+          required:
+            - run_id
+            - blueprint_id
+            - timestamp
           properties:
-            input_hash:
+            run_id:
               type: string
-            output_hash:
-              type: string
-            chain_hash:
+            blueprint_id:
               type: string
             timestamp:
-              type: integer
-          required:
-            - "input_hash"
-            - "output_hash"
-            - "chain_hash"
-            - "timestamp"
+              type: string
+            total_cost_usd:
+              type: number
+            total_duration_seconds:
+              type: number
 
-    - id: store_record
-      type: variable_set
-      title: "Store provenance record"
+    - id: check_valid
+      type: condition
+      title: "Provenance valid?"
       description: |
-        Bridge the validated record into a run-scoped variable.
+        True when the provenance document passes schema validation.
       config:
-        varName: "record"
-        varExpr: 'previous_outputs["build_record"]["output"]'
-
-    - id: write_memory
-      type: memory_write
-      title: "Persist provenance record"
-      description: |
-        Write the provenance record and chain hash to shared memory.
-      config:
-        collection: "flowmanner_provenance"
-        text: |
-          chain_hash: {{ inputs.record['chain_hash'] }}
-          input_hash: {{ inputs.record['input_hash'] }}
-          output_hash: {{ inputs.record['output_hash'] }}
-          timestamp: {{ inputs.record['timestamp'] }}
+        expression: 'previous_outputs["validate_provenance"]["output"]["valid"]'
 
     - id: log_invalid
       type: log
       title: "Log invalid provenance"
       description: |
-        Record that the provenance record failed schema validation.
+        Record that the provenance document failed schema validation.
       config:
         level: error
-        message: "Provenance record failed schema validation."
+        message: "Provenance record failed schema validation for run {{ inputs.run_id }}."
 
-    - id: log_success
-      type: log
-      title: "Log provenance success"
+    - id: store_provenance
+      type: memory_write
+      title: "Store provenance record"
       description: |
-        Record the chain hash for the tracked input/output.
+        Persist the provenance document to Qdrant for immutable storage.
+      config:
+        collection: "flowmanner_provenance"
+        text: |
+          provenance for run {{ inputs.run_id }}
+          blueprint: {{ inputs.lineage['blueprint_id'] }}
+          timestamp: {{ inputs.lineage['timestamp'] }}
+          cost: {{ inputs.lineage['total_cost_usd'] }}
+          duration: {{ inputs.lineage['total_duration_seconds'] }}s
+        payload:
+          schema: provenance_record
+          source: flowmanner-provenance-tracker
+          run_id: "{{ inputs.run_id }}"
+
+    - id: log_stored
+      type: log
+      title: "Log provenance stored"
+      description: |
+        Record that the provenance document was stored.
       config:
         level: info
-        message: "Provenance record persisted. Chain hash: {{ inputs.record['chain_hash'] }}"
+        message: "Provenance record stored for run {{ inputs.run_id }}."
 
   edges:
-    - source: build_record
-      target: validate_record
-    - source: validate_record
-      target: store_record
+    - source: collect_lineage
+      target: bridge_lineage
+    - source: bridge_lineage
+      target: render_provenance
+    - source: render_provenance
+      target: validate_provenance
+    - source: validate_provenance
+      target: check_valid
       condition: "default"
-    - source: validate_record
+    - source: validate_provenance
       target: log_invalid
       condition: "on_invalid"
-    - source: store_record
-      target: write_memory
-    - source: write_memory
-      target: log_success
+    - source: check_valid
+      target: store_provenance
+      condition: "true"
+    - source: check_valid
+      target: log_invalid
+      condition: "false"
+    - source: store_provenance
+      target: log_stored
 
   budget:
     max_cost_usd: 2.00

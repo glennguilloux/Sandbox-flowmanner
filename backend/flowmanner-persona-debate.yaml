@@ -1,10 +1,11 @@
 # flowmanner-persona-debate.yaml — version 1
 #
-# Pattern #48: Persona debate.
+# Pattern #48: Multi-persona deliberation.
 #
-# Splits a task into two persona branches (optimistic architect vs. pessimistic
-# critic), runs both in parallel, then uses an LLM-as-judge to synthesize the
-# two viewpoints into a single balanced answer.
+# Splits across N expert personas, each reasoning about the same question from
+# their domain perspective. A merge collects all positions, then an llm_eval
+# judge synthesizes the best answer from the debate. The winning position is
+# persisted to Qdrant.
 #
 # blueprint_type: dag
 # Product name: flowmanner (double-n, no 'p').
@@ -13,191 +14,172 @@ version: 1
 
 name: "flowmanner-persona-debate"
 description: |
-  Persona-debate blueprint. An task is answered twice in parallel by two
-  personas: an optimistic architect and a pessimistic critic. An LLM judge
-  then synthesizes the two positions into a final recommendation.
+  Multi-persona deliberation blueprint. Splits across expert personas, each
+  argues from their perspective, then an LLM judge synthesizes the best
+  answer from the debate and persists the outcome to memory.
 
 blueprint_type: dag
 
 inputs:
-  task_prompt:
+  topic:
     type: string
-    default: "Propose a cloud architecture for a startup."
-    description: "The task or question the personas will debate."
+    description: "The debate topic or question."
   model:
     type: string
     default: ""
-    description: "Optional model override for the persona calls and judge."
+    description: "Optional model override for persona arguments."
 
 definition:
   blueprint_type: dag
   nodes:
-    - id: set_branches
+    - id: set_personas
       type: variable_set
-      title: "Define debate branches"
+      title: "Set persona list"
       description: |
-        Materialize the two persona roles so the split node can fan out
-        one branch per persona.
+        Define the personas that will participate in the debate.
       config:
-        varName: "branches"
+        varName: "personas"
         varValue:
-          - "optimist"
-          - "pessimist"
+          - id: "optimist"
+            name: "Optimist"
+            perspective: "Focus on upside potential, best-case scenarios, and growth opportunities"
+          - id: "pessimist"
+            name: "Risk Analyst"
+            perspective: "Focus on downside risks, failure modes, and worst-case scenarios"
+          - id: "pragmatist"
+            name: "Pragmatist"
+            perspective: "Focus on practical implementation, cost-benefit, and real-world constraints"
+          - id: "ethicist"
+            name: "Ethicist"
+            perspective: "Focus on ethical implications, fairness, and societal impact"
 
-    - id: split_branches
+    - id: split_personas
       type: split
-      title: "Split into persona branches"
+      title: "Split across personas"
       description: |
-        Fan out one branch for each persona.
+        Create one parallel branch for each persona.
       config:
-        splitOn: "inputs.branches"
+        splitOn: "inputs.personas"
         mode: "item"
 
-    - id: set_branch
-      type: variable_set
-      title: "Capture current persona"
-      description: |
-        Store the split item so downstream nodes can branch on it.
-      config:
-        varName: "branch"
-        varValue: "{{ input }}"
-
-    - id: route_branch
-      type: condition
-      title: "Optimist branch?"
-      description: |
-        Route to the appropriate persona call based on the current branch.
-      config:
-        expression: 'inputs["branch"] == "optimist"'
-
-    - id: optimist_call
+    - id: argue_position
       type: llm_call
-      title: "Optimist persona"
+      title: "Argue from persona perspective"
       description: |
-        Answer the task from the optimistic architect perspective.
+        Each persona argues its position on the debate topic.
       config:
         model: "{{ inputs.model }}"
         prompt: |
-          You are an optimistic architect. Focus on ideal outcomes,
-          opportunities, and best-case design. Answer the following:
+          You are: {{ input }}
 
-          {{ inputs.task_prompt }}
-        system_prompt: "You are an optimistic architect. Be constructive and forward-looking."
-        temperature: 0.5
+          Debate topic: {{ inputs.topic }}
+
+          Argue your position on this topic from your assigned perspective.
+          Be concise but thorough. Present your strongest argument.
+
+          Start with: "As the {{ input }}, I argue that..."
+        system_prompt: "You are an expert debater. Be persuasive and specific."
+        temperature: 0.6
         max_tokens: 800
 
-    - id: pessimist_call
-      type: llm_call
-      title: "Pessimist persona"
-      description: |
-        Answer the task from the pessimistic critic perspective.
-      config:
-        model: "{{ inputs.model }}"
-        prompt: |
-          You are a pessimistic critic. Focus on risks, failure modes,
-          and constraints. Answer the following:
-
-          {{ inputs.task_prompt }}
-        system_prompt: "You are a pessimistic critic. Be rigorous and risk-aware."
-        temperature: 0.5
-        max_tokens: 800
-
-    - id: store_optimist
-      type: variable_set
-      title: "Store optimist output"
-      description: |
-        Capture the optimist response for synthesis.
-      config:
-        varName: "optimist_output"
-        varExpr: 'previous_outputs["optimist_call"]["output"]'
-
-    - id: store_pessimist
-      type: variable_set
-      title: "Store pessimist output"
-      description: |
-        Capture the pessimist response for synthesis.
-      config:
-        varName: "pessimist_output"
-        varExpr: 'previous_outputs["pessimist_call"]["output"]'
-
-    - id: merge_outputs
+    - id: merge_arguments
       type: merge
-      title: "Merge persona outputs"
+      title: "Merge persona arguments"
       description: |
-        Aggregate the outputs from both personas.
+        Gather all persona arguments.
       config:
         mergeStrategy: "concat"
 
-    - id: judge_synth
+    - id: bridge_arguments
+      type: variable_set
+      title: "Bridge merged arguments"
+      description: |
+        Capture the merged arguments for the judge.
+      config:
+        varName: "arguments"
+        varExpr: 'previous_outputs["merge_arguments"]["merged"]'
+
+    - id: judge_winner
       type: llm_eval
       title: "Synthesize debate"
       description: |
-        Combine the optimistic and pessimistic responses into a single
-        balanced recommendation.
+        Synthesize all persona positions into a single recommendation.
       config:
         model: "{{ inputs.model }}"
-        output_schema:
-          synthesis: string
-          rationale: string
         prompt: |
-          You are a balanced mediator. Synthesize the following optimistic
-          and pessimistic responses into a single recommendation. Return a
-          JSON object with keys:
-            {"synthesis": "final recommendation", "rationale": "short reason"}
+          You are the moderator of a multi-persona debate. Synthesize the best
+          answer from all positions below.
 
-          Optimist response:
-          {{ inputs.optimist_output }}
+          Topic: {{ inputs.topic }}
 
-          Pessimist response:
-          {{ inputs.pessimist_output }}
-        system_prompt: "You are a balanced mediator. Return valid JSON only."
+          All arguments:
+          {{ inputs.arguments }}
+
+          Produce a final synthesis that:
+          1. Identifies the strongest point from each persona
+          2. Notes where personas agreed or disagreed
+          3. Delivers a balanced final recommendation
+
+          Return JSON: {"winner": "<persona_id>", "synthesis": "...",
+          "key_points": ["..."], "recommendation": "..."}
+        system_prompt: "You are a debate moderator. Output valid JSON only."
         temperature: 0.3
-        max_tokens: 800
+        max_tokens: 1000
+        output_schema:
+          winner: string
+          synthesis: string
+          key_points: array
+          recommendation: string
 
-    - id: store_synthesis
+    - id: bridge_verdict
       type: variable_set
-      title: "Store final synthesis"
+      title: "Bridge verdict"
       description: |
-        Capture the judge's synthesis for the log.
+        Capture the judge's synthesis for logging and memory.
       config:
-        varName: "final_synth"
-        varExpr: 'previous_outputs["judge_synth"]["output"]["synthesis"]'
+        varName: "verdict"
+        varExpr: 'previous_outputs["judge_winner"]["output"]["synthesis"]'
+
+    - id: record_debate
+      type: memory_write
+      title: "Record debate outcome"
+      description: |
+        Persist the debate outcome to shared memory.
+      config:
+        collection: "flowmanner_memory"
+        text: |
+          Debate topic: {{ inputs.topic }}
+          Winner: {{ inputs.verdict }}
+        payload:
+          schema: debate_record
+          source: flowmanner-persona-debate
+          topic: "{{ inputs.topic }}"
 
     - id: log_result
       type: log
-      title: "Log final synthesis"
+      title: "Log debate result"
       description: |
         Record that the persona debate completed.
       config:
         level: info
-        message: "Persona debate completed. Synthesis: {{ inputs.final_synth }}"
+        message: "Persona debate completed for topic: {{ inputs.topic }}"
 
   edges:
-    - source: set_branches
-      target: split_branches
-    - source: split_branches
-      target: set_branch
-    - source: set_branch
-      target: route_branch
-    - source: route_branch
-      target: optimist_call
-      condition: "true"
-    - source: route_branch
-      target: pessimist_call
-      condition: "false"
-    - source: optimist_call
-      target: store_optimist
-    - source: pessimist_call
-      target: store_pessimist
-    - source: store_optimist
-      target: merge_outputs
-    - source: store_pessimist
-      target: merge_outputs
-    - source: merge_outputs
-      target: judge_synth
-    - source: judge_synth
-      target: store_synthesis
-    - source: store_synthesis
+    - source: set_personas
+      target: split_personas
+    - source: split_personas
+      target: argue_position
+    - source: argue_position
+      target: merge_arguments
+    - source: merge_arguments
+      target: bridge_arguments
+    - source: bridge_arguments
+      target: judge_winner
+    - source: judge_winner
+      target: bridge_verdict
+    - source: bridge_verdict
+      target: record_debate
+    - source: record_debate
       target: log_result
 
   budget:

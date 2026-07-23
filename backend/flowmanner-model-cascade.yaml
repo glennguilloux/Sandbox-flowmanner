@@ -2,9 +2,10 @@
 #
 # Pattern #30: Model cascade.
 #
-# Starts with a cheap/fast model. An LLM-as-judge evaluates whether the output
-# is sufficient. If not, the blueprint falls back to a stronger, more
-# expensive model. The final chosen output is written to shared memory.
+# Cost-optimizing model cascade. Tries a cheap/fast model first, uses
+# llm_eval to check confidence/quality, and only escalates to an expensive
+# model if the cheap model's output is below threshold. The routing decision
+# is persisted to Qdrant via memory_write to build a routing prior over time.
 #
 # blueprint_type: dag
 # Product name: flowmanner (double-n, no 'p').
@@ -13,178 +14,190 @@ version: 1
 
 name: "flowmanner-model-cascade"
 description: |
-  Model-cascade blueprint. Tries a cheap model first, judges the result, and
-  only invokes an expensive model when the cheap output is judged
-  insufficient. The final output is persisted to shared memory.
+  Cost-optimizing model cascade. Tries a cheap model first, judges the
+  output quality, and only invokes a strong model when confidence is below
+  the threshold. The routing decision is persisted to memory to build a
+  routing prior.
 
 blueprint_type: dag
 
 inputs:
   task_prompt:
     type: string
-    default: "Explain quantum computing briefly."
-    description: "The task to run through the model cascade."
+    description: "The task to complete."
   cheap_model:
     type: string
-    default: "openrouter/anthropic/claude-3-haiku"
-    description: "Cheap/fast model slug."
-  expensive_model:
+    default: "openrouter/meta-llama/llama-3.3-70b-instruct"
+    description: "Cheap/fast model for the first attempt."
+  strong_model:
     type: string
-    default: "openrouter/anthropic/claude-3-opus"
-    description: "Strong/expensive model slug for fallback."
+    default: "openrouter/anthropic/claude-3.5-sonnet"
+    description: "Expensive/strong model for escalation."
+  threshold:
+    type: integer
+    default: 75
+    description: "Minimum confidence score to accept the cheap model's output."
 
 definition:
   blueprint_type: dag
   nodes:
-    - id: cheap_call
+    - id: try_cheap
       type: llm_call
-      title: "Cheap model call"
+      title: "Try cheap model"
       description: |
-        First attempt using the cheap, fast model.
+        Run the task with the cheap, fast model.
       config:
         model: "{{ inputs.cheap_model }}"
         prompt: |
-          {{ inputs.task_prompt }}
-        system_prompt: "You are a helpful assistant. Be concise."
-        temperature: 0.4
-        max_tokens: 800
-
-    - id: store_cheap
-      type: variable_set
-      title: "Store cheap output"
-      description: |
-        Capture the cheap model output for evaluation.
-      config:
-        varName: "cheap_output"
-        varExpr: 'previous_outputs["cheap_call"]["output"]'
-
-    - id: judge_cheap
-      type: llm_eval
-      title: "Judge cheap output quality"
-      description: |
-        Decide whether the cheap output is good enough or if we need the
-        expensive fallback.
-      config:
-        model: "{{ inputs.cheap_model }}"
-        output_schema:
-          sufficient: boolean
-          rationale: string
-        prompt: |
-          Evaluate whether the following output is a complete, accurate,
-          and well-formed answer to the task. Return a JSON object with
-          keys: {"sufficient": true/false, "rationale": "short reason"}.
+          Complete the following task concisely.
 
           Task: {{ inputs.task_prompt }}
+        system_prompt: "You are a helpful assistant. Be concise and accurate."
+        temperature: 0.3
+        max_tokens: 1000
 
-          Output:
-          {{ inputs.cheap_output }}
-        system_prompt: "You are a quality judge. Return valid JSON only."
-        temperature: 0.2
-        max_tokens: 200
-
-    - id: store_judge
+    - id: bridge_cheap
       type: variable_set
-      title: "Store quality verdict"
+      title: "Bridge cheap output"
       description: |
-        Pull the sufficiency verdict into a run-scoped variable.
+        Capture the cheap model output for confidence evaluation.
       config:
-        varName: "is_sufficient"
-        varExpr: 'previous_outputs["judge_cheap"]["output"]["sufficient"]'
+        varName: "cheap_output"
+        varExpr: 'previous_outputs["try_cheap"]["output"]'
 
-    - id: check_quality
-      type: condition
-      title: "Is the cheap output sufficient?"
+    - id: judge_confidence
+      type: llm_eval
+      title: "Judge cheap output confidence"
       description: |
-        Branch based on the quality verdict.
+        Score the cheap output on a 0-100 scale to decide whether to
+        escalate to the strong model.
       config:
-        expression: 'inputs["is_sufficient"]'
-
-    - id: save_cheap_final
-      type: variable_set
-      title: "Use cheap output as final"
-      description: |
-        The cheap output is good enough; route it forward.
-      config:
-        varName: "final_output"
-        varExpr: 'inputs["cheap_output"]'
-
-    - id: expensive_call
-      type: llm_call
-      title: "Expensive model fallback"
-      description: |
-        Fallback to the stronger model when the cheap output is judged
-        insufficient.
-      config:
-        model: "{{ inputs.expensive_model }}"
         prompt: |
-          {{ inputs.task_prompt }}
-        system_prompt: "You are a helpful assistant. Provide a thorough answer."
-        temperature: 0.4
-        max_tokens: 1500
+          You are evaluating the quality and confidence of an LLM output.
+          Score it from 0 to 100 where:
+          - 90-100: Excellent, fully correct and complete
+          - 70-89: Good, minor issues
+          - 50-69: Acceptable but with notable gaps
+          - 0-49: Poor, needs re-generation with a stronger model
 
-    - id: save_expensive
+          Output to evaluate: {{ inputs.cheap_output }}
+
+          Return JSON: {"score": N, "issues": "..."}
+        system_prompt: "You are a quality evaluator. Output valid JSON only."
+        temperature: 0.2
+        max_tokens: 400
+        output_schema:
+          score: integer
+          issues: string
+
+    - id: bridge_score
       type: variable_set
-      title: "Use expensive output as final"
+      title: "Bridge confidence score"
       description: |
-        Capture the expensive model output as the final result.
+        Capture the numeric confidence score for the condition check.
       config:
-        varName: "final_output"
-        varExpr: 'previous_outputs["expensive_call"]["output"]'
+        varName: "confidence_score"
+        varExpr: 'previous_outputs["judge_confidence"]["output"]["score"]'
 
-    - id: merge_final
-      type: merge
-      title: "Merge final output branches"
+    - id: check_confidence
+      type: condition
+      title: "Confidence sufficient?"
       description: |
-        Join the cheap and expensive fallback branches before persisting
-        the result.
+        True when the cheap model's confidence score meets the threshold.
       config:
-        mergeStrategy: "concat"
+        expression: 'inputs["confidence_score"] >= inputs["threshold"]'
 
-    - id: write_memory
-      type: memory_write
-      title: "Persist final output"
+    - id: log_cached
+      type: log
+      title: "Log cheap model accepted"
       description: |
-        Write the final chosen output to shared memory.
+        Record that the cheap model output was accepted.
       config:
-        collection: "flowmanner_memory"
-        text: |
-          Cascade result for task: {{ inputs.task_prompt }}
-          Final output: {{ inputs.final_output }}
+        level: info
+        message: "Cheap model accepted with confidence score {{ inputs.confidence_score }}."
 
     - id: log_done
       type: log
-      title: "Log cascade completion"
+      title: "Log cascade finished"
       description: |
-        Record that the model cascade finished.
+        Record that the model cascade completed.
       config:
         level: info
-        message: "Model cascade completed and result persisted."
+        message: "Model cascade completed."
+
+    - id: try_strong
+      type: llm_call
+      title: "Try strong model"
+      description: |
+        Escalate to the strong model when cheap output is insufficient.
+      config:
+        model: "{{ inputs.strong_model }}"
+        prompt: |
+          Complete the following task with high quality and completeness.
+
+          Task: {{ inputs.task_prompt }}
+        system_prompt: "You are a helpful assistant. Provide a thorough answer."
+        temperature: 0.3
+        max_tokens: 1500
+
+    - id: bridge_strong
+      type: variable_set
+      title: "Bridge strong output"
+      description: |
+        Capture the strong model output for the routing prior.
+      config:
+        varName: "strong_output"
+        varExpr: 'previous_outputs["try_strong"]["output"]'
+
+    - id: record_routing
+      type: memory_write
+      title: "Record routing decision"
+      description: |
+        Persist the routing decision to build a routing prior.
+      config:
+        collection: "flowmanner_routing_prior"
+        text: |
+          task: {{ inputs.task_prompt }}
+          cheap_model: {{ inputs.cheap_model }}
+          cheap_score: {{ inputs.confidence_score }}
+          escalated: true
+          strong_model: {{ inputs.strong_model }}
+        payload:
+          schema: routing_prior
+          source: flowmanner-model-cascade
+
+    - id: log_escalated
+      type: log
+      title: "Log strong model used"
+      description: |
+        Record that the strong model was used.
+      config:
+        level: info
+        message: "Escalated to strong model after cheap confidence score {{ inputs.confidence_score }}."
 
   edges:
-    - source: cheap_call
-      target: store_cheap
-    - source: store_cheap
-      target: judge_cheap
-    - source: judge_cheap
-      target: store_judge
-    - source: store_judge
-      target: check_quality
-    - source: check_quality
-      target: save_cheap_final
+    - source: try_cheap
+      target: bridge_cheap
+    - source: bridge_cheap
+      target: judge_confidence
+    - source: judge_confidence
+      target: bridge_score
+    - source: bridge_score
+      target: check_confidence
+    - source: check_confidence
+      target: log_cached
       condition: "true"
-    - source: check_quality
-      target: expensive_call
+    - source: check_confidence
+      target: try_strong
       condition: "false"
-    - source: save_cheap_final
-      target: merge_final
-    - source: expensive_call
-      target: save_expensive
-    - source: save_expensive
-      target: merge_final
-    - source: merge_final
-      target: write_memory
-    - source: write_memory
+    - source: log_cached
       target: log_done
+    - source: try_strong
+      target: bridge_strong
+    - source: bridge_strong
+      target: record_routing
+    - source: record_routing
+      target: log_escalated
 
   budget:
     max_cost_usd: 5.00
