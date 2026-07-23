@@ -1,0 +1,242 @@
+# flowmanner-circuit-breaker-blueprint.yaml — version 1
+#
+# Simulates a circuit breaker around a protected HTTP call.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+#
+# NOTE: This is a single-run demonstration. The substrate already has a real
+# per-workspace+provider circuit breaker (app/services/substrate/circuit_breaker.py),
+# but there is no blueprint node type that exposes it. This blueprint shows the
+# pattern using existing nodes: condition, variable_set, retry, sandbox, log,
+# webhook, and delay.
+
+version: 1
+
+name: "flowmanner-circuit-breaker"
+description: |
+  Single-run circuit-breaker simulation. The protected call is retried up to
+  maxRetries with backoff. If it fails failure_threshold times, the circuit
+  opens, subsequent requests fail fast, and a cooldown delay is enforced
+  before a probe is allowed.
+
+blueprint_type: dag
+
+inputs:
+  target_url:
+    type: string
+    default: "https://api.flowmanner.com/health"
+  failure_threshold:
+    type: integer
+    default: 3
+  alert_webhook_url:
+    type: string
+    default: "https://example.com/no-op"
+  # Initial circuit state, useful for demonstration runs.
+  # Valid values: "closed", "open", "half_open".
+  circuit_state:
+    type: string
+    default: "closed"
+  failure_count:
+    type: integer
+    default: 0
+
+definition:
+  blueprint_type: dag
+  nodes:
+    # ── State router: closed vs open ────────────────────────────────
+    - id: check_state
+      type: condition
+      title: "Circuit open?"
+      description: |
+        If the circuit is open, fail fast. Otherwise attempt the
+        protected call under a retry wrapper.
+      config:
+        expression: "inputs['circuit_state'] == 'open'"
+
+    # ── Closed / half-open branch: protected call ───────────────────
+    - id: protected_call
+      type: retry
+      title: "Protected call with retry"
+      config:
+        # Literal positive integers are required; the substrate reads these
+        # before template interpolation.
+        maxRetries: 3
+        backoffMs: 500
+
+    - id: http_call
+      type: sandbox
+      title: "Call protected endpoint"
+      description: |
+        Performs the protected HTTP call and returns a structured
+        output with a boolean success flag. Always returns success at
+        the node level so the blueprint can branch on the payload.
+      config:
+        template: worker-standard
+        task_prompt: |
+          set -euo pipefail
+          url="{{ inputs.target_url }}"
+          echo "Calling ${url}"
+          if ! curl -fsSL --max-time 5 "${url}" >/dev/null 2>&1; then
+            echo '{"success": false, "reason": "upstream_unavailable"}'
+            exit 0
+          fi
+          echo '{"success": true, "status": "ok"}'
+
+    - id: call_succeeded
+      type: condition
+      title: "Protected call succeeded?"
+      config:
+        expression: "{{ previous_outputs.http_call.output.success }}"
+
+    # ── Success path ─────────────────────────────────────────────────
+    - id: reset_failures
+      type: variable_set
+      title: "Reset failure count"
+      config:
+        varName: "failure_count"
+        varValue: 0
+
+    - id: set_closed
+      type: variable_set
+      title: "Close circuit"
+      config:
+        varName: "circuit_state"
+        varValue: "closed"
+
+    - id: log_healthy
+      type: log
+      title: "Log healthy call"
+      config:
+        level: info
+        message: "Circuit closed: call to {{ inputs.target_url }} succeeded"
+
+    # ── Failure path ─────────────────────────────────────────────────
+    - id: record_failure
+      type: variable_set
+      title: "Increment failure count"
+      config:
+        varName: "failure_count"
+        varExpr: "inputs['failure_count'] + 1"
+
+    - id: check_threshold
+      type: condition
+      title: "Failure count >= threshold?"
+      config:
+        expression: "inputs['failure_count'] >= inputs['failure_threshold']"
+
+    - id: open_circuit
+      type: variable_set
+      title: "Open circuit"
+      config:
+        varName: "circuit_state"
+        varValue: "open"
+
+    - id: log_opened
+      type: log
+      title: "Log circuit opened"
+      config:
+        level: error
+        message: "Circuit OPENED after {{ inputs.failure_count }} failures for {{ inputs.target_url }}"
+
+    - id: alert_opened
+      type: webhook
+      title: "Alert on circuit open"
+      config:
+        url: "{{ inputs.alert_webhook_url }}"
+        method: POST
+
+    - id: log_failure_recorded
+      type: log
+      title: "Log recorded failure"
+      config:
+        level: warning
+        message: "Circuit closed: failure recorded (count={{ inputs.failure_count }})"
+
+    # ── Open branch: fail fast with cooldown ──────────────────────────
+    - id: log_reject
+      type: log
+      title: "Log fail-fast rejection"
+      config:
+        level: error
+        message: "Circuit OPEN: request rejected for {{ inputs.target_url }}"
+
+    - id: cooldown
+      type: delay
+      title: "Cooldown before probe"
+      config:
+        # Literal positive integer (milliseconds) required by the substrate.
+        delayMs: 5000
+
+    - id: half_open
+      type: variable_set
+      title: "Transition to half-open"
+      config:
+        varName: "circuit_state"
+        varValue: "half_open"
+
+    - id: log_half_open
+      type: log
+      title: "Log half-open probe"
+      config:
+        level: info
+        message: "Circuit HALF-OPEN: probing {{ inputs.target_url }}"
+
+  edges:
+    # State check branches
+    - source: check_state
+      target: log_reject
+      condition: "true"
+    - source: check_state
+      target: protected_call
+      condition: "false"
+
+    # Protected call chain
+    - source: protected_call
+      target: http_call
+    - source: http_call
+      target: call_succeeded
+
+    # Success path
+    - source: call_succeeded
+      target: reset_failures
+      condition: "true"
+    - source: reset_failures
+      target: set_closed
+    - source: set_closed
+      target: log_healthy
+
+    # Failure path
+    - source: call_succeeded
+      target: record_failure
+      condition: "false"
+    - source: record_failure
+      target: check_threshold
+    - source: check_threshold
+      target: open_circuit
+      condition: "true"
+    - source: open_circuit
+      target: log_opened
+    - source: log_opened
+      target: alert_opened
+    - source: check_threshold
+      target: log_failure_recorded
+      condition: "false"
+
+    # Open branch: reject, cooldown, then probe
+    - source: log_reject
+      target: cooldown
+    - source: cooldown
+      target: half_open
+    - source: half_open
+      target: log_half_open
+    # Half-open probe re-enters the protected call.
+    - source: log_half_open
+      target: protected_call
+
+  budget:
+    max_cost_usd: 2.00
+    max_wall_time_seconds: 120
+    max_iterations: 20
+
+  config: {}
