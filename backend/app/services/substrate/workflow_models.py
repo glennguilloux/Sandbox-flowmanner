@@ -283,3 +283,21 @@ class StrategyResult(BaseModel):
     total_cost_usd: float = 0.0
     execution_time_ms: float = 0.0
     event_count: int = 0
+
+
+# ── Split-aggregation marker ────────────────────────────────────────
+#
+# When DAGStrategy._run_split_branches fans a split node's collection out
+# into N parallel per-item branches, each branch writes its output into
+# ``node_outputs[target_nid]``. Instead of overwriting a single key per
+# item (the old bug — see substrate_split_merge_aggregation_defect), the
+# strategy now wraps per-item outputs in a marker dict:
+#
+#   {SPLIT_AGGREGATE_MARKER: True, "items": [item0_out, item1_out, ...]}
+#
+# NodeExecutor._handle_merge detects this marker and flattens the list
+# so merge/fan_in see ALL items. Non-split upstreams write plain scalars
+# and are unaffected. Defined here (not in dag.py or node_executor.py)
+# because both modules already import from workflow_models — this avoids
+# a circular import while keeping a single source of truth.
+SPLIT_AGGREGATE_MARKER = "__split_aggregate__"

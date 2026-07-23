@@ -38,6 +38,7 @@ from app.services.substrate.interpolate import interpolate_inputs
 from app.services.substrate.workflow_models import (
     EffectClass,
     NodeType,
+    SPLIT_AGGREGATE_MARKER,
     Workflow,
     WorkflowNode,
 )
@@ -3302,7 +3303,19 @@ class NodeExecutor:
         # adapter/planner did not set dependencies, fall back to every upstream
         # node that produced output (best-effort join).
         deps = node.dependencies or list(previous_outputs.keys())
-        upstream = [previous_outputs[d] for d in deps if d in previous_outputs]
+        raw_upstream = [previous_outputs[d] for d in deps if d in previous_outputs]
+
+        # SPLIT-AGGREGATION FIX (substrate_split_merge_aggregation_defect):
+        # when an upstream node was produced by a split fan-out, its output is a
+        # marker-wrapped list of per-item results ({SPLIT_AGGREGATE_MARKER: True,
+        # "items": [...]}). Flatten those into the join set so merge sees ALL
+        # items, not just the last. Plain (non-split) upstreams pass through.
+        upstream: list[Any] = []
+        for out in raw_upstream:
+            if isinstance(out, dict) and out.get(SPLIT_AGGREGATE_MARKER):
+                upstream.extend(out.get("items", []))
+            else:
+                upstream.append(out)
 
         if strategy == "first":
             combined: Any = None

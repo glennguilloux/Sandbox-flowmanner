@@ -36,6 +36,7 @@ from app.services.substrate.workflow_models import (
     StrategyResult,
     Workflow,
     WorkflowType,
+    SPLIT_AGGREGATE_MARKER,
 )
 
 if TYPE_CHECKING:
@@ -388,6 +389,23 @@ class DAGStrategy(ExecutionStrategy):
 
     # ── Split (runtime fan-out) ──────────────────────────────────
 
+    def _append_split_output(self, node_outputs: dict[str, Any], target_nid: str, value: Any) -> None:
+        """Append a per-item split output to ``node_outputs[target_nid]``.
+
+        The first per-item write wraps ``value`` in a list marked with
+        ``SPLIT_AGGREGATE_MARKER``; subsequent items extend that list. This
+        lets merge/fan_in reconstruct ALL items while a non-split node keeps
+        writing a plain scalar (so scalar consumers are unaffected).
+        """
+        existing = node_outputs.get(target_nid)
+        if isinstance(existing, dict) and existing.get(SPLIT_AGGREGATE_MARKER):
+            existing["items"].append(value)  # type: ignore[attr-defined]
+        else:
+            node_outputs[target_nid] = {
+                SPLIT_AGGREGATE_MARKER: True,
+                "items": [value],
+            }
+
     async def _run_split_branches(
         self,
         workflow: Workflow,
@@ -456,11 +474,19 @@ class DAGStrategy(ExecutionStrategy):
                 executed.add(target_nid)
                 if target_nid not in completed_nodes:
                     completed_nodes.append(target_nid)
-                node_outputs[target_nid] = result.get("output", {})
+                # SPLIT-AGGREGATION FIX (substrate_split_merge_aggregation_defect):
+                # collect every per-item output into a LIST under
+                # node_outputs[target_nid] instead of overwriting. The merge /
+                # fan_in handlers then see ALL items, not just the last one
+                # (previously dag.py:459 overwrote a single key per item).
+                # A non-split node still writes a plain value, so downstream
+                # readers that expect a scalar (e.g. a log node consuming a
+                # single upstream) are unaffected.
+                self._append_split_output(node_outputs, target_nid, result.get("output", {}))
             else:
                 if target_nid not in failed_nodes:
                     failed_nodes.append(target_nid)
-                node_outputs[target_nid] = {"error": result.get("error")}
+                self._append_split_output(node_outputs, target_nid, {"error": result.get("error")})
 
         # Parallel across items x targets.
         fan_tasks = [_run_one(idx, item, target_nid) for idx, item in enumerate(items) for target_nid in targets]
