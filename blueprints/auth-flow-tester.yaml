@@ -1,0 +1,196 @@
+# blueprints/auth-flow-tester.yaml — Blueprint #19
+#
+# Navigate to a login page, type credentials via CSS selectors, click the
+# submit button, capture a post-login screenshot, and check whether the
+# URL changed (login succeeded) or stayed the same (login failed).
+#
+# Graph strategy is required for {{node.field}} edge-condition interpolation.
+# The selector parameter (Phase 1) bypasses the ref system — CSS selectors
+# are used directly instead of dynamically-generated element IDs.
+#
+# Run inputs:
+#   url           — the login page URL (defaults to a test login page)
+#   webhook_url   — where to POST the auth-failure alert
+#   username      — login username (defaults to a test value)
+#   password      — login password (defaults to a test value)
+#
+# Known limitation: browser node params are not interpolated at runtime
+# (Phase 4+ enhancement). The URL and credentials must be edited in the
+# node configs before running against a real target. The CSS selectors
+# for the username/password fields and submit button are hardcoded for
+# a standard login form — adjust them to match your target page.
+
+version: 1
+
+name: "auth-flow-tester"
+description: |
+  Automated authentication flow tester. Navigates to a login page, enters
+  credentials via CSS selectors, submits the form, captures a screenshot
+  for evidence, and alerts via webhook if the login URL did not change
+# (indicating auth failure).
+
+blueprint_type: graph
+
+inputs:
+  url:
+    type: string
+    default: "https://example.com/login"
+  webhook_url:
+    type: string
+    default: "https://httpbin.org/post"
+  username:
+    type: string
+    default: "testuser"
+  password:
+    type: string
+    default: "testpass"
+
+definition:
+  blueprint_type: graph
+  nodes:
+    # 1. Navigate to the login page.
+    - id: nav
+      type: browser_navigate
+      title: "Navigate to login page"
+      description: "Open the browser and go to the login URL."
+      config:
+        params:
+          url: "https://example.com/login"
+
+    # 2. Capture a snapshot of the login page (for debugging/reference).
+    - id: snap_login
+      type: browser_snapshot
+      title: "Snapshot login page"
+      description: "Capture the login page state before entering credentials."
+      config:
+        params: {}
+
+    # 3. Type the username into the username field via CSS selector.
+    - id: type_user
+      type: browser_type
+      title: "Type username"
+      description: "Enter the username into the login form's username field."
+      config:
+        params:
+          selector: "input[name='username'], input[type='email'], #username"
+          text: "testuser"
+          submit: false
+
+    # 4. Type the password into the password field via CSS selector.
+    - id: type_pass
+      type: browser_type
+      title: "Type password"
+      description: "Enter the password into the login form's password field."
+      config:
+        params:
+          selector: "input[name='password'], input[type='password'], #password"
+          text: "testpass"
+          submit: false
+
+    # 5. Click the submit button via CSS selector.
+    - id: click_submit
+      type: browser_click
+      title: "Click submit button"
+      description: "Click the login form's submit button to attempt authentication."
+      config:
+        params:
+          selector: "button[type='submit'], input[type='submit'], button:has-text('Login'), button:has-text('Sign in')"
+
+    # 6. Capture a post-login snapshot (to check URL change).
+    - id: snap_post
+      type: browser_snapshot
+      title: "Snapshot post-login page"
+      description: "Capture the page state after submitting the login form."
+      config:
+        params: {}
+
+    # 7. Capture a screenshot for evidence.
+    - id: shot
+      type: browser_screenshot
+      title: "Capture evidence screenshot"
+      description: "Take a screenshot of the post-login page for QA evidence."
+      config:
+        params: {}
+
+    # 8. Extract the post-login URL into inputs for the condition.
+    - id: set_post_url
+      type: variable_set
+      title: "Extract post-login URL"
+      description: "Pull the current URL from the post-login snapshot into inputs."
+      config:
+        varName: "post_login_url"
+        varExpr: 'previous_outputs["snap_post"]["url"]'
+
+    # 9. Extract the login URL into inputs for comparison.
+    - id: set_login_url
+      type: variable_set
+      title: "Extract login URL"
+      description: "Pull the login page URL from the initial snapshot into inputs."
+      config:
+        varName: "login_url"
+        varExpr: 'previous_outputs["snap_login"]["url"]'
+
+    # 10. Check if the URL changed (login succeeded).
+    - id: check_auth
+      type: condition
+      title: "Check if login succeeded"
+      description: "True if the URL changed after login (auth succeeded), false if still on login page."
+      config:
+        expression: 'previous_outputs["set_post_url"] != previous_outputs["set_login_url"]'
+
+    # 11. Fire webhook alert if login FAILED (URL did not change).
+    - id: alert_fail
+      type: webhook
+      title: "Alert on auth failure"
+      description: "POST a JSON payload to the webhook URL when login fails (URL unchanged)."
+      config:
+        url: "{{ inputs.webhook_url }}"
+        method: "POST"
+        payload:
+          event: "auth_failure"
+          login_url: "{{ inputs.login_url }}"
+          post_login_url: "{{ inputs.post_login_url }}"
+
+    # 12. Close the browser session.
+    - id: close
+      type: browser_close
+      title: "Close browser session"
+      description: "Clean up the browser session."
+      config:
+        params: {}
+
+  edges:
+    - source: nav
+      target: snap_login
+    - source: snap_login
+      target: type_user
+    - source: type_user
+      target: type_pass
+    - source: type_pass
+      target: click_submit
+    - source: click_submit
+      target: snap_post
+    - source: snap_post
+      target: shot
+    - source: snap_post
+      target: set_post_url
+    - source: snap_login
+      target: set_login_url
+    - source: set_post_url
+      target: check_auth
+    - source: set_login_url
+      target: check_auth
+    # Alert fires when auth FAILED — the condition output value is False
+    # (URL did not change). We need to negate it: fire when NOT succeeded.
+    - source: check_auth
+      target: alert_fail
+      condition: 'not {{check_auth.value}}'
+    - source: check_auth
+      target: close
+
+  budget:
+    max_cost_usd: 0.50
+    max_wall_time_seconds: 120
+    max_iterations: 10
+    max_depth: 3
+  config: {}

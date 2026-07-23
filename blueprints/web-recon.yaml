@@ -1,0 +1,156 @@
+# blueprints/web-recon.yaml — Blueprint #18
+#
+# Navigate to a URL, capture a snapshot and screenshot, summarize the page
+# with an LLM, and persist the findings to Qdrant memory.
+#
+# Graph strategy is required for {{node.field}} edge-condition interpolation.
+#
+# Run inputs:
+#   url     — the page to recon (defaults to example.com)
+#   model   — optional model override (flows to llm_call via Phase 3)
+#
+# Known limitation: the graph strategy does not support bounded iteration
+# (the `loop` node is a marker; actual loop-body execution is only in the
+# DAG strategy, which lacks {{node.field}} interpolation). This blueprint
+# processes a single URL. To recon multiple URLs, run the blueprint once
+# per URL, or wait for graph-strategy loop support (post-Phase 5).
+#
+# Screenshot payload note: the base64 PNG (~670 KB per screenshot)
+# accumulates in node_outputs for the entire run. For a single-URL recon
+# this is fine; the Phase 5 screenshot-to-disk mitigation will address
+# multi-URL loops.
+
+version: 1
+
+name: "web-recon"
+description: |
+  Web reconnaissance: navigate to a URL, snapshot the page, capture a
+  screenshot, summarize the content with an LLM, and store the findings
+  in Qdrant memory for future retrieval.
+
+blueprint_type: graph
+
+inputs:
+  url:
+    type: string
+    default: "https://example.com"
+  model:
+    type: string
+    default: ""
+
+definition:
+  blueprint_type: graph
+  nodes:
+    # 1. Navigate to the target URL.
+    - id: nav
+      type: browser_navigate
+      title: "Navigate to target URL"
+      description: "Open the browser and navigate to the recon target."
+      config:
+        params:
+          url: "https://example.com"
+
+    # 2. Capture a page snapshot (text elements + fingerprint).
+    - id: snap
+      type: browser_snapshot
+      title: "Snapshot page content"
+      description: "Capture the page's interactive elements and text content."
+      config:
+        params: {}
+
+    # 3. Capture a screenshot for visual evidence.
+    - id: shot
+      type: browser_screenshot
+      title: "Capture screenshot"
+      description: "Take a full-page screenshot for visual evidence."
+      config:
+        params: {}
+
+    # 4. Bridge the snapshot URL and title into run-scoped inputs so the
+    #    LLM prompt can reference them via {{ inputs.* }}.
+    - id: set_url
+      type: variable_set
+      title: "Extract page URL"
+      description: "Pull the current URL from the snapshot into inputs."
+      config:
+        varName: "page_url"
+        varExpr: 'previous_outputs["snap"]["url"]'
+
+    - id: set_title
+      type: variable_set
+      title: "Extract page title"
+      description: "Pull the page title from the snapshot into inputs."
+      config:
+        varName: "page_title"
+        varExpr: 'previous_outputs["snap"]["title"]'
+
+    - id: set_fp
+      type: variable_set
+      title: "Extract page fingerprint"
+      description: "Pull the page fingerprint from the snapshot into inputs."
+      config:
+        varName: "page_fp"
+        varExpr: 'previous_outputs["snap"]["fingerprint"]'
+
+    # 5. Summarize the page with an LLM call.
+    #    The prompt uses {{ inputs.* }} which _handle_llm interpolates.
+    - id: summarize
+      type: llm_call
+      title: "Summarize page content"
+      description: "Use an LLM to summarize the page snapshot for the recon report."
+      config:
+        prompt: >
+          You are a web reconnaissance analyst. Summarize the key content
+          of the following page snapshot.
+
+          Page URL: {{ inputs.page_url }}
+          Page title: {{ inputs.page_title }}
+          Page fingerprint: {{ inputs.page_fp }}
+
+          Provide a concise summary (3-5 sentences) of what this page is about,
+          its main purpose, and any notable content or features.
+        system_prompt: "You are a web reconnaissance analyst. Be concise and factual."
+        temperature: 0.3
+      reasoning_profile: normal
+
+    # 6. Persist the findings to Qdrant for future retrieval.
+    - id: store
+      type: memory_write
+      title: "Store recon findings"
+      description: "Write the summary and page metadata to Qdrant memory."
+      config:
+        collection: "flowmanner_memory"
+        text: "{{ inputs.page_url }}"
+        payload:
+          url: "{{ inputs.page_url }}"
+          title: "{{ inputs.page_title }}"
+          fingerprint: "{{ inputs.page_fp }}"
+          summary: "{{ inputs.page_url }}"
+          source: "web-recon"
+
+  edges:
+    - source: nav
+      target: snap
+    - source: snap
+      target: shot
+    - source: snap
+      target: set_url
+    - source: snap
+      target: set_title
+    - source: snap
+      target: set_fp
+    - source: set_url
+      target: summarize
+    - source: set_title
+      target: summarize
+    - source: set_fp
+      target: summarize
+    - source: summarize
+      target: store
+
+  budget:
+    max_cost_usd: 1.00
+    max_wall_time_seconds: 180
+    max_iterations: 10
+    max_depth: 3
+  config: {}
