@@ -2,9 +2,10 @@
 #
 # Pattern #27: Critic-revise loop.
 #
-# Generates an initial draft, then iteratively critiques and revises it.
-# A bounded LOOP node runs the critic-revise body until quality is
-# sufficient or the iteration cap is reached.
+# Generator-critic revision loop. An llm_call generates output, an llm_eval
+# critic scores it, and a condition checks if the score meets the threshold.
+# If not, a LOOP node sends it back for revision. The loop is bounded by
+# max_iterations and a variable_set step counter.
 #
 # blueprint_type: dag
 # Product name: flowmanner (double-n, no 'p').
@@ -13,168 +14,195 @@ version: 1
 
 name: "flowmanner-critic-revise-loop"
 description: |
-  Critic-revise loop. Produces an initial draft, then iteratively critiques
-  and revises it using a bounded LOOP node. Stops when quality is
-  sufficient or the maximum iteration count is reached.
+  Generator-critic revision loop. Generates output, critiques it, and
+  revises until the critic score meets the threshold or the iteration
+  cap is reached.
 
 blueprint_type: dag
 
 inputs:
   task_prompt:
     type: string
-    default: "Write a short paragraph explaining the importance of clear documentation."
-    description: "The task the draft should address."
+    description: "The content generation task."
   quality_threshold:
-    type: number
-    default: 8
-    description: "Minimum critic score (1-10) to exit the loop."
+    type: integer
+    default: 80
+    description: "Minimum critique score to accept the output."
+  model:
+    type: string
+    default: ""
+    description: "Optional model override."
 
 definition:
   blueprint_type: dag
   nodes:
-    - id: init_draft
-      type: llm_call
-      title: "Generate initial draft"
-      description: |
-        Produce the first draft for the given task.
-      config:
-        prompt: |
-          Task: {{ inputs.task_prompt }}
-          Produce a concise first draft.
-
-    - id: set_draft
+    - id: init_revision_count
       type: variable_set
-      title: "Store initial draft"
+      title: "Initialize revision counter"
       description: |
-        Capture the initial draft for the loop.
+        Seed the revision counter used by the loop body.
       config:
-        varName: "draft"
-        varExpr: 'previous_outputs["init_draft"]["output"]'
-
-    - id: init_iteration
-      type: variable_set
-      title: "Initialize iteration counter"
-      description: |
-        Seed the loop iteration counter.
-      config:
-        varName: "iteration"
+        varName: "revision_count"
         varValue: 0
 
     - id: revision_loop
       type: loop
-      title: "Critic-revise iteration loop"
+      title: "Bounded revision loop"
       description: |
-        Repeatedly critique the draft and revise it until quality is
-        sufficient or the iteration cap is reached.
+        Iterate generate → critique → check quality until quality is met
+        or the iteration cap is reached.
       config:
         body:
-          - critic
+          - generate
+          - critique
+          - bridge_critique
+          - set_feedback
+          - set_quality_score
           - check_quality
-          - revise
-          - update_draft
-          - increment_iteration
+          - increment_revision
         max_iterations: 5
         stop_condition: 'previous_outputs["check_quality"]["value"]'
 
-    - id: critic
-      type: llm_eval
-      title: "Critique draft"
+    - id: generate
+      type: llm_call
+      title: "Generate or revise output"
       description: |
-        Score the current draft and identify improvement opportunities.
+        Produce the initial draft or revise it based on critique feedback.
+      config:
+        model: "{{ inputs.model }}"
+        prompt: |
+          You are generating content for: {{ inputs.task_prompt }}
+
+          Revision count: {{ inputs.revision_count }}
+
+          {% if inputs.revision_count > 0 %}
+          Previous critique: {{ inputs.critique_feedback }}
+          Address the critique and improve your output.
+          {% endif %}
+
+          Produce high-quality output.
+        system_prompt: "You are an expert content generator."
+        temperature: 0.5
+        max_tokens: 1000
+
+    - id: critique
+      type: llm_eval
+      title: "Critique generated output"
+      description: |
+        Score the generated output and provide improvement suggestions.
       config:
         prompt: |
-          Draft:
-          {{ inputs.draft }}
+          Critique the following output for quality. Score 0-100.
 
-          Critique the draft. Respond with JSON:
-          {"score": 1-10, "suggestions": "..."}
+          Task: {{ inputs.task_prompt }}
+          Output: {{ previous_outputs["generate"]["output"] }}
+
+          Return JSON: {"score": N, "feedback": "specific improvement suggestions"}
+        system_prompt: "You are a strict critic. Output valid JSON only."
+        temperature: 0.3
+        max_tokens: 600
         output_schema:
           score: integer
-          suggestions: string
+          feedback: string
+
+    - id: bridge_critique
+      type: variable_set
+      title: "Bridge critique result"
+      description: |
+        Capture the critique score and feedback for downstream nodes.
+      config:
+        varName: "critique"
+        varExpr: 'previous_outputs["critique"]["output"]'
+
+    - id: set_feedback
+      type: variable_set
+      title: "Store critique feedback"
+      description: |
+        Capture the critique feedback text for the generator.
+      config:
+        varName: "critique_feedback"
+        varExpr: 'inputs["critique"]["feedback"]'
+
+    - id: set_quality_score
+      type: variable_set
+      title: "Store quality score"
+      description: |
+        Capture the numeric quality score for the condition check.
+      config:
+        varName: "quality_score"
+        varExpr: 'inputs["critique"]["score"]'
 
     - id: check_quality
       type: condition
-      title: "Quality sufficient?"
+      title: "Quality threshold met?"
       description: |
-        Exit the loop if the score meets the threshold.
+        Exit the loop if the quality score meets the threshold.
       config:
-        expression: 'previous_outputs["critic"]["output"]["score"] >= inputs["quality_threshold"]'
+        expression: 'inputs["quality_score"] >= inputs["quality_threshold"]'
 
-    - id: revise
-      type: llm_call
-      title: "Revise draft"
-      description: |
-        Rewrite the draft using the critic's suggestions.
-      config:
-        prompt: |
-          Current draft:
-          {{ inputs.draft }}
-
-          Critique score: {{ previous_outputs["critic"]["output"]["score"] }}
-          Suggestions: {{ previous_outputs["critic"]["output"]["suggestions"] }}
-
-          Produce an improved draft.
-
-    - id: update_draft
+    - id: increment_revision
       type: variable_set
-      title: "Update draft"
-      description: |
-        Carry the revised draft into the next loop iteration.
-      config:
-        varName: "draft"
-        varExpr: 'previous_outputs["revise"]["output"]'
-
-    - id: increment_iteration
-      type: variable_set
-      title: "Increment iteration counter"
+      title: "Increment revision counter"
       description: |
         Track how many revision rounds have run.
       config:
-        varName: "iteration"
-        varExpr: 'inputs["iteration"] + 1'
+        varName: "revision_count"
+        varExpr: 'inputs["revision_count"] + 1'
 
-    - id: store_final
-      type: variable_set
-      title: "Store final draft"
+    - id: finalize_output
+      type: llm_call
+      title: "Finalize accepted output"
       description: |
-        Capture the final draft after the loop exits.
+        Produce a polished final version of the accepted output.
       config:
-        varName: "final_draft"
-        varExpr: 'inputs["draft"]'
+        model: "{{ inputs.model }}"
+        prompt: |
+          Produce a polished final version of the following content.
+          No further changes are needed.
 
-    - id: log_final
+          Task: {{ inputs.task_prompt }}
+          Accepted draft: {{ inputs.critique }}
+
+          Return the final output.
+        system_prompt: "You are an expert editor."
+        temperature: 0.3
+        max_tokens: 1000
+
+    - id: log_result
       type: log
-      title: "Log final draft"
+      title: "Log final result"
       description: |
-        Record the final draft and iteration count.
+        Record the final quality score and revision count.
       config:
         level: info
-        message: "Final draft produced after {{ inputs.iteration }} iterations."
+        message: "Final output accepted with score {{ inputs.quality_score }} after {{ inputs.revision_count }} revisions."
 
   edges:
-    - source: init_draft
-      target: set_draft
-    - source: set_draft
-      target: init_iteration
-    - source: init_iteration
+    - source: init_revision_count
       target: revision_loop
-    # Loop body edges
+    # Loop body execution order
     - source: revision_loop
-      target: critic
-    - source: critic
+      target: generate
+    - source: generate
+      target: critique
+    - source: critique
+      target: bridge_critique
+    - source: bridge_critique
+      target: set_feedback
+    - source: set_feedback
+      target: set_quality_score
+    - source: set_quality_score
       target: check_quality
+    # Exit condition: true = quality met → exit loop
     - source: check_quality
-      target: revise
-      condition: "false"
-    - source: check_quality
-      target: store_final
+      target: finalize_output
       condition: "true"
-    - source: revise
-      target: update_draft
-    - source: update_draft
-      target: increment_iteration
-    - source: store_final
-      target: log_final
+    # Continue: false = needs revision → increment and loop
+    - source: check_quality
+      target: increment_revision
+      condition: "false"
+    - source: finalize_output
+      target: log_result
 
   budget:
     max_cost_usd: 5.00

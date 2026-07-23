@@ -2,10 +2,11 @@
 #
 # Pattern #14: LLM-judged content moderation.
 #
-# Splits incoming user content into individual items, scores each with an
-# LLM-as-judge for harmful or policy-violating material, routes flagged
-# items through human review, and alerts via webhook when a violation is
-# confirmed.
+# Incoming content is first scanned by a guardrail (regex fast path) for
+# obvious violations. Clean content passes through. Borderline content
+# escalates to an LLM judge for nuanced assessment. Only flagged cases route
+# to human review, minimizing human review volume while catching both
+# obvious and subtle violations.
 #
 # blueprint_type: dag
 # Product name: flowmanner (double-n, no 'p').
@@ -14,153 +15,203 @@ version: 1
 
 name: "flowmanner-content-moderation"
 description: |
-  LLM-judged content moderation. Splits a batch of user content into
-  individual items, evaluates each for harmful or policy-violating
-  material, routes flagged items through human review, and alerts via
-  webhook when a violation is confirmed.
+  LLM-judged content moderation. Uses a guardrail fast-path for obvious
+  violations, escalates borderline content to an LLM judge, and routes
+  flagged cases through human review.
 
 blueprint_type: dag
 
 inputs:
-  content_items:
-    type: array
-    default:
-      - "This is a normal comment."
-    description: "List of user-generated content strings to moderate."
-  alert_webhook_url:
+  content:
     type: string
-    default: ""
-    description: "Webhook URL to alert when a violation is confirmed."
+    description: "The content to moderate."
 
 definition:
   blueprint_type: dag
   nodes:
-    - id: split_content
-      type: split
-      title: "Iterate over content items"
-      description: |
-        Process each content item independently in parallel.
-      config:
-        mode: item
-        splitOn: "get(inputs, 'content_items')"
-
-    - id: capture_item
+    - id: set_content
       type: variable_set
-      title: "Capture content item"
+      title: "Bridge content input"
       description: |
-        Store the current split item for downstream nodes.
+        Capture the content under a run-scoped variable.
       config:
-        varName: "item"
-        varValue: "{{ input }}"
+        varName: "content"
+        varValue: "{{ inputs.content }}"
 
-    - id: judge_content
-      type: llm_eval
-      title: "Judge content"
+    - id: fast_scan
+      type: guardrail
+      title: "Fast-path content scan"
       description: |
-        Evaluate the content for harmful or policy-violating material.
+        Regex scan for obvious policy violations. Safe content passes through.
+      config:
+        patterns:
+          - "(?i)(fuck|shit|bitch|asshole)"
+          - "(?i)(viagra|casino|lottery|crypto.giveaway)"
+          - "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+          - "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b"
+        useClassifier: false
+        guardrailMode: "pre"
+        onViolation: "block"
+        redactWith: "[MODERATED]"
+
+    - id: check_obvious
+      type: condition
+      title: "Content passed fast scan?"
+      description: |
+        True when the guardrail reports the content as safe.
+      config:
+        expression: 'previous_outputs["fast_scan"]["output"]["safe"]'
+
+    - id: log_clean
+      type: log
+      title: "Log clean content"
+      description: |
+        Record that the content passed the fast-path scan.
+      config:
+        level: info
+        message: "Content passed fast-path moderation."
+
+    - id: llm_judge
+      type: llm_eval
+      title: "LLM content assessment"
+      description: |
+        Nuanced assessment of borderline content by an LLM judge.
       config:
         prompt: |
-          Content: {{ inputs.item }}
+          You are a content moderator. Assess whether the following content
+          violates any of these policies:
+          1. Hate speech or harassment
+          2. Violence or self-harm promotion
+          3. Sexual content
+          4. Misinformation or deception
+          5. Illegal activities
 
-          Does this content violate community guidelines? Respond with
-          JSON: {"violation": true/false, "category": "...", "rationale": "..."}
+          Content: {{ inputs.content }}
+
+          Return JSON: {"flagged": true/false, "category": "...", "severity": "low"|"medium"|"high",
+          "rationale": "..."}
+        system_prompt: "You are a content moderator. Be balanced and fair. Output valid JSON only."
+        temperature: 0.3
+        max_tokens: 500
         output_schema:
-          violation: boolean
+          flagged: boolean
           category: string
+          severity: string
           rationale: string
 
-    - id: extract_violation
+    - id: bridge_judgment
       type: variable_set
-      title: "Extract violation flag"
+      title: "Bridge LLM judgment"
       description: |
-        Capture the violation boolean from the judge output.
+        Capture the LLM judgment for downstream routing.
       config:
-        varName: "is_violation"
-        varExpr: 'previous_outputs["judge_content"]["output"]["violation"]'
+        varName: "judgment"
+        varExpr: 'previous_outputs["llm_judge"]["output"]'
 
-    - id: route_violation
+    - id: set_is_flagged
+      type: variable_set
+      title: "Extract flagged flag"
+      description: |
+        Capture the flagged boolean for the condition check.
+      config:
+        varName: "is_flagged"
+        varExpr: 'inputs["judgment"]["flagged"]'
+
+    - id: check_flagged
       type: condition
-      title: "Content violates policy?"
+      title: "Content not flagged by LLM?"
       description: |
-        Branch based on whether the judge flagged a violation.
+        True when the LLM judge did not flag the content.
       config:
-        expression: 'inputs["is_violation"]'
+        expression: 'not inputs["is_flagged"]'
 
-    - id: human_review
-      type: human_review
-      title: "Review flagged content"
+    - id: log_approved
+      type: log
+      title: "Log approved content"
       description: |
-        Pause for human confirmation of the flagged content.
+        Record that the LLM judge did not flag the content.
+      config:
+        level: info
+        message: "Content approved by LLM judge."
+
+    - id: escalate_human
+      type: human_review
+      title: "Human review for flagged content"
+      description: |
+        Pause for human review of flagged borderline content.
       config: {}
 
     - id: extract_review
       type: variable_set
-      title: "Extract review decision"
+      title: "Extract human review decision"
       description: |
-        Capture the human review confirmation flag.
+        Capture the human review resolution.
       config:
-        varName: "confirmed"
-        varExpr: 'previous_outputs["human_review"]["output"]["confirmed"]'
+        varName: "hitl_resolution"
+        varExpr: 'previous_outputs["escalate_human"]["output"]["hitl_resolution"]'
 
     - id: check_review
       type: condition
-      title: "Violation confirmed by reviewer?"
+      title: "Human review approved?"
       description: |
-        Branch based on the human review decision.
+        True when the human reviewer approved the content.
       config:
-        expression: 'inputs["confirmed"]'
+        expression: 'previous_outputs["escalate_human"]["output"]["hitl_resolution"] == "approved"'
 
-    - id: alert_moderation
-      type: webhook
-      title: "Alert on confirmed violation"
-      description: |
-        POST an alert for the confirmed policy violation.
-      config:
-        url: "{{ inputs.alert_webhook_url }}"
-        method: POST
-        headers:
-          Content-Type: "application/json"
-
-    - id: log_safe
+    - id: log_approved_by_human
       type: log
-      title: "Log safe content"
+      title: "Log human-approved content"
       description: |
-        Record that the content passed moderation.
+        Record that human review approved the content.
       config:
         level: info
-        message: "Content passed moderation."
+        message: "Content approved by human review."
 
     - id: log_rejected
       type: log
       title: "Log rejected content"
       description: |
-        Record that the content was rejected after review.
+        Record that human review rejected the content.
       config:
         level: warning
-        message: "Content rejected after human review."
+        message: "Content rejected by human review."
 
   edges:
-    - source: split_content
-      target: capture_item
-    - source: capture_item
-      target: judge_content
-    - source: judge_content
-      target: extract_violation
-    - source: extract_violation
-      target: route_violation
-    - source: route_violation
-      target: human_review
+    - source: set_content
+      target: fast_scan
+    - source: fast_scan
+      target: check_obvious
+    # Fast scan passed
+    - source: check_obvious
+      target: log_clean
       condition: "true"
-    - source: route_violation
-      target: log_safe
+    # Fast scan failed → LLM judge
+    - source: check_obvious
+      target: llm_judge
       condition: "false"
-    - source: human_review
+    - source: llm_judge
+      target: bridge_judgment
+    - source: bridge_judgment
+      target: set_is_flagged
+    - source: set_is_flagged
+      target: check_flagged
+    # LLM did not flag → approved
+    - source: check_flagged
+      target: log_approved
+      condition: "true"
+    # LLM flagged → human review
+    - source: check_flagged
+      target: escalate_human
+      condition: "false"
+    - source: escalate_human
       target: extract_review
     - source: extract_review
       target: check_review
+    # Human approved
     - source: check_review
-      target: alert_moderation
+      target: log_approved_by_human
       condition: "true"
+    # Human rejected
     - source: check_review
       target: log_rejected
       condition: "false"

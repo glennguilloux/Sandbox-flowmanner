@@ -2,11 +2,10 @@
 #
 # Pattern #8: Regression watchdog.
 #
-# Compares a target model/blueprint's outputs against a stored golden baseline.
-# The golden set is read from memory, split into individual examples, and
-# each example is run through the target. An LLM-as-judge flags regressions.
-# Results are merged, a pass-rate is computed, and a webhook fires if the
-# regression rate exceeds the configured threshold.
+# Runs a target task, scores the output with an LLM evaluator, and compares
+# the score against a stored baseline in Qdrant. If the score drops more than
+# the tolerance threshold, a webhook alert fires. On each run, the new score
+# is stored as the updated baseline.
 #
 # blueprint_type: dag
 # Product name: flowmanner (double-n, no 'p').
@@ -15,123 +14,122 @@ version: 1
 
 name: "flowmanner-regression-watchdog"
 description: |
-  Regression watchdog. Fetches a golden baseline from memory, runs each
-  example through a target model, evaluates outputs for regressions,
-  computes pass rate, and alerts via webhook when regressions exceed the
-  threshold.
+  Regression watchdog. Executes a target task, scores the output on a 0-100
+  scale, compares it to the stored baseline, and alerts via webhook when a
+  regression exceeds the configured tolerance. The new score is always stored
+  as the updated baseline.
 
 blueprint_type: dag
 
 inputs:
-  golden_query:
+  task_description:
     type: string
-    default: "golden_test_set_v1"
-    description: "Memory query key for the golden baseline set."
-  regression_threshold:
-    type: number
-    default: 0.2
-    description: "Fraction of failing examples that triggers an alert (0-1)."
+    description: "Description of the task to monitor for regressions."
+  task_command:
+    type: string
+    description: "The shell command or task to execute in the sandbox."
+  tolerance:
+    type: integer
+    default: 10
+    description: "Score drop tolerance before alerting."
   alert_webhook_url:
     type: string
     default: ""
-    description: "Webhook URL to alert when regressions exceed the threshold."
+    description: "Webhook URL for regression alerts."
+  run_timestamp:
+    type: string
+    default: ""
+    description: "ISO timestamp for this run (for audit trail)."
+  model:
+    type: string
+    default: ""
+    description: "Optional model override for the quality evaluator."
 
 definition:
   blueprint_type: dag
   nodes:
-    - id: fetch_golden
+    - id: load_baseline
       type: memory_read
-      title: "Fetch golden baseline"
+      title: "Load prior baseline"
       description: |
-        Retrieve the stored golden baseline examples from memory.
+        Retrieve the prior baseline score from shared memory.
       config:
         collection: "flowmanner_memory"
-        query: "{{ inputs.golden_query }}"
-        topK: 10
+        query: "{{ inputs.task_description }}"
+        topK: 1
 
-    - id: set_golden
+    - id: bridge_baseline
       type: variable_set
-      title: "Store golden items"
+      title: "Bridge baseline score"
       description: |
-        Bridge the retrieved golden examples into a run variable.
+        Capture the baseline score from memory, defaulting to 0 if no
+        prior baseline exists.
       config:
-        varName: "golden_items"
-        varExpr: 'previous_outputs["fetch_golden"]["results"]'
-
-    - id: split_golden
-      type: split
-      title: "Iterate over golden examples"
-      description: |
-        Process each golden example independently in parallel.
-      config:
-        mode: item
-        splitOn: "get(inputs, 'golden_items')"
+        varName: "baseline_score"
+        varExpr: 'previous_outputs["load_baseline"]["results"][0]["score"] if previous_outputs["load_baseline"]["results"] else 0'
 
     - id: run_target
-      type: llm_call
-      title: "Run target on example"
+      type: sandbox
+      title: "Execute target task"
       description: |
-        Execute the target task for the current golden example.
+        Run the target command in an egress-capable sandbox.
       config:
-        prompt: |
-          Task: {{ inputs.item.task }}
-          Provide a concise answer.
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        task_prompt: |
+          Execute the following task and return a concise summary of
+          the output.
 
-    - id: evaluate
+          Task: {{ inputs.task_description }}
+          Command: {{ inputs.task_command }}
+
+    - id: score_output
       type: llm_eval
-      title: "Check for regression"
+      title: "Score output quality"
       description: |
-        Judge whether the target output regresses from the golden answer.
+        Evaluate the target output on a 0-100 scale.
       config:
+        model: "{{ inputs.model }}"
         prompt: |
-          Target output: {{ previous_outputs["run_target"]["output"] }}
-          Golden answer: {{ inputs.item.expected }}
+          Score the quality of this output on a scale of 0-100.
 
-          Does the target output regress from the golden answer?
-          Respond with JSON: {"passed": true/false, "rationale": "..."}
+          Task: {{ inputs.task_description }}
+          Output: {{ previous_outputs["run_target"]["output"] }}
+
+          Consider: correctness, completeness, adherence to requirements.
+          Return JSON: {"score": N, "issues": ["..."]}
+        system_prompt: "You are a quality evaluator. Output valid JSON only."
+        temperature: 0.2
+        max_tokens: 500
         output_schema:
-          passed: boolean
-          rationale: string
+          score: integer
+          issues: array
 
-    - id: merge_results
-      type: merge
-      title: "Merge evaluation results"
-      description: |
-        Gather all per-example regression checks.
-      config:
-        mergeStrategy: concat
-
-    - id: compute_pass_rate
-      type: transform
-      title: "Compute pass rate"
-      description: |
-        Calculate the fraction of examples that passed.
-      config:
-        transformType: expression
-        transformExpression: '{"pass_rate": sum(1 for item in previous_outputs["merge_results"]["merged"] if item["passed"]) / len(previous_outputs["merge_results"]["merged"]) if previous_outputs["merge_results"]["merged"] else 0, "failures": sum(1 for item in previous_outputs["merge_results"]["merged"] if not item["passed"])}'
-
-    - id: store_summary
+    - id: bridge_score
       type: variable_set
-      title: "Store summary"
+      title: "Bridge current score"
       description: |
-        Capture the computed pass rate and failure count.
+        Capture the evaluated score for the regression check.
       config:
-        varName: "summary"
-        varExpr: 'previous_outputs["compute_pass_rate"]["output"]'
+        varName: "current_score"
+        varExpr: 'previous_outputs["score_output"]["output"]["score"]'
 
     - id: check_regression
       type: condition
-      title: "Regression rate exceeds threshold?"
+      title: "Regression detected?"
       description: |
-        Branch based on whether the failure rate exceeds the threshold.
+        True when the current score dropped below the baseline by
+        more than the tolerance.
       config:
-        expression: '(1 - inputs["summary"]["pass_rate"]) > inputs["regression_threshold"]'
+        expression: 'inputs["current_score"] < inputs["baseline_score"] - inputs["tolerance"]'
 
     - id: alert_regression
       type: webhook
       title: "Alert on regression"
       description: |
-        POST a regression alert to the configured webhook.
+        POST an alert when a regression is detected.
       config:
         url: "{{ inputs.alert_webhook_url }}"
         method: POST
@@ -140,36 +138,88 @@ definition:
 
     - id: log_healthy
       type: log
-      title: "Log healthy baseline"
+      title: "Log healthy result"
       description: |
-        Record that the target passed the regression watchdog.
+        Record that no regression was detected.
       config:
         level: info
-        message: "Regression watchdog passed. Failures: {{ inputs.summary['failures'] }}"
+        message: "No regression detected. Current score: {{ inputs.current_score }}"
+
+    - id: store_baseline_healthy
+      type: memory_write
+      title: "Store updated baseline (healthy)"
+      description: |
+        Persist the new score as the updated baseline after a healthy run.
+      config:
+        collection: "flowmanner_regression_baseline"
+        text: |
+          regression baseline for {{ inputs.task_description }}
+          score: {{ inputs.current_score }}
+          timestamp: {{ inputs.run_timestamp }}
+        payload:
+          schema: regression_baseline
+          source: flowmanner-regression-watchdog
+          task: "{{ inputs.task_description }}"
+
+    - id: store_baseline_alert
+      type: memory_write
+      title: "Store updated baseline (regression alert)"
+      description: |
+        Persist the new score as the updated baseline after a regression.
+      config:
+        collection: "flowmanner_regression_baseline"
+        text: |
+          regression baseline for {{ inputs.task_description }}
+          score: {{ inputs.current_score }}
+          timestamp: {{ inputs.run_timestamp }}
+        payload:
+          schema: regression_baseline
+          source: flowmanner-regression-watchdog
+          task: "{{ inputs.task_description }}"
+
+    - id: log_done
+      type: log
+      title: "Log baseline stored"
+      description: |
+        Record that the baseline was updated.
+      config:
+        level: info
+        message: "Regression watchdog complete. Baseline updated to {{ inputs.current_score }}."
+
+    - id: log_alert
+      type: log
+      title: "Log regression alert"
+      description: |
+        Record that a regression alert was sent.
+      config:
+        level: warning
+        message: "Regression alert fired. Baseline: {{ inputs.baseline_score }}, Current: {{ inputs.current_score }}."
 
   edges:
-    - source: fetch_golden
-      target: set_golden
-    - source: set_golden
-      target: split_golden
-    - source: split_golden
+    - source: load_baseline
+      target: bridge_baseline
+    - source: bridge_baseline
       target: run_target
     - source: run_target
-      target: evaluate
-    - source: evaluate
-      target: merge_results
-    - source: merge_results
-      target: compute_pass_rate
-    - source: compute_pass_rate
-      target: store_summary
-    - source: store_summary
+      target: score_output
+    - source: score_output
+      target: bridge_score
+    - source: bridge_score
       target: check_regression
-    - source: check_regression
-      target: alert_regression
-      condition: "true"
     - source: check_regression
       target: log_healthy
       condition: "false"
+    - source: check_regression
+      target: alert_regression
+      condition: "true"
+    - source: log_healthy
+      target: store_baseline_healthy
+    - source: alert_regression
+      target: store_baseline_alert
+    - source: store_baseline_healthy
+      target: log_done
+    - source: store_baseline_alert
+      target: log_alert
 
   budget:
     max_cost_usd: 5.00

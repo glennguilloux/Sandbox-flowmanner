@@ -2,10 +2,10 @@
 #
 # Pattern #29: ReAct tool-loop.
 #
-# Implements a bounded reasoning-acting loop. Each iteration reasons about the
-# current question and context, optionally executes an action in a sandbox,
-# observes the result, and updates context. The loop exits when an answer is
-# produced or the iteration cap is reached.
+# ReAct (Reason-Act-Observe) tool-loop agent. Uses a LOOP node where each
+# iteration reasons about the current state, acts via a sandbox, and checks
+# if done. Bounded by max_iterations and a variable_set step counter. Exits
+# when the LLM declares "FINAL ANSWER:" or the step budget is exhausted.
 #
 # blueprint_type: dag
 # Product name: flowmanner (double-n, no 'p').
@@ -14,82 +14,71 @@ version: 1
 
 name: "flowmanner-react-tool-loop"
 description: |
-  ReAct tool-loop. Iteratively reasons about a question, executes a sandbox
-  action when needed, observes the result, updates context, and exits when
-  an answer is produced or the iteration cap is reached.
+  ReAct tool-loop. Iteratively reasons about a task, acts through an
+  egress-capable sandbox, observes the result, and exits when the LLM
+  declares a final answer or the iteration cap is reached.
 
 blueprint_type: dag
 
 inputs:
-  question:
+  task_prompt:
     type: string
-    default: "What is the current weather in New York?"
-    description: "The question to answer."
-  max_iterations:
-    type: integer
-    default: 5
-    description: "Maximum number of reasoning-acting iterations."
+    description: "The task for the ReAct agent to solve."
+  model:
+    type: string
+    default: ""
+    description: "Optional model override."
 
 definition:
   blueprint_type: dag
   nodes:
-    - id: init_context
+    - id: init_state
       type: variable_set
-      title: "Initialize context"
+      title: "Initialize step counter"
       description: |
-        Seed the working context and iteration counter for the loop.
+        Seed the step counter used by the loop body.
       config:
-        varName: "context"
-        varValue: ""
-
-    - id: init_react_iter
-      type: variable_set
-      title: "Initialize iteration counter"
-      description: |
-        Seed the loop iteration counter.
-      config:
-        varName: "react_iteration"
+        varName: "step_count"
         varValue: 0
 
     - id: react_loop
       type: loop
       title: "ReAct reasoning-acting loop"
       description: |
-        Repeatedly reason, act, and observe until an answer is found or
-        the iteration cap is reached.
+        Iterate reason → act → check done until an answer is found or the
+        iteration cap is reached.
       config:
         body:
           - reason
-          - check_answer
           - act
-          - observe
-          - update_context
-          - increment_react
-        max_iterations: 5
-        stop_condition: 'previous_outputs["check_answer"]["value"]'
+          - check_done
+          - increment_step
+        max_iterations: 10
+        stop_condition: 'previous_outputs["check_done"]["value"]'
 
     - id: reason
       type: llm_call
-      title: "Reason and plan action"
+      title: "Reason and decide next action"
       description: |
-        Given the question and accumulated context, either provide the
-        final answer (prefix with "ANSWER:") or propose the next action
-        (prefix with "ACTION:").
+        Analyze the task and previous action result, then decide the next
+        action or provide the final answer.
       config:
+        model: "{{ inputs.model }}"
         prompt: |
-          Question: {{ inputs.question }}
-          Context: {{ inputs.context }}
+          You are a ReAct agent. Task: {{ inputs.task_prompt }}
 
-          Either answer the question (prefix with "ANSWER:") or propose
-          a concrete action to run in a sandbox (prefix with "ACTION:").
+          Step: {{ inputs.step_count }}
 
-    - id: check_answer
-      type: condition
-      title: "Answer found?"
-      description: |
-        Exit the loop if the reasoning step produced an answer.
-      config:
-        expression: '"ANSWER:" in previous_outputs["reason"]["output"]'
+          {% if inputs.step_count > 0 %}
+          Previous action result: {{ previous_outputs["act"]["output"] }}
+          {% endif %}
+
+          Reason about the current state and decide the next action.
+          If you have the final answer, start with "FINAL ANSWER:" followed by the answer.
+          Otherwise, describe the next action to take.
+        system_prompt: "You are a ReAct agent. Be concise."
+        temperature: 0.4
+        max_tokens: 800
 
     - id: act
       type: sandbox
@@ -101,92 +90,80 @@ definition:
         shared_workspace: false
         snapshot_before: false
         agent: opencode
+        model: "{{ inputs.model }}"
         task_prompt: |
-          Execute the following proposed action and return a concise
-          observation of the result.
+          Execute the following action:
 
-          Proposed action: {{ previous_outputs["reason"]["output"] }}
+          {{ previous_outputs["reason"]["output"] }}
 
-    - id: observe
-      type: llm_call
-      title: "Observe and update context"
+          Return a concise summary of what you did and the result.
+          If no action is needed (the reason says "FINAL ANSWER:"), simply
+          echo the final answer.
+
+    - id: check_done
+      type: condition
+      title: "Answer found?"
       description: |
-        Summarize the action result and append it to the working
-        context.
+        Exit the loop if the reasoning step produced a final answer.
       config:
-        prompt: |
-          Question: {{ inputs.question }}
-          Current context: {{ inputs.context }}
-          Latest action result: {{ previous_outputs["act"]["output"] }}
+        expression: '"FINAL ANSWER:" in previous_outputs["reason"]["output"]'
 
-          Summarize the new observation in one or two sentences. The
-          summary will be appended to the context.
-
-    - id: update_context
+    - id: increment_step
       type: variable_set
-      title: "Update working context"
+      title: "Increment step counter"
       description: |
-        Append the latest observation to the running context.
+        Track how many reasoning-acting steps have run.
       config:
-        varName: "context"
-        varExpr: 'inputs["context"] + "\n" + previous_outputs["observe"]["output"]'
+        varName: "step_count"
+        varExpr: 'inputs["step_count"] + 1'
 
-    - id: increment_react
-      type: variable_set
-      title: "Increment iteration counter"
-      description: |
-        Track how many ReAct iterations have run.
-      config:
-        varName: "react_iteration"
-        varExpr: 'inputs["react_iteration"] + 1'
-
-    - id: final_answer
+    - id: summarize_run
       type: llm_call
-      title: "Produce final answer"
+      title: "Summarize final answer"
       description: |
-        Generate a polished final answer from the reason output and
-        accumulated context.
+        Produce a polished final answer from the reasoning output.
       config:
+        model: "{{ inputs.model }}"
         prompt: |
-          Question: {{ inputs.question }}
-          Context: {{ inputs.context }}
+          Produce a clear final answer for the following task.
+
+          Task: {{ inputs.task_prompt }}
           Reasoning output: {{ previous_outputs["reason"]["output"] }}
 
-          Produce a concise final answer.
+          Return the final answer.
+        system_prompt: "You are a helpful assistant."
+        temperature: 0.3
+        max_tokens: 800
 
-    - id: log_answer
+    - id: log_result
       type: log
-      title: "Log final answer"
+      title: "Log final result"
       description: |
-        Record that a final answer was produced.
+        Record that the ReAct loop produced a final answer.
       config:
         level: info
-        message: "ReAct loop produced a final answer."
+        message: "ReAct loop completed after {{ inputs.step_count }} steps."
 
   edges:
-    - source: init_context
-      target: init_react_iter
-    - source: init_react_iter
+    - source: init_state
       target: react_loop
-    # Loop body edges
+    # Loop body execution order
     - source: react_loop
       target: reason
     - source: reason
-      target: check_answer
-    - source: check_answer
-      target: final_answer
-      condition: "true"
-    - source: check_answer
       target: act
-      condition: "false"
     - source: act
-      target: observe
-    - source: observe
-      target: update_context
-    - source: update_context
-      target: increment_react
-    - source: final_answer
-      target: log_answer
+      target: check_done
+    # Exit condition: true = answer found → exit loop
+    - source: check_done
+      target: summarize_run
+      condition: "true"
+    # Continue: false = keep iterating
+    - source: check_done
+      target: increment_step
+      condition: "false"
+    - source: summarize_run
+      target: log_result
 
   budget:
     max_cost_usd: 5.00
