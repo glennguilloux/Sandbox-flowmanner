@@ -1,0 +1,214 @@
+# flowmanner-golden-regression-suite.yaml — version 1
+#
+# Pattern #39: Golden-set regression suite.
+#
+# Compares a target model's outputs against a known golden set stored in
+# shared memory. Each golden item is run through the target, an LLM-as-judge
+# evaluates whether the output passes, and a transform flags any regressions.
+# If regressions are found, a webhook alert is fired; otherwise a success log
+# is emitted.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-golden-regression-suite"
+description: |
+  Golden-set regression suite. Fetches baseline examples from shared memory,
+  runs each through a target model, evaluates the result against the golden
+  answer, and alerts when any regression is detected.
+
+blueprint_type: dag
+
+inputs:
+  golden_query:
+    type: string
+    default: "flowmanner golden regression set v1"
+    description: "Query used to fetch the golden examples from memory."
+  model:
+    type: string
+    default: ""
+    description: "Optional model override for the target model."
+  alert_webhook_url:
+    type: string
+    default: ""
+    description: "Webhook URL to alert when a regression is detected."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: fetch_golden
+      type: memory_read
+      title: "Fetch golden set"
+      description: |
+        Retrieve the golden examples from shared Qdrant memory.
+      config:
+        collection: "flowmanner_memory"
+        query: "{{ inputs.golden_query }}"
+        topK: 20
+
+    - id: store_items
+      type: variable_set
+      title: "Store golden items"
+      description: |
+        Bridge the memory results into a run-scoped variable for the
+        split node.
+      config:
+        varName: "golden_items"
+        varExpr: 'previous_outputs["fetch_golden"]["results"]'
+
+    - id: split_items
+      type: split
+      title: "Iterate over golden examples"
+      description: |
+        Fan out one branch per golden example.
+      config:
+        splitOn: "inputs.golden_items"
+        mode: "item"
+
+    - id: capture_item
+      type: variable_set
+      title: "Capture current example"
+      description: |
+        Store the split item so downstream nodes can reference its
+        fields.
+      config:
+        varName: "item"
+        varValue: "{{ input }}"
+
+    - id: run_target
+      type: llm_call
+      title: "Run target model"
+      description: |
+        Run the current golden task through the target model.
+      config:
+        model: "{{ inputs.model }}"
+        prompt: |
+          {{ inputs.item.task }}
+        system_prompt: "You are a helpful assistant. Answer the task directly."
+        temperature: 0.3
+        max_tokens: 1000
+
+    - id: store_target_output
+      type: variable_set
+      title: "Store target output"
+      description: |
+        Capture the target model output for the evaluator.
+      config:
+        varName: "target_output"
+        varExpr: 'previous_outputs["run_target"]["output"]'
+
+    - id: evaluate
+      type: llm_eval
+      title: "Evaluate against golden answer"
+      description: |
+        Judge whether the target output meets the golden answer.
+      config:
+        model: "{{ inputs.model }}"
+        output_schema:
+          passed: boolean
+          rationale: string
+        prompt: |
+          Compare the following target output to the expected golden answer.
+          Return a JSON object with keys:
+            {"passed": true/false, "rationale": "short reason"}
+
+          Expected golden answer:
+          {{ inputs.item.expected }}
+
+          Target output:
+          {{ inputs.target_output }}
+        system_prompt: "You are an exacting evaluator. Return valid JSON only."
+        temperature: 0.2
+        max_tokens: 500
+
+    - id: merge_results
+      type: merge
+      title: "Merge evaluation results"
+      description: |
+        Gather all per-item evaluations results.
+      config:
+        mergeStrategy: "concat"
+
+    - id: check_failures
+      type: transform
+      title: "Check for regressions"
+      description: |
+        Determine whether any golden item failed the evaluation.
+      config:
+        transformType: "expression"
+        transformExpression: 'any(item["passed"] == False for item in previous_outputs["merge_results"]["merged"]) if previous_outputs["merge_results"]["merged"] else False'
+
+    - id: route_regression
+      type: condition
+      title: "Regression detected?"
+      description: |
+        Branch based on whether any golden item regressed.
+      config:
+        expression: 'previous_outputs["check_failures"]["output"]'
+
+    - id: alert_team
+      type: webhook
+      title: "Alert on regression"
+      description: |
+        POST an alert when a regression is detected.
+      config:
+        url: "{{ inputs.alert_webhook_url }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+
+    - id: log_alerted
+      type: log
+      title: "Log regression alert"
+      description: |
+        Record that a regression was detected and an alert was sent.
+      config:
+        level: error
+        message: "Golden-set regression detected. Alert sent."
+
+    - id: log_success
+      type: log
+      title: "Log golden set pass"
+      description: |
+        Record that all golden items passed.
+      config:
+        level: info
+        message: "Golden-set regression suite passed with no regressions."
+
+  edges:
+    - source: fetch_golden
+      target: store_items
+    - source: store_items
+      target: split_items
+    - source: split_items
+      target: capture_item
+    - source: capture_item
+      target: run_target
+    - source: run_target
+      target: store_target_output
+    - source: store_target_output
+      target: evaluate
+    - source: evaluate
+      target: merge_results
+    - source: merge_results
+      target: check_failures
+    - source: check_failures
+      target: route_regression
+    - source: route_regression
+      target: alert_team
+      condition: "true"
+    - source: route_regression
+      target: log_success
+      condition: "false"
+    - source: alert_team
+      target: log_alerted
+
+  budget:
+    max_cost_usd: 10.00
+    max_wall_time_seconds: 900
+    max_iterations: 50
+    max_depth: 5
+
+  config: {}

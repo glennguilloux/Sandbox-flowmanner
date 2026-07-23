@@ -1,0 +1,242 @@
+# flowmanner-inter-rater-reliability.yaml — version 1
+#
+# Pattern #41: Inter-rater reliability.
+#
+# Splits a test set into individual items and routes each item through two
+# independent LLM raters. An LLM-as-judge compares the two ratings, the
+# per-item agreement scores are merged, and a transform computes the overall
+# inter-rater reliability. Low reliability triggers a webhook alert.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-inter-rater-reliability"
+description: |
+  Inter-rater reliability blueprint. Runs each test item through two LLM
+  raters, compares their ratings with an LLM judge, computes the overall
+  agreement score, and alerts when reliability falls below a threshold.
+
+blueprint_type: dag
+
+inputs:
+  test_items:
+    type: array
+    default:
+      - "Item 1"
+      - "Item 2"
+      - "Item 3"
+    description: "List of test items to rate."
+  model_a:
+    type: string
+    default: ""
+    description: "Optional model override for rater A."
+  model_b:
+    type: string
+    default: ""
+    description: "Optional model override for rater B."
+  agreement_threshold:
+    type: number
+    default: 0.8
+    description: "Minimum acceptable agreement score (0.0-1.0)."
+  alert_webhook_url:
+    type: string
+    default: ""
+    description: "Webhook URL to alert when inter-rater reliability is low."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: split_items
+      type: split
+      title: "Split test items"
+      description: |
+        Fan out one branch per test item.
+      config:
+        splitOn: "inputs.test_items"
+        mode: "item"
+
+    - id: capture_item
+      type: variable_set
+      title: "Capture current item"
+      description: |
+        Store the split item so both raters can reference it.
+      config:
+        varName: "item"
+        varValue: "{{ input }}"
+
+    - id: rater_a
+      type: llm_call
+      title: "Rater A"
+      description: |
+        Rate the current item using the first model.
+      config:
+        model: "{{ inputs.model_a }}"
+        prompt: |
+          Rate the following item on a scale of 1 to 5, where 1 is poor
+          and 5 is excellent. Respond with only the integer rating.
+
+          Item: {{ inputs.item }}
+        system_prompt: "You are a strict rater. Return only an integer from 1 to 5."
+        temperature: 0.3
+        max_tokens: 10
+
+    - id: rater_b
+      type: llm_call
+      title: "Rater B"
+      description: |
+        Rate the current item using the second model.
+      config:
+        model: "{{ inputs.model_b }}"
+        prompt: |
+          Rate the following item on a scale of 1 to 5, where 1 is poor
+          and 5 is excellent. Respond with only the integer rating.
+
+          Item: {{ inputs.item }}
+        system_prompt: "You are a strict rater. Return only an integer from 1 to 5."
+        temperature: 0.3
+        max_tokens: 10
+
+    - id: store_rating_a
+      type: variable_set
+      title: "Store rating A"
+      description: |
+        Capture rater A's rating for the judge.
+      config:
+        varName: "rating_a"
+        varExpr: 'previous_outputs["rater_a"]["output"]'
+
+    - id: store_rating_b
+      type: variable_set
+      title: "Store rating B"
+      description: |
+        Capture rater B's rating for the judge.
+      config:
+        varName: "rating_b"
+        varExpr: 'previous_outputs["rater_b"]["output"]'
+
+    - id: compare_raters
+      type: llm_eval
+      title: "Compare raters"
+      description: |
+        Judge whether the two ratings agree for this item.
+      config:
+        output_schema:
+          agreement: boolean
+          score: number
+        prompt: |
+          Rater A gave: {{ inputs.rating_a }}
+          Rater B gave: {{ inputs.rating_b }}
+
+          Do the two raters agree on the quality of the item? Return a
+          JSON object with keys:
+            {"agreement": true/false, "score": 0.0-1.0}
+
+          Item: {{ inputs.item }}
+        system_prompt: "You are an agreement evaluator. Return valid JSON only."
+        temperature: 0.2
+        max_tokens: 50
+
+    - id: merge_agreements
+      type: merge
+      title: "Merge per-item agreements"
+      description: |
+        Gather all per-item agreement results.
+      config:
+        mergeStrategy: "concat"
+
+    - id: calc_irr
+      type: transform
+      title: "Calculate IRR score"
+      description: |
+        Compute the overall inter-rater reliability score.
+      config:
+        transformType: "expression"
+        transformExpression: 'sum(item["score"] for item in previous_outputs["merge_agreements"]["merged"]) / len(previous_outputs["merge_agreements"]["merged"]) if previous_outputs["merge_agreements"]["merged"] else 0.0'
+
+    - id: store_irr
+      type: variable_set
+      title: "Store IRR score"
+      description: |
+        Bridge the IRR score into inputs for the condition node.
+      config:
+        varName: "agreement_score"
+        varExpr: 'previous_outputs["calc_irr"]["output"]'
+
+    - id: check_low_agreement
+      type: condition
+      title: "Agreement below threshold?"
+      description: |
+        Branch based on whether the IRR score is below the threshold.
+      config:
+        expression: 'inputs["agreement_score"] < inputs["agreement_threshold"]'
+
+    - id: alert_low
+      type: webhook
+      title: "Alert on low agreement"
+      description: |
+        POST an alert when inter-rater reliability is too low.
+      config:
+        url: "{{ inputs.alert_webhook_url }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+
+    - id: log_low
+      type: log
+      title: "Log low agreement"
+      description: |
+        Record that raters showed low agreement.
+      config:
+        level: warning
+        message: "Inter-rater reliability fell below the configured threshold."
+
+    - id: log_high
+      type: log
+      title: "Log acceptable agreement"
+      description: |
+        Record that raters were in adequate agreement.
+      config:
+        level: info
+        message: "Inter-rater reliability is within the configured threshold."
+
+  edges:
+    - source: split_items
+      target: capture_item
+    - source: capture_item
+      target: rater_a
+    - source: capture_item
+      target: rater_b
+    - source: rater_a
+      target: store_rating_a
+    - source: rater_b
+      target: store_rating_b
+    - source: store_rating_a
+      target: compare_raters
+    - source: store_rating_b
+      target: compare_raters
+    - source: compare_raters
+      target: merge_agreements
+    - source: merge_agreements
+      target: calc_irr
+    - source: calc_irr
+      target: store_irr
+    - source: store_irr
+      target: check_low_agreement
+    - source: check_low_agreement
+      target: alert_low
+      condition: "true"
+    - source: check_low_agreement
+      target: log_high
+      condition: "false"
+    - source: alert_low
+      target: log_low
+
+  budget:
+    max_cost_usd: 10.00
+    max_wall_time_seconds: 900
+    max_iterations: 50
+    max_depth: 5
+
+  config: {}
