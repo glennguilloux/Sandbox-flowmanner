@@ -46,4 +46,4 @@ This table is generated automatically from the substrate source.
 | `variable_set` | `_handle_variable_set` | `prefix` (O), `varExpr` (Ralt), `varName` (R), `varValue` (Ralt) |
 | `llm_eval` | `_handle_llm` | `context_query` (O), `context_token_budget` (O), `long_context` (O), `max_tokens` (O), `prompt` (R), `system_prompt` (O), `temperature` (O) |
 | `memory_read` | `_handle_memory_read` | `collection` (O), `query` (R), `scoreThreshold` (O), `topK` (O) |
-| `timeout` | `_handle_timeout` | `timeoutMs` (O), `wrapped_node_id` (O) |
+| `timeout` | `_handle_timeout` | `timeoutMs` (R), `wrapped_node_id` (O) |

@@ -1,0 +1,295 @@
+# flowmanner-reliability-blueprint.yaml — version 1
+#
+# Reliability / production-hardening blueprint (Flowmanner substrate).
+#
+# Covers two patterns from the mission-builder brainstorm:
+#
+#   #21 Self-healing run — wrap a flaky sandbox step in retry (maxRetries +
+#       backoffMs) AND timeout (timeoutMs + on_timeout fallback). Crash
+#       recovery is automatic via the replay engine (resume from run_id).
+#
+#   #22 Deadline-guarded long mission — timeout bounds the whole DAG; on
+#       timeout the condition routes to a "partial-results summarizer"
+#       instead of failing hard.
+#
+# Key substrate facts (verified against node_executor.py):
+#   - retry node: config.maxRetries (overrides child), config.backoffMs
+#     (sleep between attempts). Wraps a single child via outgoing edge.
+#   - timeout node: config.timeoutMs (REQUIRED), config.wrapped_node_id
+#     (optional — falls back to the single outgoing default edge target).
+#     On deadline miss, emits branch == "on_timeout"; on success, branch
+#     == "default".
+#   - condition node: config.expression — boolean expression over context.
+#     Edges from a condition node carry condition "true" / "false".
+#   - llm_call node: config.prompt, config.model (per-run override).
+#   - sandbox node: the only egress node; config.task_prompt, config.model.
+#   - variable_set: config.varName, config.varExpr (or varValue).
+#   - log node: config.level (info/warning/error), config.message.
+#   - memory_write: config.collection, config.text (interpolated).
+#   - merge node: config.mergeStrategy (concat/merge_dict/first).
+#
+# Product name: flowmanner (double-n, no 'p').
+#
+# Author with the `cli/` package:
+#   flowmanner validate      # checks this file
+#   flowmanner push          # creates a draft Blueprint, prints id
+#   flowmanner publish        # mark ready to run
+#   flowmanner run --input task_prompt="..." --input repo_url="..." --input deadline_ms=60000
+
+version: 1
+
+name: "flowmanner-reliability"
+description: |
+  Reliability blueprint demonstrating two production-hardening patterns:
+  (1) self-healing: a flaky sandbox step wrapped in retry + timeout with
+  an on_timeout fallback path; (2) deadline-guarded mission: the entire
+  DAG is bounded by a top-level timeout that routes to a partial-results
+  summarizer on deadline miss instead of failing hard.
+
+blueprint_type: dag
+
+inputs:
+  task_prompt:
+    type: string
+    description: "The task to execute in the sandbox."
+  repo_url:
+    type: string
+    default: "https://github.com/glennguilloux/FlowmannerV2.git"
+  max_retries:
+    type: integer
+    description: "Max retry attempts for the flaky sandbox step."
+    default: 3
+  backoff_ms:
+    type: integer
+    description: "Backoff in milliseconds between retry attempts."
+    default: 5000
+
+definition:
+  blueprint_type: dag
+  nodes:
+    # ── Pattern #21: Self-healing run ────────────────────────────────
+    # The timeout node wraps the retry node, which wraps the sandbox.
+    # timeout → retry → sandbox (the flaky step).
+    #
+    # On timeout: the timeout node emits branch == "on_timeout" and the
+    # DAG strategy routes the on_timeout edge to the fallback summarizer.
+    # On success: branch == "default" routes to the normal summarizer.
+    - id: timeout_sandbox
+      type: timeout
+      title: "Deadline wrapper for sandbox step"
+      description: >
+        Bounds the retry-wrapped sandbox step under a deadline. On
+        deadline miss, routes to the on_timeout fallback summarizer.
+      config:
+        # timeoutMs is a literal positive integer because the substrate reads
+        # it before template interpolation. Adjust the deadline as needed.
+        timeoutMs: 60000
+        # wrapped_node_id is optional; the default outgoing edge target
+        # (retry_sandbox) is used as the child.
+
+    - id: retry_sandbox
+      type: retry
+      title: "Retry wrapper for flaky sandbox"
+      description: >
+        Wraps the sandbox step with maxRetries + backoff. The wrapper
+        overrides the child's retry policy (wrapper wins when both
+        specify maxRetries).
+      config:
+        maxRetries: 3
+        backoffMs: 5000
+
+    - id: sandbox_step
+      type: sandbox
+      title: "Egress-capable sandbox task"
+      description: >
+        The flaky step: clones the repo and runs the task. This is the
+        only node with network egress.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        task_prompt: |
+          You are running in an egress-capable sandbox with git available.
+          Clone {{ inputs.repo_url }} into /workspace/repo, then complete
+          the following task:
+
+          {{ inputs.task_prompt }}
+
+          Return a concise markdown summary of what you did and the final
+          artifact(s) you produced.
+
+    # ── Pattern #22: Deadline-guarded long mission ──────────────────
+    # The mission_timeout node wraps the entire self-healing pipeline
+    # (timeout_sandbox → retry_sandbox → sandbox_step) plus the
+    # summarizer. On mission deadline miss, routes to a partial-results
+    # summarizer instead of failing hard.
+    - id: mission_timeout
+      type: timeout
+      title: "Mission-level deadline guard"
+      description: >
+        Bounds the entire DAG under a mission-level deadline. On
+        deadline miss, routes to the partial-results summarizer.
+      config:
+        # Literal positive integer (milliseconds). The substrate reads this
+        # before template interpolation.
+        timeoutMs: 300000
+
+    # ── Summarizers ────────────────────────────────────────────────
+    # Normal summarizer (success path): summarize the sandbox output.
+    - id: summarize_success
+      type: llm_call
+      title: "Summarize successful sandbox output"
+      description: >
+        Summarize the sandbox step's output into a concise report.
+      config:
+        model: "openrouter/anthropic/claude-3.5-sonnet"
+        prompt: |
+          The sandbox step completed successfully. Summarize its output
+          into a concise markdown report.
+
+          Sandbox output:
+          {{ previous_outputs.sandbox_step.output }}
+
+    # Fallback summarizer (on_timeout path): summarize whatever partial
+    # results are available instead of failing hard.
+    - id: summarize_timeout_fallback
+      type: llm_call
+      title: "Partial-results summarizer (on timeout)"
+      description: >
+        On deadline miss, summarize whatever partial results are
+        available instead of failing hard.
+      config:
+        model: "openrouter/anthropic/claude-3.5-sonnet"
+        prompt: |
+          The sandbox step timed out. Summarize whatever partial results
+          are available into a concise markdown report. If no partial
+          results exist, report that the step timed out with no output.
+
+          Sandbox output (may be empty):
+          {{ previous_outputs.sandbox_step.output }}
+
+    # ── Partial-results summarizer for mission-level timeout ────────
+    - id: summarize_mission_timeout
+      type: llm_call
+      title: "Mission partial-results summarizer"
+      description: >
+        On mission deadline miss, summarize whatever partial results
+        are available across all completed steps.
+      config:
+        model: "openrouter/anthropic/claude-3.5-sonnet"
+        prompt: |
+          The mission timed out. Summarize whatever partial results are
+          available from completed steps into a concise markdown report.
+
+          Completed step outputs:
+          {{ previous_outputs }}
+
+    # ── Condition: check if sandbox succeeded ────────────────────────
+    - id: check_sandbox_result
+      type: condition
+      title: "Check sandbox success"
+      description: >
+        Evaluate whether the sandbox step succeeded. Routes to the
+        success summarizer or the timeout fallback summarizer.
+      config:
+        expression: "{{ previous_outputs.sandbox_step.success }}"
+
+    # ── Memory: persist findings ───────────────────────────────────
+    - id: save_findings
+      type: memory_write
+      title: "Persist reliability findings"
+      description: >
+        Store the run's findings in shared Qdrant memory for future
+        reliability analysis.
+      config:
+        collection: "flowmanner_memory"
+        text: |
+          reliability run findings:
+          task: {{ inputs.task_prompt }}
+          sandbox output: {{ previous_outputs.sandbox_step.output }}
+          summary: {{ previous_outputs.summarize_success.output }}
+
+    # ── Log: emit summary ──────────────────────────────────────────
+    - id: log_summary
+      type: log
+      title: "Log reliability run summary"
+      description: >
+        Emit a summary of the reliability run.
+      config:
+        level: info
+        message: "Reliability run completed for task: {{ inputs.task_prompt }}"
+
+    # ── Merge: combine all outputs for the final report ────────────
+    - id: merge_results
+      type: merge
+      title: "Merge all results"
+      description: >
+        Combine all step outputs into a single report.
+      config:
+        mergeStrategy: concat
+
+  edges:
+    # ── Pattern #22: Mission-level deadline guard ────────────────────
+    # mission_timeout wraps the entire pipeline. Its default edge goes
+    # to the self-healing timeout_sandbox; its on_timeout edge goes to
+    # the mission partial-results summarizer.
+    - source: mission_timeout
+      target: timeout_sandbox
+    - source: mission_timeout
+      target: summarize_mission_timeout
+      condition: on_timeout
+
+    # ── Pattern #21: Self-healing pipeline ─────────────────────────
+    # timeout_sandbox → retry_sandbox (default edge)
+    - source: timeout_sandbox
+      target: retry_sandbox
+    # timeout_sandbox → summarize_timeout_fallback (on_timeout edge)
+    - source: timeout_sandbox
+      target: summarize_timeout_fallback
+      condition: on_timeout
+
+    # retry_sandbox → sandbox_step (default edge)
+    - source: retry_sandbox
+      target: sandbox_step
+
+    # sandbox_step → check_sandbox_result
+    - source: sandbox_step
+      target: check_sandbox_result
+
+    # check_sandbox_result → summarize_success (true branch)
+    - source: check_sandbox_result
+      target: summarize_success
+      condition: "true"
+
+    # check_sandbox_result → summarize_timeout_fallback (false branch)
+    - source: check_sandbox_result
+      target: summarize_timeout_fallback
+      condition: "false"
+
+    # summarize_success → save_findings
+    - source: summarize_success
+      target: save_findings
+
+    # summarize_timeout_fallback → save_findings
+    - source: summarize_timeout_fallback
+      target: save_findings
+
+    # summarize_mission_timeout → save_findings
+    - source: summarize_mission_timeout
+      target: save_findings
+
+    # save_findings → log_summary
+    - source: save_findings
+      target: log_summary
+
+    # log_summary → merge_results
+    - source: log_summary
+      target: merge_results
+
+  budget:
+    max_cost_usd: 10.00
+    max_wall_time_seconds: 600
+    max_iterations: 100
+
+  config: {}

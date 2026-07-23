@@ -419,6 +419,21 @@ class TestValidateNodeConfigValues:
         definition = self._node("retry", {"maxRetries": 3})
         assert lint.validate_node_config_values(definition) == []
 
+    @pytest.mark.parametrize("value", [-1, 0, "60000", None, True])
+    def test_timeout_requires_positive_integer_timeout_ms(self, lint: ModuleType, value: Any) -> None:
+        definition = self._node("timeout", {"timeoutMs": value})
+        errors = lint.validate_node_config_values(definition)
+        assert any("timeoutMs" in e and "positive integer" in e for e in errors)
+
+    def test_timeout_valid_timeout_ms_passes(self, lint: ModuleType) -> None:
+        definition = self._node("timeout", {"timeoutMs": 60000})
+        assert lint.validate_node_config_values(definition) == []
+
+    def test_timeout_rejects_empty_wrapped_node_id(self, lint: ModuleType) -> None:
+        definition = self._node("timeout", {"timeoutMs": 1000, "wrapped_node_id": "  "})
+        errors = lint.validate_node_config_values(definition)
+        assert any("wrapped_node_id" in e and "non-empty" in e for e in errors)
+
     @pytest.mark.parametrize("level", ["info", "warning", "error"])
     def test_log_valid_level_and_message_passes(self, lint: ModuleType, level: str) -> None:
         definition = self._node("log", {"level": level, "message": "hello"})
@@ -583,6 +598,186 @@ class TestNodeTypeTableDrift:
         )
 
 
+class TestValidateEdgeSemantics:
+    """Edge condition values must match their source node type."""
+
+    def _definition(self, nodes: list[dict], edges: list[dict]) -> dict:
+        return {"nodes": nodes, "edges": edges}
+
+    def test_condition_edge_true_false_are_valid(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "c", "type": "condition", "config": {"expression": "x"}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+                {"id": "b", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [
+                {"source": "c", "target": "a", "condition": "true"},
+                {"source": "c", "target": "b", "condition": "false"},
+            ],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
+    def test_condition_edge_rejects_invalid_condition(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "c", "type": "condition", "config": {"expression": "x"}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "c", "target": "a", "condition": "maybe"}],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("condition node" in e and "'true' or 'false'" in e for e in errors)
+
+    def test_timeout_edges_accept_default_and_on_timeout(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "t", "type": "timeout", "config": {"timeoutMs": 1000}},
+                {"id": "child", "type": "log", "config": {"level": "info", "message": "x"}},
+                {"id": "fallback", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [
+                {"source": "t", "target": "child"},
+                {"source": "t", "target": "fallback", "condition": "on_timeout"},
+            ],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
+    def test_timeout_edge_rejects_invalid_condition(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "t", "type": "timeout", "config": {"timeoutMs": 1000}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "t", "target": "a", "condition": "timeout"}],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("timeout node" in e and "'on_timeout', 'default', or no condition" in e for e in errors)
+
+    def test_timeout_requires_on_timeout_edge(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "t", "type": "timeout", "config": {"timeoutMs": 1000}},
+                {"id": "child", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "t", "target": "child"}],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("on_timeout" in e for e in errors)
+
+    def test_timeout_requires_default_child(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "t", "type": "timeout", "config": {"timeoutMs": 1000}},
+                {"id": "fallback", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "t", "target": "fallback", "condition": "on_timeout"}],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("wrapped_node_id" in e and "default outgoing edge" in e for e in errors)
+
+    def test_timeout_wrapped_node_id_satisfies_default_child(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "t", "type": "timeout", "config": {"timeoutMs": 1000, "wrapped_node_id": "child"}},
+                {"id": "fallback", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "t", "target": "fallback", "condition": "on_timeout"}],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
+    def test_validate_schema_edges_accept_default_and_on_invalid(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "vs", "type": "validate_schema", "config": {"schema": {}}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+                {"id": "b", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [
+                {"source": "vs", "target": "a", "condition": "default"},
+                {"source": "vs", "target": "b", "condition": "on_invalid"},
+            ],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
+    def test_router_edge_requires_non_empty_condition(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "r", "type": "router", "config": {"routes": [{"target": "a"}]}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "r", "target": "a"}],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("router node" in e and "non-empty condition" in e for e in errors)
+
+    def test_non_branching_nodes_allow_unconditioned_edges(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "l", "type": "log", "config": {"level": "info", "message": "x"}},
+                {"id": "next", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "l", "target": "next"}],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
+    def test_dag_condition_requires_one_true_and_one_false_edge(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "c", "type": "condition", "config": {"expression": "x"}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+                {"id": "b", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [
+                {"source": "c", "target": "a", "condition": "true"},
+                {"source": "c", "target": "b", "condition": "false"},
+            ],
+        )
+        assert lint.validate_edge_semantics(definition) == []
+
+    def test_dag_condition_rejects_missing_branches(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "c", "type": "condition", "config": {"expression": "x"}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [{"source": "c", "target": "a", "condition": "true"}],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("exactly one outgoing 'false' edge" in e for e in errors)
+
+    def test_dag_condition_rejects_duplicate_branches(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "c", "type": "condition", "config": {"expression": "x"}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+                {"id": "b", "type": "log", "config": {"level": "info", "message": "x"}},
+                {"id": "d", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [
+                {"source": "c", "target": "a", "condition": "true"},
+                {"source": "c", "target": "b", "condition": "true"},
+                {"source": "c", "target": "d", "condition": "false"},
+            ],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("exactly one outgoing 'true' edge" in e for e in errors)
+
+    def test_dag_condition_rejects_same_target_for_both_branches(self, lint: ModuleType) -> None:
+        definition = self._definition(
+            [
+                {"id": "c", "type": "condition", "config": {"expression": "x"}},
+                {"id": "a", "type": "log", "config": {"level": "info", "message": "x"}},
+            ],
+            [
+                {"source": "c", "target": "a", "condition": "true"},
+                {"source": "c", "target": "a", "condition": "false"},
+            ],
+        )
+        errors = lint.validate_edge_semantics(definition)
+        assert any("different targets" in e for e in errors)
+
+
 class TestValidateBlueprint:
     """Validation path: required keys, graph errors, and adapter conversion."""
 
@@ -722,6 +917,12 @@ class TestMain:
         )
 
         result = lint.main([str(tmp_path)])
+        assert result == 0
+
+    def test_reliability_example_blueprint_passes(self, lint: ModuleType) -> None:
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        path = repo_root / "backend" / "flowmanner-reliability-blueprint.yaml"
+        result = lint.main([str(path)])
         assert result == 0
 
 

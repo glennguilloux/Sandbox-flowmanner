@@ -99,6 +99,7 @@ REQUIRED_NODE_CONFIG: dict[str, list[NodeConfigSpec]] = {
     "router": ["routes"],
     "delay": ["delayMs"],
     "retry": ["maxRetries"],
+    "timeout": ["timeoutMs"],
     "cache_get": ["key"],
     "browser_navigate": ["params"],
     "browser_click": ["params"],
@@ -401,6 +402,14 @@ def validate_node_config_values(definition: dict) -> list[str]:
             if not isinstance(max_retries, int) or isinstance(max_retries, bool) or max_retries <= 0:
                 _error(node_id, node_type, "config.maxRetries must be a positive integer")
 
+        elif node_type == "timeout":
+            timeout_ms = config.get("timeoutMs")
+            if not isinstance(timeout_ms, int) or isinstance(timeout_ms, bool) or timeout_ms <= 0:
+                _error(node_id, node_type, "config.timeoutMs must be a positive integer (milliseconds)")
+            wrapped_node_id = config.get("wrapped_node_id")
+            if wrapped_node_id is not None and not _is_non_empty_string(wrapped_node_id):
+                _error(node_id, node_type, "config.wrapped_node_id must be a non-empty string")
+
         elif node_type == "cache_get":
             key = config.get("key")
             if not _is_non_empty_string(key):
@@ -429,6 +438,112 @@ def validate_node_config_values(definition: dict) -> list[str]:
     return errors
 
 
+def _looks_like_template(value: Any) -> bool:
+    """Return True if ``value`` is a string containing Jinja-style template markers."""
+    return isinstance(value, str) and "{{" in value and "}}" in value
+
+
+def validate_edge_semantics(definition: dict, *, blueprint_type: str = "dag") -> list[str]:
+    """Return a list of validation errors for edge conditions.
+
+    Branching node types require specific condition values on their outgoing
+    edges.  DAG strategy condition nodes must use literal ``"true"`` /
+    ``"false"`` conditions; graph strategy condition edges may use template
+    expressions (e.g. ``"{{ node.value }}"``).
+    """
+    errors: list[str] = []
+    nodes = definition.get("nodes")
+    edges = definition.get("edges")
+    if not isinstance(nodes, list) or not isinstance(edges, list):
+        return errors
+
+    node_types: dict[str, str] = {}
+    for node in nodes:
+        if isinstance(node, dict):
+            node_id = node.get("id")
+            node_type = node.get("type")
+            if isinstance(node_id, str) and isinstance(node_type, str):
+                node_types[node_id] = node_type
+
+    for edge in edges:
+        if not isinstance(edge, dict):
+            continue
+        source = edge.get("source")
+        target = edge.get("target")
+        condition = edge.get("condition")
+        source_type = node_types.get(source)
+        if source_type is None:
+            continue
+
+        if source_type == "condition":
+            # DAG strategy requires literal boolean strings; graph strategy
+            # supports template expressions like "{{node.value}}" and also
+            # allows unconditioned edges (always taken).
+            if blueprint_type == "dag" and condition not in ("true", "false"):
+                errors.append(
+                    f"Edge from condition node '{source}' to '{target}' must have condition 'true' or 'false'"
+                )
+        elif source_type == "timeout":
+            if condition not in (None, "default", "on_timeout"):
+                errors.append(
+                    f"Edge from timeout node '{source}' to '{target}' "
+                    "must have condition 'on_timeout', 'default', or no condition"
+                )
+        elif source_type == "validate_schema":
+            if condition not in (None, "default", "on_invalid"):
+                errors.append(
+                    f"Edge from validate_schema node '{source}' to '{target}' "
+                    "must have condition 'default', 'on_invalid', or no condition"
+                )
+        elif source_type == "router" and not _is_non_empty_string(condition):
+            errors.append(f"Edge from router node '{source}' to '{target}' must have a non-empty condition (route id)")
+
+    # Timeout-specific structural checks.
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        node_id = node.get("id")
+        node_type = node.get("type")
+        if not isinstance(node_id, str):
+            continue
+        outgoing = [e for e in edges if isinstance(e, dict) and e.get("source") == node_id]
+
+        if node_type == "timeout":
+            raw_config = node.get("config")
+            config = raw_config if isinstance(raw_config, dict) else {}
+            has_wrapped = _is_non_empty_string(config.get("wrapped_node_id"))
+            has_default = any(e.get("condition") in (None, "default") for e in outgoing if isinstance(e, dict))
+            has_on_timeout = any(e.get("condition") == "on_timeout" for e in outgoing if isinstance(e, dict))
+
+            if not has_wrapped and not has_default:
+                errors.append(
+                    f"Timeout node '{node_id}' must specify config.wrapped_node_id or have a default outgoing edge"
+                )
+            if not has_on_timeout:
+                errors.append(f"Timeout node '{node_id}' should have an outgoing 'on_timeout' edge")
+
+        # DAG condition nodes must branch to exactly one true and one false target.
+        if blueprint_type == "dag" and node_type == "condition":
+            true_edges = [e for e in outgoing if e.get("condition") == "true"]
+            false_edges = [e for e in outgoing if e.get("condition") == "false"]
+            if len(true_edges) != 1:
+                errors.append(
+                    f"Condition node '{node_id}' must have exactly one outgoing 'true' edge (found {len(true_edges)})"
+                )
+            if len(false_edges) != 1:
+                errors.append(
+                    f"Condition node '{node_id}' must have exactly one outgoing 'false' edge (found {len(false_edges)})"
+                )
+            if (
+                len(true_edges) == 1
+                and len(false_edges) == 1
+                and true_edges[0].get("target") == false_edges[0].get("target")
+            ):
+                errors.append(f"Condition node '{node_id}' must route 'true' and 'false' to different targets")
+
+    return errors
+
+
 def validate_blueprint(path: Path, data: dict, *, verbose: bool = False) -> list[str]:
     """Return a list of validation errors for a parsed blueprint.
 
@@ -436,8 +551,9 @@ def validate_blueprint(path: Path, data: dict, *, verbose: bool = False) -> list
         1. Presence of required top-level keys.
         2. Per-node config constraint validation.
         3. Per-node config value validation.
-        4. ``validate_blueprint_definition`` edge/node graph checks.
-        5. ``blueprint_to_workflow`` adapter conversion (catches malformed
+        4. Edge condition semantics validation.
+        5. ``validate_blueprint_definition`` edge/node graph checks.
+        6. ``blueprint_to_workflow`` adapter conversion (catches malformed
            nodes, edges, budgets, etc.).
     """
     errors: list[str] = []
@@ -457,7 +573,10 @@ def validate_blueprint(path: Path, data: dict, *, verbose: bool = False) -> list
     # 3. Per-node config value validation.
     errors.extend(validate_node_config_values(definition))
 
-    # 4. Edge/node graph validation.
+    # 4. Edge condition semantics validation.
+    errors.extend(validate_edge_semantics(definition, blueprint_type=data.get("blueprint_type", "dag")))
+
+    # 5. Edge/node graph validation.
     try:
         graph_errors = validate_blueprint_definition(definition)
     except Exception as exc:
