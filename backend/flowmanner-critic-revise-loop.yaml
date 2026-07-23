@@ -1,0 +1,185 @@
+# flowmanner-critic-revise-loop.yaml — version 1
+#
+# Pattern #27: Critic-revise loop.
+#
+# Generates an initial draft, then iteratively critiques and revises it.
+# A bounded LOOP node runs the critic-revise body until quality is
+# sufficient or the iteration cap is reached.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-critic-revise-loop"
+description: |
+  Critic-revise loop. Produces an initial draft, then iteratively critiques
+  and revises it using a bounded LOOP node. Stops when quality is
+  sufficient or the maximum iteration count is reached.
+
+blueprint_type: dag
+
+inputs:
+  task_prompt:
+    type: string
+    default: "Write a short paragraph explaining the importance of clear documentation."
+    description: "The task the draft should address."
+  quality_threshold:
+    type: number
+    default: 8
+    description: "Minimum critic score (1-10) to exit the loop."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: init_draft
+      type: llm_call
+      title: "Generate initial draft"
+      description: |
+        Produce the first draft for the given task.
+      config:
+        prompt: |
+          Task: {{ inputs.task_prompt }}
+          Produce a concise first draft.
+
+    - id: set_draft
+      type: variable_set
+      title: "Store initial draft"
+      description: |
+        Capture the initial draft for the loop.
+      config:
+        varName: "draft"
+        varExpr: 'previous_outputs["init_draft"]["output"]'
+
+    - id: init_iteration
+      type: variable_set
+      title: "Initialize iteration counter"
+      description: |
+        Seed the loop iteration counter.
+      config:
+        varName: "iteration"
+        varValue: 0
+
+    - id: revision_loop
+      type: loop
+      title: "Critic-revise iteration loop"
+      description: |
+        Repeatedly critique the draft and revise it until quality is
+        sufficient or the iteration cap is reached.
+      config:
+        body:
+          - critic
+          - check_quality
+          - revise
+          - update_draft
+          - increment_iteration
+        max_iterations: 5
+        stop_condition: 'previous_outputs["check_quality"]["value"]'
+
+    - id: critic
+      type: llm_eval
+      title: "Critique draft"
+      description: |
+        Score the current draft and identify improvement opportunities.
+      config:
+        prompt: |
+          Draft:
+          {{ inputs.draft }}
+
+          Critique the draft. Respond with JSON:
+          {"score": 1-10, "suggestions": "..."}
+        output_schema:
+          score: integer
+          suggestions: string
+
+    - id: check_quality
+      type: condition
+      title: "Quality sufficient?"
+      description: |
+        Exit the loop if the score meets the threshold.
+      config:
+        expression: 'previous_outputs["critic"]["output"]["score"] >= inputs["quality_threshold"]'
+
+    - id: revise
+      type: llm_call
+      title: "Revise draft"
+      description: |
+        Rewrite the draft using the critic's suggestions.
+      config:
+        prompt: |
+          Current draft:
+          {{ inputs.draft }}
+
+          Critique score: {{ previous_outputs["critic"]["output"]["score"] }}
+          Suggestions: {{ previous_outputs["critic"]["output"]["suggestions"] }}
+
+          Produce an improved draft.
+
+    - id: update_draft
+      type: variable_set
+      title: "Update draft"
+      description: |
+        Carry the revised draft into the next loop iteration.
+      config:
+        varName: "draft"
+        varExpr: 'previous_outputs["revise"]["output"]'
+
+    - id: increment_iteration
+      type: variable_set
+      title: "Increment iteration counter"
+      description: |
+        Track how many revision rounds have run.
+      config:
+        varName: "iteration"
+        varExpr: 'inputs["iteration"] + 1'
+
+    - id: store_final
+      type: variable_set
+      title: "Store final draft"
+      description: |
+        Capture the final draft after the loop exits.
+      config:
+        varName: "final_draft"
+        varExpr: 'inputs["draft"]'
+
+    - id: log_final
+      type: log
+      title: "Log final draft"
+      description: |
+        Record the final draft and iteration count.
+      config:
+        level: info
+        message: "Final draft produced after {{ inputs.iteration }} iterations."
+
+  edges:
+    - source: init_draft
+      target: set_draft
+    - source: set_draft
+      target: init_iteration
+    - source: init_iteration
+      target: revision_loop
+    # Loop body edges
+    - source: revision_loop
+      target: critic
+    - source: critic
+      target: check_quality
+    - source: check_quality
+      target: revise
+      condition: "false"
+    - source: check_quality
+      target: store_final
+      condition: "true"
+    - source: revise
+      target: update_draft
+    - source: update_draft
+      target: increment_iteration
+    - source: store_final
+      target: log_final
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 900
+    max_iterations: 50
+    max_depth: 3
+
+  config: {}

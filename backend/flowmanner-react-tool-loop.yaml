@@ -1,0 +1,197 @@
+# flowmanner-react-tool-loop.yaml — version 1
+#
+# Pattern #29: ReAct tool-loop.
+#
+# Implements a bounded reasoning-acting loop. Each iteration reasons about the
+# current question and context, optionally executes an action in a sandbox,
+# observes the result, and updates context. The loop exits when an answer is
+# produced or the iteration cap is reached.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-react-tool-loop"
+description: |
+  ReAct tool-loop. Iteratively reasons about a question, executes a sandbox
+  action when needed, observes the result, updates context, and exits when
+  an answer is produced or the iteration cap is reached.
+
+blueprint_type: dag
+
+inputs:
+  question:
+    type: string
+    default: "What is the current weather in New York?"
+    description: "The question to answer."
+  max_iterations:
+    type: integer
+    default: 5
+    description: "Maximum number of reasoning-acting iterations."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: init_context
+      type: variable_set
+      title: "Initialize context"
+      description: |
+        Seed the working context and iteration counter for the loop.
+      config:
+        varName: "context"
+        varValue: ""
+
+    - id: init_react_iter
+      type: variable_set
+      title: "Initialize iteration counter"
+      description: |
+        Seed the loop iteration counter.
+      config:
+        varName: "react_iteration"
+        varValue: 0
+
+    - id: react_loop
+      type: loop
+      title: "ReAct reasoning-acting loop"
+      description: |
+        Repeatedly reason, act, and observe until an answer is found or
+        the iteration cap is reached.
+      config:
+        body:
+          - reason
+          - check_answer
+          - act
+          - observe
+          - update_context
+          - increment_react
+        max_iterations: 5
+        stop_condition: 'previous_outputs["check_answer"]["value"]'
+
+    - id: reason
+      type: llm_call
+      title: "Reason and plan action"
+      description: |
+        Given the question and accumulated context, either provide the
+        final answer (prefix with "ANSWER:") or propose the next action
+        (prefix with "ACTION:").
+      config:
+        prompt: |
+          Question: {{ inputs.question }}
+          Context: {{ inputs.context }}
+
+          Either answer the question (prefix with "ANSWER:") or propose
+          a concrete action to run in a sandbox (prefix with "ACTION:").
+
+    - id: check_answer
+      type: condition
+      title: "Answer found?"
+      description: |
+        Exit the loop if the reasoning step produced an answer.
+      config:
+        expression: '"ANSWER:" in previous_outputs["reason"]["output"]'
+
+    - id: act
+      type: sandbox
+      title: "Execute proposed action"
+      description: |
+        Run the proposed action in an egress-capable sandbox.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        task_prompt: |
+          Execute the following proposed action and return a concise
+          observation of the result.
+
+          Proposed action: {{ previous_outputs["reason"]["output"] }}
+
+    - id: observe
+      type: llm_call
+      title: "Observe and update context"
+      description: |
+        Summarize the action result and append it to the working
+        context.
+      config:
+        prompt: |
+          Question: {{ inputs.question }}
+          Current context: {{ inputs.context }}
+          Latest action result: {{ previous_outputs["act"]["output"] }}
+
+          Summarize the new observation in one or two sentences. The
+          summary will be appended to the context.
+
+    - id: update_context
+      type: variable_set
+      title: "Update working context"
+      description: |
+        Append the latest observation to the running context.
+      config:
+        varName: "context"
+        varExpr: 'inputs["context"] + "\n" + previous_outputs["observe"]["output"]'
+
+    - id: increment_react
+      type: variable_set
+      title: "Increment iteration counter"
+      description: |
+        Track how many ReAct iterations have run.
+      config:
+        varName: "react_iteration"
+        varExpr: 'inputs["react_iteration"] + 1'
+
+    - id: final_answer
+      type: llm_call
+      title: "Produce final answer"
+      description: |
+        Generate a polished final answer from the reason output and
+        accumulated context.
+      config:
+        prompt: |
+          Question: {{ inputs.question }}
+          Context: {{ inputs.context }}
+          Reasoning output: {{ previous_outputs["reason"]["output"] }}
+
+          Produce a concise final answer.
+
+    - id: log_answer
+      type: log
+      title: "Log final answer"
+      description: |
+        Record that a final answer was produced.
+      config:
+        level: info
+        message: "ReAct loop produced a final answer."
+
+  edges:
+    - source: init_context
+      target: init_react_iter
+    - source: init_react_iter
+      target: react_loop
+    # Loop body edges
+    - source: react_loop
+      target: reason
+    - source: reason
+      target: check_answer
+    - source: check_answer
+      target: final_answer
+      condition: "true"
+    - source: check_answer
+      target: act
+      condition: "false"
+    - source: act
+      target: observe
+    - source: observe
+      target: update_context
+    - source: update_context
+      target: increment_react
+    - source: final_answer
+      target: log_answer
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 900
+    max_iterations: 50
+    max_depth: 3
+
+  config: {}

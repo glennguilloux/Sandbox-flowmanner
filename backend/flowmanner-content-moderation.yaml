@@ -1,0 +1,174 @@
+# flowmanner-content-moderation.yaml — version 1
+#
+# Pattern #14: LLM-judged content moderation.
+#
+# Splits incoming user content into individual items, scores each with an
+# LLM-as-judge for harmful or policy-violating material, routes flagged
+# items through human review, and alerts via webhook when a violation is
+# confirmed.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-content-moderation"
+description: |
+  LLM-judged content moderation. Splits a batch of user content into
+  individual items, evaluates each for harmful or policy-violating
+  material, routes flagged items through human review, and alerts via
+  webhook when a violation is confirmed.
+
+blueprint_type: dag
+
+inputs:
+  content_items:
+    type: array
+    default:
+      - "This is a normal comment."
+    description: "List of user-generated content strings to moderate."
+  alert_webhook_url:
+    type: string
+    default: ""
+    description: "Webhook URL to alert when a violation is confirmed."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: split_content
+      type: split
+      title: "Iterate over content items"
+      description: |
+        Process each content item independently in parallel.
+      config:
+        mode: item
+        splitOn: "get(inputs, 'content_items')"
+
+    - id: capture_item
+      type: variable_set
+      title: "Capture content item"
+      description: |
+        Store the current split item for downstream nodes.
+      config:
+        varName: "item"
+        varValue: "{{ input }}"
+
+    - id: judge_content
+      type: llm_eval
+      title: "Judge content"
+      description: |
+        Evaluate the content for harmful or policy-violating material.
+      config:
+        prompt: |
+          Content: {{ inputs.item }}
+
+          Does this content violate community guidelines? Respond with
+          JSON: {"violation": true/false, "category": "...", "rationale": "..."}
+        output_schema:
+          violation: boolean
+          category: string
+          rationale: string
+
+    - id: extract_violation
+      type: variable_set
+      title: "Extract violation flag"
+      description: |
+        Capture the violation boolean from the judge output.
+      config:
+        varName: "is_violation"
+        varExpr: 'previous_outputs["judge_content"]["output"]["violation"]'
+
+    - id: route_violation
+      type: condition
+      title: "Content violates policy?"
+      description: |
+        Branch based on whether the judge flagged a violation.
+      config:
+        expression: 'inputs["is_violation"]'
+
+    - id: human_review
+      type: human_review
+      title: "Review flagged content"
+      description: |
+        Pause for human confirmation of the flagged content.
+      config: {}
+
+    - id: extract_review
+      type: variable_set
+      title: "Extract review decision"
+      description: |
+        Capture the human review confirmation flag.
+      config:
+        varName: "confirmed"
+        varExpr: 'previous_outputs["human_review"]["output"]["confirmed"]'
+
+    - id: check_review
+      type: condition
+      title: "Violation confirmed by reviewer?"
+      description: |
+        Branch based on the human review decision.
+      config:
+        expression: 'inputs["confirmed"]'
+
+    - id: alert_moderation
+      type: webhook
+      title: "Alert on confirmed violation"
+      description: |
+        POST an alert for the confirmed policy violation.
+      config:
+        url: "{{ inputs.alert_webhook_url }}"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+
+    - id: log_safe
+      type: log
+      title: "Log safe content"
+      description: |
+        Record that the content passed moderation.
+      config:
+        level: info
+        message: "Content passed moderation."
+
+    - id: log_rejected
+      type: log
+      title: "Log rejected content"
+      description: |
+        Record that the content was rejected after review.
+      config:
+        level: warning
+        message: "Content rejected after human review."
+
+  edges:
+    - source: split_content
+      target: capture_item
+    - source: capture_item
+      target: judge_content
+    - source: judge_content
+      target: extract_violation
+    - source: extract_violation
+      target: route_violation
+    - source: route_violation
+      target: human_review
+      condition: "true"
+    - source: route_violation
+      target: log_safe
+      condition: "false"
+    - source: human_review
+      target: extract_review
+    - source: extract_review
+      target: check_review
+    - source: check_review
+      target: alert_moderation
+      condition: "true"
+    - source: check_review
+      target: log_rejected
+      condition: "false"
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 600
+    max_iterations: 50
+    max_depth: 3
+
+  config: {}
