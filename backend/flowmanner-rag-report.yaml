@@ -1,0 +1,167 @@
+# flowmanner-rag-report.yaml — version 1
+#
+# Query a curated knowledge collection, synthesize a structured report,
+# validate the output shape, require human review, then publish via webhook.
+#
+# blueprint_type: graph (uses condition routing from validate_schema)
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-rag-report"
+description: |
+  Graph blueprint that queries a curated Qdrant knowledge collection for a
+  topic, synthesizes a structured report with an LLM, validates the JSON
+  shape, pauses for human review, and publishes the approved report to a
+  webhook.
+
+blueprint_type: graph
+
+inputs:
+  topic:
+    type: string
+    description: "What the report is about."
+  webhook_url:
+    type: string
+    default: ""
+    description: "Where to publish the finished report."
+
+definition:
+  blueprint_type: graph
+  nodes:
+    - id: retrieve
+      type: rag_query
+      title: "Retrieve relevant context"
+      description: |
+        Semantic search against the curated knowledge collection.
+      config:
+        query: "{{ inputs.topic }}"
+        collection: "default"
+
+    - id: store_context
+      type: variable_set
+      title: "Store retrieved context"
+      description: |
+        Capture the retrieved context so the synthesize node can reference it.
+      config:
+        varName: "rag_context"
+        varExpr: "get(get(previous_outputs, 'retrieve') if get(previous_outputs, 'retrieve') is not None else dict(), 'context')"
+
+    - id: synthesize
+      type: llm_call
+      title: "Synthesize structured report"
+      description: |
+        Generate a structured report from the retrieved knowledge base context.
+      config:
+        prompt: |
+          Write a structured report about: {{ inputs.topic }}
+
+          Use this context from our knowledge base:
+          {{ inputs.rag_context }}
+
+          Format your response as JSON with exactly this shape:
+          {
+            "title": "string",
+            "summary": "string",
+            "key_points": ["string", ...],
+            "recommendations": ["string", ...]
+          }
+        system_prompt: "You are a technical report writer. Output valid JSON only."
+        temperature: 0.3
+        max_tokens: 2000
+
+    - id: store_report
+      type: variable_set
+      title: "Store generated report"
+      description: |
+        Capture the synthesized report so the validate node can check it.
+      config:
+        varName: "report"
+        varExpr: "get(get(previous_outputs, 'synthesize') if get(previous_outputs, 'synthesize') is not None else dict(), 'output')"
+
+    - id: validate
+      type: validate_schema
+      title: "Validate report schema"
+      description: |
+        Ensure the synthesized report has the required fields. Route to review
+        when valid, or to a failure log when invalid. The graph strategy
+        cannot schedule cyclic back-edges (validate → synthesize retry), so
+        an invalid schema fails the run with a clear error rather than
+        retrying synthesis.
+      config:
+        payload_key: "report"
+        schema:
+          type: object
+          required:
+            - title
+            - summary
+            - key_points
+          properties:
+            title:
+              type: string
+            summary:
+              type: string
+            key_points:
+              type: array
+            recommendations:
+              type: array
+
+    - id: schema_invalid
+      type: log
+      title: "Log schema validation failure"
+      description: |
+        Reached only when the synthesized report does not match the required
+        schema. Logs the validation errors and ends the run.
+      config:
+        level: "error"
+        message: "Report schema validation failed — run aborted"
+
+    - id: review
+      type: human_review
+      title: "Review the generated report before publishing"
+      description: |
+        Pause the run and wait for a human to approve the report before it is
+        published to the configured webhook.
+      config: {}
+
+    - id: publish
+      type: webhook
+      title: "Publish report to webhook"
+      description: |
+        POST the approved report to the provided webhook URL.
+      config:
+        url: "{{ inputs.webhook_url }}"
+        method: "POST"
+        # Note: the webhook handler does NOT interpolate {{ }} tokens in the
+        # payload. We omit payload so the handler forwards the current node
+        # input/context (which contains the approved report) instead.
+        headers:
+          Content-Type: "application/json"
+
+  edges:
+    - source: retrieve
+      target: store_context
+    - source: store_context
+      target: synthesize
+    - source: synthesize
+      target: store_report
+    - source: store_report
+      target: validate
+
+    - source: validate
+      target: review
+      condition: "default"
+
+    - source: validate
+      target: schema_invalid
+      condition: "on_invalid"
+
+    - source: review
+      target: publish
+
+  budget:
+    max_cost_usd: 3.00
+    max_wall_time_seconds: 600
+    max_iterations: 30
+
+  config: {}

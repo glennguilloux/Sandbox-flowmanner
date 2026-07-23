@@ -131,6 +131,14 @@ _TASK_TYPE_MAP: dict[str, NodeType] = {
     "filter": NodeType.FILTER,
     "split": NodeType.SPLIT,
     "validate_schema": NodeType.VALIDATE_SCHEMA,
+    # Phase 4: these node types have real substrate handlers but were
+    # missing from the map, causing blueprint_to_workflow to silently
+    # collapse them to LLM_CALL (the default fallback). Without these
+    # entries, variable_set nodes in the browser blueprints became
+    # phantom LLM calls with no prompt.
+    "variable_set": NodeType.VARIABLE_SET,
+    "llm_eval": NodeType.LLM_EVAL,
+    "memory_write": NodeType.MEMORY_WRITE,
 }
 
 

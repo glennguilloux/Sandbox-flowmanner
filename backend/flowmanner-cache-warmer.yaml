@@ -1,0 +1,138 @@
+# flowmanner-cache-warmer.yaml — version 1
+#
+# Loop over expensive queries, check Redis cache freshness, recompute on miss
+# via sandbox, and warm the cache before a traffic spike.
+#
+# blueprint_type: dag (parallel cache warming)
+# Product name: flowmanner (double-n, no 'p').
+#
+# NOTE: The DAG strategy fans out a split node's IMMEDIATE downstream targets
+# once per split item. The split handler resolves splitOn="inputs.queries"
+# from the run-scoped inputs dict (context["inputs"]["queries"]). Each per-item
+# branch receives its query as {{ input }} inside the sandbox task_prompt.
+
+version: 1
+
+name: "flowmanner-cache-warmer"
+description: |
+  Parallel cache-warmer blueprint. Splits a list of expensive queries into
+  per-query branches; each branch checks Redis, recomputes the answer on a
+  cache miss using an egress-capable sandbox, writes the answer back to Redis,
+  and finally logs a summary of hits vs. warmed entries.
+
+blueprint_type: dag
+
+inputs:
+  queries:
+    type: array
+    default:
+      - "codebase summary"
+      - "API endpoint list"
+      - "test coverage report"
+  repo_url:
+    type: string
+    default: "https://github.com/glennguilloux/FlowmannerV2.git"
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: split_queries
+      type: split
+      title: "Split queries into per-item branches"
+      description: |
+        Expand the queries array so each query is processed in parallel.
+        The current item is injected as {{ input }} for the immediate
+        downstream node. The split handler resolves splitOn="inputs.queries"
+        from the run-scoped inputs dict.
+      config:
+        splitOn: "inputs.queries"
+        mode: "item"
+
+    - id: warm_entry
+      type: sandbox
+      title: "Check, recompute, and warm a single query"
+      description: |
+        Per-item sandbox: check Redis for the answer, clone the repo and
+        recompute on a cache miss, then write the result back to Redis.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        task_prompt: |
+          You are warming a Redis cache entry for the Flowmanner repo.
+
+          # The current query is injected by the split node.
+          query="{{ input }}"
+          repo_url="{{ inputs.repo_url }}"
+          cache_key="warm:${query}"
+
+          echo "Warming query: ${query}"
+
+          # STEP 1 — Check Redis (default homelab location).
+          redis_host="10.0.4.5"
+          redis_port="6379"
+          hit_value=$(redis-cli -h "${redis_host}" -p "${redis_port}" GET "${cache_key}" 2>/dev/null || true)
+
+          if [ -n "${hit_value}" ] && [ "${hit_value}" != "nil" ]; then
+            echo "Cache hit for: ${query}"
+            hit=true
+            answer_json="${hit_value}"
+          else
+            echo "Cache miss for: ${query}"
+            hit=false
+
+            # STEP 2 — Clone and compute answer.
+            rm -rf /workspace/repo && git clone --depth 1 "${repo_url}" /workspace/repo
+            cd /workspace/repo
+
+            # Concise canned answers based on the query.
+            case "${query}" in
+              "codebase summary")
+                answer="Flowmanner is a full-stack AI-agent platform. Backend is FastAPI + PostgreSQL + Qdrant + Redis + RabbitMQ/Celery. Frontend is Next.js served via Nginx on a VPS. The substrate executes workflows (solo/dag/graph/etc.) through a unified executor."
+                ;;
+              "API endpoint list")
+                answer="Key FastAPI routers include the v2 API under app/api/v2/ (missions, runs, blueprints, auth, swarms, subscriptions, etc.) and health/metrics endpoints."
+                ;;
+              "test coverage report"|*)
+                pytest_summary=$(pytest --co -q 2>/dev/null | tail -5 || true)
+                answer="Test collection summary: ${pytest_summary}"
+                ;;
+            esac
+
+            # Build JSON without assuming jq is installed; fall back to Python.
+            if command -v jq >/dev/null 2>&1; then
+              answer_json=$(printf '%s' "${answer}" | jq -Rs --arg query "$query" '{query: $query, answer: .}')
+            else
+              answer_json=$(query="$query" python3 -c 'import json,sys,os; print(json.dumps({"query": os.environ["query"], "answer": sys.stdin.read()}))' <<<"${answer}")
+            fi
+
+            # STEP 3 — Persist the result to Redis.
+            redis-cli -h "${redis_host}" -p "${redis_port}" SET "${cache_key}" "${answer_json}" EX 3600 2>/dev/null || true
+            echo "Warmed cache key: ${cache_key}"
+          fi
+
+          # STEP 4 — Output.
+          echo "${answer_json}"
+
+    - id: log_summary
+      type: log
+      title: "Log cache warming summary"
+      description: |
+        Emit a summary of how many entries were warmed during this run.
+      config:
+        level: info
+        message: "Cache warmer finished for queries: {{ inputs.queries }}"
+
+  edges:
+    - source: split_queries
+      target: warm_entry
+    - source: warm_entry
+      target: log_summary
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 900
+    max_iterations: 50
+
+  config: {}

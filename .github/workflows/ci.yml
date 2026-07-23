@@ -185,6 +185,34 @@ jobs:
           AUTH_TRUST_HOST: "true"
         run: npm run build
 
+  # ── Blueprint schema validation ────────────────────────────────
+  validate-blueprints:
+    name: Validate backend blueprints
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: cli/package-lock.json
+
+      - name: Install and build CLI
+        run: |
+          cd cli
+          npm ci --ignore-scripts
+          npm run build
+
+      - name: Validate all backend blueprints
+        run: |
+          shopt -s nullglob
+          for f in backend/flowmanner-*.yaml; do
+            echo "Validating $f"
+            node cli/dist/index.js validate "$f"
+          done
+
   # ── Docker build verification ─────────────────────────────────
   docker-build:
     name: Docker build (backend)

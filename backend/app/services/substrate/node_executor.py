@@ -2515,14 +2515,25 @@ class NodeExecutor:
         mode = node.config.get("mode", "item")
 
         # Resolve the collection from the node input / context.
+        # Resolution order:
+        # 1. "input"            → context["input"] (the per-node input key,
+        #                        set by variable_set or by split-item injection)
+        # 2. "input.<key>"      → context["input"][<key>] (nested key in input)
+        # 3. "inputs.<key>"     → context["inputs"][<key>] (run-scoped inputs
+        #                        — the canonical home for blueprint input arrays)
+        # 4. bare context key   → context[<key>] (direct context lookup)
+        inputs = context.get("inputs") or {}
         data = context.get("input", context)
-        if split_on and split_on != "input":
-            # Support "input.<key>" and bare context keys.
-            key = split_on.split(".", 1)[1] if split_on.startswith("input.") else split_on
-            source = data if split_on.startswith("input.") else context
-            collection = source.get(key) if isinstance(source, dict) else None
-        else:
+        if split_on == "input":
             collection = data
+        elif split_on.startswith("input."):
+            key = split_on.split(".", 1)[1]
+            collection = data.get(key) if isinstance(data, dict) else None
+        elif split_on.startswith("inputs."):
+            key = split_on.split(".", 1)[1]
+            collection = inputs.get(key) if isinstance(inputs, dict) else None
+        else:
+            collection = context.get(split_on) if isinstance(context, dict) else None
 
         if collection is None:
             return {

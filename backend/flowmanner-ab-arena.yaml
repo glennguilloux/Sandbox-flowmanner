@@ -1,0 +1,302 @@
+# flowmanner-ab-arena.yaml — version 1
+#
+# A/B Model Arena blueprint (Flowmanner substrate).
+# Runs the SAME coding task through three competing LLM models in parallel,
+# scores each output with an llm_eval judge, selects the winner, and persists
+# a routing prior to the shared Qdrant memory collection.
+#
+# Note on dynamic model lists:
+#   The substrate's safe-eval transform cannot call str.split(), cannot
+#   build list literals, and cannot call dict methods. This blueprint
+#   therefore uses three explicit per-branch model inputs (model_1/2/3) for
+#   the sandbox branches, and expects `models` to be supplied as a YAML/JSON
+#   array for the parse_models node.
+#
+# Product name: flowmanner (double-n, no 'p').
+# Author with the `cli/` package:
+#   flowmanner validate      # checks this file
+#   flowmanner push          # creates a draft Blueprint, prints id
+#   flowmanner publish        # mark ready to run
+#   flowmanner run --input task_prompt="..." --input repo_url="..." --input model_1="..." ...
+
+version: 1
+
+name: "flowmanner-ab-arena"
+description: |
+  Parallel A/B arena for coding tasks. A single task is dispatched to three
+  sandbox agents, each backed by a different model. An LLM-as-judge scores
+  the results on correctness, code quality, and completeness. The winning
+  model is persisted as a routing prior in shared Qdrant memory.
+
+blueprint_type: dag
+
+inputs:
+  task_prompt:
+    type: string
+  repo_url:
+    type: string
+    default: "https://github.com/glennguilloux/FlowmannerV2.git"
+  models:
+    type: array
+    description: "YAML/JSON array of model slugs. Used by parse_models; must match model_1/2/3."
+    default:
+      - "openrouter/anthropic/claude-3.5-sonnet"
+      - "openrouter/deepseek/deepseek-chat"
+      - "moonshotai/kimi-k2.7-code"
+
+  model_1:
+    type: string
+    description: "Model slug for sandbox branch 1; must match the first entry in `models`."
+    default: "openrouter/anthropic/claude-3.5-sonnet"
+  model_2:
+    type: string
+    description: "Model slug for sandbox branch 2; must match the second entry in `models`."
+    default: "openrouter/deepseek/deepseek-chat"
+  model_3:
+    type: string
+    description: "Model slug for sandbox branch 3; must match the third entry in `models`."
+    default: "moonshotai/kimi-k2.7-code"
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: parse_models
+      type: transform
+      title: "Materialize model slugs"
+      description: >
+        Build a JSON array of the per-branch model slugs from the run inputs.
+      config:
+        transformType: expression
+        transformExpression: 'get(inputs, "models") if get(inputs, "models") is not None else list()'
+
+    - id: fan_out
+      type: fan_out
+      title: "Parallel dispatch"
+      description: >
+        Strategy-level pass-through that marks the start of the parallel
+        sandbox branches.
+      config: {}
+
+    - id: sandbox_1
+      type: sandbox
+      title: "Sandbox run: model 1"
+      description: >
+        Egress-capable sandbox that clones the repo and executes the task
+        using model_1.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        model: "{{ inputs.model_1 }}"
+        task_prompt: |
+          You are running in an egress-capable sandbox with git available.
+          Clone {{ inputs.repo_url }} into /workspace/repo, then complete
+          the following task:
+
+          {{ inputs.task_prompt }}
+
+          Return a concise markdown summary of what you did and the final
+          artifact(s) you produced.
+
+    - id: sandbox_2
+      type: sandbox
+      title: "Sandbox run: model 2"
+      description: >
+        Egress-capable sandbox that clones the repo and executes the task
+        using model_2.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        model: "{{ inputs.model_2 }}"
+        task_prompt: |
+          You are running in an egress-capable sandbox with git available.
+          Clone {{ inputs.repo_url }} into /workspace/repo, then complete
+          the following task:
+
+          {{ inputs.task_prompt }}
+
+          Return a concise markdown summary of what you did and the final
+          artifact(s) you produced.
+
+    - id: sandbox_3
+      type: sandbox
+      title: "Sandbox run: model 3"
+      description: >
+        Egress-capable sandbox that clones the repo and executes the task
+        using model_3.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        model: "{{ inputs.model_3 }}"
+        task_prompt: |
+          You are running in an egress-capable sandbox with git available.
+          Clone {{ inputs.repo_url }} into /workspace/repo, then complete
+          the following task:
+
+          {{ inputs.task_prompt }}
+
+          Return a concise markdown summary of what you did and the final
+          artifact(s) you produced.
+
+    - id: store_output_1
+      type: variable_set
+      title: "Store sandbox 1 output"
+      description: >
+        Capture the output of sandbox_1 into the run-scoped inputs dict so
+        the judge can reference it.
+      config:
+        varName: "output_1"
+        varExpr: "get(get(previous_outputs, 'sandbox_1') if get(previous_outputs, 'sandbox_1') is not None else dict(), 'output')"
+
+    - id: store_output_2
+      type: variable_set
+      title: "Store sandbox 2 output"
+      description: >
+        Capture the output of sandbox_2 into the run-scoped inputs dict so
+        the judge can reference it.
+      config:
+        varName: "output_2"
+        varExpr: "get(get(previous_outputs, 'sandbox_2') if get(previous_outputs, 'sandbox_2') is not None else dict(), 'output')"
+
+    - id: store_output_3
+      type: variable_set
+      title: "Store sandbox 3 output"
+      description: >
+        Capture the output of sandbox_3 into the run-scoped inputs dict so
+        the judge can reference it.
+      config:
+        varName: "output_3"
+        varExpr: "get(get(previous_outputs, 'sandbox_3') if get(previous_outputs, 'sandbox_3') is not None else dict(), 'output')"
+
+    - id: fan_in
+      type: fan_in
+      title: "Merge results"
+      description: >
+        Strategy-level pass-through that marks the join point after the
+        parallel sandbox branches.
+      config: {}
+
+    - id: judge
+      type: llm_eval
+      title: "LLM-as-judge"
+      description: >
+        Score each sandbox output on correctness, code quality, and
+        completeness (1-10 scale) with rationale, then identify the winner.
+      config:
+        output_schema:
+          scores:
+            - model: string
+              score: integer
+              rationale: string
+          winner: string
+        prompt: |
+          You are an expert software engineering judge. Three models were
+          given the same task. Review each output and return a JSON object of
+          the form:
+
+          {
+            "scores": [
+              {"model": "MODEL_SLUG", "score": 8, "rationale": "..."},
+              ...
+            ],
+            "winner": "MODEL_SLUG"
+          }
+
+          Task:
+          {{ inputs.task_prompt }}
+
+          Model {{ inputs.model_1 }} output:
+          {{ inputs.output_1 }}
+
+          Model {{ inputs.model_2 }} output:
+          {{ inputs.output_2 }}
+
+          Model {{ inputs.model_3 }} output:
+          {{ inputs.output_3 }}
+
+    - id: store_judge
+      type: variable_set
+      title: "Store judge output"
+      description: >
+        Capture the judge's scores and winner into the run-scoped inputs
+        dict so downstream nodes can use them.
+      config:
+        varName: "output_judge"
+        varExpr: "get(get(previous_outputs, 'judge') if get(previous_outputs, 'judge') is not None else dict(), 'output')"
+
+    - id: pick_winner
+      type: transform
+      title: "Pick winner"
+      description: >
+        Select the highest-scored model from the judge output.
+      config:
+        transformType: expression
+        transformExpression: "get(inputs, 'output_judge')"
+
+    - id: save_prior
+      type: memory_write
+      title: "Save routing prior"
+      description: >
+        Persist the task class, winning model, scores, and timestamp to
+        the shared Qdrant memory collection for future routing decisions.
+      config:
+        collection: "flowmanner_memory"
+        # The memory_write handler stores `payload` verbatim (it does not
+        # interpolate {{ inputs.* }} tokens). Dynamic prior data is therefore
+        # captured in the `text` field, which is interpolated and used for
+        # the Qdrant embedding as well as the stored text payload.
+        payload:
+          schema: routing_prior
+          source: flowmanner-ab-arena
+        text: |
+          routing prior for task: {{ inputs.task_prompt }}
+          judge output: {{ inputs.output_judge }}
+
+  edges:
+    - source: parse_models
+      target: fan_out
+
+    - source: fan_out
+      target: sandbox_1
+    - source: fan_out
+      target: sandbox_2
+    - source: fan_out
+      target: sandbox_3
+
+    - source: sandbox_1
+      target: store_output_1
+    - source: sandbox_2
+      target: store_output_2
+    - source: sandbox_3
+      target: store_output_3
+
+    - source: store_output_1
+      target: fan_in
+    - source: store_output_2
+      target: fan_in
+    - source: store_output_3
+      target: fan_in
+
+    - source: fan_in
+      target: judge
+
+    - source: judge
+      target: store_judge
+
+    - source: store_judge
+      target: pick_winner
+
+    - source: pick_winner
+      target: save_prior
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 900
+    max_iterations: 30
+
+  config: {}

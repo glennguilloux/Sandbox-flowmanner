@@ -1,0 +1,159 @@
+# flowmanner-institutional-memory.yaml — version 1
+#
+# Self-referential blueprint that ACCUMULATES knowledge across runs.
+# A single sandbox node queries Qdrant for prior findings about a topic,
+# performs the Flowmanner self-audit, and writes the new findings back to
+# the shared Qdrant memory collection.
+#
+# blueprint_type: solo (proven single-node pattern, see flowmanner.yaml)
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-institutional-memory"
+description: |
+  Self-referential institutional memory blueprint. Each run recalls prior
+  findings from Qdrant, audits the Flowmanner repo, and writes the new
+  findings back so the blueprint grows smarter over time.
+
+blueprint_type: solo
+
+inputs:
+  repo_url:
+    type: string
+    default: "https://github.com/glennguilloux/FlowmannerV2.git"
+  topic:
+    type: string
+    default: "codebase health"
+  workdir:
+    type: string
+    default: "/workspace/repo"
+  model:
+    type: string
+    default: ""
+    description: "Optional model override for the sandbox agent."
+
+definition:
+  blueprint_type: solo
+  nodes:
+    - id: institutional_memory_audit
+      type: sandbox
+      title: "Recall, audit, and persist institutional memory"
+      description: |
+        Single sandbox node that (1) searches Qdrant for prior findings on
+        the topic, (2) clones and audits the Flowmanner repo, and (3) writes
+        the new findings back to the shared memory collection.
+      config:
+        template: worker-standard
+        shared_workspace: false
+        snapshot_before: false
+        agent: opencode
+        model: "{{ inputs.model }}"
+        task_prompt: |
+          You are an institutional-memory auditor for the Flowmanner codebase.
+          Execute the following steps with shell commands, then output ONLY a
+          JSON code block (no prose outside the block).
+
+          STEP 1 — Recall prior findings from Qdrant
+            # Inputs are interpolated by the substrate before the sandbox runs.
+            topic="{{ inputs.topic }}"
+            qdrant_url="http://localhost:6333"
+            collection="flowmanner_memory"
+
+            # Use Qdrant's scroll API with a payload filter on the stored topic.
+            # This avoids the need to generate an embedding vector.
+            curl -s -X POST "${qdrant_url}/collections/${collection}/points/scroll" \
+              -H "Content-Type: application/json" \
+              -d "{\"filter\":{\"must\":[{\"key\":\"topic\",\"match\":{\"value\":\"${topic}\"}}]},\"limit\":5,\"with_payload\":true,\"with_vector\":false}" \
+              > /tmp/prior_points.json 2>/dev/null || true
+
+            echo "Prior points retrieved (if any):"
+            cat /tmp/prior_points.json 2>/dev/null || echo "{}"
+
+          STEP 2 — Clone and audit the repo
+            repo_url="{{ inputs.repo_url }}"
+            workdir="{{ inputs.workdir }}"
+            rm -rf "$workdir" && git clone --depth 1 "$repo_url" "$workdir"
+            cd "$workdir"
+
+            # Gather signals
+            echo "--- pytest collect ---"
+            pytest --co -q 2>/dev/null | tail -3 || true
+            echo "--- ruff check ---"
+            ruff check . 2>/dev/null | tail -5 || true
+            echo "--- debt markers ---"
+            grep -rnE '\b(TODO|FIXME|HACK|XXX)\b' backend --include=*.py \
+              | grep -vE '_quarantine|XXX-[0-9]{2}-[0-9]{4}' | head -40 || true
+            echo "--- quarantined tests ---"
+            ls backend/tests/_quarantine/ 2>/dev/null || true
+            echo "--- plan/doc signals ---"
+            ls docs/ .sisyphus/plans/ 2>/dev/null || true
+            grep -rln ' drift\|gap\|known issue\|Active Warnings' \
+              backend/Docs/ AGENTS.md 2>/dev/null | head || true
+
+          STEP 3 — Synthesize new findings
+            Incorporate the topic and any prior points (from /tmp/prior_points.json)
+            into the analysis. Produce a JSON object of the form:
+              {
+                "topic": "<the topic>",
+                "timestamp": "<ISO-8601>",
+                "summary": "one-paragraph synthesis",
+                "clues": [
+                  {
+                    "id": "short-kebab-id",
+                    "title": "one-line clue",
+                    "why": "what signal implies this",
+                    "file_hint": "path or glob",
+                    "severity": "high|medium|low",
+                    "effort": "s|m|l",
+                    "status": "open|done|stale"
+                  }
+                ],
+                "memory_id": "<unique id for this run>"
+              }
+            Rules:
+              - 5–15 clues max; dedupe.
+              - severity from blast radius (auth, data, money = high).
+              - effort s < 1 file, m = few files, l = cross-cutting.
+              - If a prior finding on the same topic is still valid, keep it
+                and update its status; mark resolved items as "done".
+
+          STEP 4 — Persist the new finding to Qdrant
+            Write the JSON synthesis to /tmp/finding.json.
+            Create a deterministic point id (e.g., UUID or hash of topic+timestamp).
+            POST the point to Qdrant:
+              POST ${qdrant_url}/collections/${collection}/points
+              Body: {
+                "points": [
+                  {
+                    "id": "<deterministic-id>",
+                    "payload": {
+                      "schema": "institutional_memory",
+                      "source": "flowmanner-institutional-memory",
+                      "topic": "<topic>",
+                      "text": "topic: <topic>\\nfindings: <synthesis summary>"
+                    }
+                  }
+                ]
+              }
+            Note: Qdrant requires a vector for each point. If the collection has
+            a named vector or default vector, supply a zero-vector of the correct
+            dimensionality (obtained from /tmp/collection_info.json) OR use the
+            /collections/{collection}/points payload endpoint that auto-generates
+            an id. If you cannot determine the vector size, store the point without
+            a vector and let Qdrant reject it gracefully; do not fail the audit.
+
+          STEP 5 — Output
+            Print exactly one fenced json block:
+              ```json
+              { ...the synthesis object... }
+              ```
+            Nothing else.
+
+  edges: []
+  budget:
+    max_cost_usd: 2.00
+    max_wall_time_seconds: 900
+    max_iterations: 30
+    max_depth: 1
+  config: {}

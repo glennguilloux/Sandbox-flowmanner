@@ -121,7 +121,7 @@ class BaselineExtractor:
         behaviors.append(
             {
                 "type": "latency",
-                "max_duration_seconds": (int(duration * latency_headroom) if duration > 0 else 300),
+                "max_duration_seconds": (round(duration * latency_headroom, 3) if duration > 0 else 300),
                 "warn_at_pct": 80,
             }
         )
