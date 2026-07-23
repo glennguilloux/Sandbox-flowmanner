@@ -1,0 +1,177 @@
+# flowmanner-self-consistency.yaml — version 1
+#
+# Pattern #49: Self-consistency sampler.
+#
+# Runs the same prompt multiple times in parallel, merges the outputs, and uses
+# an LLM-as-judge to select the most consistent answer. The chosen answer is
+# logged, and a confidence score is persisted to shared memory.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-self-consistency"
+description: |
+  Self-consistency sampler. Runs the same prompt several times in parallel,
+  collects the outputs, and asks an LLM judge to pick the most consistent
+  answer and estimate a confidence score. The result is written to memory.
+
+blueprint_type: dag
+
+inputs:
+  task_prompt:
+    type: string
+    default: "What is the capital of Australia?"
+    description: "The prompt to sample for self-consistency."
+  model:
+    type: string
+    default: ""
+    description: "Optional model override for the parallel calls and judge."
+  num_runs:
+    type: integer
+    default: 3
+    description: "Number of parallel samples to generate."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: build_runs
+      type: variable_set
+      title: "Build run identifiers"
+      description: |
+        Create a list of run identifiers from the requested sample count.
+      config:
+        varName: "runs"
+        varExpr: 'list(range(inputs["num_runs"]))'
+
+    - id: split_runs
+      type: split
+      title: "Split into parallel runs"
+      description: |
+        Fan out one branch per consistency sample.
+      config:
+        splitOn: "inputs.runs"
+        mode: "item"
+
+    - id: sample_call
+      type: llm_call
+      title: "Sample model output"
+      description: |
+        Run the model once for this sample.
+      config:
+        model: "{{ inputs.model }}"
+        prompt: |
+          {{ inputs.task_prompt }}
+        system_prompt: "You are a helpful assistant. Answer concisely."
+        temperature: 0.7
+        max_tokens: 500
+
+    - id: merge_samples
+      type: merge
+      title: "Merge sampled outputs"
+      description: |
+        Gather all parallel sample outputs.
+      config:
+        mergeStrategy: "concat"
+
+    - id: format_outputs
+      type: transform
+      title: "Format samples for judge"
+      description: |
+        Convert the merged sample list into a single string the judge
+        can reason over.
+      config:
+        transformType: "expression"
+        transformExpression: '"\\n---\\n".join(str(item) for item in previous_outputs["merge_samples"]["merged"]) if previous_outputs["merge_samples"]["merged"] else ""'
+
+    - id: store_formatted
+      type: variable_set
+      title: "Store formatted samples"
+      description: |
+        Capture the formatted samples for the consensus evaluator.
+      config:
+        varName: "formatted_samples"
+        varExpr: 'previous_outputs["format_outputs"]["output"]'
+
+    - id: consensus_eval
+      type: llm_eval
+      title: "Determine consensus"
+      description: |
+        Pick the most consistent answer across the samples and estimate
+        a confidence score.
+      config:
+        model: "{{ inputs.model }}"
+        output_schema:
+          best_answer: string
+          confidence_score: integer
+        prompt: |
+          The same question was answered multiple times. Choose the most
+          consistent answer and provide a confidence score (0-100). Return
+          a JSON object with keys:
+            {"best_answer": "the chosen answer", "confidence_score": 0-100}
+
+          Question: {{ inputs.task_prompt }}
+
+          Sample answers:
+          {{ inputs.formatted_samples }}
+        system_prompt: "You are a consensus evaluator. Return valid JSON only."
+        temperature: 0.2
+        max_tokens: 300
+
+    - id: store_consensus
+      type: variable_set
+      title: "Store consensus answer"
+      description: |
+        Capture the chosen answer for logging and memory.
+      config:
+        varName: "final_answer"
+        varExpr: 'previous_outputs["consensus_eval"]["output"]["best_answer"]'
+
+    - id: log_result
+      type: log
+      title: "Log consensus result"
+      description: |
+        Record the chosen answer and confidence.
+      config:
+        level: info
+        message: "Self-consensus answer: {{ inputs.final_answer }}"
+
+    - id: memory_store
+      type: memory_write
+      title: "Persist consensus"
+      description: |
+        Write the final consensus answer to shared memory.
+      config:
+        collection: "flowmanner_memory"
+        text: |
+          Self-consistency result for: {{ inputs.task_prompt }}
+          Consensus answer: {{ inputs.final_answer }}
+
+  edges:
+    - source: build_runs
+      target: split_runs
+    - source: split_runs
+      target: sample_call
+    - source: sample_call
+      target: merge_samples
+    - source: merge_samples
+      target: format_outputs
+    - source: format_outputs
+      target: store_formatted
+    - source: store_formatted
+      target: consensus_eval
+    - source: consensus_eval
+      target: store_consensus
+    - source: store_consensus
+      target: log_result
+    - source: log_result
+      target: memory_store
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 600
+    max_iterations: 30
+    max_depth: 3
+
+  config: {}

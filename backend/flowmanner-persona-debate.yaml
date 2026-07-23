@@ -1,0 +1,209 @@
+# flowmanner-persona-debate.yaml — version 1
+#
+# Pattern #48: Persona debate.
+#
+# Splits a task into two persona branches (optimistic architect vs. pessimistic
+# critic), runs both in parallel, then uses an LLM-as-judge to synthesize the
+# two viewpoints into a single balanced answer.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-persona-debate"
+description: |
+  Persona-debate blueprint. An task is answered twice in parallel by two
+  personas: an optimistic architect and a pessimistic critic. An LLM judge
+  then synthesizes the two positions into a final recommendation.
+
+blueprint_type: dag
+
+inputs:
+  task_prompt:
+    type: string
+    default: "Propose a cloud architecture for a startup."
+    description: "The task or question the personas will debate."
+  model:
+    type: string
+    default: ""
+    description: "Optional model override for the persona calls and judge."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: set_branches
+      type: variable_set
+      title: "Define debate branches"
+      description: |
+        Materialize the two persona roles so the split node can fan out
+        one branch per persona.
+      config:
+        varName: "branches"
+        varValue:
+          - "optimist"
+          - "pessimist"
+
+    - id: split_branches
+      type: split
+      title: "Split into persona branches"
+      description: |
+        Fan out one branch for each persona.
+      config:
+        splitOn: "inputs.branches"
+        mode: "item"
+
+    - id: set_branch
+      type: variable_set
+      title: "Capture current persona"
+      description: |
+        Store the split item so downstream nodes can branch on it.
+      config:
+        varName: "branch"
+        varValue: "{{ input }}"
+
+    - id: route_branch
+      type: condition
+      title: "Optimist branch?"
+      description: |
+        Route to the appropriate persona call based on the current branch.
+      config:
+        expression: 'inputs["branch"] == "optimist"'
+
+    - id: optimist_call
+      type: llm_call
+      title: "Optimist persona"
+      description: |
+        Answer the task from the optimistic architect perspective.
+      config:
+        model: "{{ inputs.model }}"
+        prompt: |
+          You are an optimistic architect. Focus on ideal outcomes,
+          opportunities, and best-case design. Answer the following:
+
+          {{ inputs.task_prompt }}
+        system_prompt: "You are an optimistic architect. Be constructive and forward-looking."
+        temperature: 0.5
+        max_tokens: 800
+
+    - id: pessimist_call
+      type: llm_call
+      title: "Pessimist persona"
+      description: |
+        Answer the task from the pessimistic critic perspective.
+      config:
+        model: "{{ inputs.model }}"
+        prompt: |
+          You are a pessimistic critic. Focus on risks, failure modes,
+          and constraints. Answer the following:
+
+          {{ inputs.task_prompt }}
+        system_prompt: "You are a pessimistic critic. Be rigorous and risk-aware."
+        temperature: 0.5
+        max_tokens: 800
+
+    - id: store_optimist
+      type: variable_set
+      title: "Store optimist output"
+      description: |
+        Capture the optimist response for synthesis.
+      config:
+        varName: "optimist_output"
+        varExpr: 'previous_outputs["optimist_call"]["output"]'
+
+    - id: store_pessimist
+      type: variable_set
+      title: "Store pessimist output"
+      description: |
+        Capture the pessimist response for synthesis.
+      config:
+        varName: "pessimist_output"
+        varExpr: 'previous_outputs["pessimist_call"]["output"]'
+
+    - id: merge_outputs
+      type: merge
+      title: "Merge persona outputs"
+      description: |
+        Aggregate the outputs from both personas.
+      config:
+        mergeStrategy: "concat"
+
+    - id: judge_synth
+      type: llm_eval
+      title: "Synthesize debate"
+      description: |
+        Combine the optimistic and pessimistic responses into a single
+        balanced recommendation.
+      config:
+        model: "{{ inputs.model }}"
+        output_schema:
+          synthesis: string
+          rationale: string
+        prompt: |
+          You are a balanced mediator. Synthesize the following optimistic
+          and pessimistic responses into a single recommendation. Return a
+          JSON object with keys:
+            {"synthesis": "final recommendation", "rationale": "short reason"}
+
+          Optimist response:
+          {{ inputs.optimist_output }}
+
+          Pessimist response:
+          {{ inputs.pessimist_output }}
+        system_prompt: "You are a balanced mediator. Return valid JSON only."
+        temperature: 0.3
+        max_tokens: 800
+
+    - id: store_synthesis
+      type: variable_set
+      title: "Store final synthesis"
+      description: |
+        Capture the judge's synthesis for the log.
+      config:
+        varName: "final_synth"
+        varExpr: 'previous_outputs["judge_synth"]["output"]["synthesis"]'
+
+    - id: log_result
+      type: log
+      title: "Log final synthesis"
+      description: |
+        Record that the persona debate completed.
+      config:
+        level: info
+        message: "Persona debate completed. Synthesis: {{ inputs.final_synth }}"
+
+  edges:
+    - source: set_branches
+      target: split_branches
+    - source: split_branches
+      target: set_branch
+    - source: set_branch
+      target: route_branch
+    - source: route_branch
+      target: optimist_call
+      condition: "true"
+    - source: route_branch
+      target: pessimist_call
+      condition: "false"
+    - source: optimist_call
+      target: store_optimist
+    - source: pessimist_call
+      target: store_pessimist
+    - source: store_optimist
+      target: merge_outputs
+    - source: store_pessimist
+      target: merge_outputs
+    - source: merge_outputs
+      target: judge_synth
+    - source: judge_synth
+      target: store_synthesis
+    - source: store_synthesis
+      target: log_result
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 600
+    max_iterations: 30
+    max_depth: 3
+
+  config: {}

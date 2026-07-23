@@ -1,0 +1,195 @@
+# flowmanner-model-cascade.yaml — version 1
+#
+# Pattern #30: Model cascade.
+#
+# Starts with a cheap/fast model. An LLM-as-judge evaluates whether the output
+# is sufficient. If not, the blueprint falls back to a stronger, more
+# expensive model. The final chosen output is written to shared memory.
+#
+# blueprint_type: dag
+# Product name: flowmanner (double-n, no 'p').
+
+version: 1
+
+name: "flowmanner-model-cascade"
+description: |
+  Model-cascade blueprint. Tries a cheap model first, judges the result, and
+  only invokes an expensive model when the cheap output is judged
+  insufficient. The final output is persisted to shared memory.
+
+blueprint_type: dag
+
+inputs:
+  task_prompt:
+    type: string
+    default: "Explain quantum computing briefly."
+    description: "The task to run through the model cascade."
+  cheap_model:
+    type: string
+    default: "openrouter/anthropic/claude-3-haiku"
+    description: "Cheap/fast model slug."
+  expensive_model:
+    type: string
+    default: "openrouter/anthropic/claude-3-opus"
+    description: "Strong/expensive model slug for fallback."
+
+definition:
+  blueprint_type: dag
+  nodes:
+    - id: cheap_call
+      type: llm_call
+      title: "Cheap model call"
+      description: |
+        First attempt using the cheap, fast model.
+      config:
+        model: "{{ inputs.cheap_model }}"
+        prompt: |
+          {{ inputs.task_prompt }}
+        system_prompt: "You are a helpful assistant. Be concise."
+        temperature: 0.4
+        max_tokens: 800
+
+    - id: store_cheap
+      type: variable_set
+      title: "Store cheap output"
+      description: |
+        Capture the cheap model output for evaluation.
+      config:
+        varName: "cheap_output"
+        varExpr: 'previous_outputs["cheap_call"]["output"]'
+
+    - id: judge_cheap
+      type: llm_eval
+      title: "Judge cheap output quality"
+      description: |
+        Decide whether the cheap output is good enough or if we need the
+        expensive fallback.
+      config:
+        model: "{{ inputs.cheap_model }}"
+        output_schema:
+          sufficient: boolean
+          rationale: string
+        prompt: |
+          Evaluate whether the following output is a complete, accurate,
+          and well-formed answer to the task. Return a JSON object with
+          keys: {"sufficient": true/false, "rationale": "short reason"}.
+
+          Task: {{ inputs.task_prompt }}
+
+          Output:
+          {{ inputs.cheap_output }}
+        system_prompt: "You are a quality judge. Return valid JSON only."
+        temperature: 0.2
+        max_tokens: 200
+
+    - id: store_judge
+      type: variable_set
+      title: "Store quality verdict"
+      description: |
+        Pull the sufficiency verdict into a run-scoped variable.
+      config:
+        varName: "is_sufficient"
+        varExpr: 'previous_outputs["judge_cheap"]["output"]["sufficient"]'
+
+    - id: check_quality
+      type: condition
+      title: "Is the cheap output sufficient?"
+      description: |
+        Branch based on the quality verdict.
+      config:
+        expression: 'inputs["is_sufficient"]'
+
+    - id: save_cheap_final
+      type: variable_set
+      title: "Use cheap output as final"
+      description: |
+        The cheap output is good enough; route it forward.
+      config:
+        varName: "final_output"
+        varExpr: 'inputs["cheap_output"]'
+
+    - id: expensive_call
+      type: llm_call
+      title: "Expensive model fallback"
+      description: |
+        Fallback to the stronger model when the cheap output is judged
+        insufficient.
+      config:
+        model: "{{ inputs.expensive_model }}"
+        prompt: |
+          {{ inputs.task_prompt }}
+        system_prompt: "You are a helpful assistant. Provide a thorough answer."
+        temperature: 0.4
+        max_tokens: 1500
+
+    - id: save_expensive
+      type: variable_set
+      title: "Use expensive output as final"
+      description: |
+        Capture the expensive model output as the final result.
+      config:
+        varName: "final_output"
+        varExpr: 'previous_outputs["expensive_call"]["output"]'
+
+    - id: merge_final
+      type: merge
+      title: "Merge final output branches"
+      description: |
+        Join the cheap and expensive fallback branches before persisting
+        the result.
+      config:
+        mergeStrategy: "concat"
+
+    - id: write_memory
+      type: memory_write
+      title: "Persist final output"
+      description: |
+        Write the final chosen output to shared memory.
+      config:
+        collection: "flowmanner_memory"
+        text: |
+          Cascade result for task: {{ inputs.task_prompt }}
+          Final output: {{ inputs.final_output }}
+
+    - id: log_done
+      type: log
+      title: "Log cascade completion"
+      description: |
+        Record that the model cascade finished.
+      config:
+        level: info
+        message: "Model cascade completed and result persisted."
+
+  edges:
+    - source: cheap_call
+      target: store_cheap
+    - source: store_cheap
+      target: judge_cheap
+    - source: judge_cheap
+      target: store_judge
+    - source: store_judge
+      target: check_quality
+    - source: check_quality
+      target: save_cheap_final
+      condition: "true"
+    - source: check_quality
+      target: expensive_call
+      condition: "false"
+    - source: save_cheap_final
+      target: merge_final
+    - source: expensive_call
+      target: save_expensive
+    - source: save_expensive
+      target: merge_final
+    - source: merge_final
+      target: write_memory
+    - source: write_memory
+      target: log_done
+
+  budget:
+    max_cost_usd: 5.00
+    max_wall_time_seconds: 600
+    max_iterations: 20
+    max_depth: 3
+
+  config: {}
